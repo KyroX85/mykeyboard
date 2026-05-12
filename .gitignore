@@ -13,3 +13,13 @@
 .externalNativeBuild
 .cxx
 local.properties
+.idea/
+.kotlin/
+build/
+.gradle/
+local.properties
+*.log
+app/release/
+app/debug/
+app/src/main/assets/config.properties
+app/google-services.json
