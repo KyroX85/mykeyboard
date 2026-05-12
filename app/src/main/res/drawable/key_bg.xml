@@ -1,0 +1,33 @@
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="#40FFFFFF">
+
+    <!-- PRESSED SHAPE -->
+    <item android:id="@android:id/mask">
+        <shape>
+            <solid android:color="#FFFFFF"/>
+            <corners android:radius="8dp"/>
+        </shape>
+    </item>
+
+    <!-- BACKGROUND -->
+    <item>
+        <selector>
+
+            <item android:state_pressed="true">
+                <shape>
+                    <solid android:color="#3A3A3A"/>
+                    <corners android:radius="8dp"/>
+                </shape>
+            </item>
+
+            <item>
+                <shape>
+                    <solid android:color="#2B2B2B"/>
+                    <corners android:radius="8dp"/>
+                </shape>
+            </item>
+
+        </selector>
+    </item>
+
+</ripple>

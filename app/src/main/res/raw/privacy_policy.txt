@@ -1,0 +1,17 @@
+PRIVACY POLICY FOR MYKEYBOARD
+
+Last Updated: April 2026
+
+1. DATA COLLECTION
+MyKeyboard collects typing patterns to understand user behavior.
+
+2. DATA STORAGE
+All typing data is stored locally on your device in app-private storage.
+
+3. DATA SHARING
+We do NOT share your data with third parties.
+
+4. CONTACT
+For privacy concerns: [kaameshb09@gmail.com]
+
+This privacy policy may be updated at any time.

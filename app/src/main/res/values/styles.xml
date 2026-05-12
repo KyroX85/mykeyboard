@@ -1,0 +1,7 @@
+<resources>
+
+    <style name="Theme.ArtenisAI" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="android:statusBarColor">#000000</item>
+    </style>
+
+</resources>
