@@ -1,0 +1,16 @@
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="60dp"
+    android:layout_height="80dp"
+    android:background="@drawable/key_preview_bg"
+    android:elevation="12dp"
+    android:padding="6dp">
+
+    <TextView
+        android:id="@+id/previewText"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:textColor="#FFFFFF"
+        android:textSize="30sp"
+        android:textStyle="bold"/>
+</FrameLayout>
