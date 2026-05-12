@@ -1,2 +1,2 @@
  # Aritenis Keyboard
-AI keyboard for typing behavior analysis
+AI-powered Android keyboard with local learning and smart suggestions
