@@ -74,6 +74,7 @@ class KeyboardService : InputMethodService() {
     private var isLongPressActive = false
     private var touchStartX = 0f
     private var spaceLastStep = 0
+    private var activePopup: PopupWindow? = null
 
     private val httpClient = OkHttpClient()
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -103,104 +104,42 @@ class KeyboardService : InputMethodService() {
     override fun onCreate() {
         super.onCreate()
         ConfigManager.init(this)
-        predictor = BasicPredictor(this)
+        predictor = BasicPredictor(this, scope)
+    }
+
+    override fun onEvaluateFullscreenMode(): Boolean = false
+
+    override fun onUpdateExtractingViews(ei: android.view.inputmethod.EditorInfo?) {
+        // No-op to prevent fullscreen extract UI
     }
 
     override fun onCreateInputView(): View {
-        root = FrameLayout(this).apply {
-            layoutParams = FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.WRAP_CONTENT,
-                Gravity.BOTTOM
-            )
-            setBackgroundColor(Color.TRANSPARENT)
-        }
+        cleanupInputViewState()
+        suggestionButtons.clear()
+        keyButtons.clear()
 
-        mainContainer = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            layoutParams = FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.WRAP_CONTENT,
-                Gravity.BOTTOM
-            )
-        }
+        val layout = layoutInflater.inflate(R.layout.keyboard_container, null)
+        root = layout as FrameLayout
+        
+        mainContainer = layout.findViewById(R.id.mainContainer)
+        suggestionBar = layout.findViewById(R.id.suggestionBar)
+        keyboardLayout = layout.findViewById(R.id.lettersLayout)
+        toolbarRow = layout.findViewById(R.id.toolbarRow)
+        
+        emojiContainer = layout.findViewById(R.id.emojiContainer)
+        emojiGrid = layout.findViewById(R.id.emojiPanel)
+        emojiBackButton = layout.findViewById(R.id.backToKeyboard)
 
-        suggestionBar = createSuggestionBar()
-
-        val keyboardPanel = FrameLayout(this).apply {
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-            background = resources.getDrawable(R.drawable.keyboard_container_bg, theme)
-            clipToOutline = true
-        }
-
-        val bgImage = ImageView(this).apply {
-            layoutParams = FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.MATCH_PARENT
-            )
-            setImageResource(R.drawable.bg_keyboard)
-            scaleType = ImageView.ScaleType.CENTER_CROP
-            alpha = 0.72f
-        }
-
-        val darkOverlay = View(this).apply {
-            layoutParams = FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.MATCH_PARENT
-            )
-            setBackgroundColor(Color.parseColor("#99000000"))
-        }
-
-        val panelContent = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            layoutParams = FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.WRAP_CONTENT
-            )
-            setPadding(dp(4), dp(6), dp(4), dp(4))
-        }
-
-        keyboardLayout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-        }
-
-        toolbarRow = createToolbarRow()
-        setupEmojiPanel()
-
-        panelContent.addView(keyboardLayout)
-        panelContent.addView(toolbarRow)
-        keyboardPanel.addView(bgImage)
-        keyboardPanel.addView(darkOverlay)
-        keyboardPanel.addView(panelContent)
-
-        mainContainer.addView(suggestionBar)
-        mainContainer.addView(keyboardPanel)
-        root.addView(mainContainer)
-        root.addView(emojiContainer)
+        setupSuggestionBar()
+        setupToolbarRow()
+        setupEmojiPanelContent()
 
         buildKeyboard()
         return root
     }
 
-    private fun createSuggestionBar(): LinearLayout {
-        val bar = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setBackgroundColor(Color.parseColor("#111111"))
-            setPadding(dp(8), 0, dp(8), 0)
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(32)
-            )
-        }
-
+    private fun setupSuggestionBar() {
+        suggestionBar.removeAllViews()
         repeat(3) {
             val suggestionBtn = TextView(this).apply {
                 layoutParams = LinearLayout.LayoutParams(
@@ -227,25 +166,13 @@ class KeyboardService : InputMethodService() {
                 }
             }
 
-            bar.addView(suggestionBtn)
+            suggestionBar.addView(suggestionBtn)
             suggestionButtons.add(suggestionBtn)
         }
-
-        return bar
     }
 
-    private fun createToolbarRow(): LinearLayout {
-        val row = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
-            setBackgroundColor(Color.TRANSPARENT)
-            setPadding(dp(2), dp(2), dp(2), 0)
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(34)
-            )
-        }
-
+    private fun setupToolbarRow() {
+        toolbarRow.removeAllViews()
         val toolbarButtons = listOf("✦", "Aa", "↧", "💼", "📷")
         toolbarButtons.forEach { label ->
             val toolbarBtn = Button(this).apply {
@@ -254,7 +181,7 @@ class KeyboardService : InputMethodService() {
                 textSize = if (label.length == 1) 15f else 11f
                 typeface = Typeface.DEFAULT_BOLD
                 setTextColor(Color.parseColor("#BBBBBB"))
-                background = resources.getDrawable(R.drawable.key_bg, theme)
+                background = resources.getDrawable(R.getDrawable.key_bg, theme)
                 stateListAnimator = null
                 minWidth = 0
                 minimumWidth = 0
@@ -272,57 +199,11 @@ class KeyboardService : InputMethodService() {
                     Toast.makeText(this@KeyboardService, "Coming soon", Toast.LENGTH_SHORT).show()
                 }
             }
-            row.addView(toolbarBtn)
+            toolbarRow.addView(toolbarBtn)
         }
-
-        return row
     }
 
-    private fun setupEmojiPanel() {
-        emojiContainer = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            visibility = View.GONE
-            setBackgroundColor(Color.parseColor("#111111"))
-            layoutParams = FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.WRAP_CONTENT,
-                Gravity.BOTTOM
-            )
-        }
-
-        emojiBackButton = Button(this).apply {
-            text = "ABC"
-            isAllCaps = false
-            textSize = 15f
-            typeface = Typeface.DEFAULT_BOLD
-            setTextColor(Color.WHITE)
-            background = resources.getDrawable(R.drawable.key_bg, theme)
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(44)
-            ).apply {
-                setMargins(dp(8), dp(4), dp(8), dp(8))
-            }
-            setOnClickListener {
-                emojiContainer.visibility = View.GONE
-                mainContainer.visibility = View.VISIBLE
-            }
-        }
-
-        emojiGrid = GridView(this).apply {
-            numColumns = 8
-            stretchMode = GridView.STRETCH_COLUMN_WIDTH
-            verticalSpacing = dp(8)
-            horizontalSpacing = dp(8)
-            setPadding(dp(10), dp(10), dp(10), dp(6))
-            setBackgroundColor(Color.parseColor("#111111"))
-            clipToPadding = false
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(244)
-            )
-        }
-
+    private fun setupEmojiPanelContent() {
         val emojis = listOf(
             "😀", "😁", "😂", "🤣", "😊", "😍", "😘", "😎",
             "😢", "😭", "😡", "👍", "👎", "🙏", "👏", "🔥",
@@ -330,13 +211,22 @@ class KeyboardService : InputMethodService() {
             "🙌", "👌", "💪", "🌟", "⚡", "📷", "💼", "✅"
         )
 
+        emojiGrid.numColumns = 8
+        emojiGrid.stretchMode = GridView.STRETCH_COLUMN_WIDTH
+        emojiGrid.verticalSpacing = dp(8)
+        emojiGrid.horizontalSpacing = dp(8)
+        emojiGrid.setPadding(dp(10), dp(10), dp(10), dp(6))
+        emojiGrid.clipToPadding = false
+        
         emojiGrid.adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, emojis)
         emojiGrid.setOnItemClickListener { _, _, pos, _ ->
             currentInputConnection?.commitText(emojis[pos], 1)
         }
 
-        emojiContainer.addView(emojiGrid)
-        emojiContainer.addView(emojiBackButton)
+        emojiBackButton.setOnClickListener {
+            emojiContainer.visibility = View.GONE
+            mainContainer.visibility = View.VISIBLE
+        }
     }
 
     private fun buildKeyboard() {
@@ -595,6 +485,7 @@ class KeyboardService : InputMethodService() {
     private fun showSymbolPopup(anchor: View, key: String) {
         val symbols = longPressSymbolMap[key].orEmpty()
         if (symbols.isEmpty()) return
+        activePopup?.dismiss()
 
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -606,7 +497,13 @@ class KeyboardService : InputMethodService() {
             isOutsideTouchable = true
             setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
             elevation = dp(4).toFloat()
+            setOnDismissListener {
+                if (activePopup === this) {
+                    activePopup = null
+                }
+            }
         }
+        activePopup = popup
 
         symbols.forEach { symbol ->
             row.addView(TextView(this).apply {
@@ -721,6 +618,17 @@ class KeyboardService : InputMethodService() {
         }
     }
 
+    private fun cleanupInputViewState() {
+        cancelLongPress()
+        stopRepeatingDelete()
+        activePopup?.dismiss()
+        activePopup = null
+        isLongPressActive = false
+        if (isShiftLongPressing) {
+            restoreShiftAfterLongPress()
+        }
+    }
+
     private fun updateShiftUI() {
         keyButtons.forEach { btn ->
             val key = btn.tag as? String ?: return@forEach
@@ -825,9 +733,18 @@ class KeyboardService : InputMethodService() {
     private fun dp(value: Int): Int =
         (value * resources.displayMetrics.density).toInt()
 
+    override fun onFinishInputView(finishingInput: Boolean) {
+        cleanupInputViewState()
+        super.onFinishInputView(finishingInput)
+    }
+
+    override fun onWindowHidden() {
+        cleanupInputViewState()
+        super.onWindowHidden()
+    }
+
     override fun onDestroy() {
-        cancelLongPress()
-        stopRepeatingDelete()
+        cleanupInputViewState()
         scope.cancel()
         super.onDestroy()
     }

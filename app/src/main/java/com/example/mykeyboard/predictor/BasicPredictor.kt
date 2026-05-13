@@ -1,15 +1,27 @@
 package com.example.mykeyboard.predictor
 
 import android.content.Context
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
-class BasicPredictor(context: Context) {
+class BasicPredictor(
+    context: Context,
+    private val ioScope: CoroutineScope
+) {
 
     private val prefs = context.getSharedPreferences("keyboard_predictions", Context.MODE_PRIVATE)
     private val bigramModel = mutableMapOf<String, MutableList<String>>()
+    private val modelLock = Any()
+    private var saveJob: Job? = null
 
     companion object {
         private const val PREFS_BIGRAM_KEY = "bigram_model"
         private const val PREFS_COUNT_KEY = "word_count"
+        private const val SAVE_DEBOUNCE_MS = 250L
+
+        private val FALLBACK_SUGGESTIONS = listOf("hello", "thanks", "please")
 
         private val SEED_PHRASES = listOf(
             "hello", "how", "are", "you", "thank", "you", "please", "sorry",
@@ -76,12 +88,12 @@ class BasicPredictor(context: Context) {
                 val next = SEED_PHRASES[i + 1]
                 addBigram(current, next)
             }
-            saveModel()
+            scheduleSaveModel()
         }
     }
 
     fun getSuggestions(currentWord: String, previousWord: String? = null): List<String> {
-        val suggestions = mutableListOf<String>()
+        val suggestions = ArrayList<String>(3)
 
         val key = if (currentWord.isEmpty()) {
             previousWord ?: ""
@@ -90,42 +102,62 @@ class BasicPredictor(context: Context) {
         }
 
         if (key.isNotEmpty()) {
-            val predictions = bigramModel[key]
-            predictions?.let {
-                suggestions.addAll(it.take(3))
+            synchronized(modelLock) {
+                val predictions = bigramModel[key]
+                if (predictions != null) {
+                    val count = minOf(3, predictions.size)
+                    for (index in 0 until count) {
+                        suggestions.add(predictions[index])
+                    }
+                }
             }
         }
 
         if (suggestions.size < 3) {
-            val remaining = 3 - suggestions.size
-            val randomSeeds = SEED_PHRASES.shuffled().take(remaining)
-            suggestions.addAll(randomSeeds)
+            for (fallback in FALLBACK_SUGGESTIONS) {
+                if (suggestions.size == 3) break
+                if (!suggestions.contains(fallback)) {
+                    suggestions.add(fallback)
+                }
+            }
         }
 
-        return suggestions.take(3)
+        return suggestions
     }
 
     fun learnWord(word: String, previousWord: String? = null) {
         val cleanWord = word.trim().lowercase()
         if (cleanWord.length < 2) return
 
+        var changed = false
         previousWord?.let {
             val cleanPrev = it.trim().lowercase()
             if (cleanPrev.isNotEmpty()) {
-                addBigram(cleanPrev, cleanWord)
+                changed = addBigram(cleanPrev, cleanWord)
             }
         }
 
-        saveModel()
+        if (changed) {
+            scheduleSaveModel()
+        }
     }
 
-    private fun addBigram(first: String, second: String) {
-        if (!bigramModel.containsKey(first)) {
-            bigramModel[first] = mutableListOf()
+    private fun addBigram(first: String, second: String): Boolean {
+        synchronized(modelLock) {
+            val list = bigramModel.getOrPut(first) { mutableListOf() }
+            if (!list.contains(second)) {
+                list.add(second)
+                return true
+            }
         }
-        val list = bigramModel[first]!!
-        if (!list.contains(second)) {
-            list.add(second)
+        return false
+    }
+
+    private fun scheduleSaveModel() {
+        saveJob?.cancel()
+        saveJob = ioScope.launch {
+            delay(SAVE_DEBOUNCE_MS)
+            saveModel()
         }
     }
 
@@ -134,21 +166,27 @@ class BasicPredictor(context: Context) {
             val json = StringBuilder()
             json.append("{")
             var first = true
-            for ((key, value) in bigramModel) {
-                if (!first) json.append(",")
-                json.append("\"$key\":[")
-                value.forEachIndexed { index, word ->
-                    if (index > 0) json.append(",")
-                    json.append("\"$word\"")
+            var size = 0
+
+            synchronized(modelLock) {
+                size = bigramModel.size
+                for ((key, value) in bigramModel) {
+                    if (!first) json.append(",")
+                    json.append("\"$key\":[")
+                    value.forEachIndexed { index, word ->
+                        if (index > 0) json.append(",")
+                        json.append("\"$word\"")
+                    }
+                    json.append("]")
+                    first = false
                 }
-                json.append("]")
-                first = false
             }
+
             json.append("}")
 
             prefs.edit()
                 .putString(PREFS_BIGRAM_KEY, json.toString())
-                .putInt(PREFS_COUNT_KEY, bigramModel.size)
+                .putInt(PREFS_COUNT_KEY, size)
                 .apply()
         } catch (e: Exception) {
         }
@@ -173,7 +211,9 @@ class BasicPredictor(context: Context) {
                         .toMutableList()
 
                     if (values.isNotEmpty()) {
-                        bigramModel[key] = values
+                        synchronized(modelLock) {
+                            bigramModel[key] = values
+                        }
                     }
                 }
             }
@@ -182,7 +222,10 @@ class BasicPredictor(context: Context) {
     }
 
     fun clearModel() {
-        bigramModel.clear()
+        saveJob?.cancel()
+        synchronized(modelLock) {
+            bigramModel.clear()
+        }
         prefs.edit()
             .remove(PREFS_BIGRAM_KEY)
             .remove(PREFS_COUNT_KEY)

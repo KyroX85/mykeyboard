@@ -1,23 +1,50 @@
-*.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
-local.properties
+# Android Studio / IntelliJ
 .idea/
-.kotlin/
-build/
-.gradle/
+*.iml
+*.iws
+out/
+captures/
+.externalNativeBuild/
+.cxx/
 local.properties
+
+# Gradle
+.gradle/
+build/
+*/build/
+
+# Kotlin
+*.kotlin_module
+.kotlin/
+
+# Windows
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# AI / Tool Caches (Critical)
+.agents/
+.codex/
+.gemini/
+.ollama/
+.openclaw/
+.remember/
+.cache/
+.claude/
+.codeium/
+.copilot/
+.cursor/
+.windsurf/
+.mcp-auth/
+.playwright-mcp/
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm/
+
+# Logs & Temp
+logs/
 *.log
 ai-cto/.whatsapp_memory.json
 ai-cto/*.corrupt-*
@@ -27,3 +54,13 @@ app/release/
 app/debug/
 app/src/main/assets/config.properties
 app/google-services.json
+tmp/
+.tmp/
+
+# Android Specific
+*.apk
+*.ap_
+*.dex
+*.class
+bin/
+gen/
