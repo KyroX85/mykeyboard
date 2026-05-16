@@ -12,7 +12,7 @@ on:
 
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     env:
       AI_PIPELINE_PROJECT_NAME: MyKeyboard
       AI_PIPELINE_SEND_ON_STATUS: PASSED
@@ -52,7 +52,11 @@ jobs:
           "JAVA_READY=true" | Add-Content -Path $env:GITHUB_STEP_SUMMARY
 
       - name: Grant Gradle permission
-        run: chmod +x gradlew
+        shell: pwsh
+        run: |
+          if ($IsLinux -or $IsMacOS) {
+            chmod +x gradlew
+          }
 
       - name: Validate email secrets for scheduled reports
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
