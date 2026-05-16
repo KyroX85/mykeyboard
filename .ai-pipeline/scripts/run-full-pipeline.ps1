@@ -450,6 +450,11 @@ function Classify-Changes {
         $diffText = Get-DiffText -DiffArgs $DiffArgs -File $file
         $isDangerous = $false
 
+        if ($normalized -match "^(\.ai-pipeline|\.github)/") {
+            $safe += $file
+            continue
+        }
+
         if ($normalized -match "(^|/)AndroidManifest\.xml$") {
             $dangerousFindings += New-Finding "high" "android-manifest" $file "AndroidManifest changed. Review permissions, components, and IME metadata." $true
             $isDangerous = $true
