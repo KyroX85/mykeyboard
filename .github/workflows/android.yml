@@ -109,11 +109,38 @@ jobs:
       - name: Run AI engineering pipeline
         shell: pwsh
         run: |
+          $pipelineExit = 0
           if ("${{ github.event_name }}" -eq "schedule" -or "${{ github.event_name }}" -eq "workflow_dispatch") {
             ./.ai-pipeline/scripts/run-full-pipeline.ps1 -Mode Verify -Ci
           } else {
             ./.ai-pipeline/scripts/run-full-pipeline.ps1 -Mode Verify -SkipEmail -Ci
           }
+          $pipelineExit = $LASTEXITCODE
+          "PIPELINE_EXIT_CODE=$pipelineExit" | Add-Content -Path $env:GITHUB_STEP_SUMMARY
+          if ($pipelineExit -ne 0 -and !(Test-Path ".ai-pipeline/reports/latest/email-delivery-audit.json")) {
+            New-Item -ItemType Directory -Path ".ai-pipeline/reports/latest" -Force | Out-Null
+            $audit = [ordered]@{
+              generatedAt = (Get-Date).ToString("o")
+              workflowTriggered = $true
+              workflowExecuted = $true
+              emailStageEntered = $false
+              smtpAuthPassed = $false
+              gmailAccepted = $false
+              finalDeliveryState = "FAILED"
+              emailStatus = "FAILED"
+              failureStage = "PIPELINE_STARTED"
+              failureClassification = "UNKNOWN"
+              message = "Pipeline exited before writing email-delivery-audit.json"
+              stages = @(
+                @{ timestamp = (Get-Date).ToString("o"); stage = "WORKFLOW_TRIGGERED"; status = "PASSED"; reason = $null },
+                @{ timestamp = (Get-Date).ToString("o"); stage = "JOB_STARTED"; status = "PASSED"; reason = $null },
+                @{ timestamp = (Get-Date).ToString("o"); stage = "JAVA_READY"; status = "PASSED"; reason = $null },
+                @{ timestamp = (Get-Date).ToString("o"); stage = "PIPELINE_STARTED"; status = "FAILED"; reason = "Pipeline exited before writing email-delivery-audit.json" }
+              )
+            }
+            $audit | ConvertTo-Json -Depth 10 | Set-Content -Path ".ai-pipeline/reports/latest/email-delivery-audit.json" -Encoding UTF8
+          }
+          exit $pipelineExit
 
       - name: Publish AI pipeline status summary
         if: always()
@@ -165,6 +192,7 @@ jobs:
             .ai-pipeline/reports/latest
             .ai-pipeline/reports/history
           if-no-files-found: warn
+          include-hidden-files: true
 
       - name: Upload Gradle failure logs
         if: always()
@@ -173,6 +201,7 @@ jobs:
           name: gradle-and-audit-logs
           path: .ai-pipeline/reports/latest/logs
           if-no-files-found: warn
+          include-hidden-files: true
 
       - name: Upload APK artifact
         if: always()
