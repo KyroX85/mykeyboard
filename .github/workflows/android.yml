@@ -109,6 +109,29 @@ jobs:
       - name: Run AI engineering pipeline
         shell: pwsh
         run: |
+          $ErrorActionPreference = "Continue"
+          if (Get-Variable -Name PSNativeCommandUseErrorActionPreference -ErrorAction SilentlyContinue) {
+            $PSNativeCommandUseErrorActionPreference = $false
+          }
+          New-Item -ItemType Directory -Path ".ai-pipeline/reports/latest" -Force | Out-Null
+          $startedAudit = [ordered]@{
+            generatedAt = (Get-Date).ToString("o")
+            workflowTriggered = $true
+            workflowExecuted = $true
+            emailStageEntered = $false
+            smtpAuthPassed = $false
+            gmailAccepted = $false
+            finalDeliveryState = "STARTED"
+            emailStatus = "STARTED"
+            failureStage = $null
+            stages = @(
+              @{ timestamp = (Get-Date).ToString("o"); stage = "WORKFLOW_TRIGGERED"; status = "PASSED"; reason = $null },
+              @{ timestamp = (Get-Date).ToString("o"); stage = "JOB_STARTED"; status = "PASSED"; reason = $null },
+              @{ timestamp = (Get-Date).ToString("o"); stage = "JAVA_READY"; status = "PASSED"; reason = $null },
+              @{ timestamp = (Get-Date).ToString("o"); stage = "PIPELINE_STARTED"; status = "STARTED"; reason = $null }
+            )
+          }
+          $startedAudit | ConvertTo-Json -Depth 10 | Set-Content -Path ".ai-pipeline/reports/latest/email-delivery-audit.json" -Encoding UTF8
           $pipelineExit = 0
           if ("${{ github.event_name }}" -eq "schedule" -or "${{ github.event_name }}" -eq "workflow_dispatch") {
             ./.ai-pipeline/scripts/run-full-pipeline.ps1 -Mode Verify -Ci
