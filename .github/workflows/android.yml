@@ -134,9 +134,9 @@ jobs:
           $startedAudit | ConvertTo-Json -Depth 10 | Set-Content -Path ".ai-pipeline/reports/latest/email-delivery-audit.json" -Encoding UTF8
           $pipelineExit = 0
           if ("${{ github.event_name }}" -eq "schedule" -or "${{ github.event_name }}" -eq "workflow_dispatch") {
-            & ./.ai-pipeline/scripts/run-full-pipeline.ps1 -Mode Verify -Ci
+            pwsh -NoProfile -ExecutionPolicy Bypass -File ./.ai-pipeline/scripts/run-full-pipeline.ps1 -Mode Verify -Ci
           } else {
-            & ./.ai-pipeline/scripts/run-full-pipeline.ps1 -Mode Verify -SkipEmail -Ci
+            pwsh -NoProfile -ExecutionPolicy Bypass -File ./.ai-pipeline/scripts/run-full-pipeline.ps1 -Mode Verify -SkipEmail -Ci
           }
           $pipelineExit = $LASTEXITCODE
           "PIPELINE_EXIT_CODE=$pipelineExit" | Add-Content -Path $env:GITHUB_STEP_SUMMARY
