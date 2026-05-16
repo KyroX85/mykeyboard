@@ -1,0 +1,18 @@
+Subject:
+[MyKeyboard][PASSED][abc123] AI Audit Report - 2026-05-14 12:00:00+05:30
+
+Body:
+Project: MyKeyboard
+Commit: abc123
+Status: PASSED
+Risk: LOW
+Confidence: 0.9
+Severity: C=0 H=0 M=1 L=2
+Safe Fixes: 3
+Dangerous Changes: 0
+Verification: passed
+Top Priority: Continue current cadence and monitor drift/performance trends over the next 5 runs.
+
+Attachments:
+- summary.md
+- founder-report.md

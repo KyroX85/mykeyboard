@@ -3,14 +3,41 @@ name: Android CI
 on:
   push:
     branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  schedule:
+    # GitHub cron uses UTC. 03:30 UTC = 09:00 IST.
+    - cron: "30 3 * * *"
+  workflow_dispatch:
 
 jobs:
-  build:
+  verify:
     runs-on: ubuntu-latest
+    env:
+      AI_PIPELINE_PROJECT_NAME: MyKeyboard
+      AI_PIPELINE_SEND_ON_STATUS: PASSED
+      AI_PIPELINE_EMAIL_ATTACHMENTS: none
+      AI_PIPELINE_SMTP_HOST: smtp.gmail.com
+      AI_PIPELINE_SMTP_PORT: 587
+      AI_PIPELINE_SMTP_ENABLE_SSL: true
+      AI_PIPELINE_REPORT_RECIPIENT: ${{ secrets.AI_PIPELINE_REPORT_RECIPIENT }}
+      AI_PIPELINE_SMTP_USERNAME: ${{ secrets.AI_PIPELINE_SMTP_USERNAME }}
+      AI_PIPELINE_SMTP_PASSWORD: ${{ secrets.AI_PIPELINE_SMTP_PASSWORD }}
+      AI_PIPELINE_SMTP_FROM: ${{ secrets.AI_PIPELINE_SMTP_FROM }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Mark workflow started
+        shell: pwsh
+        run: |
+          "WORKFLOW_TRIGGERED=true" | Add-Content -Path $env:GITHUB_STEP_SUMMARY
+          "JOB_STARTED=true" | Add-Content -Path $env:GITHUB_STEP_SUMMARY
+          "WORKFLOW_REF=${{ github.ref }}" | Add-Content -Path $env:GITHUB_STEP_SUMMARY
+          "WORKFLOW_SHA=${{ github.sha }}" | Add-Content -Path $env:GITHUB_STEP_SUMMARY
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -18,14 +45,139 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Grant permission
+      - name: Verify Java readiness
+        shell: pwsh
+        run: |
+          java -version
+          "JAVA_READY=true" | Add-Content -Path $env:GITHUB_STEP_SUMMARY
+
+      - name: Grant Gradle permission
         run: chmod +x gradlew
 
-      - name: Build APK
-        run: ./gradlew assembleDebug
+      - name: Validate email secrets for scheduled reports
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        shell: pwsh
+        run: |
+          $required = @(
+            "AI_PIPELINE_SMTP_USERNAME",
+            "AI_PIPELINE_SMTP_PASSWORD",
+            "AI_PIPELINE_SMTP_FROM",
+            "AI_PIPELINE_REPORT_RECIPIENT"
+          )
+          $missing = @()
+          foreach ($name in $required) {
+            $value = [Environment]::GetEnvironmentVariable($name)
+            if ([string]::IsNullOrWhiteSpace($value)) {
+              $missing += $name
+            }
+          }
+          if ($missing.Count -gt 0) {
+            New-Item -ItemType Directory -Path ".ai-pipeline/reports/latest" -Force | Out-Null
+            $audit = [ordered]@{
+              generatedAt = (Get-Date).ToString("o")
+              workflowTriggered = $true
+              workflowExecuted = $true
+              emailStageEntered = $false
+              smtpAuthPassed = $false
+              gmailAccepted = $false
+              attachmentsGenerated = @{
+                summary = $false
+                founderReport = $false
+                pipelineSummary = $false
+              }
+              emailSkippedReason = "Missing required GitHub Actions secret(s)"
+              finalDeliveryState = "FAILED"
+              emailStatus = "FAILED"
+              failureStage = "SECRETS_VALIDATION"
+              failureClassification = "SMTP_AUTH_FAILURE"
+              missingSecrets = $missing
+              stages = @(
+                @{ timestamp = (Get-Date).ToString("o"); stage = "WORKFLOW_TRIGGERED"; status = "PASSED"; reason = $null },
+                @{ timestamp = (Get-Date).ToString("o"); stage = "JOB_STARTED"; status = "PASSED"; reason = $null },
+                @{ timestamp = (Get-Date).ToString("o"); stage = "JAVA_READY"; status = "PASSED"; reason = $null },
+                @{ timestamp = (Get-Date).ToString("o"); stage = "SMTP_AUTH_STARTED"; status = "FAILED"; reason = "Missing required GitHub Actions secret(s)" }
+              )
+            }
+            $audit | ConvertTo-Json -Depth 10 | Set-Content -Path ".ai-pipeline/reports/latest/email-delivery-audit.json" -Encoding UTF8
+            "EMAIL_STATUS=FAILED" | Add-Content -Path $env:GITHUB_STEP_SUMMARY
+            "EMAIL_FAILURE_STAGE=SECRETS_VALIDATION" | Add-Content -Path $env:GITHUB_STEP_SUMMARY
+            "EMAIL_MISSING_SECRETS=$($missing -join ',')" | Add-Content -Path $env:GITHUB_STEP_SUMMARY
+            throw "Missing required email secret(s): $($missing -join ',')"
+          }
+          "EMAIL_SECRETS_PRESENT=true" | Add-Content -Path $env:GITHUB_STEP_SUMMARY
 
-      - name: Upload APK
+      - name: Run AI engineering pipeline
+        shell: pwsh
+        run: |
+          if ("${{ github.event_name }}" -eq "schedule" -or "${{ github.event_name }}" -eq "workflow_dispatch") {
+            ./.ai-pipeline/scripts/run-full-pipeline.ps1 -Mode Verify -Ci
+          } else {
+            ./.ai-pipeline/scripts/run-full-pipeline.ps1 -Mode Verify -SkipEmail -Ci
+          }
+
+      - name: Publish AI pipeline status summary
+        if: always()
+        shell: pwsh
+        run: |
+          $summaryPath = ".ai-pipeline/reports/latest/pipeline-summary.json"
+          $auditPath = ".ai-pipeline/reports/latest/email-delivery-audit.json"
+          $rawEmailStatus = "UNKNOWN"
+          if (Test-Path $summaryPath) {
+            $summary = Get-Content -Raw -Path $summaryPath | ConvertFrom-Json
+            $rawEmailStatus = if ($summary.emailStatus) { "$($summary.emailStatus)".ToUpperInvariant() } else { "UNKNOWN" }
+          }
+          if (Test-Path $auditPath) {
+            $audit = Get-Content -Raw -Path $auditPath | ConvertFrom-Json
+            if ($audit.emailStatus) { $rawEmailStatus = "$($audit.emailStatus)".ToUpperInvariant() }
+          }
+          $emailRequired = ("${{ github.event_name }}" -eq "schedule" -or "${{ github.event_name }}" -eq "workflow_dispatch")
+          $emailStatus = if ($rawEmailStatus -in @("PASSED", "SENT") -or (-not $emailRequired -and $rawEmailStatus -eq "SKIPPED")) { "PASSED" } else { "FAILED" }
+          $failureStage = "NONE"
+          $smtpAuth = "false"
+          $gmailAccepted = "false"
+          $workflowTriggered = "true"
+          if (Test-Path $auditPath) {
+            $audit = Get-Content -Raw -Path $auditPath | ConvertFrom-Json
+            if ($audit.failureStage) { $failureStage = "$($audit.failureStage)" }
+            if ($audit.smtpAuthPassed) { $smtpAuth = "$($audit.smtpAuthPassed)".ToLowerInvariant() }
+            if ($audit.gmailAccepted) { $gmailAccepted = "$($audit.gmailAccepted)".ToLowerInvariant() }
+            if ($null -ne $audit.workflowTriggered) { $workflowTriggered = "$($audit.workflowTriggered)".ToLowerInvariant() }
+          }
+          "EMAIL_STATUS=$emailStatus" | Add-Content -Path $env:GITHUB_STEP_SUMMARY
+          "EMAIL_STATUS_RAW=$rawEmailStatus" | Add-Content -Path $env:GITHUB_STEP_SUMMARY
+          "FAILURE_STAGE=$failureStage" | Add-Content -Path $env:GITHUB_STEP_SUMMARY
+          "SMTP_AUTH=$smtpAuth" | Add-Content -Path $env:GITHUB_STEP_SUMMARY
+          "GMAIL_ACCEPTED=$gmailAccepted" | Add-Content -Path $env:GITHUB_STEP_SUMMARY
+          "WORKFLOW_TRIGGERED=$workflowTriggered" | Add-Content -Path $env:GITHUB_STEP_SUMMARY
+          if (Test-Path $summaryPath) {
+            "PIPELINE_SUMMARY=$summaryPath" | Add-Content -Path $env:GITHUB_STEP_SUMMARY
+          }
+          if (Test-Path $auditPath) {
+            "EMAIL_DELIVERY_AUDIT=$auditPath" | Add-Content -Path $env:GITHUB_STEP_SUMMARY
+          }
+
+      - name: Upload AI pipeline reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-pipeline-reports
+          path: |
+            .ai-pipeline/reports/latest
+            .ai-pipeline/reports/history
+          if-no-files-found: warn
+
+      - name: Upload Gradle failure logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradle-and-audit-logs
+          path: .ai-pipeline/reports/latest/logs
+          if-no-files-found: warn
+
+      - name: Upload APK artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: app-debug
           path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: warn
