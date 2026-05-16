@@ -40,8 +40,9 @@ function Initialize-AndroidToolingEnvironment {
 
     if (-not [string]::IsNullOrWhiteSpace($env:JAVA_HOME)) {
         $javaBin = Join-Path $env:JAVA_HOME "bin"
-        if (($env:PATH -split ";") -notcontains $javaBin) {
-            $env:PATH = "$javaBin;$env:PATH"
+        $pathSeparator = [System.IO.Path]::PathSeparator
+        if (($env:PATH -split [regex]::Escape([string]$pathSeparator)) -notcontains $javaBin) {
+            $env:PATH = "$javaBin$pathSeparator$env:PATH"
         }
     }
 
