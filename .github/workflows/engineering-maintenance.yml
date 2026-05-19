@@ -7,6 +7,10 @@ on:
     branches: [ main, master ]
   workflow_dispatch: # Allow manual triggers
 
+concurrency:
+  group: engineering-maintenance-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   maintenance:
     runs-on: ubuntu-latest
@@ -51,7 +55,12 @@ jobs:
           git config --global user.name "Engineering Brain [bot]"
           git config --global user.email "engineering-brain-bot@users.noreply.github.com"
           git add ai-cto/.brain_state.json ENGINEERING_REPORT.md
-          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: update engineering state and report [skip ci]" && git push)
+          if git diff --quiet && git diff --staged --quiet; then
+            echo "No engineering report changes to persist."
+          else
+            git commit -m "chore: update engineering state and report [skip ci]"
+            git push || echo "::warning::Report push was skipped because main moved during another maintenance run."
+          fi
         shell: bash
 
       - name: Create PR for Safe Autofixes
@@ -69,7 +78,11 @@ jobs:
           delete-branch: true
 
       - name: Prepare Founder Email Report
+        if: always()
         run: |
+          if [ ! -f ENGINEERING_REPORT.md ]; then
+            echo "ENGINEERING_REPORT.md was not generated in this run." > ENGINEERING_REPORT.md
+          fi
           {
             echo "Founder Sir,"
             echo
