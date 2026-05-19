@@ -1,0 +1,84 @@
+name: Engineering Maintenance Worker
+
+on:
+  schedule:
+    - cron: '0 */6 * * *' # Run every 6 hours
+  push:
+    branches: [ main, master ]
+  workflow_dispatch: # Allow manual triggers
+
+jobs:
+  maintenance:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Needed to commit report and state back
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm install || echo "No package.json or install failed, continuing..."
+
+      - name: Run Engineering Tests
+        run: |
+          # Run tests and capture all output to log
+          # Use || true to ensure the workflow continues to the brain phase on failure
+          npm test > test_output.log 2>&1 || true
+        shell: bash
+
+      - name: Run Engineering Brain
+        id: brain
+        run: node ai-cto/brain.js
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Persist State and Report
+        run: |
+          git config --global user.name "Engineering Brain [bot]"
+          git config --global user.email "engineering-brain-bot@users.noreply.github.com"
+          git add ai-cto/.brain_state.json ENGINEERING_REPORT.md
+          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: update engineering state and report [skip ci]" && git push)
+        shell: bash
+
+      - name: Create PR for Safe Autofixes
+        if: steps.brain.outputs.autofix_available == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: apply safe engineering improvements"
+          title: "Maintenance: Safe Engineering Improvements"
+          body: |
+            This PR contains small, safe engineering improvements identified by the maintenance worker.
+            
+            Refer to `ENGINEERING_REPORT.md` for details.
+          branch: engineering/safe-autofix
+          delete-branch: true
+
+      - name: Send Engineering Report Email
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: ${{ secrets.MAIL_SERVER }}
+          server_port: ${{ secrets.MAIL_PORT }}
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          subject: "Engineering Report - ${{ github.repository }} - ${{ github.sha }}"
+          to: ${{ secrets.REPORT_RECIPIENT_EMAIL }}
+          from: "Engineering Maintenance Worker <${{ secrets.MAIL_USERNAME }}>"
+          body: |
+            The latest engineering maintenance run is complete.
+            
+            Repository: ${{ github.repository }}
+            Commit: ${{ github.sha }}
+            
+            Please find the Engineering Report attached or check the repository for ENGINEERING_REPORT.md.
+          attachments: ENGINEERING_REPORT.md
+        if: always() # Send even if tests failed (the brain handles reporting)
