@@ -68,6 +68,25 @@ jobs:
           branch: engineering/safe-autofix
           delete-branch: true
 
+      - name: Prepare Founder Email Report
+        run: |
+          {
+            echo "Founder Sir,"
+            echo
+            echo "Your CTO maintenance review for ${{ github.repository }} is complete."
+            echo
+            echo "Repository: ${{ github.repository }}"
+            echo "Commit: ${{ github.sha }}"
+            echo
+            echo "CTO Report:"
+            echo
+            cat ENGINEERING_REPORT.md
+            echo
+            echo "Respectfully,"
+            echo "Your CTO Agent"
+          } > email_report.txt
+        shell: bash
+
       - name: Send Engineering Report Email
         uses: dawidd6/action-send-mail@v3
         with:
@@ -75,15 +94,8 @@ jobs:
           server_port: ${{ secrets.MAIL_PORT }}
           username: ${{ secrets.MAIL_USERNAME }}
           password: ${{ secrets.MAIL_PASSWORD }}
-          subject: "Engineering Report - ${{ github.repository }} - ${{ github.sha }}"
+          subject: "CTO Report - ${{ github.repository }} - ${{ github.sha }}"
           to: ${{ secrets.REPORT_RECIPIENT_EMAIL }}
-          from: "Engineering Maintenance Worker <${{ secrets.MAIL_USERNAME }}>"
-          body: |
-            The latest engineering maintenance run is complete.
-            
-            Repository: ${{ github.repository }}
-            Commit: ${{ github.sha }}
-            
-            Please find the Engineering Report attached or check the repository for ENGINEERING_REPORT.md.
-          attachments: ENGINEERING_REPORT.md
+          from: "CTO Agent <${{ secrets.MAIL_USERNAME }}>"
+          body: file://email_report.txt
         if: always() # Send even if tests failed (the brain handles reporting)
