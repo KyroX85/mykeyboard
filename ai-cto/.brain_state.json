@@ -1,7 +1,38 @@
 {
   "version": "2.0",
-  "unresolvedIssues": [],
-  "lastAnalysis": "2026-05-19T15:05:23.783Z",
-  "healthScore": 100,
-  "momentum": "CLIMBING"
+  "unresolvedIssues": [
+    {
+      "type": "COMPLEXITY",
+      "message": "File KeyboardService.kt is too large (>500 lines)",
+      "impact": "MEDIUM",
+      "detectedAt": "2026-05-19T15:12:53.295Z"
+    },
+    {
+      "type": "COMPLEXITY",
+      "message": "File MainActivity.kt is too large (>500 lines)",
+      "impact": "MEDIUM",
+      "detectedAt": "2026-05-19T15:12:53.295Z"
+    },
+    {
+      "type": "SECURITY",
+      "message": "Hardcoded Secret in BasicPredictor.kt",
+      "impact": "CRITICAL",
+      "detectedAt": "2026-05-19T15:12:53.295Z"
+    },
+    {
+      "type": "SECURITY",
+      "message": "Hardcoded Secret in chaos_test.js",
+      "impact": "CRITICAL",
+      "detectedAt": "2026-05-19T15:12:53.295Z"
+    },
+    {
+      "type": "ARCHITECTURE",
+      "message": "Unsafe Try Block in chaos_test.js",
+      "impact": "HIGH",
+      "detectedAt": "2026-05-19T15:12:53.295Z"
+    }
+  ],
+  "lastAnalysis": "2026-05-19T15:12:53.295Z",
+  "healthScore": 25,
+  "momentum": "STALLED"
 }
