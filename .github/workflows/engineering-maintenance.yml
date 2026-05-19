@@ -23,7 +23,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
+
+      - name: Verify Secrets
+        run: |
+          if [ -z "${{ secrets.MAIL_USERNAME }}" ]; then echo "::error::MAIL_USERNAME is missing"; exit 1; fi
+          if [ -z "${{ secrets.REPORT_RECIPIENT_EMAIL }}" ]; then echo "::error::REPORT_RECIPIENT_EMAIL is missing"; exit 1; fi
+        shell: bash
 
       - name: Install Dependencies
         run: npm install || echo "No package.json or install failed, continuing..."
