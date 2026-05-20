@@ -16,8 +16,8 @@ const AGENT_ALIASES = new Map([
 ]);
 
 const INTENT_PATTERNS = [
-  { intent: 'summary', words: ['summarize', 'summary', 'today', 'overall', 'brief'] },
-  { intent: 'risks', words: ['risk', 'risks', 'danger', 'dangerous', 'concern', 'issue'] },
+  { intent: 'summary', words: ['summarize', 'summary', 'today', 'overall', 'brief', 'update', 'happened'] },
+  { intent: 'risks', words: ['risk', 'risks', 'danger', 'dangerous', 'concern', 'issue', 'blocked', 'blocker', 'blocks'] },
   { intent: 'current_work', words: ['doing', 'working', 'work', 'progress', 'touched', 'changed'] },
   { intent: 'validation', words: ['validate', 'validation', 'test', 'tests', 'build', 'lint'] },
   { intent: 'approvals', words: ['approval', 'approvals', 'approve', 'pending'] },
@@ -70,6 +70,8 @@ function detectIntent(normalized) {
   for (const pattern of INTENT_PATTERNS) {
     if (pattern.words.some((word) => normalized.includes(word))) return pattern.intent;
   }
+  if (/what'?s going on|whats going on|what is going on/.test(normalized)) return 'summary';
+  if (/what changed today|what happened today/.test(normalized)) return 'summary';
   return 'unknown';
 }
 

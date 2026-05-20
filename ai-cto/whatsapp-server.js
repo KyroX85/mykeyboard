@@ -100,6 +100,17 @@ function requestId() {
   return crypto.randomBytes(8).toString('hex');
 }
 
+function extractTwilioBody(req) {
+  const parsed = req && req.body && typeof req.body === 'object' ? req.body : {};
+  return {
+    rawType: typeof (req ? req.body : undefined),
+    parsed,
+    from: normalizePhone(parsed.From || ''),
+    body: typeof parsed.Body === 'string' ? parsed.Body : '',
+    messageSid: parsed.MessageSid || parsed.SmsMessageSid || ''
+  };
+}
+
 function createApp() {
   const app = express();
   app.set('trust proxy', true);
@@ -146,9 +157,10 @@ function createApp() {
   app.post('/twilio/whatsapp', (req, res) => {
     const startedAt = Date.now();
     const id = requestId();
-    const from = normalizePhone(req.body.From);
-    const body = req.body.Body || '';
-    const messageSid = req.body.MessageSid || req.body.SmsMessageSid || '';
+    const incoming = extractTwilioBody(req);
+    const from = incoming.from;
+    const body = incoming.body;
+    const messageSid = incoming.messageSid;
 
     const configError = assertProductionConfig();
     if (configError) {
@@ -218,6 +230,13 @@ function createApp() {
         command: routed.command,
         status: 200,
         durationMs: Date.now() - startedAt
+        ,
+        meta: {
+          rawBodyType: incoming.rawType,
+          parsedKeys: Object.keys(incoming.parsed),
+          matchedRoute: routed.matchedRoute || routed.command,
+          fallbackReason: routed.details ? routed.details.fallbackReason : null
+        }
       });
       res.status(200).type('text/xml').send(twiml(routed.response));
     } catch (error) {
@@ -256,5 +275,6 @@ module.exports = {
   twiml,
   twimlMessages,
   chunkMessage,
-  normalizePhone
+  normalizePhone,
+  extractTwilioBody
 };
