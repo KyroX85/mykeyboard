@@ -58,13 +58,14 @@ The webhook does not run the Android build, does not call paid AI APIs, and does
 - `ai-cto/whatsapp/memory-store.js`
 - `ai-cto/whatsapp/webhook-log.js`
 - `ai-cto/whatsapp/operational-guard.js`
-- `ai-cto/whatsapp/message-chunker.js`
 - `ai-cto/whatsapp/diagnostics.js`
 - `ai-cto/scripts/test-whatsapp-interface.js`
 - `ai-cto/scripts/test-whatsapp-operational-hardening.js`
 - `ai-cto/WHATSAPP_INTERFACE.md`
 - `.env.example`
 - `SYSTEM_HEALTH.md`
+
+Simplification note: message chunking now lives in `ai-cto/whatsapp-server.js`; conversation memory helpers live in `ai-cto/whatsapp/memory-store.js`; agent personality formatting lives in `ai-cto/whatsapp/agent-router.js`.
 
 ## Files Modified
 
