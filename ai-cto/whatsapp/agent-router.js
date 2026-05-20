@@ -1,4 +1,5 @@
 const { parseNaturalIntent } = require('./natural-intent-parser');
+const { summarizeTasksForAgent, formatTaskList } = require('./task-manager');
 
 const AGENTS = {
   cto: { label: 'CTO', style: 'orchestration', greeting: 'Sir, CTO update' },
@@ -59,10 +60,12 @@ function clarificationResponse() {
 }
 
 function buildCtoResponse(intent, topic, state, memory) {
+  const tasks = summarizeTasksForAgent('cto');
   const lines = [
     `Health: ${formatHealth(state)}`,
     `Momentum: ${state.momentum || 'UNKNOWN'}`,
     `Focus: ${topic || memory.currentSprintFocus || state.summary.nextPriority}`,
+    `Active tasks: ${tasks.totalActive}`,
     `Next: ${state.summary.nextPriority}`
   ];
 
@@ -70,17 +73,24 @@ function buildCtoResponse(intent, topic, state, memory) {
     lines.push('', 'Pending approvals:', ...bullet(state.sections.approvals, 'No approval item pending sir.'));
   } else if (intent === 'risks') {
     lines.push('', 'Risk view:', ...bullet(state.sections.risks, 'No new critical risk recorded sir.'));
+  } else if (intent === 'tasks' || intent === 'blocked_tasks') {
+    const list = intent === 'blocked_tasks' ? tasks.blocked : tasks.owned.length ? tasks.owned : summarizeTasksForAgent('coder').owned;
+    lines.push('', 'Task pipeline:', ...formatTaskList(list, 'No active CTO-owned task recorded sir.'));
   }
 
   return applyPersonality('cto', lines);
 }
 
 function buildCoderResponse(intent, topic, state) {
+  const tasks = summarizeTasksForAgent('coder');
   const completed = state.sections.completedFixes;
   const next = state.sections.nextPriority[0] || 'No coding task recorded yet.';
   const lines = [
     'Inniku recorded work dhaan report panren sir.',
     'Fake progress solla matten.',
+    '',
+    'Assigned pipeline:',
+    ...formatTaskList(tasks.owned, 'No coder-owned task assigned yet.'),
     '',
     'Latest recorded fixes:',
     ...bullet(completed, 'No completed fix recorded in latest run.'),
@@ -96,9 +106,13 @@ function buildCoderResponse(intent, topic, state) {
 }
 
 function buildReviewerResponse(intent, topic, state) {
+  const tasks = summarizeTasksForAgent('reviewer');
   const validation = state.validation.map((item) => `${item.task}: ${String(item.status || 'unknown').toUpperCase()}`);
   const lines = [
     'One validation lens la paathen sir.',
+    '',
+    'Review queue:',
+    ...formatTaskList(intent === 'blocked_tasks' ? tasks.blocked : tasks.owned, 'No reviewer-owned task waiting.'),
     '',
     'Validation:',
     ...bullet(validation, 'No validation result available.'),
@@ -112,12 +126,16 @@ function buildReviewerResponse(intent, topic, state) {
 }
 
 function buildAuditorResponse(intent, topic, state) {
+  const tasks = summarizeTasksForAgent('auditor');
   const dangerous = state.sections.unresolved
     .concat(state.sections.risks)
     .filter((item) => /secret|unsafe|danger|critical|oversized|large|stale/i.test(item));
 
   const lines = [
     'Dangerous items mattum flag panren sir.',
+    '',
+    'Audit queue:',
+    ...formatTaskList(intent === 'tasks' ? tasks.owned : tasks.critical, 'No critical audit task recorded.'),
     '',
     'Audit findings:',
     ...bullet(dangerous, 'No dangerous issue recorded in latest state.'),

@@ -87,6 +87,10 @@ assert(auditor.includes('Audit findings'));
 
 assert(routeMessage('cto update me', sampleState).response.includes('CTO update'));
 assert(routeMessage('reviewer update', sampleState).response.includes('Reviewer note'));
+assert(routeMessage('cto active tasks', sampleState).response.includes('Task pipeline'));
+assert(routeMessage('coder what are you working on', sampleState).response.includes('Assigned pipeline'));
+assert(routeMessage('reviewer blocked items', sampleState).response.includes('Review queue'));
+assert(routeMessage('auditor critical risks', sampleState).response.includes('Audit queue'));
 
 const xml = twiml('Founder Sir, 5 < 6 & safe');
 assert(xml.includes('&lt;'));

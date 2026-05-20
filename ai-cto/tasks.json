@@ -1,0 +1,45 @@
+{
+  "version": "1.0",
+  "updated_at": "2026-05-20T00:00:00.000Z",
+  "tasks": [
+    {
+      "id": "TASK-0001",
+      "title": "Audit hardcoded secret finding in BasicPredictor.kt",
+      "severity": "CRITICAL",
+      "owner": "auditor",
+      "status": "OPEN",
+      "created_at": "2026-05-20T00:00:00.000Z",
+      "updated_at": "2026-05-20T00:00:00.000Z",
+      "notes": [
+        "Seeded from CTO unresolved issue memory. Requires founder-approved review before code changes."
+      ],
+      "blocked_reason": null
+    },
+    {
+      "id": "TASK-0002",
+      "title": "Review unsafe try block finding in chaos_test.js",
+      "severity": "HIGH",
+      "owner": "reviewer",
+      "status": "OPEN",
+      "created_at": "2026-05-20T00:00:00.000Z",
+      "updated_at": "2026-05-20T00:00:00.000Z",
+      "notes": [
+        "Seeded from CTO unresolved issue memory. Validate whether this remains intentional chaos coverage."
+      ],
+      "blocked_reason": null
+    },
+    {
+      "id": "TASK-0003",
+      "title": "Plan low-risk decomposition review for KeyboardService.kt",
+      "severity": "MEDIUM",
+      "owner": "cto",
+      "status": "OPEN",
+      "created_at": "2026-05-20T00:00:00.000Z",
+      "updated_at": "2026-05-20T00:00:00.000Z",
+      "notes": [
+        "Seeded from CTO complexity finding. Planning only; no autonomous refactor."
+      ],
+      "blocked_reason": null
+    }
+  ]
+}

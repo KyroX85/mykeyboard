@@ -22,6 +22,7 @@ local.properties
 ai-cto/.whatsapp_memory.json
 ai-cto/*.corrupt-*
 ai-cto/*.log.1
+ai-cto/tasks.json.corrupt-*
 app/release/
 app/debug/
 app/src/main/assets/config.properties
