@@ -4,7 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo 'Running engineering checks...' && exit 0"
+    "test": "node ai-cto/scripts/run-android-validation.js",
+    "cto:validate": "node ai-cto/scripts/run-android-validation.js",
+    "cto:brain": "node ai-cto/brain.js",
+    "cto:autofix": "node ai-cto/scripts/safe-autofix.js --apply"
   },
   "keywords": [],
   "author": "",
