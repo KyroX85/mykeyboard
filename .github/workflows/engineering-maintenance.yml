@@ -109,14 +109,12 @@ jobs:
             - ENGINEERING_REPORT.md
             - ai-cto/.brain_state.json
             - ai-cto/validation-results.json
-            - ai-cto/autofix-summary.json
           branch: cto/report-memory
           delete-branch: true
           add-paths: |
             ENGINEERING_REPORT.md
             ai-cto/.brain_state.json
             ai-cto/validation-results.json
-            ai-cto/autofix-summary.json
 
   safe-autofix:
     runs-on: ubuntu-latest
@@ -158,5 +156,4 @@ jobs:
           add-paths: |
             README.md
             NEXT.md
-            docs/**/*.md
             app/src/main/res/**/*.xml
