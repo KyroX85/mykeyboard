@@ -33,6 +33,11 @@ GitHub Actions job permissions:
 - `pull-requests: write`
   - Required to open and update CTO maintenance PRs.
 
+Repository Actions settings:
+
+- Workflow permissions: `Read and write permissions`.
+- Allow GitHub Actions to create and approve pull requests: enabled.
+
 Repository secrets:
 
 - `MAIL_SERVER`
