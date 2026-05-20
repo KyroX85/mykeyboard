@@ -1,19 +1,42 @@
 const { parseNaturalIntent } = require('./natural-intent-parser');
 const { summarizeTasksForAgent, formatTaskList } = require('./task-manager');
 const { maintenanceSnapshot, formatMaintenanceActions } = require('./maintenance-reader');
+const { enforcePersonalityGuardrails } = require('./personality-guard');
+const { logRoutingDecision } = require('./routing-debug');
 
 const AGENTS = {
-  cto: { label: 'CTO', style: 'orchestration', greeting: 'Sir, CTO update' },
-  coder: { label: 'Coder', style: 'implementation', greeting: 'Sir, Coder side update' },
-  reviewer: { label: 'Reviewer', style: 'regression review', greeting: 'Sir, Reviewer note' },
-  auditor: { label: 'Auditor', style: 'safety audit', greeting: 'Sir, Auditor check' }
+  cto: { label: 'Aritenis CTO', style: 'orchestration', greeting: 'Sir, CTO update' },
+  coder: { label: 'Aritenis Coder', style: 'implementation', greeting: 'Sir, Coder side update' },
+  reviewer: { label: 'Aritenis Reviewer', style: 'regression review', greeting: 'Sir, Reviewer note' },
+  auditor: { label: 'Aritenis Auditor', style: 'safety audit', greeting: 'Sir, Auditor check' }
 };
 
 function routeAgentMessage(message, state, memory = {}) {
   const parsed = parseNaturalIntent(message, memory);
-  if (!parsed.matched) return null;
+  if (!parsed.matched) {
+    logRoutingDecision({
+      incoming: message,
+      normalized: parsed.normalized,
+      detectedAgent: parsed.agent,
+      intent: parsed.intent,
+      confidence: parsed.confidence,
+      matchedRoute: 'agent_miss',
+      fallbackUsed: false
+    });
+    return null;
+  }
 
   if (!parsed.agent && parsed.confidence < 0.5) {
+    logRoutingDecision({
+      incoming: message,
+      normalized: parsed.normalized,
+      detectedAgent: null,
+      intent: parsed.intent,
+      confidence: parsed.confidence,
+      matchedRoute: 'agent_clarify',
+      fallbackUsed: true,
+      fallbackReason: 'low_confidence'
+    });
     return {
       command: 'agent_clarify',
       agent: null,
@@ -24,6 +47,16 @@ function routeAgentMessage(message, state, memory = {}) {
   }
 
   const agent = parsed.agent || 'cto';
+  logRoutingDecision({
+    incoming: message,
+    normalized: parsed.normalized,
+    detectedAgent: agent,
+    intent: parsed.intent,
+    confidence: parsed.confidence,
+    matchedRoute: 'agent_intent',
+    fallbackUsed: parsed.fallbackUsed,
+    fallbackReason: parsed.fallbackReason
+  });
   return {
     command: 'agent',
     agent,
@@ -45,12 +78,11 @@ function buildAgentResponse(agent, intent, topic, state, memory) {
 
 function applyPersonality(agent, lines) {
   const profile = AGENTS[agent] || AGENTS.cto;
-  return [
+  return enforcePersonalityGuardrails([
+    `[${profile.label}]`,
     profile.greeting,
     ...lines.filter(Boolean),
-    '',
-    `Mode: ${profile.label} / ${profile.style}`
-  ].join('\n');
+  ].join('\n'));
 }
 
 function clarificationResponse() {
@@ -63,11 +95,12 @@ function clarificationResponse() {
 function buildCtoResponse(intent, topic, state, memory) {
   const tasks = summarizeTasksForAgent('cto');
   const lines = [
-    `Health: ${formatHealth(state)}`,
-    `Momentum: ${state.momentum || 'UNKNOWN'}`,
-    `Focus: ${topic || memory.currentSprintFocus || state.summary.nextPriority}`,
-    `Active tasks: ${tasks.totalActive}`,
-    `Next: ${state.summary.nextPriority}`
+    `Sir, health ${formatHealth(state)} and momentum ${state.momentum || 'UNKNOWN'}.`,
+    `Focus is ${topic || memory.currentSprintFocus || state.summary.nextPriority}.`,
+    tasks.totalActive > 0
+      ? `${tasks.totalActive} active task(s) running in pipeline.`
+      : 'Nothing critical running right now sir. Mostly monitoring and waiting for the next safe cycle.',
+    `Next sensible move: ${state.summary.nextPriority}`
   ];
 
   if (intent === 'approvals') {
@@ -97,16 +130,16 @@ function buildCoderResponse(intent, topic, state) {
   const completed = state.sections.completedFixes;
   const next = state.sections.nextPriority[0] || 'No coding task recorded yet.';
   const lines = [
-    'Inniku recorded work dhaan report panren sir.',
-    'Fake progress solla matten.',
+    'Sir, recorded work mattum report panren.',
+    'No fake progress. No code change claim unless log proves it.',
     '',
-    'Assigned pipeline:',
+    'My queue:',
     ...formatTaskList(tasks.owned, 'No coder-owned task assigned yet.'),
     '',
-    'Latest recorded fixes:',
+    'Latest recorded fix:',
     ...bullet(completed, 'No completed fix recorded in latest run.'),
     '',
-    `Next coding step: ${topic || next}`
+    `Next coding step waiting: ${topic || next}`
   ];
 
   if (intent === 'current_work') {
@@ -123,7 +156,7 @@ function buildReviewerResponse(intent, topic, state) {
   const tasks = summarizeTasksForAgent('reviewer');
   const validation = state.validation.map((item) => `${item.task}: ${String(item.status || 'unknown').toUpperCase()}`);
   const lines = [
-    'One validation lens la paathen sir.',
+    'Sir, review side la risk view ready.',
     '',
     'Review queue:',
     ...formatTaskList(intent === 'blocked_tasks' ? tasks.blocked : tasks.owned, 'No reviewer-owned task waiting.'),
@@ -131,7 +164,7 @@ function buildReviewerResponse(intent, topic, state) {
     'Validation:',
     ...bullet(validation, 'No validation result available.'),
     '',
-    'Regression concerns:',
+    'Main concern:',
     ...bullet(state.sections.risks.concat(state.sections.unresolved).slice(0, 4), 'No regression concern recorded.')
   ];
 
@@ -150,12 +183,12 @@ function buildAuditorResponse(intent, topic, state) {
     .filter((item) => /secret|unsafe|danger|critical|oversized|large|stale/i.test(item));
 
   const lines = [
-    'Dangerous items mattum flag panren sir.',
+    'Sir, dangerous items mattum flag panren.',
     '',
     'Audit queue:',
     ...formatTaskList(intent === 'tasks' ? tasks.owned : tasks.critical, 'No critical audit task recorded.'),
     '',
-    'Audit findings:',
+    'Current audit finding:',
     ...bullet(dangerous, 'No dangerous issue recorded in latest state.'),
     '',
     `Stale check: ${state.workflowFreshness ? state.workflowFreshness.message : 'not evaluated'}`

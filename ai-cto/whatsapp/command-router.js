@@ -1,5 +1,6 @@
 const { generateResponse } = require('./response-generator');
 const { routeAgentMessage } = require('./agent-router');
+const { logRoutingDecision } = require('./routing-debug');
 
 const COMMAND_ALIASES = new Map([
   ['status', 'status'],
@@ -74,7 +75,17 @@ function resolveCommand(message) {
 function routeMessage(message, state, memory = {}) {
   const normalized = normalizeMessage(message);
   if (COMMAND_ALIASES.has(normalized) || normalized.startsWith('focus ')) {
-    return { ...routeCommand(message, state, memory), matchedRoute: 'exact_command' };
+    const routed = { ...routeCommand(message, state, memory), matchedRoute: 'exact_command' };
+    logRoutingDecision({
+      incoming: message,
+      normalized,
+      detectedAgent: routed.details.agent,
+      intent: routed.command,
+      confidence: 1,
+      matchedRoute: 'exact_command',
+      fallbackUsed: false
+    });
+    return routed;
   }
 
   const agentRoute = routeAgentMessage(message, state, memory);
@@ -94,6 +105,16 @@ function routeMessage(message, state, memory = {}) {
   }
 
   if (shouldUseGeneralFallback(normalized)) {
+    logRoutingDecision({
+      incoming: message,
+      normalized,
+      detectedAgent: null,
+      intent: 'conversational_fallback',
+      confidence: 0.5,
+      matchedRoute: 'conversational_fallback',
+      fallbackUsed: true,
+      fallbackReason: normalized ? 'general_conversation' : 'empty_body'
+    });
     return {
       command: 'conversational_fallback',
       details: { fallbackReason: normalized ? 'general_conversation' : 'empty_body' },
@@ -104,6 +125,16 @@ function routeMessage(message, state, memory = {}) {
     };
   }
 
+  logRoutingDecision({
+    incoming: message,
+    normalized,
+    detectedAgent: null,
+    intent: 'conversational_fallback',
+    confidence: 0.25,
+    matchedRoute: 'safe_low_confidence_fallback',
+    fallbackUsed: true,
+    fallbackReason: 'low_confidence_unknown'
+  });
   return {
     command: 'conversational_fallback',
     details: { fallbackReason: 'low_confidence_unknown' },

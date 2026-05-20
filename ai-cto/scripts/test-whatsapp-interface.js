@@ -47,6 +47,9 @@ assert.strictEqual(resolveCommand('keyboard health'), 'keyboard_health');
 assert.deepStrictEqual(resolveCommand('focus predictor'), { command: 'focus', focusTopic: 'predictor' });
 assert.strictEqual(resolveCommand('unknown command'), 'unknown');
 assert.deepStrictEqual(parseNaturalIntent('hey coder what are you doing').agent, 'coder');
+assert.deepStrictEqual(parseNaturalIntent('hey auditor').agent, 'auditor');
+assert.deepStrictEqual(parseNaturalIntent('hey auditer').agent, 'auditor');
+assert.deepStrictEqual(parseNaturalIntent('audit status').agent, 'auditor');
 assert.deepStrictEqual(parseNaturalIntent('reviewer any risks').agent, 'reviewer');
 assert.deepStrictEqual(parseNaturalIntent('auditor any dangerous issues').intent, 'risks');
 assert.strictEqual(parseNaturalIntent('cto update me').intent, 'summary');
@@ -74,21 +77,28 @@ assert.strictEqual(hello.command, 'conversational_fallback');
 assert(hello.response.includes('Health: 25/100'));
 
 const coder = routeMessage('hey coder what are you doing', sampleState).response;
+assert(coder.includes('[Aritenis Coder]'));
 assert(coder.includes('Coder side update'));
-assert(coder.includes('Fake progress'));
+assert(coder.includes('No fake progress'));
 
 const reviewer = routeMessage('reviewer any risks', sampleState).response;
+assert(reviewer.includes('[Aritenis Reviewer]'));
 assert(reviewer.includes('Reviewer note'));
-assert(reviewer.includes('Regression concerns'));
+assert(reviewer.includes('Main concern'));
 
 const auditor = routeMessage('auditor any dangerous issues', sampleState).response;
+assert(auditor.includes('[Aritenis Auditor]'));
 assert(auditor.includes('Auditor check'));
-assert(auditor.includes('Audit findings'));
+assert(auditor.includes('Current audit finding'));
 
 assert(routeMessage('cto update me', sampleState).response.includes('CTO update'));
+assert(routeMessage('cto active tasks', sampleState).response.includes('[Aritenis CTO]'));
+assert(routeMessage('hey auditor', sampleState).response.includes('[Aritenis Auditor]'));
+assert(routeMessage('hey auditer', sampleState).response.includes('[Aritenis Auditor]'));
+assert(routeMessage('audit status', sampleState).response.includes('[Aritenis Auditor]'));
 assert(routeMessage('reviewer update', sampleState).response.includes('Reviewer note'));
 assert(routeMessage('cto active tasks', sampleState).response.includes('Task pipeline'));
-assert(routeMessage('coder what are you working on', sampleState).response.includes('Assigned pipeline'));
+assert(routeMessage('coder what are you working on', sampleState).response.includes('My queue'));
 assert(routeMessage('reviewer blocked items', sampleState).response.includes('Review queue'));
 assert(routeMessage('auditor critical risks', sampleState).response.includes('Audit queue'));
 assert(routeMessage('cto maintenance status', sampleState).response.includes('Maintenance status'));
