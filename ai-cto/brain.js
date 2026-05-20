@@ -119,39 +119,83 @@ function calculateHealth(failures, scanResults) {
   state.momentum = state.healthScore < 70 ? 'STALLED' : (state.healthScore < 90 ? 'RECOVERING' : 'CLIMBING');
 }
 
+function sortByRisk(issues) {
+  const rank = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
+  return [...issues].sort((a, b) => (rank[a.impact] ?? 9) - (rank[b.impact] ?? 9));
+}
+
+function formatIssue(issue) {
+  const type = issue.type || 'ISSUE';
+  const impact = issue.impact || 'UNKNOWN';
+  return `- [${impact}] ${type}: ${issue.message}`;
+}
+
+function requiresApproval(issue) {
+  const message = String(issue.message || '').toLowerCase();
+  return issue.impact === 'CRITICAL' ||
+    message.includes('prediction') ||
+    message.includes('persistence') ||
+    message.includes('storage') ||
+    message.includes('database') ||
+    message.includes('network') ||
+    message.includes('telemetry') ||
+    message.includes('privacy') ||
+    message.includes('architecture');
+}
+
+function nextPriorityFor(issue) {
+  if (issue.type === 'SECURITY') return `Audit and remove ${issue.message}. Rotate any real credential if applicable.`;
+  if (issue.type === 'ARCHITECTURE') return `Add explicit error handling for ${issue.message}.`;
+  if (issue.type === 'COMPLEXITY') return `Plan a small, reversible split for ${issue.message}.`;
+  if (issue.source === 'TEST_LOG') return `Reproduce and fix test failure: ${issue.message}.`;
+  return `Review ${issue.message}.`;
+}
+
 function generateReport(failures, scanResults) {
   const now = new Date().toISOString();
-  let r = `ENGINEERING STATUS REPORT [BRUTAL MODE]\n`;
+  const unresolvedIssues = sortByRisk([...failures, ...scanResults]);
+  const criticalRisks = unresolvedIssues.filter(i => i.impact === 'CRITICAL');
+  const pendingApprovals = unresolvedIssues.filter(requiresApproval);
+  const nextPriorities = unresolvedIssues.slice(0, 5).map(nextPriorityFor);
+  let r = `ARITENIS AI CTO REPORT [BRUTAL MODE]\n`;
   r += `DATE: ${now}\n`;
   r += `HEALTH SCORE: ${state.healthScore}/100\n`;
   r += `MOMENTUM: ${state.momentum}\n`;
   r += `-------------------------------------------\n\n`;
 
-  if (failures.length > 0) {
-    r += `[!!!] CRITICAL REGRESSIONS DETECTED:\n`;
-    failures.forEach(f => r += `- ${f.type}: ${f.message}\n`);
-    r += `\n`;
-  }
+  r += `CRITICAL RISKS:\n`;
+  r += criticalRisks.length > 0
+    ? criticalRisks.map(formatIssue).join('\n') + '\n'
+    : `- None detected.\n`;
+  r += `\n`;
 
-  const criticalScan = scanResults.filter(s => s.impact === 'CRITICAL');
-  if (criticalScan.length > 0) {
-    r += `[!!!] ARCHITECTURAL RISKS (DEEP SCAN):\n`;
-    criticalScan.forEach(s => r += `- ${s.type}: ${s.message}\n`);
-    r += `\n`;
-  }
+  r += `UNRESOLVED ISSUES:\n`;
+  r += unresolvedIssues.length > 0
+    ? unresolvedIssues.map(formatIssue).join('\n') + '\n'
+    : `- None detected.\n`;
+  r += `\n`;
 
-  const otherScan = scanResults.filter(s => s.impact !== 'CRITICAL');
-  if (otherScan.length > 0) {
-    r += `[*] TECHNICAL DEBT & IMPROVEMENTS:\n`;
-    otherScan.forEach(s => r += `- [${s.impact}] ${s.message}\n`);
-    r += `\n`;
-  }
+  r += `COMPLETED FIXES:\n`;
+  r += `- Report and state generation completed for this run.\n`;
+  r += `- No autonomous code fix was applied in this run.\n\n`;
 
-  if (failures.length === 0 && scanResults.length === 0) {
-    r += `NO ISSUES DETECTED. SYSTEM IS OPTIMAL.\n`;
-  }
+  r += `PENDING APPROVALS:\n`;
+  r += pendingApprovals.length > 0
+    ? pendingApprovals.map(formatIssue).join('\n') + '\n'
+    : `- None.\n`;
+  r += `\n`;
 
-  r += `\nGUARDRAILS: Prediction Engine LOCKED, Storage LOCKED.\n`;
+  r += `NEXT RECOMMENDED PRIORITIES:\n`;
+  r += nextPriorities.length > 0
+    ? nextPriorities.map(p => `- ${p}`).join('\n') + '\n'
+    : `- Keep monitoring scheduled runs and avoid unnecessary churn.\n`;
+  r += `\n`;
+
+  r += `GUARDRAILS:\n`;
+  r += `- Prediction engine: APPROVAL REQUIRED.\n`;
+  r += `- Swipe engine: APPROVAL REQUIRED.\n`;
+  r += `- Persistence/storage: APPROVAL REQUIRED.\n`;
+  r += `- Telemetry/privacy/networking: APPROVAL REQUIRED.\n`;
   
   fs.writeFileSync(REPORT_FILE, r);
   log(`Brutal analysis complete: ${state.healthScore}% health.`);
