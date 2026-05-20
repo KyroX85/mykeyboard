@@ -11,6 +11,10 @@ const DEFAULT_MEMORY = {
   latestUnresolvedIssue: null,
   lastHealthScore: null,
   latestMomentumState: null,
+  lastAgentInteraction: null,
+  lastFocusTopic: null,
+  activeTasks: [],
+  currentSprintFocus: null,
   lastCommand: null,
   lastUpdatedAt: null
 };

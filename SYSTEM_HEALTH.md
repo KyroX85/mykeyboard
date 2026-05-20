@@ -11,6 +11,7 @@ Phase 4 adds operational hardening only. It does not add autonomous code pushes,
 - `ENGINEERING_REPORT.md`: latest founder-readable report.
 - `ai-cto/.brain_state.json`: persistent engineering memory.
 - Render webhook server: WhatsApp read-only conversational interface.
+- Multi-agent router: deterministic CTO/Coder/Reviewer/Auditor views over the same memory.
 - Twilio WhatsApp: transport layer.
 
 ## Health Endpoints
@@ -63,6 +64,17 @@ This is intentionally read-only. It reports the failure but does not mutate work
 - Log rotation at 512 KB.
 - Runtime WhatsApp memory cleanup after 30 days.
 - Message chunking for long Twilio replies.
+- Natural-language routing with strict fallback to deterministic commands.
+- Agent memory tracks last agent, last focus topic, active tasks, and current sprint focus.
+
+## Multi-Agent Boundaries
+
+- CTO can summarize, prioritize, and report approvals.
+- Coder can report recorded fixes and next implementation steps only.
+- Reviewer can report validation and regression concerns only.
+- Auditor can report secrets, dangerous code, oversized files, and stale state only.
+
+No agent may push code, create PRs, modify workflows, or claim unrecorded work.
 
 ## Deployment Validation Checklist
 

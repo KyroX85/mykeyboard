@@ -1,4 +1,5 @@
 const { generateResponse } = require('./response-generator');
+const { routeAgentMessage } = require('./agent-router');
 
 const COMMAND_ALIASES = new Map([
   ['status', 'status'],
@@ -59,6 +60,30 @@ function resolveCommand(message) {
 }
 
 function routeMessage(message, state, memory = {}) {
+  const normalized = normalizeMessage(message);
+  if (COMMAND_ALIASES.has(normalized) || normalized.startsWith('focus ')) {
+    return routeCommand(message, state, memory);
+  }
+
+  const agentRoute = routeAgentMessage(message, state, memory);
+  if (agentRoute) {
+    return {
+      command: agentRoute.command,
+      agent: agentRoute.agent,
+      intent: agentRoute.intent,
+      details: {
+        agent: agentRoute.agent,
+        intent: agentRoute.intent,
+        focusTopic: agentRoute.topic
+      },
+      response: agentRoute.response
+    };
+  }
+
+  return routeCommand(message, state, memory);
+}
+
+function routeCommand(message, state, memory = {}) {
   const resolved = resolveCommand(message);
   const command = typeof resolved === 'string' ? resolved : resolved.command;
   const details = typeof resolved === 'string' ? {} : resolved;
