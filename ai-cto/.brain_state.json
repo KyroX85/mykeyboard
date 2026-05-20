@@ -5,34 +5,34 @@
       "type": "COMPLEXITY",
       "message": "File KeyboardService.kt is too large (>500 lines)",
       "impact": "MEDIUM",
-      "detectedAt": "2026-05-20T02:31:22.458Z"
+      "detectedAt": "2026-05-20T04:35:22.345Z"
     },
     {
       "type": "COMPLEXITY",
       "message": "File MainActivity.kt is too large (>500 lines)",
       "impact": "MEDIUM",
-      "detectedAt": "2026-05-20T02:31:22.458Z"
+      "detectedAt": "2026-05-20T04:35:22.345Z"
     },
     {
       "type": "SECURITY",
       "message": "Hardcoded Secret in BasicPredictor.kt",
       "impact": "CRITICAL",
-      "detectedAt": "2026-05-20T02:31:22.458Z"
+      "detectedAt": "2026-05-20T04:35:22.345Z"
     },
     {
       "type": "SECURITY",
       "message": "Hardcoded Secret in chaos_test.js",
       "impact": "CRITICAL",
-      "detectedAt": "2026-05-20T02:31:22.458Z"
+      "detectedAt": "2026-05-20T04:35:22.345Z"
     },
     {
       "type": "ARCHITECTURE",
       "message": "Unsafe Try Block in chaos_test.js",
       "impact": "HIGH",
-      "detectedAt": "2026-05-20T02:31:22.458Z"
+      "detectedAt": "2026-05-20T04:35:22.345Z"
     }
   ],
-  "lastAnalysis": "2026-05-20T02:31:22.458Z",
+  "lastAnalysis": "2026-05-20T04:35:22.345Z",
   "healthScore": 25,
   "momentum": "STALLED"
 }
