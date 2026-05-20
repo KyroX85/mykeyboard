@@ -20,14 +20,24 @@ const sampleState = {
     approvals: ['[CRITICAL] SECURITY: Hardcoded Secret in chaos_test.js'],
     nextPriority: ['Audit and remove Hardcoded Secret in BasicPredictor.kt.'],
     safestOpportunity: ['Plan a small review-only refactor for KeyboardService.kt.']
+  },
+  changed: {
+    completed: ['Report and state generation completed for this run.'],
+    newRisks: ['[CRITICAL] SECURITY: Hardcoded Secret in chaos_test.js'],
+    lastTrendAt: '2026-05-20T05:54:15.010Z',
+    issueCount: 5
   }
 };
 
 assert.strictEqual(resolveCommand('status'), 'status');
 assert.strictEqual(resolveCommand('what are the risks?'), 'risks');
+assert.strictEqual(resolveCommand('latest risks'), 'risks');
 assert.strictEqual(resolveCommand('latest fixes'), 'latest_fixes');
 assert.strictEqual(resolveCommand('weekly summary'), 'weekly_summary');
-assert.strictEqual(resolveCommand('unknown command'), 'help');
+assert.strictEqual(resolveCommand('what changed'), 'what_changed');
+assert.strictEqual(resolveCommand('keyboard health'), 'keyboard_health');
+assert.deepStrictEqual(resolveCommand('focus predictor'), { command: 'focus', focusTopic: 'predictor' });
+assert.strictEqual(resolveCommand('unknown command'), 'unknown');
 
 const status = routeMessage('status', sampleState).response;
 assert(status.includes('Founder Sir'));
@@ -36,6 +46,12 @@ assert(status.includes(':app:lintDebug: PASSED'));
 
 const risks = routeMessage('risks', sampleState).response;
 assert(risks.includes('Hardcoded Secret'));
+
+const focus = routeMessage('focus chaos', sampleState).response;
+assert(focus.includes('focus set: chaos'));
+
+const unknown = routeMessage('open the pod bay doors', sampleState).response;
+assert(unknown.includes('did not recognize'));
 
 const xml = twiml('Founder Sir, 5 < 6 & safe');
 assert(xml.includes('&lt;'));

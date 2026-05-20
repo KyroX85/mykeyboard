@@ -19,6 +19,7 @@ build/
 .gradle/
 local.properties
 *.log
+ai-cto/.whatsapp_memory.json
 app/release/
 app/debug/
 app/src/main/assets/config.properties
