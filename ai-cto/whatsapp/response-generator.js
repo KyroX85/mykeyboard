@@ -1,16 +1,16 @@
 function linesOrFallback(items, fallback) {
   if (!items || items.length === 0) return [fallback];
-  return items.slice(0, 4).map((item) => `• ${item}`);
+  return items.slice(0, 4).map((item) => `\u2022 ${item}`);
 }
 
 function formatValidation(validation) {
   if (!validation || validation.length === 0) {
-    return ['- No Android validation result is available yet.'];
+    return ['\u2022 No Android validation result is available yet.'];
   }
 
   return validation.map((item) => {
     const status = String(item.status || 'unknown').toUpperCase();
-    const icon = status === 'PASSED' ? '✅' : status === 'FAILED' ? '❌' : '⚠️';
+    const icon = status === 'PASSED' ? '\u2705' : status === 'FAILED' ? '\u274c' : '\u26a0\ufe0f';
     return `${icon} ${item.task}: ${status}`;
   });
 }
@@ -20,25 +20,37 @@ function compactIssue(issue) {
   return String(issue).replace(/^\[[^\]]+\]\s*/, '').slice(0, 180);
 }
 
+function findFocusedIssue(state, topic) {
+  const needle = String(topic || '').toLowerCase();
+  if (!needle) return null;
+  return [...state.sections.unresolved, ...state.sections.risks].find((issue) =>
+    String(issue).toLowerCase().includes(needle)
+  );
+}
+
 function generateResponse(command, state, memory = {}, details = {}) {
   const health = state.healthScore == null ? 'unknown' : `${state.healthScore}/100`;
   const momentum = state.momentum || 'UNKNOWN';
   const generatedAt = state.generatedAt || 'not recorded yet';
-  const healthIcon = state.healthScore == null ? '⚪' : state.healthScore >= 80 ? '✅' : state.healthScore >= 60 ? '⚠️' : '🚨';
-  const momentumIcon = momentum === 'STABLE' ? '✅' : momentum === 'STALLED' ? '🚨' : '⚠️';
+  const healthIcon = state.healthScore == null ? '\u26aa' : state.healthScore >= 80 ? '\u2705' : state.healthScore >= 60 ? '\u26a0\ufe0f' : '\ud83d\udea8';
+  const momentumIcon = momentum === 'STABLE' ? '\u2705' : momentum === 'STALLED' ? '\ud83d\udea8' : '\u26a0\ufe0f';
+  const heartbeat = state.workflowFreshness && state.workflowFreshness.stale
+    ? [`\ud83d\udea8 Heartbeat: ${state.workflowFreshness.message}`, '']
+    : [];
 
   switch (command) {
     case 'status':
       return [
         'Founder Sir, CTO status',
+        ...heartbeat,
         `${healthIcon} Health: ${health}`,
         `${momentumIcon} Momentum: ${momentum}`,
-        `🕒 Last scan: ${generatedAt}`,
+        `\ud83d\udd52 Last scan: ${generatedAt}`,
         '',
         'Android validation',
         ...formatValidation(state.validation),
         '',
-        `🎯 Next: ${state.sections.nextPriority[0] || 'No priority recorded yet.'}`
+        `\ud83c\udfaf Next: ${state.sections.nextPriority[0] || 'No priority recorded yet.'}`
       ].join('\n');
 
     case 'health':
@@ -83,8 +95,8 @@ function generateResponse(command, state, memory = {}, details = {}) {
     case 'what_changed':
       return [
         'Founder Sir, what changed',
-        `🕒 Last trend: ${state.changed.lastTrendAt || 'not recorded yet'}`,
-        `📌 Issues in latest trend: ${state.changed.issueCount == null ? 'unknown' : state.changed.issueCount}`,
+        `\ud83d\udd52 Last trend: ${state.changed.lastTrendAt || 'not recorded yet'}`,
+        `\ud83d\udccc Issues in latest trend: ${state.changed.issueCount == null ? 'unknown' : state.changed.issueCount}`,
         '',
         'Completed',
         ...linesOrFallback(state.changed.completed, 'No completed change recorded.'),
@@ -127,13 +139,11 @@ function generateResponse(command, state, memory = {}, details = {}) {
         'Founder Sir, CTO summary',
         `${healthIcon} Health: ${health}`,
         `${momentumIcon} Momentum: ${momentum}`,
-        `🧠 Last focus: ${memory.lastRequestedFocusArea || 'none'}`,
+        `\ud83e\udde0 Last focus: ${memory.lastRequestedFocusArea || 'none'}`,
+        `\ud83c\udfaf Next: ${state.summary.nextPriority}`,
         '',
-        'Unstable files',
-        ...linesOrFallback(state.sections.unstableFiles, 'No unstable file trend is available yet.'),
-        '',
-        'Recurring failures',
-        ...linesOrFallback(state.sections.repeatedFailures, 'No recurring failure pattern detected yet.')
+        'Top risk',
+        `\u2022 ${state.summary.topRisk}`
       ].join('\n');
 
     case 'focus':
@@ -143,7 +153,7 @@ function generateResponse(command, state, memory = {}, details = {}) {
         `${momentumIcon} Momentum: ${momentum}`,
         '',
         'Most relevant current issue',
-        `• ${compactIssue(findFocusedIssue(state, details.focusTopic) || state.sections.unresolved[0])}`
+        `\u2022 ${compactIssue(findFocusedIssue(state, details.focusTopic) || state.sections.unresolved[0])}`
       ].join('\n');
 
     case 'malformed':
@@ -164,14 +174,6 @@ function generateResponse(command, state, memory = {}, details = {}) {
         'status, health, momentum, latest risks, unresolved, what changed, pending approvals, keyboard health, cto summary, focus <topic>'
       ].join('\n');
   }
-}
-
-function findFocusedIssue(state, topic) {
-  const needle = String(topic || '').toLowerCase();
-  if (!needle) return null;
-  return [...state.sections.unresolved, ...state.sections.risks].find((issue) =>
-    String(issue).toLowerCase().includes(needle)
-  );
 }
 
 module.exports = {
