@@ -1,13 +1,10 @@
 const crypto = require('crypto');
 const express = require('express');
-const bodyParser = require('body-parser');
 const { routeMessage } = require('./whatsapp/command-router');
 const { loadEngineeringState } = require('./whatsapp/state-reader');
-const { updateMemory } = require('./whatsapp/memory-store');
-const { readConversationMemory, updateConversationMemory } = require('./whatsapp/conversation-memory');
+const { updateMemory, readConversationMemory, updateConversationMemory } = require('./whatsapp/memory-store');
 const { logWebhookEvent } = require('./whatsapp/webhook-log');
 const { createOperationalGuard } = require('./whatsapp/operational-guard');
-const { chunkMessage } = require('./whatsapp/message-chunker');
 const { startupSelfCheck, workflowFreshness } = require('./whatsapp/diagnostics');
 
 const PORT = Number(process.env.PORT || 3000);
@@ -42,6 +39,28 @@ function escapeXml(value) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&apos;');
+}
+
+function chunkMessage(message, maxLength = 1400) {
+  const text = String(message || '');
+  if (text.length <= maxLength) return [text];
+
+  const chunks = [];
+  let remaining = text;
+
+  while (remaining.length > maxLength) {
+    let splitAt = remaining.lastIndexOf('\n', maxLength);
+    if (splitAt < Math.floor(maxLength * 0.6)) splitAt = remaining.lastIndexOf(' ', maxLength);
+    if (splitAt < Math.floor(maxLength * 0.6)) splitAt = maxLength;
+    chunks.push(remaining.slice(0, splitAt).trim());
+    remaining = remaining.slice(splitAt).trim();
+  }
+
+  if (remaining) chunks.push(remaining);
+  return chunks.map((chunk, index) => {
+    if (chunks.length === 1) return chunk;
+    return `Part ${index + 1}/${chunks.length}\n${chunk}`;
+  });
 }
 
 function requestUrl(req) {
@@ -84,7 +103,7 @@ function requestId() {
 function createApp() {
   const app = express();
   app.set('trust proxy', true);
-  app.use(bodyParser.urlencoded({ extended: false }));
+  app.use(express.urlencoded({ extended: false }));
 
   app.get('/healthz', (req, res) => {
     const configError = assertProductionConfig();
@@ -236,5 +255,6 @@ module.exports = {
   validateTwilioSignature,
   twiml,
   twimlMessages,
+  chunkMessage,
   normalizePhone
 };

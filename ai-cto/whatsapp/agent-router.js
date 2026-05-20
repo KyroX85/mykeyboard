@@ -1,5 +1,11 @@
 const { parseNaturalIntent } = require('./natural-intent-parser');
-const { applyPersonality, clarificationResponse } = require('./personality-layer');
+
+const AGENTS = {
+  cto: { label: 'CTO', style: 'orchestration', greeting: 'Sir, CTO update' },
+  coder: { label: 'Coder', style: 'implementation', greeting: 'Sir, Coder side update' },
+  reviewer: { label: 'Reviewer', style: 'regression review', greeting: 'Sir, Reviewer note' },
+  auditor: { label: 'Auditor', style: 'safety audit', greeting: 'Sir, Auditor check' }
+};
 
 function routeAgentMessage(message, state, memory = {}) {
   const parsed = parseNaturalIntent(message, memory);
@@ -33,6 +39,23 @@ function buildAgentResponse(agent, intent, topic, state, memory) {
     auditor: buildAuditorResponse
   };
   return (builders[agent] || buildCtoResponse)(intent, topic, state, memory);
+}
+
+function applyPersonality(agent, lines) {
+  const profile = AGENTS[agent] || AGENTS.cto;
+  return [
+    profile.greeting,
+    ...lines.filter(Boolean),
+    '',
+    `Mode: ${profile.label} / ${profile.style}`
+  ].join('\n');
+}
+
+function clarificationResponse() {
+  return [
+    'Sir, which worker should answer?',
+    'Try: CTO summary, coder progress, reviewer risks, auditor dangerous issues.'
+  ].join('\n');
 }
 
 function buildCtoResponse(intent, topic, state, memory) {
@@ -117,5 +140,6 @@ function formatHealth(state) {
 
 module.exports = {
   routeAgentMessage,
-  buildAgentResponse
+  buildAgentResponse,
+  AGENTS
 };

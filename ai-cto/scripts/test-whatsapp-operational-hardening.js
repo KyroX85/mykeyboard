@@ -1,6 +1,6 @@
 const assert = require('assert');
 const { createOperationalGuard } = require('../whatsapp/operational-guard');
-const { chunkMessage } = require('../whatsapp/message-chunker');
+const { chunkMessage } = require('../whatsapp-server');
 const { workflowFreshness, startupSelfCheck } = require('../whatsapp/diagnostics');
 const { readJsonWithRecovery } = require('../whatsapp/state-reader');
 const { readMemory, writeMemory, MEMORY_FILE } = require('../whatsapp/memory-store');
