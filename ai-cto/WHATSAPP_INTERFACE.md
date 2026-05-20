@@ -1,8 +1,8 @@
 # Aritenis AI CTO WhatsApp Interface
 
-## Phase 1 Scope
+## Phase 3 Scope
 
-This phase adds a lightweight deterministic WhatsApp interface for the Founder.
+This phase adds a lightweight deterministic WhatsApp conversational CTO interface for the Founder.
 
 Implemented:
 
@@ -10,13 +10,17 @@ Implemented:
 - Incoming WhatsApp parsing
 - Command router
 - CTO response generator
-- Health and status query support
+- Health, status, momentum, risk, approval, and focus query support
 - Read-only access to latest CTO report and engineering memory
+- Small local conversation memory
+- Webhook request logging
+- Failure recovery
+- Malformed command handling
+- Per-sender rate limiting
 
 Not implemented yet:
 
 - Approval execution
-- Conversational memory
 - Directive system
 - Task assignment
 - Safe maintenance PR generation from WhatsApp
@@ -44,25 +48,40 @@ The webhook does not run the Android build, does not call paid AI APIs, and does
 - `ai-cto/whatsapp/command-router.js`
 - `ai-cto/whatsapp/response-generator.js`
 - `ai-cto/whatsapp/state-reader.js`
+- `ai-cto/whatsapp/memory-store.js`
+- `ai-cto/whatsapp/webhook-log.js`
 - `ai-cto/scripts/test-whatsapp-interface.js`
 - `ai-cto/WHATSAPP_INTERFACE.md`
+- `.env.example`
 
 ## Files Modified
 
 - `package.json`
+- `.gitignore`
 
 ## Supported Commands
 
 - `status`
-- `risks`
-- `momentum`
-- `latest fixes`
-- `pending issues`
 - `health`
-- `next priorities`
+- `momentum`
+- `latest risks`
+- `unresolved`
+- `what changed`
 - `approvals`
-- `weekly summary`
+- `pending approvals`
+- `keyboard health`
+- `cto summary`
+- `focus <topic>`
 - `help`
+
+Legacy aliases still work for `risks`, `latest fixes`, `pending issues`, `next priorities`, and `weekly summary`.
+
+Replies are short mobile-readable blocks with engineering indicators:
+
+- `✅` healthy/pass
+- `⚠️` warning
+- `🚨` critical or stalled
+- `🎯` next priority
 
 ## Twilio Setup Requirements
 
@@ -99,6 +118,8 @@ Environment variables:
 - `PUBLIC_BASE_URL=https://<render-service-name>.onrender.com`
 - `TWILIO_AUTH_TOKEN=<twilio-auth-token>`
 - `FOUNDER_WHATSAPP_NUMBER=+<country-code-and-number>`
+- `WHATSAPP_RATE_LIMIT_WINDOW_MS=60000`
+- `WHATSAPP_RATE_LIMIT_MAX=12`
 
 Do not set `ALLOW_UNVERIFIED_WHATSAPP=true` in production.
 
@@ -111,6 +132,7 @@ Primary risks:
 - Wrong Founder phone number configuration
 - Leaking CTO report details to unauthorized senders
 - Render environment variable misconfiguration
+- Render free-tier restart losing runtime-only WhatsApp memory
 
 Implemented controls:
 
@@ -119,6 +141,22 @@ Implemented controls:
 - Production config enforcement
 - XML escaping for Twilio responses
 - Read-only webhook behavior
+- Rate limiting
+- Masked webhook logging
+- Handler failure recovery
+
+## Conversation Memory
+
+The webhook stores lightweight runtime memory in `ai-cto/.whatsapp_memory.json`.
+
+Tracked:
+
+- last requested focus area
+- latest unresolved issue
+- last health score
+- latest momentum state
+
+This file is ignored by git because it is runtime state. The authoritative engineering memory remains `ai-cto/.brain_state.json`.
 
 ## Rollback Complexity
 
@@ -146,9 +184,11 @@ Twilio validation:
 2. Confirm the reply starts with `Founder Sir, CTO status:`.
 3. Send `risks`.
 4. Confirm the reply lists the latest report risks.
+5. Send `focus keyboard`.
+6. Confirm the reply stores and reports the requested focus area.
 
 ## Production Readiness Score
 
-Phase 1 readiness: 78/100.
+Phase 3 readiness: 84/100.
 
-It is ready for controlled Founder-only use through Twilio Sandbox and Render free tier. It is not ready for approval execution or task assignment until Phase 2 adds signed directives, audit logs, rate limits, and PR-only execution controls.
+It is ready for controlled Founder-only read-only CTO conversations through Twilio Sandbox and Render free tier. It is not ready for approval execution or task assignment until the next phase adds signed directives, durable audit logs, and PR-only execution controls.

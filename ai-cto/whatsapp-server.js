@@ -3,12 +3,17 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const { routeMessage } = require('./whatsapp/command-router');
 const { loadEngineeringState } = require('./whatsapp/state-reader');
+const { readMemory, updateMemory } = require('./whatsapp/memory-store');
+const { logWebhookEvent } = require('./whatsapp/webhook-log');
 
 const PORT = Number(process.env.PORT || 3000);
 const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || '';
 const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN || '';
 const FOUNDER_WHATSAPP_NUMBER = normalizePhone(process.env.FOUNDER_WHATSAPP_NUMBER || '');
 const ALLOW_UNVERIFIED_WHATSAPP = process.env.ALLOW_UNVERIFIED_WHATSAPP === 'true';
+const RATE_LIMIT_WINDOW_MS = Number(process.env.WHATSAPP_RATE_LIMIT_WINDOW_MS || 60_000);
+const RATE_LIMIT_MAX = Number(process.env.WHATSAPP_RATE_LIMIT_MAX || 12);
+const rateBuckets = new Map();
 
 function normalizePhone(value) {
   return String(value || '').replace(/^whatsapp:/i, '').replace(/\s+/g, '');
@@ -65,6 +70,16 @@ function assertProductionConfig() {
   return null;
 }
 
+function isRateLimited(sender) {
+  const key = sender || 'unknown';
+  const now = Date.now();
+  const bucket = rateBuckets.get(key) || [];
+  const recent = bucket.filter((timestamp) => now - timestamp < RATE_LIMIT_WINDOW_MS);
+  recent.push(now);
+  rateBuckets.set(key, recent);
+  return recent.length > RATE_LIMIT_MAX;
+}
+
 function createApp() {
   const app = express();
   app.set('trust proxy', true);
@@ -80,26 +95,45 @@ function createApp() {
   });
 
   app.post('/twilio/whatsapp', (req, res) => {
+    const from = normalizePhone(req.body.From);
+    const body = req.body.Body || '';
+
     const configError = assertProductionConfig();
     if (configError) {
+      logWebhookEvent({ type: 'config_error', from, body, status: 503, error: configError });
       res.status(503).type('text/xml').send(twiml(`Founder Sir, CTO WhatsApp is not configured: ${configError}`));
       return;
     }
 
     if (!validateTwilioSignature(req)) {
+      logWebhookEvent({ type: 'signature_rejected', from, body, status: 403 });
       res.status(403).type('text/xml').send(twiml('Access denied.'));
       return;
     }
 
-    const from = normalizePhone(req.body.From);
     if (FOUNDER_WHATSAPP_NUMBER && from !== FOUNDER_WHATSAPP_NUMBER) {
+      logWebhookEvent({ type: 'sender_rejected', from, body, status: 403 });
       res.status(403).type('text/xml').send(twiml('Access denied.'));
       return;
     }
 
-    const state = loadEngineeringState();
-    const routed = routeMessage(req.body.Body, state);
-    res.status(200).type('text/xml').send(twiml(routed.response));
+    if (isRateLimited(from)) {
+      logWebhookEvent({ type: 'rate_limited', from, body, status: 429 });
+      res.status(429).type('text/xml').send(twiml('Founder Sir, rate limit reached. Try again shortly.'));
+      return;
+    }
+
+    try {
+      const state = loadEngineeringState();
+      const memory = readMemory();
+      const routed = routeMessage(body, state, memory);
+      updateMemory(routed.command, state, routed.details);
+      logWebhookEvent({ type: 'reply', from, body, command: routed.command, status: 200 });
+      res.status(200).type('text/xml').send(twiml(routed.response));
+    } catch (error) {
+      logWebhookEvent({ type: 'handler_error', from, body, status: 500, error: error.message });
+      res.status(200).type('text/xml').send(twiml('Founder Sir, CTO status is temporarily unavailable. The reporting worker is still independent and will continue on schedule.'));
+    }
   });
 
   return app;

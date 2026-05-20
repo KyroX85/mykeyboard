@@ -42,6 +42,9 @@ function loadEngineeringState() {
   const report = readText(REPORT_FILE);
   const brain = readJson(BRAIN_STATE_FILE, {});
   const validation = readJson(VALIDATION_FILE, {});
+  const latestValidationFailure = Array.isArray(validation.findings) && validation.findings.length > 0
+    ? validation.findings[0]
+    : null;
 
   return {
     generatedAt: brain.lastAnalysis || validation.generatedAt || null,
@@ -50,6 +53,7 @@ function loadEngineeringState() {
     unresolvedIssues: Array.isArray(brain.unresolvedIssues) ? brain.unresolvedIssues : [],
     recurringFailures: brain.recurringFailures || {},
     fileInstability: brain.fileInstability || {},
+    latestValidationFailure,
     validation: Array.isArray(validation.validation) ? validation.validation : [],
     report,
     sections: {
@@ -61,7 +65,8 @@ function loadEngineeringState() {
       approvals: firstListItems(section(report, 'PENDING APPROVALS')),
       nextPriority: firstListItems(section(report, 'SUGGESTED NEXT PRIORITY'), 1),
       safestOpportunity: firstListItems(section(report, 'SAFEST IMPROVEMENT OPPORTUNITY'), 1)
-    }
+    },
+    changed: summarizeChanges(report, brain)
   };
 }
 
@@ -73,6 +78,20 @@ function extractHealthScore(report) {
 function extractMomentum(report) {
   const match = report.match(/MOMENTUM:\s*([A-Z_ -]+)/i);
   return match ? match[1].trim() : 'UNKNOWN';
+}
+
+function summarizeChanges(report, brain) {
+  const completed = firstListItems(section(report, 'COMPLETED FIXES'), 3);
+  const newRisks = firstListItems(section(report, 'NEW REGRESSIONS AND CRITICAL RISKS'), 3);
+  const history = Array.isArray(brain.trendHistory) ? brain.trendHistory : [];
+  const lastTrend = history.length > 0 ? history[history.length - 1] : null;
+
+  return {
+    completed,
+    newRisks,
+    lastTrendAt: lastTrend ? lastTrend.at : null,
+    issueCount: lastTrend && Array.isArray(lastTrend.issues) ? lastTrend.issues.length : null
+  };
 }
 
 module.exports = {
