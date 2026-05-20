@@ -157,15 +157,28 @@ function generateResponse(command, state, memory = {}, details = {}) {
       ].join('\n');
 
     case 'malformed':
+    case 'conversational_fallback':
       return [
-        'Founder Sir, I need a CTO command.',
-        'Use: status, health, momentum, latest risks, unresolved, what changed, pending approvals, keyboard health, cto summary, or focus <topic>.'
+        'Sir, quick CTO update',
+        `${healthIcon} Health: ${health}`,
+        `${momentumIcon} Momentum: ${momentum}`,
+        '',
+        'Active risks',
+        ...linesOrFallback(state.sections.risks.length ? state.sections.risks : state.sections.unresolved, 'No active risk recorded right now.'),
+        '',
+        `\ud83c\udfaf Next: ${state.summary.nextPriority}`
       ].join('\n');
 
     case 'unknown':
       return [
-        'Founder Sir, I did not recognize that command.',
-        'Supported: status, health, momentum, latest risks, unresolved, what changed, pending approvals, keyboard health, cto summary, focus <topic>.'
+        'Sir, quick CTO update',
+        `${healthIcon} Health: ${health}`,
+        `${momentumIcon} Momentum: ${momentum}`,
+        '',
+        'Active risks',
+        ...linesOrFallback(state.sections.risks.length ? state.sections.risks : state.sections.unresolved, 'No active risk recorded right now.'),
+        '',
+        'You can ask: coder update, reviewer risks, auditor check, or cto summary.'
       ].join('\n');
 
     default:

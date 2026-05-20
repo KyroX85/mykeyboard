@@ -35,6 +35,18 @@ const COMMAND_ALIASES = new Map([
   ['help', 'help']
 ]);
 
+const GREETING_WORDS = new Set(['hey', 'hi', 'hello', 'sup', 'yo', 'vanakkam']);
+const GENERAL_FALLBACK_PATTERNS = [
+  /\bupdate\b/i,
+  /\bwhat'?s going on\b/i,
+  /\bwhats going on\b/i,
+  /\bwhat is going on\b/i,
+  /\bwhat happened\b/i,
+  /\bwhat changed\b/i,
+  /\bblocked\b/i,
+  /\bblocker\b/i
+];
+
 function normalizeMessage(message) {
   return String(message || '')
     .trim()
@@ -62,7 +74,7 @@ function resolveCommand(message) {
 function routeMessage(message, state, memory = {}) {
   const normalized = normalizeMessage(message);
   if (COMMAND_ALIASES.has(normalized) || normalized.startsWith('focus ')) {
-    return routeCommand(message, state, memory);
+    return { ...routeCommand(message, state, memory), matchedRoute: 'exact_command' };
   }
 
   const agentRoute = routeAgentMessage(message, state, memory);
@@ -76,11 +88,30 @@ function routeMessage(message, state, memory = {}) {
         intent: agentRoute.intent,
         focusTopic: agentRoute.topic
       },
+      matchedRoute: 'agent_intent',
       response: agentRoute.response
     };
   }
 
-  return routeCommand(message, state, memory);
+  if (shouldUseGeneralFallback(normalized)) {
+    return {
+      command: 'conversational_fallback',
+      details: { fallbackReason: normalized ? 'general_conversation' : 'empty_body' },
+      matchedRoute: 'conversational_fallback',
+      response: generateResponse('conversational_fallback', state, memory, {
+        fallbackReason: normalized ? 'general_conversation' : 'empty_body'
+      })
+    };
+  }
+
+  return {
+    command: 'conversational_fallback',
+    details: { fallbackReason: 'low_confidence_unknown' },
+    matchedRoute: 'safe_low_confidence_fallback',
+    response: generateResponse('conversational_fallback', state, memory, {
+      fallbackReason: 'low_confidence_unknown'
+    })
+  };
 }
 
 function routeCommand(message, state, memory = {}) {
@@ -95,8 +126,16 @@ function routeCommand(message, state, memory = {}) {
   };
 }
 
+function shouldUseGeneralFallback(normalized) {
+  if (!normalized) return true;
+  if (GREETING_WORDS.has(normalized)) return true;
+  if (normalized.split(' ').some((word) => GREETING_WORDS.has(word))) return true;
+  return GENERAL_FALLBACK_PATTERNS.some((pattern) => pattern.test(normalized));
+}
+
 module.exports = {
   routeMessage,
   resolveCommand,
-  normalizeMessage
+  normalizeMessage,
+  shouldUseGeneralFallback
 };

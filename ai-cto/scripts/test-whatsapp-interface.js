@@ -1,7 +1,7 @@
 const assert = require('assert');
-const { resolveCommand, routeMessage } = require('../whatsapp/command-router');
+const { resolveCommand, routeMessage, shouldUseGeneralFallback } = require('../whatsapp/command-router');
 const { parseNaturalIntent } = require('../whatsapp/natural-intent-parser');
-const { twiml, normalizePhone } = require('../whatsapp-server');
+const { twiml, normalizePhone, extractTwilioBody } = require('../whatsapp-server');
 
 const sampleState = {
   generatedAt: '2026-05-20T05:54:15.010Z',
@@ -49,6 +49,10 @@ assert.strictEqual(resolveCommand('unknown command'), 'unknown');
 assert.deepStrictEqual(parseNaturalIntent('hey coder what are you doing').agent, 'coder');
 assert.deepStrictEqual(parseNaturalIntent('reviewer any risks').agent, 'reviewer');
 assert.deepStrictEqual(parseNaturalIntent('auditor any dangerous issues').intent, 'risks');
+assert.strictEqual(parseNaturalIntent('cto update me').intent, 'summary');
+assert.strictEqual(parseNaturalIntent('what is blocked').intent, 'risks');
+assert.strictEqual(shouldUseGeneralFallback('hello'), true);
+assert.strictEqual(shouldUseGeneralFallback('whats going on'), true);
 
 const status = routeMessage('status', sampleState).response;
 assert(status.includes('Founder Sir'));
@@ -61,8 +65,13 @@ assert(risks.includes('Hardcoded Secret'));
 const focus = routeMessage('focus chaos', sampleState).response;
 assert(focus.includes('focus set: chaos'));
 
-const unknown = routeMessage('open the pod bay doors', sampleState).response;
-assert(unknown.includes('did not recognize'));
+const unknown = routeMessage('open the pod bay doors', sampleState);
+assert.strictEqual(unknown.command, 'conversational_fallback');
+assert(unknown.response.includes('quick CTO update'));
+
+const hello = routeMessage('hello', sampleState);
+assert.strictEqual(hello.command, 'conversational_fallback');
+assert(hello.response.includes('Health: 25/100'));
 
 const coder = routeMessage('hey coder what are you doing', sampleState).response;
 assert(coder.includes('Coder side update'));
@@ -76,10 +85,15 @@ const auditor = routeMessage('auditor any dangerous issues', sampleState).respon
 assert(auditor.includes('Auditor check'));
 assert(auditor.includes('Audit findings'));
 
+assert(routeMessage('cto update me', sampleState).response.includes('CTO update'));
+assert(routeMessage('reviewer update', sampleState).response.includes('Reviewer note'));
+
 const xml = twiml('Founder Sir, 5 < 6 & safe');
 assert(xml.includes('&lt;'));
 assert(xml.includes('&amp;'));
 
 assert.strictEqual(normalizePhone('whatsapp:+123 456'), '+123456');
+assert.deepStrictEqual(extractTwilioBody({ body: undefined }).body, '');
+assert.deepStrictEqual(extractTwilioBody({ body: { Body: 'hi', From: 'whatsapp:+1', MessageSid: 'SM1' } }).body, 'hi');
 
 console.log('WhatsApp CTO interface checks passed.');
