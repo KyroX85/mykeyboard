@@ -91,6 +91,10 @@ assert(routeMessage('cto active tasks', sampleState).response.includes('Task pip
 assert(routeMessage('coder what are you working on', sampleState).response.includes('Assigned pipeline'));
 assert(routeMessage('reviewer blocked items', sampleState).response.includes('Review queue'));
 assert(routeMessage('auditor critical risks', sampleState).response.includes('Audit queue'));
+assert(routeMessage('cto maintenance status', sampleState).response.includes('Maintenance status'));
+assert(routeMessage('coder what was cleaned', sampleState).response.includes('Cleaned / proposed'));
+assert(routeMessage('reviewer maintenance risks', sampleState).response.includes('Maintenance risks'));
+assert(routeMessage('auditor dangerous maintenance actions', sampleState).response.includes('Dangerous maintenance actions'));
 
 const xml = twiml('Founder Sir, 5 < 6 & safe');
 assert(xml.includes('&lt;'));

@@ -1,5 +1,6 @@
 const { parseNaturalIntent } = require('./natural-intent-parser');
 const { summarizeTasksForAgent, formatTaskList } = require('./task-manager');
+const { maintenanceSnapshot, formatMaintenanceActions } = require('./maintenance-reader');
 
 const AGENTS = {
   cto: { label: 'CTO', style: 'orchestration', greeting: 'Sir, CTO update' },
@@ -76,6 +77,16 @@ function buildCtoResponse(intent, topic, state, memory) {
   } else if (intent === 'tasks' || intent === 'blocked_tasks') {
     const list = intent === 'blocked_tasks' ? tasks.blocked : tasks.owned.length ? tasks.owned : summarizeTasksForAgent('coder').owned;
     lines.push('', 'Task pipeline:', ...formatTaskList(list, 'No active CTO-owned task recorded sir.'));
+  } else if (intent === 'maintenance') {
+    const maintenance = maintenanceSnapshot();
+    lines.push(
+      '',
+      'Maintenance status:',
+      `Dry-run actions: ${maintenance.dryRun.length}`,
+      `Executed actions: ${maintenance.executed.length}`,
+      `Blocked actions: ${maintenance.blocked.length}`,
+      ...formatMaintenanceActions(maintenance.recent, 'No maintenance run recorded yet.')
+    );
   }
 
   return applyPersonality('cto', lines);
@@ -100,6 +111,9 @@ function buildCoderResponse(intent, topic, state) {
 
   if (intent === 'current_work') {
     lines.push('', 'Files touched info comes only from report/memory; no live coding claim.');
+  } else if (intent === 'maintenance') {
+    const maintenance = maintenanceSnapshot();
+    lines.push('', 'Cleaned / proposed:', ...formatMaintenanceActions(maintenance.executed.length ? maintenance.executed : maintenance.dryRun, 'No cleanup executed yet. Dry-run first.'));
   }
 
   return applyPersonality('coder', lines);
@@ -122,6 +136,10 @@ function buildReviewerResponse(intent, topic, state) {
   ];
 
   if (topic) lines.push('', `Topic focus: ${topic}`);
+  if (intent === 'maintenance') {
+    const maintenance = maintenanceSnapshot();
+    lines.push('', 'Maintenance risks:', ...formatMaintenanceActions(maintenance.skipped.concat(maintenance.blocked), 'No maintenance risk recorded.'));
+  }
   return applyPersonality('reviewer', lines);
 }
 
@@ -142,6 +160,11 @@ function buildAuditorResponse(intent, topic, state) {
     '',
     `Stale check: ${state.workflowFreshness ? state.workflowFreshness.message : 'not evaluated'}`
   ];
+
+  if (intent === 'maintenance') {
+    const maintenance = maintenanceSnapshot();
+    lines.push('', 'Dangerous maintenance actions:', ...formatMaintenanceActions(maintenance.blocked, 'No dangerous maintenance action executed.'));
+  }
 
   if (topic) lines.push(`Topic focus: ${topic}`);
   return applyPersonality('auditor', lines);
