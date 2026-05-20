@@ -88,6 +88,32 @@ The webhook does not run the Android build, does not call paid AI APIs, and does
 
 Legacy aliases still work for `risks`, `latest fixes`, `pending issues`, `next priorities`, and `weekly summary`.
 
+## Multi-Agent Conversational Layer
+
+Founder can also message workers naturally:
+
+```text
+hey coder what are you doing
+reviewer any risks
+cto summarize today
+auditor any dangerous issues
+```
+
+Agents are deterministic role views over the same repo memory and report:
+
+- CTO: orchestration, summaries, priorities, approvals, momentum
+- Coder: recorded implementation work, files touched when available, next coding steps
+- Reviewer: regression risks, validation concerns, architecture consistency
+- Auditor: secrets, oversized files, dangerous code, stale systems
+
+Rules:
+
+- agents do not claim fake work
+- agents do not invent progress
+- agents do not simulate emotions
+- agents stay read-only
+- WhatsApp cannot trigger code pushes or PR generation
+
 Replies are short mobile-readable blocks with engineering indicators:
 
 - `✅` healthy/pass

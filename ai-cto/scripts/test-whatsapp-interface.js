@@ -1,5 +1,6 @@
 const assert = require('assert');
 const { resolveCommand, routeMessage } = require('../whatsapp/command-router');
+const { parseNaturalIntent } = require('../whatsapp/natural-intent-parser');
 const { twiml, normalizePhone } = require('../whatsapp-server');
 
 const sampleState = {
@@ -26,6 +27,13 @@ const sampleState = {
     newRisks: ['[CRITICAL] SECURITY: Hardcoded Secret in chaos_test.js'],
     lastTrendAt: '2026-05-20T05:54:15.010Z',
     issueCount: 5
+  },
+  summary: {
+    health: '25/100',
+    momentum: 'STALLED',
+    topRisk: '[CRITICAL] SECURITY: Hardcoded Secret in chaos_test.js',
+    nextPriority: 'Audit and remove Hardcoded Secret in BasicPredictor.kt.',
+    lastAnalysis: '2026-05-20T05:54:15.010Z'
   }
 };
 
@@ -38,6 +46,9 @@ assert.strictEqual(resolveCommand('what changed'), 'what_changed');
 assert.strictEqual(resolveCommand('keyboard health'), 'keyboard_health');
 assert.deepStrictEqual(resolveCommand('focus predictor'), { command: 'focus', focusTopic: 'predictor' });
 assert.strictEqual(resolveCommand('unknown command'), 'unknown');
+assert.deepStrictEqual(parseNaturalIntent('hey coder what are you doing').agent, 'coder');
+assert.deepStrictEqual(parseNaturalIntent('reviewer any risks').agent, 'reviewer');
+assert.deepStrictEqual(parseNaturalIntent('auditor any dangerous issues').intent, 'risks');
 
 const status = routeMessage('status', sampleState).response;
 assert(status.includes('Founder Sir'));
@@ -52,6 +63,18 @@ assert(focus.includes('focus set: chaos'));
 
 const unknown = routeMessage('open the pod bay doors', sampleState).response;
 assert(unknown.includes('did not recognize'));
+
+const coder = routeMessage('hey coder what are you doing', sampleState).response;
+assert(coder.includes('Coder side update'));
+assert(coder.includes('Fake progress'));
+
+const reviewer = routeMessage('reviewer any risks', sampleState).response;
+assert(reviewer.includes('Reviewer note'));
+assert(reviewer.includes('Regression concerns'));
+
+const auditor = routeMessage('auditor any dangerous issues', sampleState).response;
+assert(auditor.includes('Auditor check'));
+assert(auditor.includes('Audit findings'));
 
 const xml = twiml('Founder Sir, 5 < 6 & safe');
 assert(xml.includes('&lt;'));

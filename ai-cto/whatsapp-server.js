@@ -3,7 +3,8 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const { routeMessage } = require('./whatsapp/command-router');
 const { loadEngineeringState } = require('./whatsapp/state-reader');
-const { readMemory, updateMemory } = require('./whatsapp/memory-store');
+const { updateMemory } = require('./whatsapp/memory-store');
+const { readConversationMemory, updateConversationMemory } = require('./whatsapp/conversation-memory');
 const { logWebhookEvent } = require('./whatsapp/webhook-log');
 const { createOperationalGuard } = require('./whatsapp/operational-guard');
 const { chunkMessage } = require('./whatsapp/message-chunker');
@@ -174,15 +175,22 @@ function createApp() {
     try {
       const state = loadEngineeringState();
       state.workflowFreshness = workflowFreshness(state);
-      const memory = readMemory();
+      const memory = readConversationMemory();
       const routed = routeMessage(body, state, memory);
-      const cooldown = guard.checkCommandCooldown(from, routed.command);
+      const cooldownKey = routed.command === 'agent'
+        ? `agent:${routed.agent}:${routed.intent}`
+        : routed.command;
+      const cooldown = guard.checkCommandCooldown(from, cooldownKey);
       if (cooldown.coolingDown) {
         logWebhookEvent({ type: 'command_cooldown', requestId: id, from, body, command: routed.command, status: 429 });
         res.status(429).type('text/xml').send(twiml('Founder Sir, command cooldown is active. Try again in a few seconds.'));
         return;
       }
-      updateMemory(routed.command, state, routed.details);
+      if (routed.command === 'agent') {
+        updateConversationMemory(routed.details, state);
+      } else {
+        updateMemory(routed.command, state, routed.details);
+      }
       logWebhookEvent({
         type: 'reply',
         requestId: id,
