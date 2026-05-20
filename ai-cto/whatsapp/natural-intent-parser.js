@@ -11,7 +11,9 @@ const AGENT_ALIASES = new Map([
   ['review', 'reviewer'],
   ['qa', 'reviewer'],
   ['auditor', 'auditor'],
+  ['auditer', 'auditor'],
   ['audit', 'auditor'],
+  ['auditing', 'auditor'],
   ['security', 'auditor']
 ]);
 
@@ -32,16 +34,17 @@ const INTENT_PATTERNS = [
 function parseNaturalIntent(message, memory = {}) {
   const normalized = normalize(message);
   if (!normalized) {
-    return { matched: false, agent: null, intent: 'malformed', topic: null, confidence: 0 };
+    return { matched: false, agent: null, intent: 'malformed', topic: null, confidence: 0, normalized };
   }
 
-  const agent = detectAgent(normalized) || memory.lastAgentInteraction || null;
+  const explicitAgent = detectAgent(normalized);
+  const agent = explicitAgent || memory.lastAgentInteraction || null;
   const focusTopic = detectFocusTopic(normalized);
   const intent = detectIntent(normalized);
   const conversational = Boolean(agent || intent !== 'unknown' || focusTopic);
 
   if (!conversational) {
-    return { matched: false, agent: null, intent: 'unknown', topic: null, confidence: 0 };
+    return { matched: false, agent: null, intent: 'unknown', topic: null, confidence: 0, normalized };
   }
 
   return {
@@ -49,7 +52,11 @@ function parseNaturalIntent(message, memory = {}) {
     agent: agent || 'cto',
     intent,
     topic: focusTopic || memory.lastFocusTopic || memory.lastRequestedFocusArea || null,
-    confidence: agent ? 0.9 : 0.65
+    confidence: explicitAgent ? (intent === 'unknown' ? 0.72 : 0.92) : 0.65,
+    normalized,
+    explicitAgent: explicitAgent || null,
+    fallbackUsed: Boolean(explicitAgent && intent === 'unknown'),
+    fallbackReason: explicitAgent && intent === 'unknown' ? 'agent_keyword_only' : null
   };
 }
 

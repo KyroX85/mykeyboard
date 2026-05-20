@@ -15,6 +15,10 @@ const DEFAULT_MEMORY = {
   lastFocusTopic: null,
   activeTasks: [],
   currentSprintFocus: null,
+  lastDiscussedTopic: null,
+  lastUnfinishedConcern: null,
+  lastMentionedBlocker: null,
+  lastActiveTask: null,
   lastCommand: null,
   lastUpdatedAt: null
 };
@@ -102,7 +106,11 @@ function readConversationMemory() {
     lastAgentInteraction: memory.lastAgentInteraction || null,
     lastFocusTopic: memory.lastFocusTopic || memory.lastRequestedFocusArea || null,
     activeTasks: Array.isArray(memory.activeTasks) ? memory.activeTasks : [],
-    currentSprintFocus: memory.currentSprintFocus || memory.lastRequestedFocusArea || null
+    currentSprintFocus: memory.currentSprintFocus || memory.lastRequestedFocusArea || null,
+    lastDiscussedTopic: memory.lastDiscussedTopic || memory.lastFocusTopic || null,
+    lastUnfinishedConcern: memory.lastUnfinishedConcern || memory.latestUnresolvedIssue || null,
+    lastMentionedBlocker: memory.lastMentionedBlocker || null,
+    lastActiveTask: memory.lastActiveTask || null
   };
 }
 
@@ -119,6 +127,10 @@ function updateConversationMemory(route, state) {
     latestMomentumState: state.momentum || memory.latestMomentumState,
     activeTasks,
     currentSprintFocus: route.focusTopic || state.sections.nextPriority[0] || memory.currentSprintFocus || null,
+    lastDiscussedTopic: route.focusTopic || route.intent || memory.lastDiscussedTopic || null,
+    lastUnfinishedConcern: state.sections.unresolved[0] || state.sections.risks[0] || memory.lastUnfinishedConcern || null,
+    lastMentionedBlocker: state.sections.repeatedFailures[0] || memory.lastMentionedBlocker || null,
+    lastActiveTask: activeTasks[0] || memory.lastActiveTask || null,
     lastCommand: `agent:${route.agent}:${route.intent}`
   };
   return writeMemory(next);
