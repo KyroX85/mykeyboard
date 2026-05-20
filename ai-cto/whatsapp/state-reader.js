@@ -14,11 +14,30 @@ function readText(file, fallback = '') {
   }
 }
 
-function readJson(file, fallback = null) {
+function readJsonWithRecovery(file, fallback = null) {
   try {
     return fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : fallback;
-  } catch {
+  } catch (error) {
+    recoverCorruptJson(file, error);
     return fallback;
+  }
+}
+
+function recoverCorruptJson(file, error) {
+  try {
+    if (!fs.existsSync(file)) return;
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    fs.copyFileSync(file, `${file}.corrupt-${timestamp}`);
+    fs.writeFileSync(file, JSON.stringify({
+      version: 'recovered',
+      recoveredAt: new Date().toISOString(),
+      recoveryReason: `Invalid JSON: ${error.message}`,
+      unresolvedIssues: [],
+      healthScore: null,
+      momentum: 'UNKNOWN'
+    }, null, 2));
+  } catch {
+    // Recovery failure should not take down the webhook.
   }
 }
 
@@ -40,13 +59,13 @@ function firstListItems(text, limit = 5) {
 
 function loadEngineeringState() {
   const report = readText(REPORT_FILE);
-  const brain = readJson(BRAIN_STATE_FILE, {});
-  const validation = readJson(VALIDATION_FILE, {});
+  const brain = readJsonWithRecovery(BRAIN_STATE_FILE, {});
+  const validation = readJsonWithRecovery(VALIDATION_FILE, {});
   const latestValidationFailure = Array.isArray(validation.findings) && validation.findings.length > 0
     ? validation.findings[0]
     : null;
 
-  return {
+  const state = {
     generatedAt: brain.lastAnalysis || validation.generatedAt || null,
     healthScore: Number.isFinite(brain.healthScore) ? brain.healthScore : extractHealthScore(report),
     momentum: brain.momentum || extractMomentum(report),
@@ -67,6 +86,19 @@ function loadEngineeringState() {
       safestOpportunity: firstListItems(section(report, 'SAFEST IMPROVEMENT OPPORTUNITY'), 1)
     },
     changed: summarizeChanges(report, brain)
+  };
+  state.summary = compressReportSummary(state);
+  return state;
+}
+
+function compressReportSummary(state) {
+  const health = state.healthScore == null ? 'unknown' : `${state.healthScore}/100`;
+  return {
+    health,
+    momentum: state.momentum || 'UNKNOWN',
+    topRisk: state.sections.risks[0] || state.sections.unresolved[0] || 'No current risk recorded.',
+    nextPriority: state.sections.nextPriority[0] || 'No next priority recorded.',
+    lastAnalysis: state.generatedAt || 'not recorded yet'
   };
 }
 
@@ -96,5 +128,7 @@ function summarizeChanges(report, brain) {
 
 module.exports = {
   loadEngineeringState,
-  firstListItems
+  firstListItems,
+  readJsonWithRecovery,
+  compressReportSummary
 };

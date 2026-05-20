@@ -17,6 +17,13 @@ Implemented:
 - Failure recovery
 - Malformed command handling
 - Per-sender rate limiting
+- Command cooldowns
+- Webhook replay protection
+- Startup self-check diagnostics
+- Workflow stale heartbeat after 12 hours
+- Compressed report summaries
+- Message chunking for long responses
+- Repo memory corruption recovery
 
 Not implemented yet:
 
@@ -50,9 +57,14 @@ The webhook does not run the Android build, does not call paid AI APIs, and does
 - `ai-cto/whatsapp/state-reader.js`
 - `ai-cto/whatsapp/memory-store.js`
 - `ai-cto/whatsapp/webhook-log.js`
+- `ai-cto/whatsapp/operational-guard.js`
+- `ai-cto/whatsapp/message-chunker.js`
+- `ai-cto/whatsapp/diagnostics.js`
 - `ai-cto/scripts/test-whatsapp-interface.js`
+- `ai-cto/scripts/test-whatsapp-operational-hardening.js`
 - `ai-cto/WHATSAPP_INTERFACE.md`
 - `.env.example`
+- `SYSTEM_HEALTH.md`
 
 ## Files Modified
 
@@ -120,6 +132,10 @@ Environment variables:
 - `FOUNDER_WHATSAPP_NUMBER=+<country-code-and-number>`
 - `WHATSAPP_RATE_LIMIT_WINDOW_MS=60000`
 - `WHATSAPP_RATE_LIMIT_MAX=12`
+- `WHATSAPP_COMMAND_COOLDOWN_MS=3000`
+- `WHATSAPP_REPLAY_WINDOW_MS=600000`
+- `WHATSAPP_ABUSE_WINDOW_MS=900000`
+- `WHATSAPP_ABUSE_MAX=8`
 
 Do not set `ALLOW_UNVERIFIED_WHATSAPP=true` in production.
 
@@ -142,8 +158,26 @@ Implemented controls:
 - XML escaping for Twilio responses
 - Read-only webhook behavior
 - Rate limiting
+- Command cooldowns
+- Replay protection with Twilio message IDs
 - Masked webhook logging
 - Handler failure recovery
+
+## Health Monitoring
+
+Render health check:
+
+```text
+GET /healthz
+```
+
+Detailed operational diagnostics:
+
+```text
+GET /system-health
+```
+
+If GitHub Actions has not updated CTO state for more than 12 hours, WhatsApp `status` responses include a heartbeat warning.
 
 ## Conversation Memory
 
@@ -172,6 +206,13 @@ Local deterministic validation:
 npm run cto:whatsapp:test
 ```
 
+Direct scripts:
+
+```bash
+node ai-cto/scripts/test-whatsapp-interface.js
+node ai-cto/scripts/test-whatsapp-operational-hardening.js
+```
+
 Render validation:
 
 ```text
@@ -189,6 +230,6 @@ Twilio validation:
 
 ## Production Readiness Score
 
-Phase 3 readiness: 84/100.
+Phase 4 readiness: 90/100.
 
 It is ready for controlled Founder-only read-only CTO conversations through Twilio Sandbox and Render free tier. It is not ready for approval execution or task assignment until the next phase adds signed directives, durable audit logs, and PR-only execution controls.
