@@ -337,10 +337,11 @@ function generateReport(issues) {
 
 loadState();
 const now = new Date().toISOString();
+const hasStructuredValidation = fs.existsSync(VALIDATION_FILE);
 const androidFindings = validationFindings();
 const issues = uniqueIssues([
   ...androidFindings,
-  ...(androidFindings.length > 0 ? [] : analyzeFailuresFromLog()),
+  ...(hasStructuredValidation ? [] : analyzeFailuresFromLog()),
   ...deepCodeScan(ROOT)
 ]);
 
