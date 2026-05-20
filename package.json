@@ -8,8 +8,9 @@
     "cto:validate": "node ai-cto/scripts/run-android-validation.js",
     "cto:brain": "node ai-cto/brain.js",
     "cto:autofix": "node ai-cto/scripts/safe-autofix.js --apply",
+    "cto:maintenance": "node ai-cto/scripts/safe-maintenance-engine.js",
     "cto:whatsapp": "node ai-cto/whatsapp-server.js",
-    "cto:whatsapp:test": "node ai-cto/scripts/test-whatsapp-interface.js && node ai-cto/scripts/test-whatsapp-operational-hardening.js && node ai-cto/scripts/test-task-pipeline.js"
+    "cto:whatsapp:test": "node ai-cto/scripts/test-whatsapp-interface.js && node ai-cto/scripts/test-whatsapp-operational-hardening.js && node ai-cto/scripts/test-task-pipeline.js && node ai-cto/scripts/test-safe-maintenance-engine.js"
   },
   "keywords": [],
   "author": "",

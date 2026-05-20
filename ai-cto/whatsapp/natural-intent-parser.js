@@ -17,9 +17,10 @@ const AGENT_ALIASES = new Map([
 
 const INTENT_PATTERNS = [
   { intent: 'summary', words: ['summarize', 'summary', 'today', 'overall', 'brief', 'update', 'happened'] },
-  { intent: 'risks', words: ['risk', 'risks', 'danger', 'dangerous', 'concern', 'issue', 'blocked', 'blocker', 'blocks'] },
   { intent: 'tasks', words: ['task', 'tasks', 'assigned', 'assignment', 'pipeline'] },
   { intent: 'blocked_tasks', words: ['blocked items', 'blocked tasks', 'blockers'] },
+  { intent: 'maintenance', words: ['maintenance', 'cleaned', 'cleanup', 'clean', 'safe maintenance'] },
+  { intent: 'risks', words: ['risk', 'risks', 'danger', 'dangerous', 'concern', 'issue', 'blocked', 'blocker', 'blocks'] },
   { intent: 'current_work', words: ['doing', 'working', 'work', 'progress', 'touched', 'changed'] },
   { intent: 'validation', words: ['validate', 'validation', 'test', 'tests', 'build', 'lint'] },
   { intent: 'approvals', words: ['approval', 'approvals', 'approve', 'pending'] },
