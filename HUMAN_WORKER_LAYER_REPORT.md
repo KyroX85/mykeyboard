@@ -29,6 +29,9 @@ Agent replies now use:
 - short mobile-readable status lines
 - real task/report/execution context only
 - passive-style updates only when backed by logs
+- accountable worker fields: attempted, succeeded, failed, blocked, confidence, risk, next action
+- `REAL PROGRESS SIGNAL` for CTO updates
+- documentation-only progress labeling
 
 ## Safety Boundaries
 
@@ -57,7 +60,28 @@ The layer does not:
 - no hallucinated task completion test
 - response size limit test
 - conversational formatting test
+- no fake runtime improvement claim test
+- documentation-only progress labeling test
 - full WhatsApp interface regression suite
+
+## Before State
+
+Agents sounded more natural than before, but could still answer like status summaries without proving what was attempted, what worked, what failed, and what remains blocked.
+
+## After State
+
+Each existing worker now reports accountable progress in a short founder-facing format. Documentation/report-only work is not treated as runtime progress.
+
+## Measurable Impact
+
+- all four agents now include accountable worker fields
+- CTO includes real progress signals for build stability and runtime metrics
+- missing runtime metrics are explicitly marked `not measured`
+- tests enforce no fake completion and no fake runtime improvement
+
+## Remaining Weakness
+
+Runtime typing latency, crash reduction, touch confidence, memory reduction, and APK impact still require real instrumentation before they can become positive progress claims.
 
 ## Regression Risk
 
