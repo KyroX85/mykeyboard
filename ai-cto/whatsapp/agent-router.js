@@ -54,11 +54,13 @@ function routeAgentMessage(message, state, memory = {}) {
     agent,
     intent: parsed.intent,
     topic: parsed.topic,
-    response: buildAgentResponse(agent, parsed.intent, parsed.topic, state, memory)
+    response: buildAgentResponse(agent, parsed.intent, parsed.topic, state, memory, {
+      detailMode: parsed.detailMode
+    })
   };
 }
 
-function buildAgentResponse(agent, intent, topic, state, memory) {
+function buildAgentResponse(agent, intent, topic, state, memory, options = {}) {
   const groundedMemory = buildConversationMemory({
     agent,
     intent,
@@ -66,7 +68,7 @@ function buildAgentResponse(agent, intent, topic, state, memory) {
     state,
     priorMemory: memory
   });
-  return buildNaturalResponse({ agent, intent, topic, state, memory: groundedMemory });
+  return buildNaturalResponse({ agent, intent, topic, state, memory: groundedMemory, detailMode: options.detailMode });
 }
 
 function clarificationResponse() {

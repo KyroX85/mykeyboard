@@ -5,20 +5,72 @@ const { executionSnapshot } = require('./execution-reader');
 const { generatePassiveWorkerUpdates } = require('./humanized-summary-generator');
 const { enforcePersonalityGuardrails } = require('./personality-guard');
 
-function buildNaturalResponse({ agent, intent, topic, state, memory = {} }) {
+const MOBILE_LABELS = {
+  cto: '🧠 CTO',
+  coder: '🛠 CODER',
+  reviewer: '🛡 REVIEWER',
+  auditor: '🚨 AUDITOR'
+};
+
+function buildNaturalResponse({ agent, intent, topic, state, memory = {}, detailMode = false }) {
   const safeState = normalizeState(state);
   const persona = getPersonality(agent);
   const tasks = summarizeTasksForAgent(agent);
   const maintenance = maintenanceSnapshot();
   const execution = executionSnapshot();
   const context = { persona, tasks, maintenance, execution, topic, intent, state: safeState, memory };
+  if (!detailMode) {
+    return enforcePersonalityGuardrails(buildMobileResponse(agent, context));
+  }
+
   const lines = [
-    `[${persona.label}]`,
+    MOBILE_LABELS[agent] || MOBILE_LABELS.cto,
     persona.opener,
     ...agentLines(agent, context)
   ];
 
   return enforcePersonalityGuardrails(limitResponse(lines));
+}
+
+function buildMobileResponse(agent, context) {
+  const { state, topic, memory, tasks, execution, maintenance, intent } = context;
+  const accountability = buildAccountability(agent, { state, topic, memory, tasks, execution, maintenance, intent });
+  const label = MOBILE_LABELS[agent] || MOBILE_LABELS.cto;
+  const noRuntime = noRuntimeProgress(state);
+  const attempted = mobileAttempted(agent, state, accountability[0], noRuntime);
+  const blocked = mobileBlocked(accountability[2], accountability[3]);
+  const risk = mobileRisk(accountability[4], state);
+  const next = accountability[5].replace(/^Next:\s*/, '');
+
+  return [
+    label,
+    `Attempted: ${attempted}`,
+    `Blocked: ${blocked}`,
+    `Risk: ${risk}`,
+    `Next: ${compact(next, 82)}`
+  ].join('\n');
+}
+
+function mobileAttempted(agent, state, attemptedLine, noRuntime) {
+  if (noRuntime) return 'Sir, mostly maintenance today. No major typing improvement yet.';
+  const product = productSignal(state);
+  if (product.perceptible === 'no') return 'Sir, no user-visible improvement proven yet.';
+  if (agent === 'reviewer') return `Sir, checked typing confidence risk. ${product.changedSignal}.`;
+  if (agent === 'auditor') return 'Sir, checked dangerous product/runtime risk.';
+  return `Sir, ${compact(attemptedLine.replace(/^Attempted:\s*/, ''), 78)}`;
+}
+
+function mobileBlocked(failedLine, blockedLine) {
+  const failed = failedLine.replace(/^Failed:\s*/, '').replace(/\.$/, '');
+  const blocked = blockedLine.replace(/^Blocked:\s*/, '').replace(/\.$/, '');
+  if (!/nothing new failed|nothing explicitly blocked/i.test(failed)) return compact(failed, 84);
+  return compact(blocked, 84);
+}
+
+function mobileRisk(riskLine, state) {
+  const risk = riskLine.replace(/^Confidence:[^.]*\.\s*Risk:\s*/, '').replace(/\.$/, '');
+  if (noRuntimeProgress(state) && !findDanger(state)) return 'low operational impact.';
+  return `${compact(risk, 72)}.`;
 }
 
 function agentLines(agent, context) {

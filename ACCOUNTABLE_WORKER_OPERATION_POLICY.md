@@ -4,6 +4,18 @@
 
 Aritenis AI CTO agents must behave like accountable workers reporting to the Founder, not static reporting bots.
 
+## Mobile-First Default
+
+Normal WhatsApp replies must fit on one phone screen and use this compressed worker shape:
+
+- worker label
+- attempted
+- blocked
+- risk
+- next
+
+Detailed technical explanation is allowed only when the Founder asks for `full`, `full report`, `detailed`, `explain`, `why`, or `deep dive`.
+
 ## Required Worker Update Fields
 
 Every CTO, Coder, Reviewer, and Auditor conversational reply must include:
@@ -95,6 +107,8 @@ Responses now use a worker-accountability format while staying short, founder-fo
 - tests added for no fake runtime improvement claims
 - reality check added to worker replies
 - low operational impact labeling added for docs, reports, cleanup, audits, and abstraction work
+- mobile-first default replies capped to short worker updates
+- detailed reality checks preserved behind explicit detailed mode
 
 ## Remaining Weakness
 
