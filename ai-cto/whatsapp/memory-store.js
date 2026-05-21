@@ -21,6 +21,12 @@ const DEFAULT_MEMORY = {
   lastActiveTask: null,
   latestImprovement: null,
   latestWarning: null,
+  lastFounderTone: null,
+  lastDiscussedFrustration: null,
+  unresolvedConcern: null,
+  repeatedPainPoints: [],
+  recentWins: [],
+  founderPreferredWording: null,
   lastCommand: null,
   lastUpdatedAt: null
 };
@@ -115,7 +121,13 @@ function readConversationMemory() {
     lastMentionedBlocker: memory.lastMentionedBlocker || null,
     lastActiveTask: memory.lastActiveTask || null,
     latestImprovement: memory.latestImprovement || null,
-    latestWarning: memory.latestWarning || null
+    latestWarning: memory.latestWarning || null,
+    lastFounderTone: memory.lastFounderTone || null,
+    lastDiscussedFrustration: memory.lastDiscussedFrustration || null,
+    unresolvedConcern: memory.unresolvedConcern || memory.latestUnresolvedIssue || null,
+    repeatedPainPoints: Array.isArray(memory.repeatedPainPoints) ? memory.repeatedPainPoints : [],
+    recentWins: Array.isArray(memory.recentWins) ? memory.recentWins : [],
+    founderPreferredWording: memory.founderPreferredWording || null
   };
 }
 
@@ -123,6 +135,7 @@ function updateConversationMemory(route, state) {
   const memory = readConversationMemory();
   const sections = state.sections || {};
   const changed = state.changed || {};
+  const continuity = route.continuity || {};
   const activeTasks = deriveActiveTasks(state);
   const next = {
     ...memory,
@@ -140,6 +153,12 @@ function updateConversationMemory(route, state) {
     lastActiveTask: activeTasks[0] || memory.lastActiveTask || null,
     latestImprovement: first(sections.completedFixes) || first(changed.completed) || memory.latestImprovement || null,
     latestWarning: first(sections.risks) || first(changed.newRisks) || memory.latestWarning || null,
+    lastFounderTone: continuity.founderTone || memory.lastFounderTone || null,
+    lastDiscussedFrustration: continuity.frustration || memory.lastDiscussedFrustration || null,
+    unresolvedConcern: first(sections.unresolved) || first(sections.risks) || memory.unresolvedConcern || null,
+    repeatedPainPoints: mergeRemembered(memory.repeatedPainPoints, continuity.painPoint),
+    recentWins: mergeRemembered(memory.recentWins, first(sections.completedFixes) || first(changed.completed)),
+    founderPreferredWording: continuity.preferredWording || memory.founderPreferredWording || null,
     lastCommand: `agent:${route.agent}:${route.intent}`
   };
   return writeMemory(next);
@@ -158,6 +177,12 @@ function deriveActiveTasks(state) {
 
 function first(items) {
   return Array.isArray(items) && items.length > 0 ? items[0] : null;
+}
+
+function mergeRemembered(items, value) {
+  const list = Array.isArray(items) ? items : [];
+  if (!value) return list.slice(0, 5);
+  return [value, ...list.filter((item) => item !== value)].slice(0, 5);
 }
 
 module.exports = {

@@ -37,7 +37,7 @@ function buildMobileResponse(agent, context) {
   const accountability = buildAccountability(agent, { state, topic, memory, tasks, execution, maintenance, intent });
   const label = MOBILE_LABELS[agent] || MOBILE_LABELS.cto;
   const noRuntime = noRuntimeProgress(state);
-  const attempted = mobileAttempted(agent, state, accountability[0], noRuntime);
+  const attempted = mobileAttempted(agent, state, accountability[0], noRuntime, topic, memory);
   const blocked = mobileBlocked(accountability[2], accountability[3]);
   const risk = mobileRisk(accountability[4], state);
   const next = accountability[5].replace(/^Next:\s*/, '');
@@ -47,17 +47,21 @@ function buildMobileResponse(agent, context) {
     `Attempted: ${attempted}`,
     `Blocked: ${blocked}`,
     `Risk: ${risk}`,
-    `Next: ${compact(next, 82)}`
+    `Next: ${mobileNext(next, topic, memory)}`
   ].join('\n');
 }
 
-function mobileAttempted(agent, state, attemptedLine, noRuntime) {
-  if (noRuntime) return 'Sir, mostly maintenance today. No major typing improvement yet.';
+function mobileAttempted(agent, state, attemptedLine, noRuntime, topic, memory = {}) {
+  const prefix = tonePrefix(memory);
+  if (topic && /swipe|trail|gesture/i.test(topic)) {
+    return `${prefix}swipe line not proven fixed yet. Checking real typing feel.`;
+  }
+  if (noRuntime) return `${prefix}mostly maintenance today. No major typing improvement yet.`;
   const product = productSignal(state);
-  if (product.perceptible === 'no') return 'Sir, no user-visible improvement proven yet.';
-  if (agent === 'reviewer') return `Sir, checked typing confidence risk. ${product.changedSignal}.`;
-  if (agent === 'auditor') return 'Sir, checked dangerous product/runtime risk.';
-  return `Sir, ${compact(attemptedLine.replace(/^Attempted:\s*/, ''), 78)}`;
+  if (product.perceptible === 'no') return `${prefix}no user-visible improvement proven yet.`;
+  if (agent === 'reviewer') return `${prefix}checked typing confidence risk. ${product.changedSignal}.`;
+  if (agent === 'auditor') return `${prefix}checked dangerous product/runtime risk.`;
+  return `${prefix}${compact(attemptedLine.replace(/^Attempted:\s*/, ''), 78)}`;
 }
 
 function mobileBlocked(failedLine, blockedLine) {
@@ -71,6 +75,20 @@ function mobileRisk(riskLine, state) {
   const risk = riskLine.replace(/^Confidence:[^.]*\.\s*Risk:\s*/, '').replace(/\.$/, '');
   if (noRuntimeProgress(state) && !findDanger(state)) return 'low operational impact.';
   return `${compact(risk, 72)}.`;
+}
+
+function mobileNext(next, topic, memory = {}) {
+  if (topic && /swipe|trail|gesture/i.test(topic)) return 'test trail continuity on real typing.';
+  const pain = first(memory.repeatedPainPoints);
+  if (pain === 'school mode') return 'keep replies short for school mode.';
+  if (pain === 'real worker feel') return 'keep updates natural, but grounded.';
+  return compact(next, 82);
+}
+
+function tonePrefix(memory = {}) {
+  if (memory.lastFounderTone === 'casual') return 'Sollunga sir. ';
+  if (memory.lastFounderTone === 'low_attention') return 'Short version sir: ';
+  return 'Sir, ';
 }
 
 function agentLines(agent, context) {

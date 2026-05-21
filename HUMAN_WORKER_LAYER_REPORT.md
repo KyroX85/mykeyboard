@@ -91,6 +91,27 @@ Normal WhatsApp replies now use:
 
 Default replies are compressed to attempted, blocked, risk, and next action. Longer reality checks remain available only when the Founder asks for full or detailed explanation.
 
+## Social Continuity Update
+
+The existing workers now persist lightweight operational continuity:
+
+- last founder tone
+- last discussed frustration
+- unresolved concern
+- repeated pain points
+- recent wins
+- preferred wording
+
+This is bounded and operational. It does not simulate emotions, consciousness, attachment, or fake friendship. It only helps replies avoid sounding like static templates when the Founder asks in casual or low-attention mode.
+
+Tested prompts:
+
+- `dei what doing`
+- `reviewer anything dangerous`
+- `sir inniku progress iruka`
+- `cto are we stuck`
+- `coder swipe issue fixed ah`
+
 ## Reality-Based Mode Update
 
 Agents now prioritize product signals over engineering activity. Runtime and UX signals are shown before reports are treated as progress:

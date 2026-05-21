@@ -97,7 +97,8 @@ function routeMessage(message, state, memory = {}) {
       details: {
         agent: agentRoute.agent,
         intent: agentRoute.intent,
-        focusTopic: agentRoute.topic
+        focusTopic: agentRoute.topic,
+        continuity: agentRoute.continuity
       },
       matchedRoute: 'agent_intent',
       response: agentRoute.response

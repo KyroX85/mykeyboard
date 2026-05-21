@@ -30,11 +30,12 @@ function routeAgentMessage(message, state, memory = {}) {
       fallbackReason: 'low_confidence'
     });
     return {
-      command: 'agent_clarify',
-      agent: null,
-      intent: parsed.intent,
-      topic: parsed.topic,
-      response: clarificationResponse()
+    command: 'agent_clarify',
+    agent: null,
+    intent: parsed.intent,
+    topic: parsed.topic,
+    continuity: parsed.continuity,
+    response: clarificationResponse()
     };
   }
 
@@ -54,8 +55,10 @@ function routeAgentMessage(message, state, memory = {}) {
     agent,
     intent: parsed.intent,
     topic: parsed.topic,
+    continuity: parsed.continuity,
     response: buildAgentResponse(agent, parsed.intent, parsed.topic, state, memory, {
-      detailMode: parsed.detailMode
+      detailMode: parsed.detailMode,
+      continuity: parsed.continuity
     })
   };
 }
@@ -66,7 +69,10 @@ function buildAgentResponse(agent, intent, topic, state, memory, options = {}) {
     intent,
     topic,
     state,
-    priorMemory: memory
+    priorMemory: {
+      ...memory,
+      currentContinuity: options.continuity || null
+    }
   });
   return buildNaturalResponse({ agent, intent, topic, state, memory: groundedMemory, detailMode: options.detailMode });
 }

@@ -50,7 +50,13 @@ const memory = buildConversationMemory({
     lastAgentInteraction: 'reviewer',
     lastDiscussedTopic: 'safe execution',
     lastUnfinishedConcern: 'Rollback safety unclear',
-    lastActiveTask: 'Old cleanup task'
+    lastActiveTask: 'Old cleanup task',
+    currentContinuity: {
+      founderTone: 'casual',
+      painPoint: 'swipe feel',
+      frustration: 'swipe feel',
+      preferredWording: 'sir'
+    }
   }
 });
 
@@ -59,6 +65,9 @@ assert.strictEqual(memory.lastDiscussedTopic, 'keyboard cleanup');
 assert.strictEqual(memory.latestUnresolvedIssue, '[CRITICAL] Unsafe secret handling still unresolved');
 assert.strictEqual(memory.latestImprovement, 'Safe execution dry-run layer added');
 assert.strictEqual(memory.latestWarning, '[HIGH] Regression risk in keyboard cleanup path');
+assert.strictEqual(memory.lastFounderTone, 'casual');
+assert.strictEqual(memory.lastDiscussedFrustration, 'swipe feel');
+assert(memory.repeatedPainPoints.includes('swipe feel'));
 
 const coderReply = buildNaturalResponse({
   agent: 'coder',
@@ -69,7 +78,7 @@ const coderReply = buildNaturalResponse({
 });
 
 assert(coderReply.startsWith('🛠 CODER'));
-assert(coderReply.includes('Sir'));
+assert(coderReply.includes('Sollunga sir') || coderReply.includes('Sir'));
 assert(coderReply.includes('Attempted:'));
 assert(coderReply.includes('Blocked:'));
 assert(coderReply.includes('Risk:'));
