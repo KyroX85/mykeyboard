@@ -90,7 +90,7 @@ assert(reviewer.includes('Main concern'));
 const auditor = routeMessage('auditor any dangerous issues', sampleState).response;
 assert(auditor.includes('[Aritenis Auditor]'));
 assert(auditor.includes('Sir, auditor warning'));
-assert(auditor.includes('Still dangerous'));
+assert(auditor.includes('Danger:'));
 
 assert(routeMessage('cto update me', sampleState).response.includes('CTO view'));
 assert(routeMessage('cto active tasks', sampleState).response.includes('[Aritenis CTO]'));
@@ -103,7 +103,7 @@ assert(routeMessage('coder what are you working on', sampleState).response.inclu
 assert(routeMessage('reviewer blocked items', sampleState).response.includes('regression angle'));
 assert(routeMessage('auditor critical risks', sampleState).response.includes('danger'));
 assert(routeMessage('cto maintenance status', sampleState).response.includes('CTO view'));
-assert(routeMessage('coder what was cleaned', sampleState).response.includes('Maintenance log'));
+assert(routeMessage('coder what was cleaned', sampleState).response.includes('maintenance actions'));
 assert(routeMessage('reviewer maintenance risks', sampleState).response.includes('Main concern'));
 assert(routeMessage('auditor dangerous maintenance actions', sampleState).response.includes('danger'));
 assert.strictEqual(parseNaturalIntent('cto execution status').intent, 'execution');

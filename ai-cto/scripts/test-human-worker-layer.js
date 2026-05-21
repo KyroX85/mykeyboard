@@ -79,6 +79,11 @@ assert(coderReply.includes('Blocked:'));
 assert(coderReply.includes('Confidence:'));
 assert(coderReply.includes('Risk:'));
 assert(coderReply.includes('Next:'));
+assert(coderReply.includes('REALITY CHECK'));
+assert(coderReply.includes('actually improved for user'));
+assert(coderReply.includes('measurable signal'));
+assert(coderReply.includes('still feels weak'));
+assert(coderReply.includes('perceptible'));
 assert(!coderReply.includes('I finished keyboard cleanup'));
 assert(!coderReply.includes('{'));
 assert(coderReply.length < 900);
@@ -106,7 +111,11 @@ const ctoReply = buildNaturalResponse({
 });
 assert(ctoReply.includes('REAL PROGRESS SIGNAL'));
 assert(ctoReply.includes('build stability'));
+assert(ctoReply.includes('typing latency'));
+assert(ctoReply.includes('keypress responsiveness'));
 assert(ctoReply.includes('unresolved blockers'));
+assert(ctoReply.includes('FAKE PROGRESS WATCH'));
+assert(ctoReply.includes('agent-system bloat'));
 
 const docOnlyState = {
   ...sampleState,
@@ -139,6 +148,8 @@ const docOnlyReply = buildNaturalResponse({
 });
 assert(docOnlyReply.includes('documentation pass only - no runtime improvement'));
 assert(docOnlyReply.includes('Sir, no major runtime improvement today'));
+assert(docOnlyReply.includes('low operational impact'));
+assert(docOnlyReply.includes('perceptible: no'));
 
 const updates = generatePassiveWorkerUpdates(sampleState, {
   execution: {

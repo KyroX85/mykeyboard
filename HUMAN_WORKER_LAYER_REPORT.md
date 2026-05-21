@@ -32,6 +32,8 @@ Agent replies now use:
 - accountable worker fields: attempted, succeeded, failed, blocked, confidence, risk, next action
 - `REAL PROGRESS SIGNAL` for CTO updates
 - documentation-only progress labeling
+- `REALITY CHECK` for user-visible impact
+- low operational impact labeling for work without measurable runtime or UX gain
 
 ## Safety Boundaries
 
@@ -62,6 +64,8 @@ The layer does not:
 - conversational formatting test
 - no fake runtime improvement claim test
 - documentation-only progress labeling test
+- reality-based product signal test
+- fake progress pattern visibility test
 - full WhatsApp interface regression suite
 
 ## Before State
@@ -72,16 +76,36 @@ Agents sounded more natural than before, but could still answer like status summ
 
 Each existing worker now reports accountable progress in a short founder-facing format. Documentation/report-only work is not treated as runtime progress.
 
+## Reality-Based Mode Update
+
+Agents now prioritize product signals over engineering activity. Runtime and UX signals are shown before reports are treated as progress:
+
+- typing latency
+- correction rate
+- backspace frequency
+- touch confidence
+- APK size
+- memory impact
+- hot-path allocations
+- build stability
+- crash likelihood
+- render cost
+- startup cost
+- keypress responsiveness
+
+Missing product signals are explicitly marked `not measured`.
+
 ## Measurable Impact
 
 - all four agents now include accountable worker fields
 - CTO includes real progress signals for build stability and runtime metrics
 - missing runtime metrics are explicitly marked `not measured`
 - tests enforce no fake completion and no fake runtime improvement
+- responses expose fake progress risks such as reporting churn, cleanup-only work, agent-system bloat, and complexity without typing improvement
 
 ## Remaining Weakness
 
-Runtime typing latency, crash reduction, touch confidence, memory reduction, and APK impact still require real instrumentation before they can become positive progress claims.
+Runtime typing latency, correction rate, backspace frequency, touch confidence, APK size, memory impact, hot-path allocations, crash likelihood, render cost, startup cost, and keypress responsiveness still require instrumentation or real-device validation before they can become positive progress claims.
 
 ## Regression Risk
 

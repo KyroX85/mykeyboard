@@ -33,13 +33,14 @@ function ctoLines({ state, topic, memory, tasks, execution, intent }) {
   const activeCount = tasks.totalActive || 0;
   const accountability = buildAccountability('cto', { state, topic, memory, tasks, execution, intent });
   const lines = [
-    `Sir, current health is ${formatHealth(state)} with momentum ${state.momentum || 'UNKNOWN'}.`,
-    activeCount > 0
-      ? `${activeCount} active task(s) are moving; I am keeping the risky parts behind review.`
-      : 'No critical task is actively moving right now; I am keeping the system in watch mode.',
-    `Direction: ${compact(next)}.`,
+    `Sir, health ${formatHealth(state)}, momentum ${state.momentum || 'UNKNOWN'}.`,
+    activeCount > 0 ? `${activeCount} active task(s); review gate on.` : 'No critical task moving.',
+    `Direction: ${compact(next, 90)}.`,
     ...accountability,
     intent === 'execution' ? `Safe execution: ${execution.dryRun.length} dry-run, ${execution.completed.length} completed, ${execution.blocked.length} blocked.` : null,
+    'FAKE PROGRESS WATCH',
+    ...fakeProgressWatch(state),
+    ...realityCheck(state),
     '',
     'REAL PROGRESS SIGNAL',
     ...realProgressSignal(state)
@@ -67,6 +68,7 @@ function coderLines({ state, topic, memory, tasks, maintenance, execution, inten
       ? `My assigned item is still ${compact(ownedTask.title || ownedTask.id || ownedTask)}.`
       : 'No coder-owned task is assigned right now.',
     ...buildAccountability('coder', { state, topic, memory, tasks, execution, maintenance, intent }),
+    ...realityCheck(state),
   ];
 
   if (completedExecution) {
@@ -98,7 +100,8 @@ function reviewerLines({ state, topic, memory, tasks, execution }) {
     blocked
       ? `I am holding this until ${compact(blocked.blocked_reason || blocked.title || blocked.action || blocked)} is clear.`
       : 'Nothing is blocked by reviewer right now.',
-    ...buildAccountability('reviewer', { state, topic, memory, tasks, execution })
+    ...buildAccountability('reviewer', { state, topic, memory, tasks, execution }),
+    ...realityCheck(state)
   ];
 
   const failedValidation = state.validation.find((item) => String(item.status || '').toLowerCase() === 'failed');
@@ -114,12 +117,13 @@ function auditorLines({ state, topic, memory, execution }) {
       ? `Sir, danger check on ${compact(topic)}.`
       : 'Sir, danger check only.',
     danger
-      ? `Still dangerous: ${compact(danger)}.`
+      ? `Danger: ${compact(danger)}.`
       : 'No dangerous issue is recorded in the latest state.',
     blocked
-      ? `Blocked execution: ${blocked.action}. Rollback/scope was not safe enough.`
+      ? `Blocked execution: ${blocked.action}. Scope not safe.`
       : 'No dangerous execution attempt is active.',
-    ...buildAccountability('auditor', { state, topic, memory, execution })
+    ...buildAccountability('auditor', { state, topic, memory, execution }),
+    ...realityCheck(state)
   ];
   return lines;
 }
@@ -134,10 +138,10 @@ function buildAccountability(agent, { state, topic, memory = {}, tasks = {}, exe
   const next = topic || first(state.sections.nextPriority) || memory.lastActiveTask || 'wait for the next validation cycle';
 
   return [
-    `Attempted: ${attempted}.`,
-    `Succeeded: ${succeeded}.`,
-    `Failed: ${failed}.`,
-    `Blocked: ${blocked}.`,
+    `Attempted: ${compact(attempted, 90)}.`,
+    `Succeeded: ${compact(succeeded, 90)}.`,
+    `Failed: ${compact(failed, 80)}.`,
+    `Blocked: ${compact(blocked, 80)}.`,
     `Confidence: ${confidence}. Risk: ${risk}.`,
     `Next: ${compact(next)}.`
   ];
@@ -149,13 +153,13 @@ function attemptedText(agent, state, topic, memory, intent) {
   if (intent === 'maintenance') return 'checked maintenance actions and dry-run results';
   if (agent === 'reviewer') return 'reviewed validation, risks, and unresolved blockers';
   if (agent === 'auditor') return 'scanned for dangerous security and stability findings';
-  if (agent === 'cto') return 'checked momentum, active tasks, and real progress signals';
+  if (agent === 'cto') return 'checked momentum, tasks, and product signals';
   return `checked ${compact(memory.lastActiveTask || first(state.sections.nextPriority) || 'the current work queue')}`;
 }
 
 function succeededText(state, execution = {}, maintenance = {}) {
   const completedExecution = first(execution.completed);
-  if (completedExecution) return `${completedExecution.action} completed with rollback notes`;
+  if (completedExecution) return `${completedExecution.action} completed with rollback noted`;
   const executedMaintenance = first(maintenance.executed);
   if (executedMaintenance) return `${executedMaintenance.action} recorded as safe maintenance`;
   const fix = first(state.sections.completedFixes) || first(state.changed.completed);
@@ -183,28 +187,70 @@ function blockedText(state, tasks = {}, execution = {}) {
 
 function confidenceText(state) {
   const hasFailure = state.validation.some((item) => String(item.status || '').toLowerCase() === 'failed');
-  if (hasFailure) return 'medium, because validation has failures';
-  if (state.healthScore != null && state.healthScore >= 80) return 'high, latest health is strong';
-  if (state.healthScore != null && state.healthScore < 60) return 'low, health score is under pressure';
-  return 'medium, based on latest report only';
+  if (hasFailure) return 'medium; validation failing';
+  if (state.healthScore != null && state.healthScore >= 80) return 'high; health strong';
+  if (state.healthScore != null && state.healthScore < 60) return 'low; health under pressure';
+  return 'medium; report-grounded';
 }
 
 function riskText(state) {
-  if (findDanger(state)) return 'high, dangerous unresolved issue exists';
-  if (state.validation.some((item) => String(item.status || '').toLowerCase() === 'failed')) return 'medium, validation is not clean';
-  if (first(state.sections.risks)) return 'medium, risk is still recorded';
-  return 'low, no critical risk recorded';
+  if (findDanger(state)) return 'high; dangerous unresolved issue';
+  if (state.validation.some((item) => String(item.status || '').toLowerCase() === 'failed')) return 'medium; validation not clean';
+  if (first(state.sections.risks)) return 'medium; risk recorded';
+  return 'low; no critical risk';
 }
 
 function realProgressSignal(state) {
   const passed = state.validation.filter((item) => String(item.status || '').toLowerCase() === 'passed').length;
   const failed = state.validation.filter((item) => String(item.status || '').toLowerCase() === 'failed').length;
   return [
-    `build stability: ${failed ? `${failed} failing validation step(s)` : passed ? `${passed} passing validation step(s)` : 'not measured'}`,
-    'typing latency: not measured; touch confidence: not measured',
-    'crash reduction: not measured; memory reduction: not measured; APK impact: not measured',
-    `unresolved blockers: ${state.sections.unresolved.length + state.sections.risks.length}`
+    `build stability: ${failed ? `${failed} failing validation` : passed ? `${passed} passing validation` : 'not measured'}`,
+    `unresolved blockers: ${state.sections.unresolved.length + state.sections.risks.length}`,
+    'typing latency: not measured; keypress responsiveness: not measured',
+    'correction rate/backspace frequency: not measured',
+    'touch confidence/render cost/startup cost: not measured',
+    'APK size/memory impact/hot-path allocations/crash likelihood: not measured'
   ];
+}
+
+function realityCheck(state) {
+  const signal = productSignal(state);
+  return [
+    'REALITY CHECK',
+    `actually improved for user: ${signal.userImprovement}.`,
+    `measurable signal changed: ${signal.changedSignal}.`,
+    `still feels weak: ${signal.weakness}.`,
+    `perceptible: ${signal.perceptible}.`
+  ];
+}
+
+function productSignal(state) {
+  const failed = state.validation.some((item) => String(item.status || '').toLowerCase() === 'failed');
+  const passed = state.validation.some((item) => String(item.status || '').toLowerCase() === 'passed');
+  const runtimeFix = state.sections.completedFixes.concat(state.changed.completed).find((item) => !isLowImpact(item));
+  if (runtimeFix) {
+    return {
+      userImprovement: compact(runtimeFix),
+      changedSignal: passed ? 'build stability verified' : 'runtime signal not measured',
+      weakness: 'typing feel still unmeasured',
+      perceptible: 'unknown until device test'
+    };
+  }
+  return {
+    userImprovement: 'none proven',
+    changedSignal: failed ? 'build stability is still failing' : passed ? 'build stability only' : 'none measured',
+    weakness: 'typing feel unmeasured',
+    perceptible: 'no'
+  };
+}
+
+function fakeProgressWatch(state) {
+  const completed = state.sections.completedFixes.concat(state.changed.completed);
+  const flags = [];
+  if (completed.some(isLowImpact)) flags.push('excessive reporting / cleanup-only progress risk');
+  if (!completed.some((item) => !isLowImpact(item))) flags.push('no runtime impact proven');
+  flags.push('agent-system bloat: watch complexity without typing gain');
+  return flags.slice(0, 3);
 }
 
 function noRuntimeProgress(state) {
@@ -217,10 +263,17 @@ function isDocumentationOnly(item) {
   return /doc|documentation|report|summary|readme|policy|guide|wording/i.test(String(item || ''));
 }
 
+function isLowImpact(item) {
+  return /doc|documentation|report|summary|readme|policy|guide|wording|cleanup|audit|architecture|abstraction/i.test(String(item || ''));
+}
+
 function formatProgressItem(item) {
   const text = compact(item);
-  return isDocumentationOnly(item)
-    ? `${text} (documentation pass only - no runtime improvement)`
+  if (isDocumentationOnly(item)) {
+    return `${text} (documentation pass only - no runtime improvement; low operational impact)`;
+  }
+  return isLowImpact(item)
+    ? `${text} (low operational impact)`
     : text;
 }
 
@@ -277,7 +330,7 @@ function limitResponse(lines) {
   const cleaned = lines
     .filter(Boolean)
     .map((line) => compact(line, 180))
-    .slice(0, 16)
+    .slice(0, 24)
     .join('\n');
   return cleaned.length > 900 ? `${cleaned.slice(0, 897)}...` : cleaned;
 }
