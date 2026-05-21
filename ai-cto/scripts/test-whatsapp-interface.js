@@ -105,6 +105,11 @@ assert(routeMessage('cto maintenance status', sampleState).response.includes('Ma
 assert(routeMessage('coder what was cleaned', sampleState).response.includes('Cleaned / proposed'));
 assert(routeMessage('reviewer maintenance risks', sampleState).response.includes('Maintenance risks'));
 assert(routeMessage('auditor dangerous maintenance actions', sampleState).response.includes('Dangerous maintenance actions'));
+assert.strictEqual(parseNaturalIntent('cto execution status').intent, 'execution');
+assert(routeMessage('cto execution status', sampleState).response.includes('Execution layer'));
+assert(routeMessage('coder execution update', sampleState).response.includes('Execution work'));
+assert(routeMessage('reviewer blocked execution', sampleState).response.includes('Execution review'));
+assert(routeMessage('auditor dangerous execution attempts', sampleState).response.includes('Dangerous execution attempts'));
 
 const xml = twiml('Founder Sir, 5 < 6 & safe');
 assert(xml.includes('&lt;'));

@@ -1,6 +1,7 @@
 const { parseNaturalIntent } = require('./natural-intent-parser');
 const { summarizeTasksForAgent, formatTaskList } = require('./task-manager');
 const { maintenanceSnapshot, formatMaintenanceActions } = require('./maintenance-reader');
+const { executionSnapshot, formatExecutionEntries } = require('./execution-reader');
 const { enforcePersonalityGuardrails } = require('./personality-guard');
 const { logRoutingDecision } = require('./routing-debug');
 
@@ -120,6 +121,16 @@ function buildCtoResponse(intent, topic, state, memory) {
       `Blocked actions: ${maintenance.blocked.length}`,
       ...formatMaintenanceActions(maintenance.recent, 'No maintenance run recorded yet.')
     );
+  } else if (intent === 'execution') {
+    const execution = executionSnapshot();
+    lines.push(
+      '',
+      'Execution layer:',
+      `Dry-run approvals: ${execution.dryRun.length}`,
+      `Completed actions: ${execution.completed.length}`,
+      `Blocked actions: ${execution.blocked.length}`,
+      ...formatExecutionEntries(execution.recent, 'No safe execution cycle recorded yet.')
+    );
   }
 
   return applyPersonality('cto', lines);
@@ -147,6 +158,9 @@ function buildCoderResponse(intent, topic, state) {
   } else if (intent === 'maintenance') {
     const maintenance = maintenanceSnapshot();
     lines.push('', 'Cleaned / proposed:', ...formatMaintenanceActions(maintenance.executed.length ? maintenance.executed : maintenance.dryRun, 'No cleanup executed yet. Dry-run first.'));
+  } else if (intent === 'execution') {
+    const execution = executionSnapshot();
+    lines.push('', 'Execution work:', ...formatExecutionEntries(execution.completed.length ? execution.completed : execution.dryRun, 'No approved safe execution action recorded yet.'));
   }
 
   return applyPersonality('coder', lines);
@@ -172,6 +186,9 @@ function buildReviewerResponse(intent, topic, state) {
   if (intent === 'maintenance') {
     const maintenance = maintenanceSnapshot();
     lines.push('', 'Maintenance risks:', ...formatMaintenanceActions(maintenance.skipped.concat(maintenance.blocked), 'No maintenance risk recorded.'));
+  } else if (intent === 'execution') {
+    const execution = executionSnapshot();
+    lines.push('', 'Execution review:', ...formatExecutionEntries(execution.blocked.concat(execution.rolledBack), 'No unsafe execution attempt recorded.'));
   }
   return applyPersonality('reviewer', lines);
 }
@@ -197,6 +214,9 @@ function buildAuditorResponse(intent, topic, state) {
   if (intent === 'maintenance') {
     const maintenance = maintenanceSnapshot();
     lines.push('', 'Dangerous maintenance actions:', ...formatMaintenanceActions(maintenance.blocked, 'No dangerous maintenance action executed.'));
+  } else if (intent === 'execution') {
+    const execution = executionSnapshot();
+    lines.push('', 'Dangerous execution attempts:', ...formatExecutionEntries(execution.blocked, 'No dangerous execution attempt recorded.'));
   }
 
   if (topic) lines.push(`Topic focus: ${topic}`);
