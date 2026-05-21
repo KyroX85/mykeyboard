@@ -34,6 +34,8 @@ Agent replies now use:
 - documentation-only progress labeling
 - `REALITY CHECK` for user-visible impact
 - low operational impact labeling for work without measurable runtime or UX gain
+- mobile-first default replies using emoji worker labels
+- detailed mode only for explicit full/detailed/explain/why/deep-dive requests
 
 ## Safety Boundaries
 
@@ -66,6 +68,8 @@ The layer does not:
 - documentation-only progress labeling test
 - reality-based product signal test
 - fake progress pattern visibility test
+- mobile response line-count test
+- detailed mode expansion test
 - full WhatsApp interface regression suite
 
 ## Before State
@@ -75,6 +79,17 @@ Agents sounded more natural than before, but could still answer like status summ
 ## After State
 
 Each existing worker now reports accountable progress in a short founder-facing format. Documentation/report-only work is not treated as runtime progress.
+
+## Mobile-First Update
+
+Normal WhatsApp replies now use:
+
+- `🧠 CTO`
+- `🛠 CODER`
+- `🛡 REVIEWER`
+- `🚨 AUDITOR`
+
+Default replies are compressed to attempted, blocked, risk, and next action. Longer reality checks remain available only when the Founder asks for full or detailed explanation.
 
 ## Reality-Based Mode Update
 

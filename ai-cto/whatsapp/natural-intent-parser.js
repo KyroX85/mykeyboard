@@ -53,12 +53,17 @@ function parseNaturalIntent(message, memory = {}) {
     agent: agent || 'cto',
     intent,
     topic: focusTopic || memory.lastFocusTopic || memory.lastRequestedFocusArea || null,
+    detailMode: detectDetailMode(normalized),
     confidence: explicitAgent ? (intent === 'unknown' ? 0.72 : 0.92) : 0.65,
     normalized,
     explicitAgent: explicitAgent || null,
     fallbackUsed: Boolean(explicitAgent && intent === 'unknown'),
     fallbackReason: explicitAgent && intent === 'unknown' ? 'agent_keyword_only' : null
   };
+}
+
+function detectDetailMode(normalized) {
+  return /\b(full report|full|detailed|explain fully|explain|why|deep dive)\b/.test(normalized);
 }
 
 function normalize(message) {
@@ -100,5 +105,6 @@ module.exports = {
   parseNaturalIntent,
   normalize,
   detectAgent,
-  detectIntent
+  detectIntent,
+  detectDetailMode
 };

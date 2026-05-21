@@ -68,25 +68,31 @@ const coderReply = buildNaturalResponse({
   memory
 });
 
-assert(coderReply.includes('[Aritenis Coder]'));
+assert(coderReply.startsWith('🛠 CODER'));
 assert(coderReply.includes('Sir'));
-assert(coderReply.includes('keyboard cleanup'));
-assert(coderReply.includes('Safe execution dry-run layer added'));
 assert(coderReply.includes('Attempted:'));
-assert(coderReply.includes('Succeeded:'));
-assert(coderReply.includes('Failed:'));
 assert(coderReply.includes('Blocked:'));
-assert(coderReply.includes('Confidence:'));
 assert(coderReply.includes('Risk:'));
 assert(coderReply.includes('Next:'));
-assert(coderReply.includes('REALITY CHECK'));
-assert(coderReply.includes('actually improved for user'));
-assert(coderReply.includes('measurable signal'));
-assert(coderReply.includes('still feels weak'));
-assert(coderReply.includes('perceptible'));
+assert(coderReply.split('\n').length <= 5);
+assert(!coderReply.includes('REALITY CHECK'));
 assert(!coderReply.includes('I finished keyboard cleanup'));
 assert(!coderReply.includes('{'));
-assert(coderReply.length < 900);
+assert(coderReply.length < 420);
+
+const detailedCoderReply = buildNaturalResponse({
+  agent: 'coder',
+  intent: 'current_work',
+  topic: 'keyboard cleanup',
+  state: sampleState,
+  memory,
+  detailMode: true
+});
+assert(detailedCoderReply.includes('REALITY CHECK'));
+assert(detailedCoderReply.includes('actually improved for user'));
+assert(detailedCoderReply.includes('measurable signal'));
+assert(detailedCoderReply.includes('still feels weak'));
+assert(detailedCoderReply.includes('perceptible'));
 
 const auditorReply = buildNaturalResponse({
   agent: 'auditor',
@@ -95,19 +101,20 @@ const auditorReply = buildNaturalResponse({
   memory
 });
 
-assert(auditorReply.includes('[Aritenis Auditor]'));
-assert(auditorReply.includes('Unsafe secret handling'));
+assert(auditorReply.startsWith('🚨 AUDITOR'));
 assert(auditorReply.includes('danger'));
 assert(auditorReply.includes('Attempted:'));
 assert(auditorReply.includes('Risk:'));
 assert(!auditorReply.includes('fixed'));
-assert(auditorReply.length < 700);
+assert(auditorReply.split('\n').length <= 5);
+assert(auditorReply.length < 420);
 
 const ctoReply = buildNaturalResponse({
   agent: 'cto',
   intent: 'summary',
   state: sampleState,
-  memory
+  memory,
+  detailMode: true
 });
 assert(ctoReply.includes('REAL PROGRESS SIGNAL'));
 assert(ctoReply.includes('build stability'));
@@ -146,10 +153,24 @@ const docOnlyReply = buildNaturalResponse({
     priorMemory: {}
   })
 });
-assert(docOnlyReply.includes('documentation pass only - no runtime improvement'));
-assert(docOnlyReply.includes('Sir, no major runtime improvement today'));
-assert(docOnlyReply.includes('low operational impact'));
-assert(docOnlyReply.includes('perceptible: no'));
+assert(docOnlyReply.includes('Sir, mostly maintenance today. No major typing improvement yet'));
+assert(docOnlyReply.includes('Risk: low operational impact'));
+assert(docOnlyReply.split('\n').length <= 5);
+
+const detailedDocOnlyReply = buildNaturalResponse({
+  agent: 'coder',
+  intent: 'current_work',
+  state: docOnlyState,
+  memory: buildConversationMemory({
+    agent: 'coder',
+    intent: 'current_work',
+    state: docOnlyState,
+    priorMemory: {}
+  }),
+  detailMode: true
+});
+assert(detailedDocOnlyReply.includes('documentation pass only - no runtime improvement'));
+assert(detailedDocOnlyReply.includes('low operational impact'));
 
 const updates = generatePassiveWorkerUpdates(sampleState, {
   execution: {
