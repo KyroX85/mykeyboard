@@ -72,6 +72,13 @@ assert(coderReply.includes('[Aritenis Coder]'));
 assert(coderReply.includes('Sir'));
 assert(coderReply.includes('keyboard cleanup'));
 assert(coderReply.includes('Safe execution dry-run layer added'));
+assert(coderReply.includes('Attempted:'));
+assert(coderReply.includes('Succeeded:'));
+assert(coderReply.includes('Failed:'));
+assert(coderReply.includes('Blocked:'));
+assert(coderReply.includes('Confidence:'));
+assert(coderReply.includes('Risk:'));
+assert(coderReply.includes('Next:'));
 assert(!coderReply.includes('I finished keyboard cleanup'));
 assert(!coderReply.includes('{'));
 assert(coderReply.length < 900);
@@ -86,8 +93,52 @@ const auditorReply = buildNaturalResponse({
 assert(auditorReply.includes('[Aritenis Auditor]'));
 assert(auditorReply.includes('Unsafe secret handling'));
 assert(auditorReply.includes('danger'));
+assert(auditorReply.includes('Attempted:'));
+assert(auditorReply.includes('Risk:'));
 assert(!auditorReply.includes('fixed'));
 assert(auditorReply.length < 700);
+
+const ctoReply = buildNaturalResponse({
+  agent: 'cto',
+  intent: 'summary',
+  state: sampleState,
+  memory
+});
+assert(ctoReply.includes('REAL PROGRESS SIGNAL'));
+assert(ctoReply.includes('build stability'));
+assert(ctoReply.includes('unresolved blockers'));
+
+const docOnlyState = {
+  ...sampleState,
+  validation: [],
+  sections: {
+    ...sampleState.sections,
+    risks: [],
+    unresolved: [],
+    repeatedFailures: [],
+    completedFixes: ['Updated CTO report wording', 'Documentation cleanup pass'],
+    nextPriority: ['Validate runtime keyboard behavior']
+  },
+  changed: {
+    ...sampleState.changed,
+    completed: ['Updated CTO report wording'],
+    newRisks: []
+  }
+};
+
+const docOnlyReply = buildNaturalResponse({
+  agent: 'coder',
+  intent: 'current_work',
+  state: docOnlyState,
+  memory: buildConversationMemory({
+    agent: 'coder',
+    intent: 'current_work',
+    state: docOnlyState,
+    priorMemory: {}
+  })
+});
+assert(docOnlyReply.includes('documentation pass only - no runtime improvement'));
+assert(docOnlyReply.includes('Sir, no major runtime improvement today'));
 
 const updates = generatePassiveWorkerUpdates(sampleState, {
   execution: {
