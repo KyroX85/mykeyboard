@@ -57,6 +57,7 @@ assert.strictEqual(parseNaturalIntent('what is blocked').intent, 'risks');
 assert.strictEqual(parseNaturalIntent('sir inniku progress iruka').intent, 'current_work');
 assert.strictEqual(parseNaturalIntent('cto are we stuck').intent, 'current_work');
 assert.strictEqual(parseNaturalIntent('coder swipe issue fixed ah').topic, 'swipe feel');
+assert.strictEqual(parseNaturalIntent('cto operational assistance').intent, 'operational');
 assert.strictEqual(shouldUseGeneralFallback('hello'), true);
 assert.strictEqual(shouldUseGeneralFallback('whats going on'), true);
 
@@ -137,6 +138,12 @@ assert(stuck.includes('Blocked:'));
 const swipe = routeMessage('coder swipe issue fixed ah', sampleState).response;
 assert(swipe.includes('CODER'));
 assert(swipe.includes('swipe line not proven fixed yet'));
+
+const operational = routeMessage('cto operational assistance', sampleState).response;
+assert(operational.includes('CTO'));
+assert(operational.includes('product signals'));
+assert(operational.includes('LOW OPERATIONAL IMPACT'));
+assert(operational.split('\n').length <= 5);
 
 const xml = twiml('Founder Sir, 5 < 6 & safe');
 assert(xml.includes('&lt;'));

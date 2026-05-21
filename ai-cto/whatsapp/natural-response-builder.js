@@ -4,6 +4,10 @@ const { maintenanceSnapshot } = require('./maintenance-reader');
 const { executionSnapshot } = require('./execution-reader');
 const { generatePassiveWorkerUpdates } = require('./humanized-summary-generator');
 const { enforcePersonalityGuardrails } = require('./personality-guard');
+const {
+  detectFakeProductivity,
+  summarizeOperationalAssistance
+} = require('../scripts/operational-assistance');
 
 const MOBILE_LABELS = {
   cto: '🧠 CTO',
@@ -34,6 +38,7 @@ function buildNaturalResponse({ agent, intent, topic, state, memory = {}, detail
 
 function buildMobileResponse(agent, context) {
   const { state, topic, memory, tasks, execution, maintenance, intent } = context;
+  if (intent === 'operational') return buildOperationalMobile(agent, state, execution, maintenance);
   const accountability = buildAccountability(agent, { state, topic, memory, tasks, execution, maintenance, intent });
   const label = MOBILE_LABELS[agent] || MOBILE_LABELS.cto;
   const noRuntime = noRuntimeProgress(state);
@@ -48,6 +53,22 @@ function buildMobileResponse(agent, context) {
     `Blocked: ${blocked}`,
     `Risk: ${risk}`,
     `Next: ${mobileNext(next, topic, memory)}`
+  ].join('\n');
+}
+
+function buildOperationalMobile(agent, state, execution, maintenance) {
+  const fakePatterns = detectFakeProductivity(state, [
+    ...array(execution.recent),
+    ...array(maintenance.recent)
+  ]);
+  const summary = summarizeOperationalAssistance(state, fakePatterns).split('\n');
+  const fake = fakePatterns.find((item) => /LOW OPERATIONAL IMPACT|report|Activity without improvement/i.test(item));
+  return [
+    MOBILE_LABELS[agent] || MOBILE_LABELS.cto,
+    `Attempted: Sir, checked product signals and founder load.`,
+    `Blocked: ${compact(summary[3].replace(/^Founder load:\s*/, ''), 86)}`,
+    `Risk: ${fake ? 'LOW OPERATIONAL IMPACT pattern visible.' : 'no fake-progress pattern.'}`,
+    `Next: ${compact(summary[4].replace(/^Next:\s*/, ''), 82)}.`
   ].join('\n');
 }
 
@@ -383,6 +404,10 @@ function normalizeState(state = {}) {
 
 function first(items) {
   return Array.isArray(items) && items.length > 0 ? items[0] : null;
+}
+
+function array(value) {
+  return Array.isArray(value) ? value : [];
 }
 
 function compact(value, max = 150) {
