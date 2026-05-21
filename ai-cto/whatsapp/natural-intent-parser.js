@@ -18,6 +18,7 @@ const AGENT_ALIASES = new Map([
 ]);
 
 const INTENT_PATTERNS = [
+  { intent: 'execution', words: ['execution', 'executed', 'approved', 'blocked execution', 'rollback', 'rolled back'] },
   { intent: 'summary', words: ['summarize', 'summary', 'today', 'overall', 'brief', 'update', 'happened'] },
   { intent: 'tasks', words: ['task', 'tasks', 'assigned', 'assignment', 'pipeline'] },
   { intent: 'blocked_tasks', words: ['blocked items', 'blocked tasks', 'blockers'] },
