@@ -54,6 +54,9 @@ assert.deepStrictEqual(parseNaturalIntent('reviewer any risks').agent, 'reviewer
 assert.deepStrictEqual(parseNaturalIntent('auditor any dangerous issues').intent, 'risks');
 assert.strictEqual(parseNaturalIntent('cto update me').intent, 'summary');
 assert.strictEqual(parseNaturalIntent('what is blocked').intent, 'risks');
+assert.strictEqual(parseNaturalIntent('sir inniku progress iruka').intent, 'current_work');
+assert.strictEqual(parseNaturalIntent('cto are we stuck').intent, 'current_work');
+assert.strictEqual(parseNaturalIntent('coder swipe issue fixed ah').topic, 'swipe feel');
 assert.strictEqual(shouldUseGeneralFallback('hello'), true);
 assert.strictEqual(shouldUseGeneralFallback('whats going on'), true);
 
@@ -113,6 +116,27 @@ assert.strictEqual(parseNaturalIntent('cto full report').detailMode, true);
 const detailed = routeMessage('cto detailed update', sampleState).response;
 assert(detailed.includes('REALITY CHECK'));
 assert(detailed.split('\n').length > 5);
+
+const casual = routeMessage('dei what doing', sampleState).response;
+assert(casual.includes('CTO'));
+assert(casual.includes('Sollunga sir') || casual.includes('Sir'));
+assert(casual.split('\n').length <= 5);
+
+const dangerous = routeMessage('reviewer anything dangerous', sampleState).response;
+assert(dangerous.includes('REVIEWER'));
+assert(dangerous.includes('Risk:'));
+
+const progress = routeMessage('sir inniku progress iruka', sampleState).response;
+assert(progress.includes('CTO'));
+assert(progress.includes('No major typing improvement yet'));
+
+const stuck = routeMessage('cto are we stuck', sampleState).response;
+assert(stuck.includes('CTO'));
+assert(stuck.includes('Blocked:'));
+
+const swipe = routeMessage('coder swipe issue fixed ah', sampleState).response;
+assert(swipe.includes('CODER'));
+assert(swipe.includes('swipe line not proven fixed yet'));
 
 const xml = twiml('Founder Sir, 5 < 6 & safe');
 assert(xml.includes('&lt;'));

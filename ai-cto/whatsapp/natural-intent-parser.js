@@ -41,8 +41,15 @@ function parseNaturalIntent(message, memory = {}) {
   const explicitAgent = detectAgent(normalized);
   const agent = explicitAgent || memory.lastAgentInteraction || null;
   const focusTopic = detectFocusTopic(normalized);
+  const continuity = detectContinuity(normalized);
   const intent = detectIntent(normalized);
-  const conversational = Boolean(agent || intent !== 'unknown' || focusTopic);
+  const conversational = Boolean(
+    agent ||
+    intent !== 'unknown' ||
+    focusTopic ||
+    continuity.painPoint ||
+    (continuity.founderTone && continuity.founderTone !== 'direct')
+  );
 
   if (!conversational) {
     return { matched: false, agent: null, intent: 'unknown', topic: null, confidence: 0, normalized };
@@ -52,8 +59,9 @@ function parseNaturalIntent(message, memory = {}) {
     matched: true,
     agent: agent || 'cto',
     intent,
-    topic: focusTopic || memory.lastFocusTopic || memory.lastRequestedFocusArea || null,
+    topic: focusTopic || continuity.painPoint || memory.lastFocusTopic || memory.lastRequestedFocusArea || null,
     detailMode: detectDetailMode(normalized),
+    continuity,
     confidence: explicitAgent ? (intent === 'unknown' ? 0.72 : 0.92) : 0.65,
     normalized,
     explicitAgent: explicitAgent || null,
@@ -88,7 +96,27 @@ function detectIntent(normalized) {
   }
   if (/what'?s going on|whats going on|what is going on/.test(normalized)) return 'summary';
   if (/what changed today|what happened today/.test(normalized)) return 'summary';
+  if (/\b(stuck|improving|progress iruka|inniku progress|fixed ah|fix ah)\b/.test(normalized)) return 'current_work';
   return 'unknown';
+}
+
+function detectContinuity(normalized) {
+  const tone = /\b(dei|bro|da|dai|machan)\b/.test(normalized)
+    ? 'casual'
+    : /\b(tired|exhausted|school|class|busy)\b/.test(normalized)
+      ? 'low_attention'
+      : 'direct';
+  const painPoints = [];
+  if (/\bswipe|trail|gesture\b/.test(normalized)) painPoints.push('swipe feel');
+  if (/\btyping feel|gboard|keyboard feel|keypress|latency\b/.test(normalized)) painPoints.push('typing feel');
+  if (/\brobotic|template|bot|worker feel|real worker\b/.test(normalized)) painPoints.push('real worker feel');
+  if (/\bschool|class\b/.test(normalized)) painPoints.push('school mode');
+  return {
+    founderTone: tone,
+    painPoint: painPoints[0] || null,
+    frustration: painPoints.length ? painPoints[0] : null,
+    preferredWording: tone === 'casual' ? 'sir' : null
+  };
 }
 
 function detectFocusTopic(normalized) {
@@ -106,5 +134,6 @@ module.exports = {
   normalize,
   detectAgent,
   detectIntent,
-  detectDetailMode
+  detectDetailMode,
+  detectContinuity
 };
