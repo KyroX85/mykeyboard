@@ -20,15 +20,38 @@ Every CTO, Coder, Reviewer, and Auditor conversational reply must include:
 
 CTO updates must surface real progress using:
 
-- build stability
 - typing latency
-- crash reduction
+- correction rate
+- backspace frequency
 - touch confidence
-- memory reduction
-- APK impact
+- APK size
+- memory impact
+- hot-path allocations
+- build stability
+- crash likelihood
+- render cost
+- startup cost
+- keypress responsiveness
 - unresolved blockers
 
 If a metric is not measured, the agent must say `not measured` instead of pretending progress exists.
+
+## Reality Check
+
+Every implementation summary must include:
+
+- what actually improved for the user
+- what measurable signal changed
+- what still feels weak
+- whether the improvement is perceptible or only technical
+
+The final decision standard is:
+
+`Does the user feel the improvement?`
+
+not:
+
+`Did engineering activity happen?`
 
 ## Fake Progress Detection
 
@@ -39,11 +62,18 @@ The CTO layer treats these as weak progress signals:
 - repetitive cleanup work
 - cosmetic churn
 - unnecessary abstraction
+- infrastructure growth without UX gain
+- agent-system bloat
+- complexity growth without typing improvement
 - documentation-only changes
 
 Documentation-only work must be labeled:
 
 `documentation pass only - no runtime improvement`
+
+Any work without measurable runtime or UX impact must be labeled:
+
+`low operational impact`
 
 If no meaningful runtime progress happened, the agent must say:
 
@@ -63,7 +93,9 @@ Responses now use a worker-accountability format while staying short, founder-fo
 - documentation-only progress is explicitly labeled
 - real progress signal section added for CTO
 - tests added for no fake runtime improvement claims
+- reality check added to worker replies
+- low operational impact labeling added for docs, reports, cleanup, audits, and abstraction work
 
 ## Remaining Weakness
 
-Typing latency, crash reduction, touch confidence, memory reduction, and APK impact are still reported as `not measured` until instrumentation or validation data exists.
+Typing latency, correction rate, backspace frequency, touch confidence, APK size, memory impact, hot-path allocations, crash likelihood, render cost, startup cost, and keypress responsiveness are still reported as `not measured` until instrumentation or validation data exists.
