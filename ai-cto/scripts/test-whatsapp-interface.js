@@ -78,38 +78,39 @@ assert(hello.response.includes('Health: 25/100'));
 
 const coder = routeMessage('hey coder what are you doing', sampleState).response;
 assert(coder.includes('[Aritenis Coder]'));
-assert(coder.includes('Coder side update'));
-assert(coder.includes('No fake progress'));
+assert(coder.includes('Sir, coder side'));
+assert(coder.includes('No coder-owned task'));
+assert(!coder.includes('I finished keyboard cleanup'));
 
 const reviewer = routeMessage('reviewer any risks', sampleState).response;
 assert(reviewer.includes('[Aritenis Reviewer]'));
-assert(reviewer.includes('Reviewer note'));
+assert(reviewer.includes('Sir, reviewer note'));
 assert(reviewer.includes('Main concern'));
 
 const auditor = routeMessage('auditor any dangerous issues', sampleState).response;
 assert(auditor.includes('[Aritenis Auditor]'));
-assert(auditor.includes('Auditor check'));
-assert(auditor.includes('Current audit finding'));
+assert(auditor.includes('Sir, auditor warning'));
+assert(auditor.includes('Still dangerous'));
 
-assert(routeMessage('cto update me', sampleState).response.includes('CTO update'));
+assert(routeMessage('cto update me', sampleState).response.includes('CTO view'));
 assert(routeMessage('cto active tasks', sampleState).response.includes('[Aritenis CTO]'));
 assert(routeMessage('hey auditor', sampleState).response.includes('[Aritenis Auditor]'));
 assert(routeMessage('hey auditer', sampleState).response.includes('[Aritenis Auditor]'));
 assert(routeMessage('audit status', sampleState).response.includes('[Aritenis Auditor]'));
-assert(routeMessage('reviewer update', sampleState).response.includes('Reviewer note'));
-assert(routeMessage('cto active tasks', sampleState).response.includes('Task pipeline'));
-assert(routeMessage('coder what are you working on', sampleState).response.includes('My queue'));
-assert(routeMessage('reviewer blocked items', sampleState).response.includes('Review queue'));
-assert(routeMessage('auditor critical risks', sampleState).response.includes('Audit queue'));
-assert(routeMessage('cto maintenance status', sampleState).response.includes('Maintenance status'));
-assert(routeMessage('coder what was cleaned', sampleState).response.includes('Cleaned / proposed'));
-assert(routeMessage('reviewer maintenance risks', sampleState).response.includes('Maintenance risks'));
-assert(routeMessage('auditor dangerous maintenance actions', sampleState).response.includes('Dangerous maintenance actions'));
+assert(routeMessage('reviewer update', sampleState).response.includes('reviewer note'));
+assert(routeMessage('cto active tasks', sampleState).response.includes('active task'));
+assert(routeMessage('coder what are you working on', sampleState).response.includes('I am looking at'));
+assert(routeMessage('reviewer blocked items', sampleState).response.includes('regression angle'));
+assert(routeMessage('auditor critical risks', sampleState).response.includes('danger'));
+assert(routeMessage('cto maintenance status', sampleState).response.includes('CTO view'));
+assert(routeMessage('coder what was cleaned', sampleState).response.includes('Maintenance log'));
+assert(routeMessage('reviewer maintenance risks', sampleState).response.includes('Main concern'));
+assert(routeMessage('auditor dangerous maintenance actions', sampleState).response.includes('danger'));
 assert.strictEqual(parseNaturalIntent('cto execution status').intent, 'execution');
-assert(routeMessage('cto execution status', sampleState).response.includes('Execution layer'));
-assert(routeMessage('coder execution update', sampleState).response.includes('Execution work'));
-assert(routeMessage('reviewer blocked execution', sampleState).response.includes('Execution review'));
-assert(routeMessage('auditor dangerous execution attempts', sampleState).response.includes('Dangerous execution attempts'));
+assert(routeMessage('cto execution status', sampleState).response.includes('Safe execution'));
+assert(routeMessage('coder execution update', sampleState).response.includes('execution'));
+assert(routeMessage('reviewer blocked execution', sampleState).response.includes('reviewer note'));
+assert(routeMessage('auditor dangerous execution attempts', sampleState).response.includes('danger'));
 
 const xml = twiml('Founder Sir, 5 < 6 & safe');
 assert(xml.includes('&lt;'));

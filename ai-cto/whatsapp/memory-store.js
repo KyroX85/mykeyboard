@@ -19,6 +19,8 @@ const DEFAULT_MEMORY = {
   lastUnfinishedConcern: null,
   lastMentionedBlocker: null,
   lastActiveTask: null,
+  latestImprovement: null,
+  latestWarning: null,
   lastCommand: null,
   lastUpdatedAt: null
 };
@@ -83,9 +85,10 @@ function recoverCorruptMemory(error) {
 
 function updateMemory(command, state, details = {}) {
   const memory = readMemory();
+  const sections = state.sections || {};
   const latestUnresolvedIssue =
-    state.sections.unresolved[0] ||
-    state.sections.risks[0] ||
+    first(sections.unresolved) ||
+    first(sections.risks) ||
     memory.latestUnresolvedIssue ||
     null;
 
@@ -110,12 +113,16 @@ function readConversationMemory() {
     lastDiscussedTopic: memory.lastDiscussedTopic || memory.lastFocusTopic || null,
     lastUnfinishedConcern: memory.lastUnfinishedConcern || memory.latestUnresolvedIssue || null,
     lastMentionedBlocker: memory.lastMentionedBlocker || null,
-    lastActiveTask: memory.lastActiveTask || null
+    lastActiveTask: memory.lastActiveTask || null,
+    latestImprovement: memory.latestImprovement || null,
+    latestWarning: memory.latestWarning || null
   };
 }
 
 function updateConversationMemory(route, state) {
   const memory = readConversationMemory();
+  const sections = state.sections || {};
+  const changed = state.changed || {};
   const activeTasks = deriveActiveTasks(state);
   const next = {
     ...memory,
@@ -126,24 +133,31 @@ function updateConversationMemory(route, state) {
     lastHealthScore: state.healthScore == null ? memory.lastHealthScore : state.healthScore,
     latestMomentumState: state.momentum || memory.latestMomentumState,
     activeTasks,
-    currentSprintFocus: route.focusTopic || state.sections.nextPriority[0] || memory.currentSprintFocus || null,
+    currentSprintFocus: route.focusTopic || first(sections.nextPriority) || memory.currentSprintFocus || null,
     lastDiscussedTopic: route.focusTopic || route.intent || memory.lastDiscussedTopic || null,
-    lastUnfinishedConcern: state.sections.unresolved[0] || state.sections.risks[0] || memory.lastUnfinishedConcern || null,
-    lastMentionedBlocker: state.sections.repeatedFailures[0] || memory.lastMentionedBlocker || null,
+    lastUnfinishedConcern: first(sections.unresolved) || first(sections.risks) || memory.lastUnfinishedConcern || null,
+    lastMentionedBlocker: first(sections.repeatedFailures) || memory.lastMentionedBlocker || null,
     lastActiveTask: activeTasks[0] || memory.lastActiveTask || null,
+    latestImprovement: first(sections.completedFixes) || first(changed.completed) || memory.latestImprovement || null,
+    latestWarning: first(sections.risks) || first(changed.newRisks) || memory.latestWarning || null,
     lastCommand: `agent:${route.agent}:${route.intent}`
   };
   return writeMemory(next);
 }
 
 function deriveActiveTasks(state) {
+  const sections = state.sections || {};
   return [
-    ...state.sections.nextPriority,
-    ...state.sections.approvals,
-    ...state.sections.completedFixes
+    ...(Array.isArray(sections.nextPriority) ? sections.nextPriority : []),
+    ...(Array.isArray(sections.approvals) ? sections.approvals : []),
+    ...(Array.isArray(sections.completedFixes) ? sections.completedFixes : [])
   ]
     .filter(Boolean)
     .slice(0, 5);
+}
+
+function first(items) {
+  return Array.isArray(items) && items.length > 0 ? items[0] : null;
 }
 
 module.exports = {
