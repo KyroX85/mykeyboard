@@ -1,3 +1,11 @@
+const {
+  buildSemanticFounderState,
+  resolveSemanticReference,
+  rankProductPriorities,
+  continuationPlan,
+  buildOperationalIntelligence
+} = require('./semantic-memory');
+
 function buildConversationMemory({ agent, intent, topic, state, priorMemory = {} }) {
   const sections = state.sections || {};
   const changed = state.changed || {};
@@ -7,6 +15,14 @@ function buildConversationMemory({ agent, intent, topic, state, priorMemory = {}
   const latestWarning = first(sections.risks) || first(changed.newRisks) || priorMemory.latestWarning || null;
   const latestBlocker = first(sections.repeatedFailures) || latestUnresolvedIssue || priorMemory.latestBlocker || null;
   const activeTask = topic || first(sections.nextPriority) || priorMemory.lastActiveTask || null;
+  const semanticFounderState = buildSemanticFounderState({ agent, intent, topic, state, priorMemory });
+  const resolvedReference = resolveSemanticReference(
+    continuity.normalized || continuity.rawMessage || continuity.referenceTerm || '',
+    semanticFounderState
+  ) || (continuity.referenceTerm ? semanticFounderState.unresolvedReference : null);
+  const productPriorities = rankProductPriorities(state, semanticFounderState);
+  const nextContinuationAction = continuationPlan(state, semanticFounderState);
+  const operationalIntelligence = buildOperationalIntelligence(state, semanticFounderState, priorMemory);
 
   return {
     ...priorMemory,
@@ -20,14 +36,30 @@ function buildConversationMemory({ agent, intent, topic, state, priorMemory = {}
     latestImprovement,
     latestWarning,
     latestMomentumState: state.momentum || priorMemory.latestMomentumState || null,
-    lastHealthScore: state.healthScore == null ? priorMemory.lastHealthScore || null : state.healthScore
-    ,
+    lastHealthScore: state.healthScore == null ? priorMemory.lastHealthScore || null : state.healthScore,
     lastFounderTone: continuity.founderTone || priorMemory.lastFounderTone || null,
     lastDiscussedFrustration: continuity.frustration || priorMemory.lastDiscussedFrustration || null,
     unresolvedConcern: latestUnresolvedIssue || priorMemory.unresolvedConcern || null,
     repeatedPainPoints: mergePainPoint(priorMemory.repeatedPainPoints, continuity.painPoint),
     recentWins: mergePainPoint(priorMemory.recentWins, latestImprovement),
-    founderPreferredWording: continuity.preferredWording || priorMemory.founderPreferredWording || null
+    founderPreferredWording: continuity.preferredWording || priorMemory.founderPreferredWording || null,
+    founderGoal: semanticFounderState.founderGoal,
+    activeFocus: semanticFounderState.activeFocus,
+    currentFrustration: semanticFounderState.currentFrustration,
+    unresolvedReference: semanticFounderState.unresolvedReference,
+    desiredOutcome: semanticFounderState.desiredOutcome,
+    lastRequestedAction: semanticFounderState.lastRequestedAction,
+    activeRuntimeProblem: semanticFounderState.activeRuntimeProblem,
+    blockedPriority: semanticFounderState.blockedPriority,
+    preferredResponseStyle: semanticFounderState.preferredResponseStyle,
+    semanticFounderState,
+    resolvedReference,
+    productPriorities,
+    contextConfidence: semanticFounderState.contextConfidence,
+    semanticConflicts: semanticFounderState.semanticConflicts,
+    unresolvedTopics: semanticFounderState.unresolvedTopics,
+    operationalIntelligence,
+    nextContinuationAction
   };
 }
 

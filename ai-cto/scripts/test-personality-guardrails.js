@@ -43,7 +43,7 @@ for (const message of naturalMessages) {
   assert(response.length <= MAX_RESPONSE_LENGTH);
   assert.strictEqual(hasForbiddenPersonalityLanguage(response), false);
   assert(response.includes('Sir'));
-  assert(/^(🧠 CTO|🛠 CODER|🛡 REVIEWER|🚨 AUDITOR)/.test(response));
+  assert(/^(🎯 CTO|🔧 CODER|⚖️ REVIEWER|🚨 AUDITOR)/.test(response));
   assert(response.split('\n').length <= 5);
 }
 

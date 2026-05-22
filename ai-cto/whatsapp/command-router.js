@@ -1,6 +1,15 @@
 const { generateResponse } = require('./response-generator');
 const { routeAgentMessage } = require('./agent-router');
+const { isStandaloneGreeting } = require('./natural-intent-parser');
 const { logRoutingDecision } = require('./routing-debug');
+const {
+  parseSpawnRequest,
+  requestSpecialistSpawn,
+  answerSpecialistSpawn,
+  readSpawnState
+} = require('./specialist-agent-manager');
+const { runFreshScan, formatFreshScanResponse } = require('./live-scan-runner');
+const { executeFirstFixableIssue } = require('../scripts/execution-engine');
 
 const COMMAND_ALIASES = new Map([
   ['status', 'status'],
@@ -33,6 +42,12 @@ const COMMAND_ALIASES = new Map([
   ['weekly summary', 'weekly_summary'],
   ['week summary', 'weekly_summary'],
   ['summary', 'weekly_summary'],
+  ['school mode', 'school_mode'],
+  ['school update', 'school_mode'],
+  ['7am update', 'school_mode'],
+  ['scan now', 'scan_now'],
+  ['fresh scan', 'scan_now'],
+  ['live scan', 'scan_now'],
   ['help', 'help']
 ]);
 
@@ -74,6 +89,52 @@ function resolveCommand(message) {
 
 function routeMessage(message, state, memory = {}) {
   const normalized = normalizeMessage(message);
+  if (isStandaloneGreeting(message)) {
+    const greetingRoute = routeAgentMessage(message, state, memory);
+    if (greetingRoute) {
+      return {
+        command: greetingRoute.command,
+        agent: greetingRoute.agent,
+        intent: greetingRoute.intent,
+        details: {
+          agent: greetingRoute.agent,
+          intent: greetingRoute.intent,
+          focusTopic: greetingRoute.topic,
+          continuity: greetingRoute.continuity
+        },
+        matchedRoute: 'greeting_first',
+        response: greetingRoute.response
+      };
+    }
+  }
+
+  const executionDecision = maybeRouteExecutionDecision(normalized);
+  if (executionDecision) return executionDecision;
+
+  const spawnDecision = maybeRouteSpawnDecision(normalized);
+  if (spawnDecision) return spawnDecision;
+
+  const spawnRequest = parseSpawnRequest(message);
+  if (spawnRequest) {
+    const proposal = requestSpecialistSpawn(spawnRequest);
+    return {
+      command: 'spawn_request',
+      details: { agent: 'cto', intent: 'spawn_request' },
+      matchedRoute: 'spawn_request',
+      response: `🎯 CTO: Spawning: ${proposal.name} — Reason: ${proposal.reason} — Task: ${proposal.task} — Duration: ${proposal.duration}\nFounder Sir, reply YES or NO.`
+    };
+  }
+
+  if (/\b(scan now|fresh scan|live scan)\b/.test(normalized)) {
+    const freshState = runFreshScan();
+    return {
+      command: 'scan_now',
+      details: { agent: 'cto', intent: 'scan_now' },
+      matchedRoute: 'exact_command',
+      response: formatFreshScanResponse(freshState)
+    };
+  }
+
   if (COMMAND_ALIASES.has(normalized) || normalized.startsWith('focus ')) {
     const routed = { ...routeCommand(message, state, memory), matchedRoute: 'exact_command' };
     logRoutingDecision({
@@ -144,6 +205,101 @@ function routeMessage(message, state, memory = {}) {
       fallbackReason: 'low_confidence_unknown'
     })
   };
+}
+
+function maybeRouteExecutionDecision(normalized) {
+  if (normalized === 'skip') {
+    return {
+      command: 'execution_skip',
+      details: { agent: 'cto', intent: 'execution_skip' },
+      matchedRoute: 'execution_decision',
+      response: '🎯 CTO: Skipped sir. No file changed. I will keep reporting the issue until it is fixed or dismissed.'
+    };
+  }
+
+  if (normalized !== 'fix') return null;
+
+  const result = executeFirstFixableIssue({
+    commit: true,
+    push: process.env.CTO_EXECUTION_PUSH === 'true'
+  });
+
+  return {
+    command: 'execution_fix',
+    details: { agent: 'cto', intent: 'execution_fix', result },
+    matchedRoute: 'execution_decision',
+    response: formatExecutionResponse(result)
+  };
+}
+
+function compactPreview(value) {
+  return String(value || '')
+    .split(/\r?\n/)
+    .slice(0, 2)
+    .join(' / ')
+    .slice(0, 180);
+}
+
+function formatExecutionResponse(result) {
+  if (result.status === 'COMPLETED') {
+    return [
+      '🎯 CTO: Fix executed sir.',
+      `Risk: ${result.riskLevel}`,
+      `Changed: ${(result.files || []).join(', ')}`,
+      `Before: ${compactPreview(result.before)}`,
+      `After: ${compactPreview(result.after)}`
+    ].join('\n');
+  }
+
+  if (result.status === 'ROLLED_BACK') {
+    return [
+      '🎯 CTO: Tried once, rollback done sir.',
+      `Risk: ${result.riskLevel}`,
+      'Reason: validation failed.',
+      'Next: I need founder approval before another attempt.'
+    ].join('\n');
+  }
+
+  if (result.status === 'STAGING_REQUIRED' || result.status === 'FOUNDER_APPROVAL_REQUIRED') {
+    return [
+      '🎯 CTO: I cannot auto-fix this sir.',
+      `Risk: ${result.riskLevel}`,
+      'Options:',
+      '1. Approve staging branch fix',
+      '2. Skip',
+      '3. Ask for safer patch proposal'
+    ].join('\n');
+  }
+
+  return [
+    '🎯 CTO: No safe execution happened sir.',
+    `Status: ${result.status}`,
+    `Reason: ${result.reason || result.message || 'No low-risk fix available.'}`
+  ].join('\n');
+}
+
+function maybeRouteSpawnDecision(normalized) {
+  if (!['yes', 'y', 'no', 'n'].includes(normalized)) return null;
+  const spawnState = readSpawnState();
+  if (!spawnState.pending) return null;
+  const result = answerSpecialistSpawn(normalized);
+  if (result.status === 'APPROVED') {
+    return {
+      command: 'spawn_approved',
+      details: { agent: 'cto', intent: 'spawn_approved' },
+      matchedRoute: 'spawn_decision',
+      response: `🎯 CTO: Approved. ${result.agent.name} active now, reports to CTO only. Scope: ${result.agent.task}.`
+    };
+  }
+  if (result.status === 'DENIED') {
+    return {
+      command: 'spawn_denied',
+      details: { agent: 'cto', intent: 'spawn_denied' },
+      matchedRoute: 'spawn_decision',
+      response: `🎯 CTO: Cancelled ${result.agent.name}. No specialist created.`
+    };
+  }
+  return null;
 }
 
 function routeCommand(message, state, memory = {}) {
