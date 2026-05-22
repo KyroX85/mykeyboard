@@ -8,3 +8,4 @@
 6. Add AI rewrite backend
 7. Add Tamil/Tanglish support
 8. Optimize latency and memory
+
