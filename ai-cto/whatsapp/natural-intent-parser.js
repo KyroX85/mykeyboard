@@ -22,7 +22,25 @@ const INTENT_PATTERNS = [
   { intent: 'check_in', words: ['you there', 'anyone home', 'team there', 'are you there'] },
   { intent: 'direction', words: ['what should we do', 'next steps', 'what next', 'what do we do', 'your call', 'guide me'] },
   { intent: 'recent_fix_question', words: ['what did you just fix', 'what was fixed', 'what you fixed', 'just fixed', 'what changed just now'] },
-  { intent: 'status_question', words: ['whats going on', 'what is going on', 'how are we doing', 'what happened'] },
+  { intent: 'status_question', words: [
+    'whats going on',
+    'what is going on',
+    'how are we doing',
+    'how work is going',
+    'how is work going',
+    'work is going',
+    'work going',
+    'work epdi poguthu',
+    'work eppadi poguthu',
+    'epdi poguthu',
+    'eppadi poguthu',
+    'everything okay',
+    'all going fine',
+    'status enna',
+    'enna panreenga',
+    'enna panringa',
+    'what happened'
+  ] },
   { intent: 'execution', words: ['execution', 'executed', 'approved', 'blocked execution', 'rollback', 'rolled back'] },
   { intent: 'summary', words: ['summarize', 'summary', 'today', 'overall', 'brief', 'update', 'happened'] },
   { intent: 'tasks', words: ['task', 'tasks', 'assigned', 'assignment', 'pipeline'] },
@@ -133,6 +151,9 @@ function isStandaloneGreeting(message) {
 }
 
 function detectIntent(normalized) {
+  const casualStatus = detectCasualStatusIntent(normalized);
+  if (casualStatus) return casualStatus;
+
   for (const pattern of INTENT_PATTERNS) {
     if (pattern.words.some((word) => matchesIntentWord(normalized, word))) return pattern.intent;
   }
@@ -140,6 +161,13 @@ function detectIntent(normalized) {
   if (/what changed today|what happened today/.test(normalized)) return 'summary';
   if (/\b(stuck|improving|progress iruka|inniku progress|fixed ah|fix ah|fix|continue|still broken|same issue|after that)\b/.test(normalized)) return 'current_work';
   return 'unknown';
+}
+
+function detectCasualStatusIntent(normalized) {
+  if (/\b(bro|da|dei|dai|machan)?\s*(how\s+(is\s+)?work\s+(is\s+)?going|work\s+(epdi|eppadi)\s+poguthu|epdi\s+poguthu|eppadi\s+poguthu|everything\s+okay(\s+ah)?|all\s+going\s+fine(\s+ah)?|status\s+enna|enna\s+panreenga|enna\s+panringa)\b/.test(normalized)) {
+    return 'status_question';
+  }
+  return null;
 }
 
 function matchesIntentWord(normalized, word) {
@@ -225,6 +253,7 @@ module.exports = {
   detectAgent,
   detectIntent,
   isStandaloneGreeting,
+  detectCasualStatusIntent,
   detectDetailMode,
   detectContinuity
 };

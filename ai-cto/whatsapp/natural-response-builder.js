@@ -90,12 +90,14 @@ function buildSocialTeamResponse(agent, intent, state, memory = {}) {
   }
 
   if (intent === 'summary' || intent === 'status_question') {
+    const danger = findDanger(state);
+    const coderState = first(state.sections.completedFixes) || first(state.changed.completed) || 'No fresh runtime fix recorded yet.';
     return [
-      '🎯 CTO: Here’s where we are da—',
-      `🚨 AUDITOR: ${compact(findDanger(state) || 'No new dangerous issue recorded.', 78)}`,
-      `🔧 CODER: ${compact(first(state.sections.completedFixes) || first(state.changed.completed) || 'No fresh runtime fix recorded yet.', 78)}`,
-      `⚖️ REVIEWER: ${compact(validationSummary(state), 78)}`,
-      '🎯 CTO: Your call on next steps Sir.'
+      '\uD83C\uDFAF CTO: Work moving sir, but not calling everything fine yet.',
+      `\uD83D\uDEA8 AUDITOR: ${compact(danger || 'No new dangerous issue recorded.', 78)}`,
+      `\uD83D\uDD27 CODER: ${compact(coderState, 78)}`,
+      `\u2696\uFE0F REVIEWER: ${compact(validationSummary(state), 78)}`,
+      '\uD83C\uDFAF CTO: Your call on next steps Sir.'
     ].join('\n');
   }
 

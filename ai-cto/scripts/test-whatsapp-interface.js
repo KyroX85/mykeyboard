@@ -72,6 +72,11 @@ assert.strictEqual(parseNaturalIntent('bro you there').intent, 'check_in');
 assert.strictEqual(parseNaturalIntent('good job').intent, 'praise');
 assert.strictEqual(parseNaturalIntent('what should we do next').intent, 'direction');
 assert.strictEqual(parseNaturalIntent('what did you just fix').intent, 'recent_fix_question');
+assert.strictEqual(parseNaturalIntent('bro how work is going').intent, 'status_question');
+assert.strictEqual(parseNaturalIntent('work epdi poguthu').intent, 'status_question');
+assert.strictEqual(parseNaturalIntent('everything okay ah').intent, 'status_question');
+assert.strictEqual(parseNaturalIntent('status enna da').intent, 'status_question');
+assert.strictEqual(parseNaturalIntent('enna panreenga').intent, 'status_question');
 assert.strictEqual(shouldUseGeneralFallback('hello'), true);
 assert.strictEqual(shouldUseGeneralFallback('whats going on'), true);
 
@@ -118,8 +123,21 @@ assert(checkIn.response.includes('Yes sir'));
 
 const statusQuestion = routeMessage('how are we doing', sampleState);
 assert.strictEqual(statusQuestion.command, 'agent');
-assert(statusQuestion.response.includes('Here'));
+assert(statusQuestion.response.includes('Work'));
 assert(statusQuestion.response.includes('AUDITOR'));
+
+const casualWork = routeMessage('bro how work is going', sampleState);
+assert.strictEqual(casualWork.command, 'agent');
+assert.strictEqual(casualWork.intent, 'status_question');
+assert(casualWork.response.includes('Work'));
+assert(casualWork.response.includes('not calling everything fine'));
+assert(casualWork.response.includes('CODER'));
+assert(!casualWork.response.includes('Health:'));
+
+const tanglishWork = routeMessage('work epdi poguthu', sampleState);
+assert.strictEqual(tanglishWork.command, 'agent');
+assert(tanglishWork.response.includes('Work'));
+assert(!tanglishWork.response.includes('Health:'));
 
 const praise = routeMessage('good job team', sampleState);
 assert.strictEqual(praise.command, 'agent');
