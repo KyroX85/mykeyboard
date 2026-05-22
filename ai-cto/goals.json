@@ -1,0 +1,237 @@
+{
+  "version": "1.0",
+  "north_star": "By May 2027, Aritenis must have keyboard stability close to Gboard level, basic on-device learning of typing patterns, and a companion chat foundation ready for founder handover.",
+  "vision_summary": "Aritenis is an Android keyboard that learns typing rhythm, corrections, backspace patterns, language mixing, and time-of-day shifts on-device only, then uses that private behavioral context to support Indian teenagers through a Tanglish/Hinglish companion inside the keyboard.",
+  "planning_horizon": {
+    "start": "2026-06-04",
+    "end": "2027-05-31"
+  },
+  "global_rules": [
+    "Never break existing keyboard behavior.",
+    "Never skip phases.",
+    "Founder approves all phase transitions.",
+    "Low-risk maintenance can be executed after validation.",
+    "Medium-risk changes require a staging branch and founder approval.",
+    "High-risk changes require three options and no autonomous execution.",
+    "No data may leave device for product telemetry or typing behavior.",
+    "Runtime/product evidence beats reports and cosmetic cleanup."
+  ],
+  "forbidden_autonomous_scopes": [
+    "privacy",
+    "database",
+    "networking",
+    "telemetry",
+    "authentication",
+    "prediction_core",
+    "swipe_core",
+    "workflow_mutation",
+    "dependency_upgrade",
+    "gradle_structure",
+    "google-services.json"
+  ],
+  "success_signals": [
+    "Android validation passes",
+    "health score increases",
+    "critical risks decrease",
+    "typing confidence improves",
+    "swipe reliability improves",
+    "crash likelihood decreases",
+    "APK growth stays controlled",
+    "memory growth stays controlled",
+    "real-device user feedback improves"
+  ],
+  "phases": [
+    {
+      "id": "phase-1-stabilization",
+      "name": "Stabilization",
+      "window": "2026-06-04 to 2026-08-31",
+      "goal": "Keyboard so stable no user uninstalls because of bugs.",
+      "phase_transition_requires_founder": true,
+      "exit_criteria": [
+        "Health score reaches 85 or higher",
+        "All issues in ENGINEERING_REPORT.md are resolved or explicitly accepted",
+        "All critical security issues are fixed",
+        "Android validation passes",
+        "Zero known crash-class blockers",
+        "Gboard-level key feel has real-device evidence",
+        "500 typing samples collected",
+        "10 users minimum"
+      ],
+      "goals": [
+        {
+          "id": "stab-001-live-validation",
+          "title": "Keep Android validation green",
+          "priority": "CRITICAL",
+          "owner": "reviewer",
+          "risk": "LOW",
+          "allowed_actions": ["scan", "validate", "report", "safe_fix"],
+          "success_metric": "testDebugUnitTest, assembleDebug, and lintDebug pass",
+          "product_impact": "build reliability",
+          "status": "ACTIVE"
+        },
+        {
+          "id": "stab-002-critical-risk-burn-down",
+          "title": "Burn down critical risks from live brain scans",
+          "priority": "CRITICAL",
+          "owner": "auditor",
+          "risk": "MEDIUM",
+          "allowed_actions": ["scan", "classify", "propose_patch", "ask_founder"],
+          "success_metric": "critical risk count trends down to zero",
+          "product_impact": "crash and security risk reduction",
+          "status": "ACTIVE"
+        },
+        {
+          "id": "stab-003-key-feel-evidence",
+          "title": "Collect evidence for Gboard-level key feel",
+          "priority": "HIGH",
+          "owner": "cto",
+          "risk": "MEDIUM",
+          "allowed_actions": ["diagnose", "measure", "propose_patch", "ask_founder"],
+          "success_metric": "typing latency, touch confidence, and correction behavior are measured",
+          "product_impact": "typing confidence",
+          "status": "ACTIVE"
+        },
+        {
+          "id": "stab-004-safe-cleanup",
+          "title": "Execute only validated low-risk cleanup",
+          "priority": "MEDIUM",
+          "owner": "coder",
+          "risk": "LOW",
+          "allowed_actions": ["formatting", "documentation_cleanup", "dead_import_cleanup", "stale_report_cleanup"],
+          "success_metric": "cleanup lands only after validation and rollback path exists",
+          "product_impact": "maintainability without runtime risk",
+          "status": "ACTIVE"
+        }
+      ]
+    },
+    {
+      "id": "phase-2-ai-foundation",
+      "name": "AI Foundation",
+      "window": "2026-09-01 to 2026-11-30",
+      "goal": "Keyboard starts learning the user on-device only.",
+      "phase_transition_requires_founder": true,
+      "entry_requires": ["phase-1-stabilization founder approval"],
+      "goals": [
+        {
+          "id": "ai-001-on-device-sample-store",
+          "title": "Design on-device typing sample storage",
+          "priority": "HIGH",
+          "owner": "cto",
+          "risk": "HIGH",
+          "allowed_actions": ["proposal_only", "ask_founder"],
+          "success_metric": "privacy-safe local-only design approved",
+          "product_impact": "learning foundation",
+          "status": "LOCKED_UNTIL_PHASE"
+        },
+        {
+          "id": "ai-002-typing-pattern-signals",
+          "title": "Track speed, time-of-day, backspace, and language mixing",
+          "priority": "HIGH",
+          "owner": "coder",
+          "risk": "HIGH",
+          "allowed_actions": ["proposal_only", "ask_founder"],
+          "success_metric": "1000 local samples and 25 users minimum",
+          "product_impact": "behavioral fingerprint foundation",
+          "status": "LOCKED_UNTIL_PHASE"
+        },
+        {
+          "id": "ai-003-local-learning-pipeline",
+          "title": "Prepare basic on-device LSTM learning pipeline",
+          "priority": "MEDIUM",
+          "owner": "reviewer",
+          "risk": "HIGH",
+          "allowed_actions": ["research", "proposal_only", "ask_founder"],
+          "success_metric": "no data leaves device and founder approves implementation",
+          "product_impact": "personalized typing intelligence",
+          "status": "LOCKED_UNTIL_PHASE"
+        }
+      ]
+    },
+    {
+      "id": "phase-3-companion-foundation",
+      "name": "Companion Foundation",
+      "window": "2026-12-01 to 2027-02-28",
+      "goal": "Companion starts talking from inside the keyboard toolbar.",
+      "phase_transition_requires_founder": true,
+      "entry_requires": ["phase-2-ai-foundation founder approval"],
+      "goals": [
+        {
+          "id": "comp-001-toolbar-chat-entry",
+          "title": "Design companion chat entry inside keyboard toolbar",
+          "priority": "HIGH",
+          "owner": "cto",
+          "risk": "HIGH",
+          "allowed_actions": ["proposal_only", "ask_founder"],
+          "success_metric": "one-tap companion entry approved and validated",
+          "product_impact": "support access without separate app",
+          "status": "LOCKED_UNTIL_PHASE"
+        },
+        {
+          "id": "comp-002-tanglish-response-foundation",
+          "title": "Build real Tanglish response foundation",
+          "priority": "HIGH",
+          "owner": "coder",
+          "risk": "HIGH",
+          "allowed_actions": ["proposal_only", "ask_founder"],
+          "success_metric": "responses tested with real user feedback",
+          "product_impact": "cultural authenticity",
+          "status": "LOCKED_UNTIL_PHASE"
+        },
+        {
+          "id": "comp-003-feedback-loop",
+          "title": "Collect first companion feedback from 50 users",
+          "priority": "MEDIUM",
+          "owner": "reviewer",
+          "risk": "MEDIUM",
+          "allowed_actions": ["plan", "ask_founder"],
+          "success_metric": "50 users minimum and feedback captured",
+          "product_impact": "product trust evidence",
+          "status": "LOCKED_UNTIL_PHASE"
+        }
+      ]
+    },
+    {
+      "id": "phase-4-handover-prep",
+      "name": "Handover Prep",
+      "window": "2027-03-01 to 2027-05-31",
+      "goal": "Everything ready for founder takeover.",
+      "phase_transition_requires_founder": true,
+      "entry_requires": ["phase-3-companion-foundation founder approval"],
+      "goals": [
+        {
+          "id": "handover-001-system-audit",
+          "title": "Complete full system audit and handover report",
+          "priority": "HIGH",
+          "owner": "auditor",
+          "risk": "LOW",
+          "allowed_actions": ["audit", "documentation", "report"],
+          "success_metric": "full handover ENGINEERING_REPORT.md is complete",
+          "product_impact": "founder takeover readiness",
+          "status": "LOCKED_UNTIL_PHASE"
+        },
+        {
+          "id": "handover-002-privacy-dashboard",
+          "title": "Prepare privacy dashboard plan",
+          "priority": "HIGH",
+          "owner": "cto",
+          "risk": "HIGH",
+          "allowed_actions": ["proposal_only", "ask_founder"],
+          "success_metric": "privacy dashboard implementation approved",
+          "product_impact": "user trust",
+          "status": "LOCKED_UNTIL_PHASE"
+        },
+        {
+          "id": "handover-003-retention-evidence",
+          "title": "Track 100-user retention evidence",
+          "priority": "HIGH",
+          "owner": "reviewer",
+          "risk": "MEDIUM",
+          "allowed_actions": ["measure", "report", "ask_founder"],
+          "success_metric": "100 users with real retention data",
+          "product_impact": "launch readiness",
+          "status": "LOCKED_UNTIL_PHASE"
+        }
+      ]
+    }
+  ]
+}
