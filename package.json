@@ -11,7 +11,7 @@
     "cto:maintenance": "node ai-cto/scripts/safe-maintenance-engine.js",
     "cto:execution": "node ai-cto/scripts/safe-execution-engine.js",
     "cto:whatsapp": "node ai-cto/whatsapp-server.js",
-    "cto:whatsapp:test": "node ai-cto/scripts/test-whatsapp-interface.js && node ai-cto/scripts/test-whatsapp-operational-hardening.js && node ai-cto/scripts/test-task-pipeline.js && node ai-cto/scripts/test-safe-maintenance-engine.js && node ai-cto/scripts/test-safe-execution-engine.js && node ai-cto/scripts/test-operational-assistance.js && node ai-cto/scripts/test-human-worker-layer.js && node ai-cto/scripts/test-personality-guardrails.js"
+    "cto:whatsapp:test": "node ai-cto/scripts/test-whatsapp-interface.js && node ai-cto/scripts/test-whatsapp-operational-hardening.js && node ai-cto/scripts/test-task-pipeline.js && node ai-cto/scripts/test-safe-maintenance-engine.js && node ai-cto/scripts/test-safe-execution-engine.js && node ai-cto/scripts/test-operational-assistance.js && node ai-cto/scripts/test-human-worker-layer.js && node ai-cto/scripts/test-personality-guardrails.js && node ai-cto/scripts/test-contextual-reasoning.js && node ai-cto/scripts/test-school-mode-intelligence.js && node ai-cto/scripts/test-live-scan-grounding.js && node ai-cto/scripts/test-execution-engine.js"
   },
   "keywords": [],
   "author": "",

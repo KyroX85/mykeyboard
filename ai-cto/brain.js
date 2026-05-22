@@ -1,5 +1,7 @@
 const fs = require('fs');
 const path = require('path');
+const { readRoadmap } = require('./whatsapp/roadmap-reader');
+const { logAgentAction } = require('./whatsapp/agent-action-log');
 
 const ROOT = process.cwd();
 const LOG_FILE = path.join(ROOT, 'test_output.log');
@@ -17,7 +19,13 @@ let state = {
   momentum: 'STABLE',
   trendHistory: [],
   recurringFailures: {},
-  fileInstability: {}
+  fileInstability: {},
+  memoryPolicy: {
+    fullMemoryFrom: '2026-06-04',
+    resetAllowed: false,
+    storage: 'ai-cto/.brain_state.json'
+  },
+  schoolModeMemory: []
 };
 
 function log(message) {
@@ -35,12 +43,30 @@ function readJson(file, fallback) {
 }
 
 function loadState() {
-  state = { ...state, ...readJson(BRAIN_STATE_FILE, {}) };
+  const persisted = readJson(BRAIN_STATE_FILE, {});
+  state = {
+    ...state,
+    trendHistory: persisted.trendHistory,
+    recurringFailures: persisted.recurringFailures,
+    fileInstability: persisted.fileInstability,
+    memoryPolicy: persisted.memoryPolicy,
+    schoolModeMemory: persisted.schoolModeMemory
+  };
   state.version = '3.0';
+  state.unresolvedIssues = [];
+  state.healthScore = 100;
+  state.momentum = 'STABLE';
+  state.lastAnalysis = null;
   state.trendHistory = Array.isArray(state.trendHistory) ? state.trendHistory : [];
-  state.unresolvedIssues = Array.isArray(state.unresolvedIssues) ? state.unresolvedIssues : [];
   state.recurringFailures = state.recurringFailures || {};
   state.fileInstability = state.fileInstability || {};
+  state.memoryPolicy = {
+    fullMemoryFrom: '2026-06-04',
+    resetAllowed: false,
+    storage: 'ai-cto/.brain_state.json',
+    ...(state.memoryPolicy || {})
+  };
+  state.schoolModeMemory = Array.isArray(state.schoolModeMemory) ? state.schoolModeMemory : [];
 }
 
 function saveState() {
@@ -95,32 +121,45 @@ function validationFindings() {
     : [];
 }
 
-function deepCodeScan(dir, findings = []) {
-  if (shouldIgnore(dir)) return findings;
-
+function sourceFiles(dir, files = []) {
+  if (shouldIgnore(dir)) return files;
   for (const entry of safeReadDir(dir)) {
     const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
-      deepCodeScan(full, findings);
-      continue;
-    }
-    if (!/\.(js|py|kt)$/.test(entry.name)) continue;
+    if (entry.isDirectory()) sourceFiles(full, files);
+    else if (/\.(js|py|kt|java|kts|gradle|xml)$/.test(entry.name)) files.push(full);
+  }
+  return files;
+}
 
+function hardcodedSecretFindings(files) {
+  const secretPattern = /\b(?:api[_-]?key|key|password|passwd|secret|token|auth[_-]?token|mail_password)\b\s*[:=]\s*['"][^'"\r\n]{10,}['"]/i;
+  return files.flatMap((file) => {
+    const relative = path.relative(ROOT, file).replace(/\\/g, '/');
+    const lines = safeReadFile(file).split(/\r?\n/);
+    return lines
+      .map((line, index) => ({ line, lineNumber: index + 1 }))
+      .filter(({ line }) => secretPattern.test(line))
+      .map(({ lineNumber }) => normalizeIssue({
+        type: 'SECURITY',
+        impact: 'CRITICAL',
+        message: `Hardcoded Secret in ${path.basename(file)}`,
+        file: relative,
+        task: `line ${lineNumber}`,
+        source: 'LIVE_GREP'
+      }));
+  });
+}
+
+function deepCodeScan(dir, findings = []) {
+  const files = sourceFiles(dir);
+  findings.push(...hardcodedSecretFindings(files));
+  for (const full of files) {
+    const entry = { name: path.basename(full) };
     const relative = path.relative(ROOT, full).replace(/\\/g, '/');
-    const code = fs.readFileSync(full, 'utf8');
+    const code = safeReadFile(full);
     const codeWithoutComments = code
       .replace(/\/\*[\s\S]*?\*\//g, '')
       .replace(/\/\/.*$/gm, '');
-
-    if (/(?:key|password|secret|token|auth)[a-z0-9_]*\s*[:=]\s*['"][a-zA-Z0-9_\-\s]{10,}['"]/i.test(code)) {
-      findings.push(normalizeIssue({
-        type: 'SECURITY',
-        impact: 'CRITICAL',
-        message: `Hardcoded Secret in ${entry.name}`,
-        file: relative,
-        source: 'DEEP_SCAN'
-      }));
-    }
 
     if (code.split(/\r?\n/).length > 500) {
       findings.push(normalizeIssue({
@@ -146,6 +185,14 @@ function deepCodeScan(dir, findings = []) {
   return findings;
 }
 
+function safeReadFile(file) {
+  try {
+    return fs.readFileSync(file, 'utf8');
+  } catch {
+    return '';
+  }
+}
+
 function safeReadDir(dir) {
   try {
     return fs.readdirSync(dir, { withFileTypes: true });
@@ -156,7 +203,7 @@ function safeReadDir(dir) {
 
 function shouldIgnore(filePath) {
   const parts = filePath.replace(/\\/g, '/').split('/').filter(Boolean);
-  return ['.git', '.gradle', '.idea', 'node_modules', 'dist', 'build', 'ai-cto'].some(part => parts.includes(part));
+  return ['.git', '.gradle', '.idea', 'node_modules', 'dist', 'build'].some(part => parts.includes(part));
 }
 
 function uniqueIssues(issues) {
@@ -220,6 +267,18 @@ function updateTrends(issues, now) {
     const key = issueKey(issue);
     state.recurringFailures[key] = (state.recurringFailures[key] || 0) + 1;
   }
+
+  const schoolStart = Date.parse(state.memoryPolicy.fullMemoryFrom);
+  if (Date.parse(now) >= schoolStart) {
+    state.schoolModeMemory.push({
+      timestamp: now,
+      healthScore: state.healthScore,
+      momentum: state.momentum,
+      topRisks: sortByRisk(issues).slice(0, 3).map(issue => issue.message),
+      agentSummary: 'CTO scanned, validation checked, risks ranked, founder report prepared.',
+      founderApprovalsNeeded: sortByRisk(issues).filter(requiresApproval).slice(0, 5).map(issue => issue.message)
+    });
+  }
 }
 
 function requiresApproval(issue) {
@@ -282,18 +341,45 @@ function autofixSummary() {
 }
 
 function generateReport(issues) {
+  const roadmap = readRoadmap();
   const critical = issues.filter(issue => issue.impact === 'CRITICAL');
   const pendingApprovals = issues.filter(requiresApproval);
   const priorities = sortByRisk(issues).slice(0, 5).map(nextPriorityFor);
+  const topThreeRisks = sortByRisk(issues).slice(0, 3);
+  const aboveZeroRisk = sortByRisk(issues);
   const repeated = repeatedFailures(issues);
   const unstableFiles = topUnstableFiles();
   const now = state.lastAnalysis;
 
   let report = `ARITENIS AI CTO REPORT [CONTROLLED EXECUTION]\n`;
   report += `DATE: ${now}\n`;
+  report += `SCAN MODE: LIVE_REPO_SCAN\n`;
   report += `HEALTH SCORE: ${state.healthScore}/100\n`;
   report += `MOMENTUM: ${state.momentum}\n`;
+  report += `ROADMAP PHASE: ${roadmap.currentPhase.split(/\r?\n/)[0]}\n`;
   report += `-------------------------------------------\n\n`;
+
+  report += `NORTH STAR:\n`;
+  report += `- ${roadmap.northStar.replace(/\s+/g, ' ').trim()}\n\n`;
+  report += `VISION FILTER:\n`;
+  report += `- ${(roadmap.vision || 'Vision north star not loaded.').split(/\r?\n/).find(Boolean)}\n\n`;
+
+  report += `SCHOOL MODE 7AM DIGEST:\n`;
+  report += `- Founder Sir, health ${state.healthScore}/100. Momentum ${state.momentum}. Inniku repo watch active.\n`;
+  report += topThreeRisks.length
+    ? topThreeRisks.map((issue, index) => `- Top ${index + 1}: ${formatIssue(issue).replace(/^- /, '')}`).join('\n') + '\n'
+    : '- Top risks: None detected.\n';
+  report += `- What agents did today: CTO scanned risks, Coder checked safe maintenance scope, Reviewer guarded validation, Auditor flagged above-zero risks.\n`;
+  report += pendingApprovals.length
+    ? `- Needs founder approval: ${pendingApprovals.slice(0, 3).map(issue => issue.message).join(' | ')}\n`
+    : '- Needs founder approval: None right now.\n';
+  report += `- Main rule: maintain + suggest useful features. Big move panna matten without founder approval.\n\n`;
+
+  report += `IMMEDIATE ALERTS ABOVE ZERO RISK:\n`;
+  report += aboveZeroRisk.length
+    ? aboveZeroRisk.map(formatIssue).join('\n') + '\n'
+    : '- None. No above-zero risk detected.\n';
+  report += `\n`;
 
   report += `NEW REGRESSIONS AND CRITICAL RISKS:\n`;
   report += critical.length ? critical.map(formatIssue).join('\n') + '\n' : '- None detected.\n';
@@ -332,22 +418,51 @@ function generateReport(issues) {
   report += `- Dangerous changes are report-only and never auto-merge.\n`;
 
   fs.writeFileSync(REPORT_FILE, report);
+  logAgentAction({
+    agentName: 'CTO',
+    actionTaken: 'generated engineering report and brain state',
+    reason: 'Scheduled maintenance, roadmap tracking, and school-mode daily reporting.',
+    riskLevel: issues.length ? 'MEDIUM' : 'LOW',
+    outcome: `REPORT_WRITTEN health=${state.healthScore} issues=${issues.length}`
+  });
   log(`Controlled analysis complete: ${state.healthScore}% health; issues=${issues.length}.`);
 }
 
-loadState();
-const now = new Date().toISOString();
-const hasStructuredValidation = fs.existsSync(VALIDATION_FILE);
-const androidFindings = validationFindings();
-const issues = uniqueIssues([
-  ...androidFindings,
-  ...(hasStructuredValidation ? [] : analyzeFailuresFromLog()),
-  ...deepCodeScan(ROOT)
-]);
+function runBrain() {
+  loadState();
+  const now = new Date().toISOString();
+  const hasStructuredValidation = fs.existsSync(VALIDATION_FILE);
+  const androidFindings = validationFindings();
+  const issues = uniqueIssues([
+    ...androidFindings,
+    ...(hasStructuredValidation ? [] : analyzeFailuresFromLog()),
+    ...deepCodeScan(ROOT)
+  ]);
 
-calculateHealth(issues);
-state.lastAnalysis = now;
-state.unresolvedIssues = sortByRisk(issues).map(issue => ({ ...issue, detectedAt: now }));
-updateTrends(state.unresolvedIssues, now);
-saveState();
-generateReport(state.unresolvedIssues);
+  calculateHealth(issues);
+  state.lastAnalysis = now;
+  state.scanMode = 'LIVE_REPO_SCAN';
+  state.unresolvedIssues = sortByRisk(issues).map(issue => ({ ...issue, detectedAt: now }));
+  state.liveScan = {
+    scannedAt: now,
+    source: 'actual_repo_files',
+    issueCount: state.unresolvedIssues.length,
+    hardcodedSecretCount: state.unresolvedIssues.filter(issue => issue.type === 'SECURITY' && issue.source === 'LIVE_GREP').length
+  };
+  updateTrends(state.unresolvedIssues, now);
+  saveState();
+  generateReport(state.unresolvedIssues);
+  return state;
+}
+
+if (require.main === module) {
+  runBrain();
+}
+
+module.exports = {
+  runBrain,
+  deepCodeScan,
+  hardcodedSecretFindings,
+  sourceFiles,
+  loadState
+};

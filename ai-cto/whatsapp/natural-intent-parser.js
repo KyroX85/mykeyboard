@@ -18,6 +18,11 @@ const AGENT_ALIASES = new Map([
 ]);
 
 const INTENT_PATTERNS = [
+  { intent: 'praise', words: ['good job', 'well done', 'nice work', 'nalla iruka', 'super da', 'great work'] },
+  { intent: 'check_in', words: ['you there', 'anyone home', 'team there', 'are you there'] },
+  { intent: 'direction', words: ['what should we do', 'next steps', 'what next', 'what do we do', 'your call', 'guide me'] },
+  { intent: 'recent_fix_question', words: ['what did you just fix', 'what was fixed', 'what you fixed', 'just fixed', 'what changed just now'] },
+  { intent: 'status_question', words: ['whats going on', 'what is going on', 'how are we doing', 'what happened'] },
   { intent: 'execution', words: ['execution', 'executed', 'approved', 'blocked execution', 'rollback', 'rolled back'] },
   { intent: 'summary', words: ['summarize', 'summary', 'today', 'overall', 'brief', 'update', 'happened'] },
   { intent: 'tasks', words: ['task', 'tasks', 'assigned', 'assignment', 'pipeline'] },
@@ -30,8 +35,12 @@ const INTENT_PATTERNS = [
   { intent: 'approvals', words: ['approval', 'approvals', 'approve', 'pending'] },
   { intent: 'priority', words: ['priority', 'priorities', 'next', 'focus'] },
   { intent: 'health', words: ['health', 'score', 'status'] },
-  { intent: 'help', words: ['help', 'commands'] }
+  { intent: 'help', words: ['help', 'commands'] },
+  { intent: 'greeting', words: ['hi', 'hello', 'sup', 'hey', 'da', 'bro', 'enna', 'என்ன', 'vanakkam'] }
 ];
+
+const GREETING_WORDS = new Set(['hi', 'hello', 'sup', 'bro', 'da', 'hey', 'enna', '\u0b8e\u0ba9\u0bcd\u0ba9', 'vanakkam']);
+const GREETING_FILLERS = new Set(['sir', 'founder', 'team']);
 
 function parseNaturalIntent(message, memory = {}) {
   const normalized = normalize(message);
@@ -39,15 +48,37 @@ function parseNaturalIntent(message, memory = {}) {
     return { matched: false, agent: null, intent: 'malformed', topic: null, confidence: 0, normalized };
   }
 
+  if (isStandaloneGreeting(normalized)) {
+    return {
+      matched: true,
+      agent: 'cto',
+      intent: 'greeting',
+      topic: null,
+      detailMode: false,
+      continuity: detectContinuity(normalized),
+      confidence: 1,
+      normalized,
+      explicitAgent: null,
+      fallbackUsed: false,
+      fallbackReason: null
+    };
+  }
+
   const explicitAgent = detectAgent(normalized);
   const agent = explicitAgent || memory.lastAgentInteraction || null;
   const focusTopic = detectFocusTopic(normalized);
   const continuity = detectContinuity(normalized);
-  const intent = detectIntent(normalized);
+  const semanticTopic = resolveTopicFromContinuity(continuity, memory);
+  const detectedIntent = detectIntent(normalized);
+  const intent = explicitAgent && detectedIntent === 'greeting' ? 'unknown' : detectedIntent;
   const conversational = Boolean(
     agent ||
     intent !== 'unknown' ||
     focusTopic ||
+    semanticTopic ||
+    continuity.referenceTerm ||
+    continuity.continuationRequested ||
+    continuity.statusCheck ||
     continuity.painPoint ||
     (continuity.founderTone && continuity.founderTone !== 'direct')
   );
@@ -60,7 +91,7 @@ function parseNaturalIntent(message, memory = {}) {
     matched: true,
     agent: agent || 'cto',
     intent,
-    topic: focusTopic || continuity.painPoint || memory.lastFocusTopic || memory.lastRequestedFocusArea || null,
+    topic: focusTopic || semanticTopic || continuity.painPoint || memory.lastFocusTopic || memory.lastRequestedFocusArea || null,
     detailMode: detectDetailMode(normalized),
     continuity,
     confidence: explicitAgent ? (intent === 'unknown' ? 0.72 : 0.92) : 0.65,
@@ -79,7 +110,7 @@ function normalize(message) {
   return String(message || '')
     .trim()
     .toLowerCase()
-    .replace(/[^\w\s-]/g, ' ')
+    .replace(/[^\w\s\u0b80-\u0bff-]/g, ' ')
     .replace(/\s+/g, ' ');
 }
 
@@ -91,14 +122,30 @@ function detectAgent(normalized) {
   return null;
 }
 
+function isStandaloneGreeting(message) {
+  const normalized = normalize(message);
+  if (!normalized) return false;
+  const words = normalized.split(' ').filter(Boolean);
+  if (words.some((word) => AGENT_ALIASES.has(word))) return false;
+  return words.length > 0 && words.every((word) =>
+    GREETING_WORDS.has(word) || GREETING_FILLERS.has(word)
+  );
+}
+
 function detectIntent(normalized) {
   for (const pattern of INTENT_PATTERNS) {
-    if (pattern.words.some((word) => normalized.includes(word))) return pattern.intent;
+    if (pattern.words.some((word) => matchesIntentWord(normalized, word))) return pattern.intent;
   }
-  if (/what'?s going on|whats going on|what is going on/.test(normalized)) return 'summary';
+  if (/what'?s going on|whats going on|what is going on|how are we doing|update me/.test(normalized)) return 'summary';
   if (/what changed today|what happened today/.test(normalized)) return 'summary';
-  if (/\b(stuck|improving|progress iruka|inniku progress|fixed ah|fix ah)\b/.test(normalized)) return 'current_work';
+  if (/\b(stuck|improving|progress iruka|inniku progress|fixed ah|fix ah|fix|continue|still broken|same issue|after that)\b/.test(normalized)) return 'current_work';
   return 'unknown';
+}
+
+function matchesIntentWord(normalized, word) {
+  const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  if (/^[a-z0-9-]+$/.test(word)) return new RegExp(`\\b${escaped}\\b`).test(normalized);
+  return normalized.includes(word);
 }
 
 function detectContinuity(normalized) {
@@ -112,12 +159,54 @@ function detectContinuity(normalized) {
   if (/\btyping feel|gboard|keyboard feel|keypress|latency\b/.test(normalized)) painPoints.push('typing feel');
   if (/\brobotic|template|bot|worker feel|real worker\b/.test(normalized)) painPoints.push('real worker feel');
   if (/\bschool|class\b/.test(normalized)) painPoints.push('school mode');
+  const referenceMatch = normalized.match(/\b(this|that|them|it)\b/);
+  const continuationRequested = /\b(continue|after that|what happened after that|what happened next)\b/.test(normalized);
+  const statusCheck = /\b(still broken|fixed ah|fix ah|fixed|stuck|same issue)\b/.test(normalized);
+  const requestedAction = detectRequestedAction(normalized, continuationRequested, statusCheck);
   return {
+    normalized,
     founderTone: tone,
     painPoint: painPoints[0] || null,
     frustration: painPoints.length ? painPoints[0] : null,
-    preferredWording: tone === 'casual' ? 'sir' : null
+    preferredWording: tone === 'casual' ? 'sir' : null,
+    preferredResponseStyle: tone === 'low_attention' || /\bschool|class\b/.test(normalized)
+      ? 'mobile-first short worker updates'
+      : null,
+    referenceTerm: referenceMatch ? referenceMatch[1] : null,
+    continuationRequested,
+    statusCheck,
+    requestedAction,
+    desiredOutcome: detectDesiredOutcome(normalized, painPoints[0])
   };
+}
+
+function detectRequestedAction(normalized, continuationRequested, statusCheck) {
+  if (/\bfix\b/.test(normalized)) return 'fix';
+  if (/\bvalidate|test|check\b/.test(normalized)) return 'validate';
+  if (continuationRequested) return 'continue';
+  if (statusCheck) return 'check_status';
+  return null;
+}
+
+function detectDesiredOutcome(normalized, painPoint) {
+  if (/\bpremium|smooth|gboard|typing feel|keyboard feel\b/.test(normalized)) return 'make the keyboard feel premium and stable';
+  if (/\breduce founder|cognitive|school|short\b/.test(normalized)) return 'reduce founder cognitive load';
+  if (painPoint === 'swipe feel') return 'make swipe reliability trustworthy';
+  if (painPoint === 'typing feel') return 'make typing confidence stronger';
+  return null;
+}
+
+function resolveTopicFromContinuity(continuity, memory = {}) {
+  if (continuity.referenceTerm || continuity.continuationRequested || continuity.statusCheck) {
+    return memory.unresolvedReference ||
+      memory.activeFocus ||
+      memory.activeRuntimeProblem ||
+      memory.lastFocusTopic ||
+      memory.lastRequestedFocusArea ||
+      memory.lastUnfinishedConcern ||
+      null;
+  }
+  return null;
 }
 
 function detectFocusTopic(normalized) {
@@ -135,6 +224,7 @@ module.exports = {
   normalize,
   detectAgent,
   detectIntent,
+  isStandaloneGreeting,
   detectDetailMode,
   detectContinuity
 };

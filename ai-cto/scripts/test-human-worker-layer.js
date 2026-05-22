@@ -77,7 +77,7 @@ const coderReply = buildNaturalResponse({
   memory
 });
 
-assert(coderReply.startsWith('🛠 CODER'));
+assert(coderReply.startsWith('🔧 CODER'));
 assert(coderReply.includes('Sollunga sir') || coderReply.includes('Sir'));
 assert(coderReply.includes('Attempted:'));
 assert(coderReply.includes('Blocked:'));

@@ -1,3 +1,8 @@
+const { schoolModeDigest, groupChatDailyUpdate } = require('./school-mode-policy');
+const { readRoadmap } = require('./roadmap-reader');
+const { logAgentAction } = require('./agent-action-log');
+const { classifyRisk } = require('../scripts/execution-engine');
+
 function linesOrFallback(items, fallback) {
   if (!items || items.length === 0) return [fallback];
   return items.slice(0, 4).map((item) => `\u2022 ${item}`);
@@ -28,6 +33,34 @@ function findFocusedIssue(state, topic) {
   );
 }
 
+function issueObjectFromText(text) {
+  const match = String(text || '').match(/(?:^|\s)([\w./\\-]+\.\w+)(?::\d+)?/);
+  return {
+    type: /secret|security/i.test(text) ? 'SECURITY' : /format|spacing|whitespace/i.test(text) ? 'FORMATTING' : 'UNKNOWN',
+    message: String(text || ''),
+    file: match ? match[1] : ''
+  };
+}
+
+function firstExecutionCandidate(state) {
+  if (Array.isArray(state.unresolvedIssues) && state.unresolvedIssues.length) {
+    return state.unresolvedIssues.find((issue) => issue && issue.file) || state.unresolvedIssues[0];
+  }
+  const issueText = (state.sections.risks[0] || state.sections.unresolved[0] || '').trim();
+  return issueText ? issueObjectFromText(issueText) : null;
+}
+
+function fixOffer(state) {
+  const issue = firstExecutionCandidate(state);
+  if (!issue) return [];
+  const risk = classifyRisk(issue);
+  return [
+    '',
+    `Fix available — risk level: ${risk.riskLevel}`,
+    'Reply FIX to execute or SKIP to ignore'
+  ];
+}
+
 function generateResponse(command, state, memory = {}, details = {}) {
   const health = state.healthScore == null ? 'unknown' : `${state.healthScore}/100`;
   const momentum = state.momentum || 'UNKNOWN';
@@ -37,6 +70,15 @@ function generateResponse(command, state, memory = {}, details = {}) {
   const heartbeat = state.workflowFreshness && state.workflowFreshness.stale
     ? [`\ud83d\udea8 Heartbeat: ${state.workflowFreshness.message}`, '']
     : [];
+
+  const roadmap = readRoadmap();
+  logAgentAction({
+    agentName: 'CTO',
+    actionTaken: `prepared WhatsApp command response: ${command}`,
+    reason: roadmap.currentPhase.split(/\r?\n/)[0] || 'Follow roadmap and latest repo state.',
+    riskLevel: 'LOW',
+    outcome: 'RESPONSE_SENT'
+  });
 
   switch (command) {
     case 'status':
@@ -66,7 +108,8 @@ function generateResponse(command, state, memory = {}, details = {}) {
     case 'risks':
       return [
         'Founder Sir, latest risks',
-        ...linesOrFallback(state.sections.risks, 'No new critical risk listed in the latest report.')
+        ...linesOrFallback(state.sections.risks, 'No new critical risk listed in the latest report.'),
+        ...fixOffer(state)
       ].join('\n');
 
     case 'momentum':
@@ -89,7 +132,8 @@ function generateResponse(command, state, memory = {}, details = {}) {
     case 'pending_issues':
       return [
         'Founder Sir, unresolved issues',
-        ...linesOrFallback(state.sections.unresolved, 'No unresolved issue is recorded in the latest state.')
+        ...linesOrFallback(state.sections.unresolved, 'No unresolved issue is recorded in the latest state.'),
+        ...fixOffer(state)
       ].join('\n');
 
     case 'what_changed':
@@ -130,7 +174,8 @@ function generateResponse(command, state, memory = {}, details = {}) {
         ...linesOrFallback(
           state.sections.unresolved.filter((item) => /keyboard|predictor|input|ime|swipe|gesture/i.test(item)),
           'No keyboard-specific issue is isolated in the latest report.'
-        )
+        ),
+        ...fixOffer(state)
       ].join('\n');
 
     case 'cto_summary':
@@ -144,6 +189,16 @@ function generateResponse(command, state, memory = {}, details = {}) {
         '',
         'Top risk',
         `\u2022 ${state.summary.topRisk}`
+      ].join('\n');
+
+    case 'school_mode':
+      return [
+        'SCHOOL MODE',
+        schoolModeDigest(state),
+        '',
+        groupChatDailyUpdate(state),
+        '',
+        `North star: ${roadmap.northStar.split(/\r?\n/)[0]}`
       ].join('\n');
 
     case 'focus':
@@ -166,7 +221,8 @@ function generateResponse(command, state, memory = {}, details = {}) {
         'Active risks',
         ...linesOrFallback(state.sections.risks.length ? state.sections.risks : state.sections.unresolved, 'No active risk recorded right now.'),
         '',
-        `\ud83c\udfaf Next: ${state.summary.nextPriority}`
+        `\ud83c\udfaf Next: ${state.summary.nextPriority}`,
+        ...fixOffer(state)
       ].join('\n');
 
     case 'unknown':
@@ -184,7 +240,7 @@ function generateResponse(command, state, memory = {}, details = {}) {
     default:
       return [
         'Founder Sir, CTO commands',
-        'status, health, momentum, latest risks, unresolved, what changed, pending approvals, keyboard health, cto summary, focus <topic>'
+        'status, health, momentum, latest risks, unresolved, what changed, pending approvals, keyboard health, cto summary, school mode, focus <topic>'
       ].join('\n');
   }
 }

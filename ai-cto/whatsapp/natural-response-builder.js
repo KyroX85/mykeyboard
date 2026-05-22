@@ -8,6 +8,8 @@ const {
   detectFakeProductivity,
   summarizeOperationalAssistance
 } = require('../scripts/operational-assistance');
+const { readRoadmap } = require('./roadmap-reader');
+const { logAgentAction } = require('./agent-action-log');
 
 const MOBILE_LABELS = {
   cto: '🧠 CTO',
@@ -16,13 +18,28 @@ const MOBILE_LABELS = {
   auditor: '🚨 AUDITOR'
 };
 
+Object.assign(MOBILE_LABELS, {
+  cto: '\uD83C\uDFAF CTO',
+  coder: '\uD83D\uDD27 CODER',
+  reviewer: '\u2696\uFE0F REVIEWER',
+  auditor: '\uD83D\uDEA8 AUDITOR'
+});
+
 function buildNaturalResponse({ agent, intent, topic, state, memory = {}, detailMode = false }) {
   const safeState = normalizeState(state);
   const persona = getPersonality(agent);
+  const roadmap = readRoadmap();
   const tasks = summarizeTasksForAgent(agent);
   const maintenance = maintenanceSnapshot();
   const execution = executionSnapshot();
-  const context = { persona, tasks, maintenance, execution, topic, intent, state: safeState, memory };
+  const context = { persona, roadmap, tasks, maintenance, execution, topic, intent, state: safeState, memory };
+  logAgentAction({
+    agentName: persona.label,
+    actionTaken: `prepared WhatsApp ${intent || 'update'} response`,
+    reason: roadmap.currentPhase.split(/\r?\n/)[0] || 'Follow roadmap and latest repo state.',
+    riskLevel: 'LOW',
+    outcome: 'RESPONSE_SENT'
+  });
   if (!detailMode) {
     return enforcePersonalityGuardrails(buildMobileResponse(agent, context));
   }
@@ -38,6 +55,8 @@ function buildNaturalResponse({ agent, intent, topic, state, memory = {}, detail
 
 function buildMobileResponse(agent, context) {
   const { state, topic, memory, tasks, execution, maintenance, intent } = context;
+  const social = buildSocialTeamResponse(agent, intent, state, memory);
+  if (social) return social;
   if (intent === 'operational') return buildOperationalMobile(agent, state, execution, maintenance);
   const accountability = buildAccountability(agent, { state, topic, memory, tasks, execution, maintenance, intent });
   const label = MOBILE_LABELS[agent] || MOBILE_LABELS.cto;
@@ -54,6 +73,76 @@ function buildMobileResponse(agent, context) {
     `Risk: ${risk}`,
     `Next: ${mobileNext(next, topic, memory)}`
   ].join('\n');
+}
+
+function buildSocialTeamResponse(agent, intent, state, memory = {}) {
+  if (shouldPushBack(memory)) return null;
+  if (agent !== 'cto' && ['summary', 'status_question', 'praise', 'direction', 'recent_fix_question'].includes(intent)) {
+    return null;
+  }
+  if (intent === 'greeting' || intent === 'check_in') {
+    return [
+      '\uD83C\uDFAF CTO: Yes sir, team ready da. What are we working on today?',
+      '\uD83D\uDD27 CODER: Ready sir \uD83D\uDCAA',
+      '\u2696\uFE0F REVIEWER: Standing by.',
+      '\uD83D\uDEA8 AUDITOR: Monitoring active.'
+    ].join('\n');
+  }
+
+  if (intent === 'summary' || intent === 'status_question') {
+    return [
+      '🎯 CTO: Here’s where we are da—',
+      `🚨 AUDITOR: ${compact(findDanger(state) || 'No new dangerous issue recorded.', 78)}`,
+      `🔧 CODER: ${compact(first(state.sections.completedFixes) || first(state.changed.completed) || 'No fresh runtime fix recorded yet.', 78)}`,
+      `⚖️ REVIEWER: ${compact(validationSummary(state), 78)}`,
+      '🎯 CTO: Your call on next steps Sir.'
+    ].join('\n');
+  }
+
+  if (intent === 'praise') {
+    return [
+      '🎯 CTO: Thank you sir, team worked clean.',
+      '🔧 CODER: Appreciate it sir, more to do still 💪',
+      '⚖️ REVIEWER: I’ll keep the safety gate tight.',
+      '🚨 AUDITOR: Good progress, but I’m still watching risk.'
+    ].join('\n');
+  }
+
+  if (intent === 'direction') {
+    return [
+      '🎯 CTO: Next move sir:',
+      `1. ${compact(first(state.sections.nextPriority) || 'Stabilize the top unresolved issue.', 72)}`,
+      `2. ${compact(first(state.sections.safestOpportunity) || 'Run validation before any fix.', 72)}`,
+      '3. Avoid big changes until health improves.'
+    ].join('\n');
+  }
+
+  if (intent === 'recent_fix_question') {
+    return [
+      '🎯 CTO: Recent fix memory sir:',
+      `🔧 CODER: ${compact(recentFixSummary(memory) || 'No recent fix is recorded in memory yet.', 90)}`,
+      `⚖️ REVIEWER: ${compact(validationSummary(state), 78)}`
+    ].join('\n');
+  }
+
+  return null;
+}
+
+function recentFixSummary(memory = {}) {
+  const recent = Array.isArray(memory.recentMessages)
+    ? memory.recentMessages.find((item) =>
+      /fix|fixed|execution_fix/i.test(`${item.intent || ''} ${item.summary || ''}`)
+    )
+    : null;
+  return (recent && recent.summary) || memory.latestImprovement || memory.lastActiveTask || null;
+}
+
+function validationSummary(state) {
+  const failed = state.validation.filter((item) => String(item.status || '').toLowerCase() === 'failed');
+  if (failed.length) return `${failed.length} validation task(s) failing. Not calling it stable yet.`;
+  const passed = state.validation.filter((item) => String(item.status || '').toLowerCase() === 'passed');
+  if (passed.length) return `Build checks passed in latest state.`;
+  return 'Build health not fully verified yet.';
 }
 
 function buildOperationalMobile(agent, state, execution, maintenance) {
@@ -74,8 +163,23 @@ function buildOperationalMobile(agent, state, execution, maintenance) {
 
 function mobileAttempted(agent, state, attemptedLine, noRuntime, topic, memory = {}) {
   const prefix = tonePrefix(memory);
+  if (shouldPushBack(memory)) {
+    return `${prefix}${compact(memory.operationalIntelligence.pushback.message, 72)}`;
+  }
+  if (isContextUncertain(memory)) {
+    return `${prefix}context not fully verified yet; checking latest grounded state.`;
+  }
+  if (memory.resolvedReference && memory.lastRequestedAction === 'fix') {
+    return `${prefix}"them" means ${compact(memory.resolvedReference, 42)}. Not claiming it fixed yet.`;
+  }
+  if (memory.nextContinuationAction && memory.lastRequestedAction === 'continue') {
+    return `${prefix}continuing ${compact(memory.nextContinuationAction.focus || topic || 'the active issue', 48)}.`;
+  }
   if (topic && /swipe|trail|gesture/i.test(topic)) {
     return `${prefix}swipe line not proven fixed yet. Checking real typing feel.`;
+  }
+  if (memory.lastRequestedAction === 'check_status' && (topic || memory.activeFocus)) {
+    return `${prefix}${compact(topic || memory.activeFocus, 48)} still not proven fixed.`;
   }
   if (noRuntime) return `${prefix}mostly maintenance today. No major typing improvement yet.`;
   const product = productSignal(state);
@@ -98,12 +202,36 @@ function mobileRisk(riskLine, state) {
   return `${compact(risk, 72)}.`;
 }
 
+function isContextUncertain(memory = {}) {
+  const conflicts = Array.isArray(memory.semanticConflicts)
+    ? memory.semanticConflicts
+    : array(memory.semanticFounderState && memory.semanticFounderState.semanticConflicts);
+  const confidence = memory.contextConfidence == null
+    ? memory.semanticFounderState && memory.semanticFounderState.contextConfidence
+    : memory.contextConfidence;
+  return conflicts.length > 0 || (confidence != null && confidence < 0.55);
+}
+
 function mobileNext(next, topic, memory = {}) {
+  if (shouldPushBack(memory)) {
+    return compact(memory.operationalIntelligence.pushback.saferAlternative, 82);
+  }
+  if (
+    memory.nextContinuationAction &&
+    memory.nextContinuationAction.nextAction &&
+    (memory.resolvedReference || ['continue', 'fix', 'check_status'].includes(memory.lastRequestedAction))
+  ) {
+    return compact(memory.nextContinuationAction.nextAction, 82);
+  }
   if (topic && /swipe|trail|gesture/i.test(topic)) return 'test trail continuity on real typing.';
   const pain = first(memory.repeatedPainPoints);
   if (pain === 'school mode') return 'keep replies short for school mode.';
   if (pain === 'real worker feel') return 'keep updates natural, but grounded.';
   return compact(next, 82);
+}
+
+function shouldPushBack(memory = {}) {
+  return Boolean(memory.operationalIntelligence && memory.operationalIntelligence.pushback && memory.operationalIntelligence.pushback.required);
 }
 
 function tonePrefix(memory = {}) {

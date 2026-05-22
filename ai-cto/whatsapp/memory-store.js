@@ -1,5 +1,11 @@
 const fs = require('fs');
 const path = require('path');
+const {
+  buildSemanticFounderState,
+  rankProductPriorities,
+  continuationPlan,
+  buildOperationalIntelligence
+} = require('./semantic-memory');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const MEMORY_FILE = path.join(ROOT, 'ai-cto', '.whatsapp_memory.json');
@@ -27,6 +33,29 @@ const DEFAULT_MEMORY = {
   repeatedPainPoints: [],
   recentWins: [],
   founderPreferredWording: null,
+  founderGoal: null,
+  activeFocus: null,
+  currentFrustration: null,
+  unresolvedReference: null,
+  desiredOutcome: null,
+  lastRequestedAction: null,
+  activeRuntimeProblem: null,
+  blockedPriority: null,
+  preferredResponseStyle: null,
+  schoolMemoryStartedAt: null,
+  semanticFounderState: null,
+  productPriorities: [],
+  contextConfidence: null,
+  semanticConflicts: [],
+  unresolvedTopics: [],
+  operationalIntelligence: null,
+  productFeelWins: [],
+  regressionCauses: [],
+  founderRejectedPatterns: [],
+  frictionReducers: [],
+  fakeProgressPatterns: [],
+  nextContinuationAction: null,
+  recentMessages: [],
   lastCommand: null,
   lastUpdatedAt: null
 };
@@ -101,6 +130,11 @@ function updateMemory(command, state, details = {}) {
   return writeMemory({
     ...memory,
     lastCommand: command,
+    recentMessages: rememberMessage(memory.recentMessages, {
+      role: 'agent',
+      intent: command,
+      summary: `Command handled: ${command}`
+    }),
     lastRequestedFocusArea: details.focusTopic || memory.lastRequestedFocusArea,
     latestUnresolvedIssue,
     lastHealthScore: state.healthScore == null ? memory.lastHealthScore : state.healthScore,
@@ -127,7 +161,30 @@ function readConversationMemory() {
     unresolvedConcern: memory.unresolvedConcern || memory.latestUnresolvedIssue || null,
     repeatedPainPoints: Array.isArray(memory.repeatedPainPoints) ? memory.repeatedPainPoints : [],
     recentWins: Array.isArray(memory.recentWins) ? memory.recentWins : [],
-    founderPreferredWording: memory.founderPreferredWording || null
+    founderPreferredWording: memory.founderPreferredWording || null,
+    founderGoal: memory.founderGoal || null,
+    activeFocus: memory.activeFocus || memory.lastFocusTopic || null,
+    currentFrustration: memory.currentFrustration || null,
+    unresolvedReference: memory.unresolvedReference || memory.unresolvedConcern || memory.latestUnresolvedIssue || null,
+    desiredOutcome: memory.desiredOutcome || null,
+    lastRequestedAction: memory.lastRequestedAction || null,
+    activeRuntimeProblem: memory.activeRuntimeProblem || null,
+    blockedPriority: memory.blockedPriority || null,
+    preferredResponseStyle: memory.preferredResponseStyle || null,
+    schoolMemoryStartedAt: memory.schoolMemoryStartedAt || memory.lastUpdatedAt || null,
+    semanticFounderState: memory.semanticFounderState || null,
+    productPriorities: Array.isArray(memory.productPriorities) ? memory.productPriorities : [],
+    contextConfidence: memory.contextConfidence == null ? null : memory.contextConfidence,
+    semanticConflicts: Array.isArray(memory.semanticConflicts) ? memory.semanticConflicts : [],
+    unresolvedTopics: Array.isArray(memory.unresolvedTopics) ? memory.unresolvedTopics : [],
+    operationalIntelligence: memory.operationalIntelligence || null,
+    productFeelWins: Array.isArray(memory.productFeelWins) ? memory.productFeelWins : [],
+    regressionCauses: Array.isArray(memory.regressionCauses) ? memory.regressionCauses : [],
+    founderRejectedPatterns: Array.isArray(memory.founderRejectedPatterns) ? memory.founderRejectedPatterns : [],
+    frictionReducers: Array.isArray(memory.frictionReducers) ? memory.frictionReducers : [],
+    fakeProgressPatterns: Array.isArray(memory.fakeProgressPatterns) ? memory.fakeProgressPatterns : [],
+    nextContinuationAction: memory.nextContinuationAction || null,
+    recentMessages: Array.isArray(memory.recentMessages) ? memory.recentMessages.slice(0, 5) : []
   };
 }
 
@@ -137,12 +194,25 @@ function updateConversationMemory(route, state) {
   const changed = state.changed || {};
   const continuity = route.continuity || {};
   const activeTasks = deriveActiveTasks(state);
+  const semanticFounderState = buildSemanticFounderState({
+    agent: route.agent,
+    intent: route.intent,
+    topic: route.focusTopic,
+    state,
+    priorMemory: {
+      ...memory,
+      currentContinuity: continuity
+    }
+  });
+  const productPriorities = rankProductPriorities(state, semanticFounderState);
+  const nextContinuationAction = continuationPlan(state, semanticFounderState);
+  const operationalIntelligence = buildOperationalIntelligence(state, semanticFounderState, memory);
   const next = {
     ...memory,
     lastAgentInteraction: route.agent || memory.lastAgentInteraction,
     lastFocusTopic: route.focusTopic || memory.lastFocusTopic,
     lastRequestedFocusArea: route.focusTopic || memory.lastRequestedFocusArea,
-    latestUnresolvedIssue: state.sections.unresolved[0] || state.sections.risks[0] || memory.latestUnresolvedIssue || null,
+    latestUnresolvedIssue: first(sections.unresolved) || first(sections.risks) || memory.latestUnresolvedIssue || null,
     lastHealthScore: state.healthScore == null ? memory.lastHealthScore : state.healthScore,
     latestMomentumState: state.momentum || memory.latestMomentumState,
     activeTasks,
@@ -159,9 +229,51 @@ function updateConversationMemory(route, state) {
     repeatedPainPoints: mergeRemembered(memory.repeatedPainPoints, continuity.painPoint),
     recentWins: mergeRemembered(memory.recentWins, first(sections.completedFixes) || first(changed.completed)),
     founderPreferredWording: continuity.preferredWording || memory.founderPreferredWording || null,
+    founderGoal: semanticFounderState.founderGoal,
+    activeFocus: semanticFounderState.activeFocus,
+    currentFrustration: semanticFounderState.currentFrustration,
+    unresolvedReference: semanticFounderState.unresolvedReference,
+    desiredOutcome: semanticFounderState.desiredOutcome,
+    lastRequestedAction: semanticFounderState.lastRequestedAction,
+    activeRuntimeProblem: semanticFounderState.activeRuntimeProblem,
+    blockedPriority: semanticFounderState.blockedPriority,
+    preferredResponseStyle: semanticFounderState.preferredResponseStyle,
+    schoolMemoryStartedAt: memory.schoolMemoryStartedAt || memory.lastUpdatedAt || new Date().toISOString(),
+    semanticFounderState,
+    productPriorities,
+    contextConfidence: semanticFounderState.contextConfidence,
+    semanticConflicts: semanticFounderState.semanticConflicts,
+    unresolvedTopics: semanticFounderState.unresolvedTopics,
+    operationalIntelligence,
+    nextContinuationAction,
+    recentMessages: rememberMessage(memory.recentMessages, {
+      role: 'agent',
+      agent: route.agent || 'cto',
+      intent: route.intent,
+      topic: route.focusTopic || null,
+      founderMessage: continuity.normalized || null,
+      summary: summarizeRouteMemory(route, state)
+    }),
     lastCommand: `agent:${route.agent}:${route.intent}`
   };
   return writeMemory(next);
+}
+
+function rememberMessage(items, entry) {
+  const list = Array.isArray(items) ? items : [];
+  return [{
+    timestamp: new Date().toISOString(),
+    ...entry
+  }, ...list].slice(0, 5);
+}
+
+function summarizeRouteMemory(route, state) {
+  if (route.intent === 'recent_fix_question') return first(state.sections.completedFixes) || 'Asked about recent fixes.';
+  if (route.intent === 'summary') return first(state.sections.risks) || first(state.sections.unresolved) || 'Shared team status.';
+  if (route.intent === 'praise') return 'Founder praised the team.';
+  if (route.intent === 'direction') return first(state.sections.nextPriority) || 'Founder asked for next steps.';
+  if (route.focusTopic) return `Discussed ${route.focusTopic}.`;
+  return `Handled ${route.intent || 'conversation'}.`;
 }
 
 function deriveActiveTasks(state) {
@@ -192,5 +304,6 @@ module.exports = {
   readConversationMemory,
   updateConversationMemory,
   deriveActiveTasks,
+  rememberMessage,
   MEMORY_FILE
 };

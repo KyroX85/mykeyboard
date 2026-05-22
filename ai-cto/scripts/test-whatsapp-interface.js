@@ -1,6 +1,6 @@
 const assert = require('assert');
 const { resolveCommand, routeMessage, shouldUseGeneralFallback } = require('../whatsapp/command-router');
-const { parseNaturalIntent } = require('../whatsapp/natural-intent-parser');
+const { parseNaturalIntent, isStandaloneGreeting } = require('../whatsapp/natural-intent-parser');
 const { twiml, normalizePhone, extractTwilioBody } = require('../whatsapp-server');
 
 const sampleState = {
@@ -58,6 +58,20 @@ assert.strictEqual(parseNaturalIntent('sir inniku progress iruka').intent, 'curr
 assert.strictEqual(parseNaturalIntent('cto are we stuck').intent, 'current_work');
 assert.strictEqual(parseNaturalIntent('coder swipe issue fixed ah').topic, 'swipe feel');
 assert.strictEqual(parseNaturalIntent('cto operational assistance').intent, 'operational');
+assert.strictEqual(parseNaturalIntent('hi').intent, 'greeting');
+assert.strictEqual(isStandaloneGreeting('hi'), true);
+assert.strictEqual(isStandaloneGreeting('hello'), true);
+assert.strictEqual(isStandaloneGreeting('sup'), true);
+assert.strictEqual(isStandaloneGreeting('bro'), true);
+assert.strictEqual(isStandaloneGreeting('da'), true);
+assert.strictEqual(isStandaloneGreeting('hey'), true);
+assert.strictEqual(isStandaloneGreeting('\u0b8e\u0ba9\u0bcd\u0ba9'), true);
+assert.strictEqual(isStandaloneGreeting('vanakkam'), true);
+assert.strictEqual(isStandaloneGreeting('hey auditor'), false);
+assert.strictEqual(parseNaturalIntent('bro you there').intent, 'check_in');
+assert.strictEqual(parseNaturalIntent('good job').intent, 'praise');
+assert.strictEqual(parseNaturalIntent('what should we do next').intent, 'direction');
+assert.strictEqual(parseNaturalIntent('what did you just fix').intent, 'recent_fix_question');
 assert.strictEqual(shouldUseGeneralFallback('hello'), true);
 assert.strictEqual(shouldUseGeneralFallback('whats going on'), true);
 
@@ -68,6 +82,12 @@ assert(status.includes(':app:lintDebug: PASSED'));
 
 const risks = routeMessage('risks', sampleState).response;
 assert(risks.includes('Hardcoded Secret'));
+assert(risks.includes('Fix available'));
+assert(risks.includes('Reply FIX'));
+
+const skip = routeMessage('SKIP', sampleState);
+assert.strictEqual(skip.command, 'execution_skip');
+assert(skip.response.includes('No file changed'));
 
 const focus = routeMessage('focus chaos', sampleState).response;
 assert(focus.includes('focus set: chaos'));
@@ -77,41 +97,79 @@ assert.strictEqual(unknown.command, 'conversational_fallback');
 assert(unknown.response.includes('quick CTO update'));
 
 const hello = routeMessage('hello', sampleState);
-assert.strictEqual(hello.command, 'conversational_fallback');
-assert(hello.response.includes('Health: 25/100'));
+assert.strictEqual(hello.command, 'agent');
+assert(hello.response.includes('team ready'));
+assert(hello.response.includes('CODER'));
+assert(hello.response.includes('AUDITOR'));
+
+const hi = routeMessage('hi', sampleState);
+assert.strictEqual(hi.matchedRoute, 'greeting_first');
+assert.strictEqual(hi.response, [
+  '\uD83C\uDFAF CTO: Yes sir, team ready da. What are we working on today?',
+  '\uD83D\uDD27 CODER: Ready sir \uD83D\uDCAA',
+  '\u2696\uFE0F REVIEWER: Standing by.',
+  '\uD83D\uDEA8 AUDITOR: Monitoring active.'
+].join('\n'));
+assert(!hi.response.includes('Health:'));
+
+const checkIn = routeMessage('anyone home', sampleState);
+assert.strictEqual(checkIn.command, 'agent');
+assert(checkIn.response.includes('Yes sir'));
+
+const statusQuestion = routeMessage('how are we doing', sampleState);
+assert.strictEqual(statusQuestion.command, 'agent');
+assert(statusQuestion.response.includes('Here'));
+assert(statusQuestion.response.includes('AUDITOR'));
+
+const praise = routeMessage('good job team', sampleState);
+assert.strictEqual(praise.command, 'agent');
+assert(praise.response.includes('Thank you sir'));
+
+const direction = routeMessage('what should we do next', sampleState);
+assert.strictEqual(direction.command, 'agent');
+assert(direction.response.includes('Next'));
+
+const recentFix = routeMessage('what did you just fix', sampleState, {
+  recentMessages: [
+    { role: 'agent', intent: 'execution_fix', summary: 'Fixed README.md whitespace safely.' }
+  ],
+  latestImprovement: 'Fixed README.md whitespace safely.'
+});
+assert.strictEqual(recentFix.command, 'agent');
+assert(recentFix.response.includes('README.md whitespace'));
 
 const coder = routeMessage('hey coder what are you doing', sampleState).response;
-assert(coder.startsWith('🛠 CODER'));
+assert(coder.startsWith('🔧 CODER'));
 assert(coder.includes('Attempted:'));
 assert(coder.split('\n').length <= 5);
 assert(!coder.includes('I finished keyboard cleanup'));
 
 const reviewer = routeMessage('reviewer any risks', sampleState).response;
-assert(reviewer.startsWith('🛡 REVIEWER'));
+assert(reviewer.startsWith('⚖️ REVIEWER'));
 assert(reviewer.includes('Risk:'));
 
 const auditor = routeMessage('auditor any dangerous issues', sampleState).response;
 assert(auditor.startsWith('🚨 AUDITOR'));
 assert(auditor.includes('Risk:'));
 
-assert(routeMessage('cto update me', sampleState).response.startsWith('🧠 CTO'));
-assert(routeMessage('cto active tasks', sampleState).response.startsWith('🧠 CTO'));
+assert(routeMessage('cto update me', sampleState).response.startsWith('🎯 CTO'));
+assert(routeMessage('cto active tasks', sampleState).response.startsWith('🎯 CTO'));
 assert(routeMessage('hey auditor', sampleState).response.startsWith('🚨 AUDITOR'));
 assert(routeMessage('hey auditer', sampleState).response.startsWith('🚨 AUDITOR'));
 assert(routeMessage('audit status', sampleState).response.startsWith('🚨 AUDITOR'));
-assert(routeMessage('reviewer update', sampleState).response.startsWith('🛡 REVIEWER'));
+assert(routeMessage('reviewer update', sampleState).response.startsWith('⚖️ REVIEWER'));
 assert(routeMessage('cto active tasks', sampleState).response.includes('Next:'));
 assert(routeMessage('coder what are you working on', sampleState).response.includes('Attempted:'));
 assert(routeMessage('reviewer blocked items', sampleState).response.includes('Blocked:'));
 assert(routeMessage('auditor critical risks', sampleState).response.includes('danger'));
-assert(routeMessage('cto maintenance status', sampleState).response.startsWith('🧠 CTO'));
+assert(routeMessage('cto maintenance status', sampleState).response.startsWith('🎯 CTO'));
 assert(routeMessage('coder what was cleaned', sampleState).response.includes('No major typing improvement yet'));
 assert(routeMessage('reviewer maintenance risks', sampleState).response.includes('Risk:'));
 assert(routeMessage('auditor dangerous maintenance actions', sampleState).response.includes('danger'));
 assert.strictEqual(parseNaturalIntent('cto execution status').intent, 'execution');
-assert(routeMessage('cto execution status', sampleState).response.startsWith('🧠 CTO'));
-assert(routeMessage('coder execution update', sampleState).response.startsWith('🛠 CODER'));
-assert(routeMessage('reviewer blocked execution', sampleState).response.startsWith('🛡 REVIEWER'));
+assert(routeMessage('cto execution status', sampleState).response.startsWith('🎯 CTO'));
+assert(routeMessage('coder execution update', sampleState).response.startsWith('🔧 CODER'));
+assert(routeMessage('reviewer blocked execution', sampleState).response.startsWith('⚖️ REVIEWER'));
 assert(routeMessage('auditor dangerous execution attempts', sampleState).response.includes('danger'));
 assert.strictEqual(parseNaturalIntent('cto full report').detailMode, true);
 const detailed = routeMessage('cto detailed update', sampleState).response;
