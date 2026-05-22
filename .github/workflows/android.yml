@@ -24,6 +24,9 @@ jobs:
       AI_PIPELINE_SMTP_USERNAME: ${{ secrets.AI_PIPELINE_SMTP_USERNAME }}
       AI_PIPELINE_SMTP_PASSWORD: ${{ secrets.AI_PIPELINE_SMTP_PASSWORD }}
       AI_PIPELINE_SMTP_FROM: ${{ secrets.AI_PIPELINE_SMTP_FROM }}
+      ARITENIS_SUPABASE_URL: ${{ secrets.ARITENIS_SUPABASE_URL }}
+      ARITENIS_SUPABASE_ANON_KEY: ${{ secrets.ARITENIS_SUPABASE_ANON_KEY }}
+      GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
 
     steps:
       - name: Checkout repository
@@ -50,6 +53,16 @@ jobs:
         run: |
           java -version
           "JAVA_READY=true" | Add-Content -Path $env:GITHUB_STEP_SUMMARY
+
+      - name: Restore local Google services config
+        shell: pwsh
+        run: |
+          if (-not [string]::IsNullOrWhiteSpace($env:GOOGLE_SERVICES_JSON)) {
+            Set-Content -Path "app/google-services.json" -Value $env:GOOGLE_SERVICES_JSON -Encoding UTF8
+            "GOOGLE_SERVICES_JSON_RESTORED=true" | Add-Content -Path $env:GITHUB_STEP_SUMMARY
+          } else {
+            "GOOGLE_SERVICES_JSON_RESTORED=false" | Add-Content -Path $env:GITHUB_STEP_SUMMARY
+          }
 
       - name: Grant Gradle permission
         shell: pwsh

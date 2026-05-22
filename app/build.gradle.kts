@@ -3,6 +3,12 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
+fun String.asBuildConfigString(): String =
+    "\"" + replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+
+fun envValue(name: String): String =
+    providers.environmentVariable(name).orElse("").get()
+
 android {
     namespace = "com.example.mykeyboard"
     compileSdk {
@@ -19,6 +25,8 @@ android {
         versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField("String", "SUPABASE_URL", envValue("ARITENIS_SUPABASE_URL").asBuildConfigString())
+        buildConfigField("String", "SUPABASE_ANON_KEY", envValue("ARITENIS_SUPABASE_ANON_KEY").asBuildConfigString())
     }
 
     buildTypes {
@@ -36,6 +44,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -47,20 +56,16 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
-    implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.appcompat:appcompat:1.6.1")
     implementation("com.google.android.material:material:1.11.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
-    implementation("io.github.jan-tennert.supabase:postgrest-kt:2.4.0")
     implementation("io.ktor:ktor-client-android:2.3.7")
-    implementation("io.github.jan-tennert.supabase:postgrest-kt:1.4.0")
-    implementation("io.github.jan-tennert.supabase:supabase-kt:1.4.0")
+    implementation("io.github.jan-tennert.supabase:supabase-kt:2.5.0")
     implementation("io.github.jan-tennert.supabase:postgrest-kt:2.5.0")
     implementation("io.github.jan-tennert.supabase:realtime-kt:2.5.0")
     implementation("io.github.jan-tennert.supabase:gotrue-kt:2.5.0")
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
-    implementation("com.squareup.okhttp3:okhttp:4.11.0")
     implementation("org.json:json:20231013")
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

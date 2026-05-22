@@ -7,6 +7,15 @@ captures/
 .externalNativeBuild/
 .cxx/
 local.properties
+.env
+.env.*
+!.env.example
+google-services.json
+**/google-services.json
+app/src/main/assets/config.properties
+*.jks
+*.keystore
+*.p12
 
 # Gradle
 .gradle/
@@ -57,10 +66,15 @@ app/google-services.json
 tmp/
 .tmp/
 
+# AI pipeline generated state
+.ai-pipeline/reports/
+.ai-pipeline/state/
+
 # Android Specific
 *.apk
 *.ap_
 *.dex
 *.class
+app/release/
 bin/
 gen/

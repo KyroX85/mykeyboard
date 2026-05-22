@@ -161,8 +161,10 @@ if ($severityCounts.critical -gt 0) { $highestRisk = "CRITICAL" }
 elseif ($severityCounts.high -gt 0) { $highestRisk = "HIGH" }
 elseif ($severityCounts.medium -gt 0) { $highestRisk = "MEDIUM" }
 
+$verificationPassed = $verification.status -eq "passed" -or ([string]::IsNullOrWhiteSpace($verification.status) -and $Status -eq "PASSED")
+
 $confidence = 0.78
-if ($verification.status -eq "passed") { $confidence = 0.9 }
+if ($verificationPassed) { $confidence = 0.9 }
 if ($Status -eq "FAILED" -or $Status -eq "BLOCKED") { $confidence = 0.55 }
 if ($severityCounts.critical -gt 0) { $confidence = [Math]::Min($confidence, 0.6) }
 
@@ -175,14 +177,56 @@ if ($riskCategories.Count -eq 0) { $riskCategories += "low-operational-risk" }
 
 $trendFile = Join-Path $HistoryDir "report-index.jsonl"
 $trend = "stable"
+$previousReports = @()
 if (Test-Path $trendFile) {
-    $previous = Get-Content -Path $trendFile | Select-Object -Last 1
+    $previousReports = @(
+        Get-Content -Path $trendFile |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+            Select-Object -Last 5 |
+            ForEach-Object { $_ | ConvertFrom-Json }
+    )
+    $previous = $previousReports | Select-Object -Last 1
     if ($previous) {
-        $prevObj = $previous | ConvertFrom-Json
-        if ($prevObj.highestRisk -eq "LOW" -and $highestRisk -in @("MEDIUM", "HIGH", "CRITICAL")) { $trend = "worsening" }
-        elseif ($prevObj.highestRisk -in @("HIGH", "CRITICAL") -and $highestRisk -in @("LOW", "MEDIUM")) { $trend = "improving" }
+        if ($previous.highestRisk -eq "LOW" -and $highestRisk -in @("MEDIUM", "HIGH", "CRITICAL")) { $trend = "worsening" }
+        elseif ($previous.highestRisk -in @("HIGH", "CRITICAL") -and $highestRisk -in @("LOW", "MEDIUM")) { $trend = "improving" }
     }
 }
+
+$severityWeights = @{
+    critical = 30
+    high = 18
+    medium = 8
+    low = 3
+}
+$currentDebtPenalty =
+    ($severityCounts.critical * $severityWeights.critical) +
+    ($severityCounts.high * $severityWeights.high) +
+    ($severityCounts.medium * $severityWeights.medium) +
+    ($severityCounts.low * $severityWeights.low)
+$previousDebtPenalty = 0
+if ($previousReports.Count -gt 0) {
+    $lastSeverity = ($previousReports | Select-Object -Last 1).severity
+    if ($lastSeverity) {
+        $previousDebtPenalty =
+            ([int]$lastSeverity.critical * $severityWeights.critical) +
+            ([int]$lastSeverity.high * $severityWeights.high) +
+            ([int]$lastSeverity.medium * $severityWeights.medium) +
+            ([int]$lastSeverity.low * $severityWeights.low)
+    }
+}
+$resolvedIssueDecay = [Math]::Max(0, $previousDebtPenalty - $currentDebtPenalty)
+$recoveryMomentumBonus = if ($trend -eq "improving") { 8 } elseif ($trend -eq "worsening") { -8 } else { 0 }
+$stabilizationBonus = if ($verificationPassed -and (Count-Items $dangerous.findings) -eq 0 -and $highestRisk -in @("LOW", "MEDIUM")) { 7 } else { 0 }
+$technicalDebtAgingPenalty = [Math]::Min(12, [Math]::Max(0, $currentDebtPenalty - $resolvedIssueDecay) / 10)
+$ctoHealthScore = [Math]::Round(
+    [Math]::Max(
+        0,
+        [Math]::Min(
+            100,
+            74 - ($currentDebtPenalty / 3) - $technicalDebtAgingPenalty + $stabilizationBonus + $recoveryMomentumBonus + [Math]::Min(10, $resolvedIssueDecay / 4)
+        )
+    )
+)
 
 $safeFixCount = Count-Items $safeFixes
 $dangerCount = Count-Items $dangerous.findings
@@ -240,6 +284,10 @@ $report = [ordered]@{
         overallRisk = $highestRisk
         confidence = [Math]::Round($confidence, 2)
         trend = $trend
+        ctoHealthScore = $ctoHealthScore
+        resolvedIssueDecay = $resolvedIssueDecay
+        recoveryMomentumBonus = $recoveryMomentumBonus
+        stabilizationBonus = $stabilizationBonus
         changedFiles = $changedFiles.Count
         concise = "Pipeline $Status with risk $highestRisk and confidence $([Math]::Round($confidence,2))."
     }
@@ -276,6 +324,10 @@ $md = @"
 - Overall Risk: $highestRisk
 - Confidence: $([Math]::Round($confidence, 2))
 - Trend: $trend
+- CTO Health Score: $ctoHealthScore/100
+- Recovery Momentum Bonus: $recoveryMomentumBonus
+- Stabilization Bonus: $stabilizationBonus
+- Resolved Issue Decay: $resolvedIssueDecay
 - Generated: $timestamp
 
 ## 2. Technical Audit
@@ -320,6 +372,7 @@ Build verification: $buildResult
 Dangerous changes: $dangerStatus
 Trend: $(Get-TrendLabel $trend)
 Readiness: $([Math]::Round($confidence * 100))%
+CTO health: ${ctoHealthScore}/100
 
 Top 3 risks:
 1. $($topRisks[0])

@@ -1,0 +1,5 @@
+#!/bin/sh
+
+# Lightweight report generation only. This hook must never block commits.
+powershell.exe -ExecutionPolicy Bypass -File .ai-pipeline/scripts/run-full-pipeline.ps1 -Mode AuditOnly -SkipEmail
+exit 0

@@ -1,0 +1,5 @@
+#!/bin/sh
+
+# Verification gate. Blocks only on compile/test failure or dangerous changes.
+powershell.exe -ExecutionPolicy Bypass -File .ai-pipeline/scripts/run-full-pipeline.ps1 -Mode Verify
+exit $?
