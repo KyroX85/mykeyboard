@@ -1,7 +1,15 @@
 const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
 const { resolveCommand, routeMessage, shouldUseGeneralFallback } = require('../whatsapp/command-router');
 const { parseNaturalIntent, isStandaloneGreeting } = require('../whatsapp/natural-intent-parser');
 const { twiml, normalizePhone, extractTwilioBody } = require('../whatsapp-server');
+const {
+  AGENT_BRAIN_DIR,
+  SPAWN_FILE,
+  parseSpawnRequest,
+  readSpawnState
+} = require('../whatsapp/specialist-agent-manager');
 
 const sampleState = {
   generatedAt: '2026-05-20T05:54:15.010Z',
@@ -81,6 +89,13 @@ const coderDirectiveIntent = parseNaturalIntent('hey cto tell the coder to check
 assert.strictEqual(coderDirectiveIntent.intent, 'directive');
 assert.strictEqual(coderDirectiveIntent.directive.targetAgent, 'coder');
 assert.strictEqual(coderDirectiveIntent.directive.action, 'check_new_issues');
+const auditorCrossCheckIntent = parseNaturalIntent('hey auditor check what coder missed');
+assert.strictEqual(auditorCrossCheckIntent.agent, 'auditor');
+assert.strictEqual(auditorCrossCheckIntent.intent, 'cross_agent_audit');
+assert.strictEqual(auditorCrossCheckIntent.topic, 'coder missed work');
+const newAgentRequest = parseSpawnRequest('cto assign a new agent to do this work');
+assert.strictEqual(newAgentRequest.autoApprove, true);
+assert.strictEqual(newAgentRequest.name, 'Focused Specialist');
 assert.strictEqual(shouldUseGeneralFallback('hello'), true);
 assert.strictEqual(shouldUseGeneralFallback('whats going on'), true);
 
@@ -169,6 +184,14 @@ assert(followUpFix.response.includes('Continuing'));
 assert(followUpFix.response.includes('new issues'));
 assert(followUpFix.response.includes('CODER'));
 assert(!followUpFix.response.includes('context not fully verified'));
+
+const auditorCrossCheck = routeMessage('hey auditor check what coder missed', sampleState);
+assert.strictEqual(auditorCrossCheck.command, 'agent');
+assert.strictEqual(auditorCrossCheck.agent, 'auditor');
+assert.strictEqual(auditorCrossCheck.intent, 'cross_agent_audit');
+assert(auditorCrossCheck.response.includes('AUDITOR'));
+assert(auditorCrossCheck.response.includes('Coder missed'));
+assert(!auditorCrossCheck.response.startsWith('🎯 CTO'));
 
 const praise = routeMessage('good job team', sampleState);
 assert.strictEqual(praise.command, 'agent');
@@ -259,5 +282,37 @@ assert(xml.includes('&amp;'));
 assert.strictEqual(normalizePhone('whatsapp:+123 456'), '+123456');
 assert.deepStrictEqual(extractTwilioBody({ body: undefined }).body, '');
 assert.deepStrictEqual(extractTwilioBody({ body: { Body: 'hi', From: 'whatsapp:+1', MessageSid: 'SM1' } }).body, 'hi');
+
+const spawnBackup = fs.existsSync(SPAWN_FILE) ? fs.readFileSync(SPAWN_FILE, 'utf8') : null;
+const brainBackup = fs.existsSync(AGENT_BRAIN_DIR)
+  ? new Map(fs.readdirSync(AGENT_BRAIN_DIR).map((file) => [file, fs.readFileSync(path.join(AGENT_BRAIN_DIR, file), 'utf8')]))
+  : new Map();
+try {
+  const beforeIds = new Set(readSpawnState().active.map((agent) => agent.id));
+  const assigned = routeMessage('cto assign a new agent to do this work', sampleState, {
+    lastDiscussedTopic: 'new issue audit',
+    unresolvedReference: 'new issues'
+  });
+  assert.strictEqual(assigned.command, 'specialist_assigned');
+  assert(assigned.response.includes('Created specialist'));
+  const after = readSpawnState();
+  const created = after.active.find((agent) => !beforeIds.has(agent.id));
+  assert(created);
+  assert(created.brainFile);
+  assert(fs.existsSync(path.join(path.resolve(__dirname, '..', '..'), created.brainFile)));
+} finally {
+  if (spawnBackup == null) {
+    if (fs.existsSync(SPAWN_FILE)) fs.unlinkSync(SPAWN_FILE);
+  } else {
+    fs.writeFileSync(SPAWN_FILE, spawnBackup);
+  }
+  if (fs.existsSync(AGENT_BRAIN_DIR)) {
+    for (const file of fs.readdirSync(AGENT_BRAIN_DIR)) {
+      const full = path.join(AGENT_BRAIN_DIR, file);
+      if (brainBackup.has(file)) fs.writeFileSync(full, brainBackup.get(file));
+      else fs.unlinkSync(full);
+    }
+  }
+}
 
 console.log('WhatsApp CTO interface checks passed.');

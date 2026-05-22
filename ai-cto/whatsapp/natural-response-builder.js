@@ -57,6 +57,8 @@ function buildMobileResponse(agent, context) {
   const { state, topic, memory, tasks, execution, maintenance, intent, directive } = context;
   const social = buildSocialTeamResponse(agent, intent, state, memory);
   if (social) return social;
+  const crossAuditResponse = buildCrossAgentAuditResponse(agent, intent, topic, state);
+  if (crossAuditResponse) return crossAuditResponse;
   const directiveResponse = buildDirectiveResponse(agent, intent, state, memory, directive);
   if (directiveResponse) return directiveResponse;
   if (intent === 'operational') return buildOperationalMobile(agent, state, execution, maintenance);
@@ -74,6 +76,38 @@ function buildMobileResponse(agent, context) {
     `Blocked: ${blocked}`,
     `Risk: ${risk}`,
     `Next: ${mobileNext(next, topic, memory)}`
+  ].join('\n');
+}
+
+function buildCrossAgentAuditResponse(agent, intent, topic, state) {
+  if (intent !== 'cross_agent_audit') return null;
+  const label = MOBILE_LABELS[agent] || MOBILE_LABELS.auditor;
+  const missed = first(state.sections.risks) || first(state.sections.unresolved) || 'No clear missed item recorded in latest state.';
+  const validation = validationSummary(state);
+  if (agent === 'auditor') {
+    return [
+      label,
+      `Coder missed check: ${compact(topic || 'coder work', 48)}.`,
+      `Found: ${compact(missed, 86)}`,
+      `Validation: ${compact(validation, 72)}`,
+      'Next: I will block unsafe cleanup before execution.'
+    ].join('\n');
+  }
+  if (agent === 'reviewer') {
+    return [
+      label,
+      `Reviewing what ${compact(topic || 'the other worker', 42)} missed.`,
+      `Concern: ${compact(missed, 86)}`,
+      `Validation: ${compact(validation, 72)}`,
+      'Next: no merge until risk is clear.'
+    ].join('\n');
+  }
+  return [
+    label,
+    `Checking what ${compact(topic || 'the other worker', 42)} missed.`,
+    `Current issue: ${compact(missed, 86)}`,
+    `Validation: ${compact(validation, 72)}`,
+    'Next: report back with grounded findings.'
   ].join('\n');
 }
 

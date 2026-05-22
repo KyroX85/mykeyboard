@@ -5,6 +5,7 @@ const { logRoutingDecision } = require('./routing-debug');
 const {
   parseSpawnRequest,
   requestSpecialistSpawn,
+  assignSpecialistAgent,
   answerSpecialistSpawn,
   readSpawnState
 } = require('./specialist-agent-manager');
@@ -116,6 +117,23 @@ function routeMessage(message, state, memory = {}) {
 
   const spawnRequest = parseSpawnRequest(message);
   if (spawnRequest) {
+    if (spawnRequest.autoApprove) {
+      const assigned = assignSpecialistAgent({
+        ...spawnRequest,
+        task: spawnRequest.task || memory.unresolvedReference || memory.lastDiscussedTopic || 'Focused founder-requested work.'
+      });
+      return {
+        command: 'specialist_assigned',
+        details: { agent: 'cto', intent: 'specialist_assigned', specialist: assigned.agent },
+        matchedRoute: 'specialist_assignment',
+        response: [
+          `🎯 CTO: Created specialist ${assigned.agent.name} sir.`,
+          `Brain: ${assigned.agent.brainFile}`,
+          `Task: ${assigned.agent.task}`,
+          'Reports to CTO only. No autonomous risky execution.'
+        ].join('\n')
+      };
+    }
     const proposal = requestSpecialistSpawn(spawnRequest);
     return {
       command: 'spawn_request',

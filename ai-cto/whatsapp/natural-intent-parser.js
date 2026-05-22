@@ -88,7 +88,8 @@ function parseNaturalIntent(message, memory = {}) {
   const focusTopic = detectFocusTopic(normalized);
   const continuity = detectContinuity(normalized);
   const semanticTopic = resolveTopicFromContinuity(continuity, memory);
-  const detectedIntent = directive ? 'directive' : detectIntent(normalized);
+  const crossAgentAudit = detectCrossAgentAudit(normalized, explicitAgent);
+  const detectedIntent = directive ? 'directive' : crossAgentAudit ? 'cross_agent_audit' : detectIntent(normalized);
   const intent = explicitAgent && detectedIntent === 'greeting' ? 'unknown' : detectedIntent;
   const conversational = Boolean(
     agent ||
@@ -110,15 +111,31 @@ function parseNaturalIntent(message, memory = {}) {
     matched: true,
     agent: agent || 'cto',
     intent,
-    topic: focusTopic || semanticTopic || continuity.painPoint || memory.lastFocusTopic || memory.lastRequestedFocusArea || null,
+    topic: (crossAgentAudit && crossAgentAudit.topic) || focusTopic || semanticTopic || continuity.painPoint || memory.lastFocusTopic || memory.lastRequestedFocusArea || null,
     detailMode: detectDetailMode(normalized),
     continuity,
     confidence: explicitAgent ? (intent === 'unknown' ? 0.72 : 0.92) : 0.65,
     normalized,
     directive,
+    crossAgentAudit,
     explicitAgent: explicitAgent || null,
     fallbackUsed: Boolean(explicitAgent && intent === 'unknown'),
     fallbackReason: explicitAgent && intent === 'unknown' ? 'agent_keyword_only' : null
+  };
+}
+
+function detectCrossAgentAudit(normalized, explicitAgent) {
+  if (!explicitAgent) return null;
+  const otherAgent = (normalized.match(/\b(cto|coder|dev|developer|reviewer|auditor|audit)\b/g) || [])
+    .map((word) => AGENT_ALIASES.get(word) || word)
+    .find((agent) => agent && agent !== explicitAgent);
+  if (!otherAgent) return null;
+  if (!/\b(check|audit|review|find|see)\b/.test(normalized)) return null;
+  if (!/\b(missed|miss|left|forgot|gap|wrong|risk|issue|bug)\b/.test(normalized)) return null;
+  return {
+    sourceAgent: explicitAgent,
+    targetAgent: otherAgent,
+    topic: `${otherAgent} missed work`
   };
 }
 
@@ -293,6 +310,7 @@ module.exports = {
   detectAgent,
   detectIntent,
   detectDirective,
+  detectCrossAgentAudit,
   isStandaloneGreeting,
   detectCasualStatusIntent,
   detectDetailMode,
