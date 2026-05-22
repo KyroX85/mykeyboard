@@ -1,38 +1,166 @@
 {
-  "version": "2.0",
+  "version": "3.0",
   "unresolvedIssues": [
     {
-      "type": "COMPLEXITY",
-      "message": "File KeyboardService.kt is too large (>500 lines)",
-      "impact": "MEDIUM",
-      "detectedAt": "2026-05-20T04:35:22.345Z"
-    },
-    {
-      "type": "COMPLEXITY",
-      "message": "File MainActivity.kt is too large (>500 lines)",
-      "impact": "MEDIUM",
-      "detectedAt": "2026-05-20T04:35:22.345Z"
-    },
-    {
       "type": "SECURITY",
-      "message": "Hardcoded Secret in BasicPredictor.kt",
       "impact": "CRITICAL",
-      "detectedAt": "2026-05-20T04:35:22.345Z"
-    },
-    {
-      "type": "SECURITY",
-      "message": "Hardcoded Secret in chaos_test.js",
-      "impact": "CRITICAL",
-      "detectedAt": "2026-05-20T04:35:22.345Z"
+      "message": "Hardcoded Secret in test-live-scan-grounding.js",
+      "file": "ai-cto/scripts/test-live-scan-grounding.js",
+      "task": "line 53",
+      "source": "LIVE_GREP",
+      "classification": "REVIEW_REQUIRED",
+      "detectedAt": "2026-05-22T08:01:46.901Z"
     },
     {
       "type": "ARCHITECTURE",
-      "message": "Unsafe Try Block in chaos_test.js",
       "impact": "HIGH",
-      "detectedAt": "2026-05-20T04:35:22.345Z"
+      "message": "Unsafe Try Block in test-execution-engine.js",
+      "file": "ai-cto/scripts/test-execution-engine.js",
+      "task": null,
+      "source": "DEEP_SCAN",
+      "classification": "REVIEW_REQUIRED",
+      "detectedAt": "2026-05-22T08:01:46.901Z"
+    },
+    {
+      "type": "ARCHITECTURE",
+      "impact": "HIGH",
+      "message": "Unsafe Try Block in test-live-scan-grounding.js",
+      "file": "ai-cto/scripts/test-live-scan-grounding.js",
+      "task": null,
+      "source": "DEEP_SCAN",
+      "classification": "REVIEW_REQUIRED",
+      "detectedAt": "2026-05-22T08:01:46.901Z"
+    },
+    {
+      "type": "ARCHITECTURE",
+      "impact": "HIGH",
+      "message": "Unsafe Try Block in test-safe-execution-engine.js",
+      "file": "ai-cto/scripts/test-safe-execution-engine.js",
+      "task": null,
+      "source": "DEEP_SCAN",
+      "classification": "REVIEW_REQUIRED",
+      "detectedAt": "2026-05-22T08:01:46.901Z"
+    },
+    {
+      "type": "ARCHITECTURE",
+      "impact": "HIGH",
+      "message": "Unsafe Try Block in test-safe-maintenance-engine.js",
+      "file": "ai-cto/scripts/test-safe-maintenance-engine.js",
+      "task": null,
+      "source": "DEEP_SCAN",
+      "classification": "REVIEW_REQUIRED",
+      "detectedAt": "2026-05-22T08:01:46.901Z"
+    },
+    {
+      "type": "ARCHITECTURE",
+      "impact": "HIGH",
+      "message": "Unsafe Try Block in test-task-pipeline.js",
+      "file": "ai-cto/scripts/test-task-pipeline.js",
+      "task": null,
+      "source": "DEEP_SCAN",
+      "classification": "REVIEW_REQUIRED",
+      "detectedAt": "2026-05-22T08:01:46.901Z"
+    },
+    {
+      "type": "ARCHITECTURE",
+      "impact": "HIGH",
+      "message": "Unsafe Try Block in chaos_test.js",
+      "file": "chaos_test.js",
+      "task": null,
+      "source": "DEEP_SCAN",
+      "classification": "REVIEW_REQUIRED",
+      "detectedAt": "2026-05-22T08:01:46.901Z"
+    },
+    {
+      "type": "COMPLEXITY",
+      "impact": "MEDIUM",
+      "message": "File natural-response-builder.js is too large (>500 lines)",
+      "file": "ai-cto/whatsapp/natural-response-builder.js",
+      "task": null,
+      "source": "DEEP_SCAN",
+      "classification": "REVIEW_REQUIRED",
+      "detectedAt": "2026-05-22T08:01:46.901Z"
+    },
+    {
+      "type": "COMPLEXITY",
+      "impact": "MEDIUM",
+      "message": "File KeyboardService.kt is too large (>500 lines)",
+      "file": "app/src/main/java/com/example/mykeyboard/KeyboardService.kt",
+      "task": null,
+      "source": "DEEP_SCAN",
+      "classification": "REVIEW_REQUIRED",
+      "detectedAt": "2026-05-22T08:01:46.901Z"
+    },
+    {
+      "type": "COMPLEXITY",
+      "impact": "MEDIUM",
+      "message": "File MainActivity.kt is too large (>500 lines)",
+      "file": "app/src/main/java/com/example/mykeyboard/MainActivity.kt",
+      "task": null,
+      "source": "DEEP_SCAN",
+      "classification": "REVIEW_REQUIRED",
+      "detectedAt": "2026-05-22T08:01:46.901Z"
     }
   ],
-  "lastAnalysis": "2026-05-20T04:35:22.345Z",
-  "healthScore": 25,
-  "momentum": "STALLED"
+  "lastAnalysis": "2026-05-22T08:01:46.901Z",
+  "healthScore": 0,
+  "momentum": "STALLED",
+  "trendHistory": [
+    {
+      "timestamp": "2026-05-22T08:01:46.901Z",
+      "healthScore": 0,
+      "momentum": "STALLED",
+      "issueCount": 10,
+      "criticalCount": 1,
+      "highCount": 6,
+      "files": [
+        "ai-cto/scripts/test-live-scan-grounding.js",
+        "ai-cto/scripts/test-execution-engine.js",
+        "ai-cto/scripts/test-live-scan-grounding.js",
+        "ai-cto/scripts/test-safe-execution-engine.js",
+        "ai-cto/scripts/test-safe-maintenance-engine.js",
+        "ai-cto/scripts/test-task-pipeline.js",
+        "chaos_test.js",
+        "ai-cto/whatsapp/natural-response-builder.js",
+        "app/src/main/java/com/example/mykeyboard/KeyboardService.kt",
+        "app/src/main/java/com/example/mykeyboard/MainActivity.kt"
+      ]
+    }
+  ],
+  "recurringFailures": {
+    "SECURITY|ai-cto/scripts/test-live-scan-grounding.js|Hardcoded Secret in test-live-scan-grounding.js": 1,
+    "ARCHITECTURE|ai-cto/scripts/test-execution-engine.js|Unsafe Try Block in test-execution-engine.js": 1,
+    "ARCHITECTURE|ai-cto/scripts/test-live-scan-grounding.js|Unsafe Try Block in test-live-scan-grounding.js": 1,
+    "ARCHITECTURE|ai-cto/scripts/test-safe-execution-engine.js|Unsafe Try Block in test-safe-execution-engine.js": 1,
+    "ARCHITECTURE|ai-cto/scripts/test-safe-maintenance-engine.js|Unsafe Try Block in test-safe-maintenance-engine.js": 1,
+    "ARCHITECTURE|ai-cto/scripts/test-task-pipeline.js|Unsafe Try Block in test-task-pipeline.js": 1,
+    "ARCHITECTURE|chaos_test.js|Unsafe Try Block in chaos_test.js": 1,
+    "COMPLEXITY|ai-cto/whatsapp/natural-response-builder.js|File natural-response-builder.js is too large (>500 lines)": 1,
+    "COMPLEXITY|app/src/main/java/com/example/mykeyboard/KeyboardService.kt|File KeyboardService.kt is too large (>500 lines)": 1,
+    "COMPLEXITY|app/src/main/java/com/example/mykeyboard/MainActivity.kt|File MainActivity.kt is too large (>500 lines)": 1
+  },
+  "fileInstability": {
+    "ai-cto/scripts/test-live-scan-grounding.js": 2,
+    "ai-cto/scripts/test-execution-engine.js": 1,
+    "ai-cto/scripts/test-safe-execution-engine.js": 1,
+    "ai-cto/scripts/test-safe-maintenance-engine.js": 1,
+    "ai-cto/scripts/test-task-pipeline.js": 1,
+    "chaos_test.js": 1,
+    "ai-cto/whatsapp/natural-response-builder.js": 1,
+    "app/src/main/java/com/example/mykeyboard/KeyboardService.kt": 1,
+    "app/src/main/java/com/example/mykeyboard/MainActivity.kt": 1
+  },
+  "memoryPolicy": {
+    "fullMemoryFrom": "2026-06-04",
+    "resetAllowed": false,
+    "storage": "ai-cto/.brain_state.json"
+  },
+  "schoolModeMemory": [],
+  "scanMode": "LIVE_REPO_SCAN",
+  "liveScan": {
+    "scannedAt": "2026-05-22T08:01:46.901Z",
+    "source": "actual_repo_files",
+    "issueCount": 10,
+    "hardcodedSecretCount": 1
+  }
 }
