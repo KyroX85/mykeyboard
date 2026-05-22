@@ -77,6 +77,10 @@ assert.strictEqual(parseNaturalIntent('work epdi poguthu').intent, 'status_quest
 assert.strictEqual(parseNaturalIntent('everything okay ah').intent, 'status_question');
 assert.strictEqual(parseNaturalIntent('status enna da').intent, 'status_question');
 assert.strictEqual(parseNaturalIntent('enna panreenga').intent, 'status_question');
+const coderDirectiveIntent = parseNaturalIntent('hey cto tell the coder to check for new issues');
+assert.strictEqual(coderDirectiveIntent.intent, 'directive');
+assert.strictEqual(coderDirectiveIntent.directive.targetAgent, 'coder');
+assert.strictEqual(coderDirectiveIntent.directive.action, 'check_new_issues');
 assert.strictEqual(shouldUseGeneralFallback('hello'), true);
 assert.strictEqual(shouldUseGeneralFallback('whats going on'), true);
 
@@ -138,6 +142,33 @@ const tanglishWork = routeMessage('work epdi poguthu', sampleState);
 assert.strictEqual(tanglishWork.command, 'agent');
 assert(tanglishWork.response.includes('Work'));
 assert(!tanglishWork.response.includes('Health:'));
+
+const coderDirective = routeMessage('hey cto tell the coder to check for new issues', sampleState);
+assert.strictEqual(coderDirective.command, 'agent');
+assert.strictEqual(coderDirective.intent, 'directive');
+assert(coderDirective.response.includes('CODER'));
+assert(coderDirective.response.includes('new issues'));
+assert(!coderDirective.response.includes('context not fully verified'));
+
+const followUpFix = routeMessage('fix it', sampleState, {
+  recentMessages: [
+    {
+      role: 'agent',
+      intent: 'directive',
+      targetAgent: 'coder',
+      action: 'check_new_issues',
+      summary: 'CTO assigned Coder to check new issues.'
+    }
+  ],
+  lastRequestedAction: 'check_new_issues',
+  unresolvedReference: 'new issues',
+  lastAgentInteraction: 'cto'
+});
+assert.strictEqual(followUpFix.command, 'agent');
+assert(followUpFix.response.includes('Continuing'));
+assert(followUpFix.response.includes('new issues'));
+assert(followUpFix.response.includes('CODER'));
+assert(!followUpFix.response.includes('context not fully verified'));
 
 const praise = routeMessage('good job team', sampleState);
 assert.strictEqual(praise.command, 'agent');

@@ -56,9 +56,11 @@ function routeAgentMessage(message, state, memory = {}) {
     intent: parsed.intent,
     topic: parsed.topic,
     continuity: parsed.continuity,
+    directive: parsed.directive || null,
     response: buildAgentResponse(agent, parsed.intent, parsed.topic, state, memory, {
       detailMode: parsed.detailMode,
-      continuity: parsed.continuity
+      continuity: parsed.continuity,
+      directive: parsed.directive
     })
   };
 }
@@ -71,10 +73,19 @@ function buildAgentResponse(agent, intent, topic, state, memory, options = {}) {
     state,
     priorMemory: {
       ...memory,
-      currentContinuity: options.continuity || null
+      currentContinuity: options.continuity || null,
+      currentDirective: options.directive || null
     }
   });
-  return buildNaturalResponse({ agent, intent, topic, state, memory: groundedMemory, detailMode: options.detailMode });
+  return buildNaturalResponse({
+    agent,
+    intent,
+    topic,
+    state,
+    memory: groundedMemory,
+    detailMode: options.detailMode,
+    directive: options.directive || null
+  });
 }
 
 function clarificationResponse() {

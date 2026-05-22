@@ -25,14 +25,14 @@ Object.assign(MOBILE_LABELS, {
   auditor: '\uD83D\uDEA8 AUDITOR'
 });
 
-function buildNaturalResponse({ agent, intent, topic, state, memory = {}, detailMode = false }) {
+function buildNaturalResponse({ agent, intent, topic, state, memory = {}, detailMode = false, directive = null }) {
   const safeState = normalizeState(state);
   const persona = getPersonality(agent);
   const roadmap = readRoadmap();
   const tasks = summarizeTasksForAgent(agent);
   const maintenance = maintenanceSnapshot();
   const execution = executionSnapshot();
-  const context = { persona, roadmap, tasks, maintenance, execution, topic, intent, state: safeState, memory };
+  const context = { persona, roadmap, tasks, maintenance, execution, topic, intent, state: safeState, memory, directive };
   logAgentAction({
     agentName: persona.label,
     actionTaken: `prepared WhatsApp ${intent || 'update'} response`,
@@ -54,9 +54,11 @@ function buildNaturalResponse({ agent, intent, topic, state, memory = {}, detail
 }
 
 function buildMobileResponse(agent, context) {
-  const { state, topic, memory, tasks, execution, maintenance, intent } = context;
+  const { state, topic, memory, tasks, execution, maintenance, intent, directive } = context;
   const social = buildSocialTeamResponse(agent, intent, state, memory);
   if (social) return social;
+  const directiveResponse = buildDirectiveResponse(agent, intent, state, memory, directive);
+  if (directiveResponse) return directiveResponse;
   if (intent === 'operational') return buildOperationalMobile(agent, state, execution, maintenance);
   const accountability = buildAccountability(agent, { state, topic, memory, tasks, execution, maintenance, intent });
   const label = MOBILE_LABELS[agent] || MOBILE_LABELS.cto;
@@ -73,6 +75,46 @@ function buildMobileResponse(agent, context) {
     `Risk: ${risk}`,
     `Next: ${mobileNext(next, topic, memory)}`
   ].join('\n');
+}
+
+function buildDirectiveResponse(agent, intent, state, memory = {}, directive = null) {
+  const activeDirective = directive || resolveRecentDirective(memory);
+  const followUp = !directive && activeDirective && intent === 'current_work';
+  const isFixFollowUp = followUp || (intent === 'current_work' && memory.lastRequestedAction === 'check_new_issues');
+  if (intent !== 'directive' && !isFixFollowUp) return null;
+  if (!activeDirective) return null;
+
+  const target = (activeDirective && activeDirective.targetAgent) || 'coder';
+  const topic = (activeDirective && activeDirective.topic) || memory.unresolvedReference || 'new issues';
+  const topIssue = first(state.sections.risks) || first(state.sections.unresolved) || 'No active issue recorded in latest state.';
+  const validation = validationSummary(state);
+  const prefix = followUp || isFixFollowUp ? 'Continuing' : 'Assigned';
+
+  return [
+    '\uD83C\uDFAF CTO: ' + `${prefix} this sir. ${labelFor(target)} will check ${compact(topic, 48)}.`,
+    `\uD83D\uDD27 CODER: Checking latest repo issues now. Top item: ${compact(topIssue, 72)}`,
+    `\u2696\uFE0F REVIEWER: ${compact(validation, 72)}`,
+    '\uD83D\uDEA8 AUDITOR: I will block anything risky before execution.'
+  ].join('\n');
+}
+
+function resolveRecentDirective(memory = {}) {
+  const recent = Array.isArray(memory.recentMessages)
+    ? memory.recentMessages.find((item) => item && item.intent === 'directive')
+    : null;
+  if (!recent) return null;
+  return {
+    targetAgent: recent.targetAgent || recent.agent || 'coder',
+    action: recent.action || 'follow_instruction',
+    topic: recent.topic || memory.unresolvedReference || 'new issues'
+  };
+}
+
+function labelFor(agent) {
+  if (agent === 'reviewer') return 'Reviewer';
+  if (agent === 'auditor') return 'Auditor';
+  if (agent === 'cto') return 'CTO';
+  return 'Coder';
 }
 
 function buildSocialTeamResponse(agent, intent, state, memory = {}) {

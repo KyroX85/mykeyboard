@@ -193,6 +193,7 @@ function updateConversationMemory(route, state) {
   const sections = state.sections || {};
   const changed = state.changed || {};
   const continuity = route.continuity || {};
+  const directive = route.directive || continuity.directive || null;
   const activeTasks = deriveActiveTasks(state);
   const semanticFounderState = buildSemanticFounderState({
     agent: route.agent,
@@ -251,6 +252,9 @@ function updateConversationMemory(route, state) {
       agent: route.agent || 'cto',
       intent: route.intent,
       topic: route.focusTopic || null,
+      targetAgent: directive ? directive.targetAgent : null,
+      action: directive ? directive.action : null,
+      directive: directive || null,
       founderMessage: continuity.normalized || null,
       summary: summarizeRouteMemory(route, state)
     }),
@@ -268,6 +272,10 @@ function rememberMessage(items, entry) {
 }
 
 function summarizeRouteMemory(route, state) {
+  const directive = route.directive || (route.continuity && route.continuity.directive) || null;
+  if (route.intent === 'directive' && directive) {
+    return `CTO assigned ${directive.targetAgent} to ${String(directive.action || 'follow instruction').replace(/_/g, ' ')}.`;
+  }
   if (route.intent === 'recent_fix_question') return first(state.sections.completedFixes) || 'Asked about recent fixes.';
   if (route.intent === 'summary') return first(state.sections.risks) || first(state.sections.unresolved) || 'Shared team status.';
   if (route.intent === 'praise') return 'Founder praised the team.';

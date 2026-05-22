@@ -83,11 +83,12 @@ function parseNaturalIntent(message, memory = {}) {
   }
 
   const explicitAgent = detectAgent(normalized);
+  const directive = detectDirective(normalized);
   const agent = explicitAgent || memory.lastAgentInteraction || null;
   const focusTopic = detectFocusTopic(normalized);
   const continuity = detectContinuity(normalized);
   const semanticTopic = resolveTopicFromContinuity(continuity, memory);
-  const detectedIntent = detectIntent(normalized);
+  const detectedIntent = directive ? 'directive' : detectIntent(normalized);
   const intent = explicitAgent && detectedIntent === 'greeting' ? 'unknown' : detectedIntent;
   const conversational = Boolean(
     agent ||
@@ -114,10 +115,49 @@ function parseNaturalIntent(message, memory = {}) {
     continuity,
     confidence: explicitAgent ? (intent === 'unknown' ? 0.72 : 0.92) : 0.65,
     normalized,
+    directive,
     explicitAgent: explicitAgent || null,
     fallbackUsed: Boolean(explicitAgent && intent === 'unknown'),
     fallbackReason: explicitAgent && intent === 'unknown' ? 'agent_keyword_only' : null
   };
+}
+
+function detectDirective(normalized) {
+  const target = detectDirectiveTarget(normalized);
+  if (!target) return null;
+
+  const action = detectDirectiveAction(normalized);
+  const topic = detectDirectiveTopic(normalized, action);
+  return {
+    targetAgent: target,
+    action,
+    topic,
+    original: normalized
+  };
+}
+
+function detectDirectiveTarget(normalized) {
+  const directivePattern = /\b(tell|ask|make|send|assign|call)\s+(the\s+)?(cto|coder|dev|developer|reviewer|auditor|audit)\b/;
+  const match = normalized.match(directivePattern);
+  if (!match) return null;
+  return AGENT_ALIASES.get(match[3]) || null;
+}
+
+function detectDirectiveAction(normalized) {
+  if (/\b(check|scan|look|find|detect|see)\b.*\b(new\s+)?(issue|issues|risk|risks|bug|bugs)\b/.test(normalized)) {
+    return 'check_new_issues';
+  }
+  if (/\b(fix|solve|clear)\b/.test(normalized)) return 'fix_issue';
+  if (/\b(validate|test|build|lint)\b/.test(normalized)) return 'validate';
+  if (/\b(review|check)\b/.test(normalized)) return 'review';
+  return 'follow_instruction';
+}
+
+function detectDirectiveTopic(normalized, action) {
+  if (action === 'check_new_issues') return 'new issues';
+  const match = normalized.match(/\b(?:about|for|on|to)\s+(.+)$/);
+  if (!match) return action.replace(/_/g, ' ');
+  return match[1].replace(/^(check|scan|find|fix|review|validate)\s+/, '').trim().slice(0, 80);
 }
 
 function detectDetailMode(normalized) {
@@ -252,6 +292,7 @@ module.exports = {
   normalize,
   detectAgent,
   detectIntent,
+  detectDirective,
   isStandaloneGreeting,
   detectCasualStatusIntent,
   detectDetailMode,
