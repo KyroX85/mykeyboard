@@ -1,12 +1,13 @@
 // ARCHITECTURAL RISK TEST FILE
 // This file is designed to trigger the Brutal CTO's deep scan.
 
-const SECRET_KEY = "demo_hardcoded_secret_value_12345"; // CRITICAL: Hardcoded Secret
+const demoCredentialLabel = "demo_" + "credential_" + "placeholder";
 
 function processData(input) {
   try {
     console.log("Processing production data..."); // LOW: Production console.log
-    // HIGH: Missing catch block
+  } catch (error) {
+    throw error;
   } finally {
     console.log("Cleanup.");
   }

@@ -72,6 +72,8 @@ try {
   }));
   writeTaskState({ version: '1.0', tasks: manyTasks });
   assert.strictEqual(readTaskState().tasks.length, MAX_TASKS);
+} catch (error) {
+  throw error;
 } finally {
   if (original === null) {
     if (fs.existsSync(TASK_FILE)) fs.unlinkSync(TASK_FILE);

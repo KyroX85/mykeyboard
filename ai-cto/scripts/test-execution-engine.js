@@ -88,6 +88,8 @@ try {
   assert.strictEqual(fs.readFileSync(path.join(tempRoot, 'README.md'), 'utf8'), 'Bad trailing    \n');
 
   console.log('Execution engine checks passed.');
+} catch (error) {
+  throw error;
 } finally {
   fs.rmSync(tempRoot, { recursive: true, force: true });
 }

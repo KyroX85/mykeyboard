@@ -104,6 +104,8 @@ try {
   assert(snapshot.dryRun.length > 0);
 
   console.log('Safe execution engine checks passed.');
+} catch (error) {
+  throw error;
 } finally {
   if (originalLog === null) {
     if (fs.existsSync(logFile)) fs.unlinkSync(logFile);

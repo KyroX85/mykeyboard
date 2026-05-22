@@ -1,38 +1,181 @@
 {
-  "version": "2.0",
+  "version": "3.0",
   "unresolvedIssues": [
     {
       "type": "COMPLEXITY",
-      "message": "File KeyboardService.kt is too large (>500 lines)",
       "impact": "MEDIUM",
-      "detectedAt": "2026-05-20T04:35:22.345Z"
+      "message": "File natural-response-builder.js is too large (>500 lines)",
+      "file": "ai-cto/whatsapp/natural-response-builder.js",
+      "task": null,
+      "source": "DEEP_SCAN",
+      "classification": "REVIEW_REQUIRED",
+      "detectedAt": "2026-05-22T08:33:50.027Z"
     },
     {
       "type": "COMPLEXITY",
-      "message": "File MainActivity.kt is too large (>500 lines)",
       "impact": "MEDIUM",
-      "detectedAt": "2026-05-20T04:35:22.345Z"
+      "message": "File KeyboardService.kt is too large (>500 lines)",
+      "file": "app/src/main/java/com/example/mykeyboard/KeyboardService.kt",
+      "task": null,
+      "source": "DEEP_SCAN",
+      "classification": "REVIEW_REQUIRED",
+      "detectedAt": "2026-05-22T08:33:50.027Z"
     },
     {
-      "type": "SECURITY",
-      "message": "Hardcoded Secret in BasicPredictor.kt",
-      "impact": "CRITICAL",
-      "detectedAt": "2026-05-20T04:35:22.345Z"
+      "type": "COMPLEXITY",
+      "impact": "MEDIUM",
+      "message": "File MainActivity.kt is too large (>500 lines)",
+      "file": "app/src/main/java/com/example/mykeyboard/MainActivity.kt",
+      "task": null,
+      "source": "DEEP_SCAN",
+      "classification": "REVIEW_REQUIRED",
+      "detectedAt": "2026-05-22T08:33:50.027Z"
     },
     {
-      "type": "SECURITY",
-      "message": "Hardcoded Secret in chaos_test.js",
-      "impact": "CRITICAL",
-      "detectedAt": "2026-05-20T04:35:22.345Z"
+      "type": "COMPLEXITY",
+      "impact": "MEDIUM",
+      "message": "File KeyboardMetrics.kt is too large (>500 lines)",
+      "file": "app/src/main/java/com/example/mykeyboard/metrics/KeyboardMetrics.kt",
+      "task": null,
+      "source": "DEEP_SCAN",
+      "classification": "REVIEW_REQUIRED",
+      "detectedAt": "2026-05-22T08:33:50.027Z"
     },
     {
-      "type": "ARCHITECTURE",
-      "message": "Unsafe Try Block in chaos_test.js",
-      "impact": "HIGH",
-      "detectedAt": "2026-05-20T04:35:22.345Z"
+      "type": "COMPLEXITY",
+      "impact": "MEDIUM",
+      "message": "File BasicPredictor.kt is too large (>500 lines)",
+      "file": "app/src/main/java/com/example/mykeyboard/predictor/BasicPredictor.kt",
+      "task": null,
+      "source": "DEEP_SCAN",
+      "classification": "REVIEW_REQUIRED",
+      "detectedAt": "2026-05-22T08:33:50.027Z"
+    },
+    {
+      "type": "COMPLEXITY",
+      "impact": "MEDIUM",
+      "message": "File SwipeWordResolver.kt is too large (>500 lines)",
+      "file": "app/src/main/java/com/example/mykeyboard/swipe/SwipeWordResolver.kt",
+      "task": null,
+      "source": "DEEP_SCAN",
+      "classification": "REVIEW_REQUIRED",
+      "detectedAt": "2026-05-22T08:33:50.027Z"
+    },
+    {
+      "type": "COMPLEXITY",
+      "impact": "MEDIUM",
+      "message": "File InputReplayFailureInjectionTest.kt is too large (>500 lines)",
+      "file": "app/src/test/java/com/example/mykeyboard/InputReplayFailureInjectionTest.kt",
+      "task": null,
+      "source": "DEEP_SCAN",
+      "classification": "REVIEW_REQUIRED",
+      "detectedAt": "2026-05-22T08:33:50.027Z"
     }
   ],
-  "lastAnalysis": "2026-05-20T04:35:22.345Z",
-  "healthScore": 25,
-  "momentum": "STALLED"
+  "lastAnalysis": "2026-05-22T08:33:50.027Z",
+  "healthScore": 65,
+  "momentum": "STALLED",
+  "trendHistory": [
+    {
+      "timestamp": "2026-05-22T08:31:04.203Z",
+      "healthScore": 0,
+      "momentum": "STALLED",
+      "issueCount": 14,
+      "criticalCount": 1,
+      "highCount": 6,
+      "files": [
+        "ai-cto/scripts/test-live-scan-grounding.js",
+        "ai-cto/scripts/test-execution-engine.js",
+        "ai-cto/scripts/test-live-scan-grounding.js",
+        "ai-cto/scripts/test-safe-execution-engine.js",
+        "ai-cto/scripts/test-safe-maintenance-engine.js",
+        "ai-cto/scripts/test-task-pipeline.js",
+        "chaos_test.js",
+        "ai-cto/whatsapp/natural-response-builder.js",
+        "app/src/main/java/com/example/mykeyboard/KeyboardService.kt",
+        "app/src/main/java/com/example/mykeyboard/MainActivity.kt",
+        "app/src/main/java/com/example/mykeyboard/metrics/KeyboardMetrics.kt",
+        "app/src/main/java/com/example/mykeyboard/predictor/BasicPredictor.kt",
+        "app/src/main/java/com/example/mykeyboard/swipe/SwipeWordResolver.kt",
+        "app/src/test/java/com/example/mykeyboard/InputReplayFailureInjectionTest.kt"
+      ]
+    },
+    {
+      "timestamp": "2026-05-22T08:32:32.800Z",
+      "healthScore": 0,
+      "momentum": "STALLED",
+      "issueCount": 13,
+      "criticalCount": 0,
+      "highCount": 6,
+      "files": [
+        "ai-cto/scripts/test-execution-engine.js",
+        "ai-cto/scripts/test-live-scan-grounding.js",
+        "ai-cto/scripts/test-safe-execution-engine.js",
+        "ai-cto/scripts/test-safe-maintenance-engine.js",
+        "ai-cto/scripts/test-task-pipeline.js",
+        "chaos_test.js",
+        "ai-cto/whatsapp/natural-response-builder.js",
+        "app/src/main/java/com/example/mykeyboard/KeyboardService.kt",
+        "app/src/main/java/com/example/mykeyboard/MainActivity.kt",
+        "app/src/main/java/com/example/mykeyboard/metrics/KeyboardMetrics.kt",
+        "app/src/main/java/com/example/mykeyboard/predictor/BasicPredictor.kt",
+        "app/src/main/java/com/example/mykeyboard/swipe/SwipeWordResolver.kt",
+        "app/src/test/java/com/example/mykeyboard/InputReplayFailureInjectionTest.kt"
+      ]
+    },
+    {
+      "timestamp": "2026-05-22T08:33:50.027Z",
+      "healthScore": 65,
+      "momentum": "STALLED",
+      "issueCount": 7,
+      "criticalCount": 0,
+      "highCount": 0,
+      "files": [
+        "ai-cto/whatsapp/natural-response-builder.js",
+        "app/src/main/java/com/example/mykeyboard/KeyboardService.kt",
+        "app/src/main/java/com/example/mykeyboard/MainActivity.kt",
+        "app/src/main/java/com/example/mykeyboard/metrics/KeyboardMetrics.kt",
+        "app/src/main/java/com/example/mykeyboard/predictor/BasicPredictor.kt",
+        "app/src/main/java/com/example/mykeyboard/swipe/SwipeWordResolver.kt",
+        "app/src/test/java/com/example/mykeyboard/InputReplayFailureInjectionTest.kt"
+      ]
+    }
+  ],
+  "recurringFailures": {
+    "COMPLEXITY|ai-cto/whatsapp/natural-response-builder.js|File natural-response-builder.js is too large (>500 lines)": 1,
+    "COMPLEXITY|app/src/main/java/com/example/mykeyboard/KeyboardService.kt|File KeyboardService.kt is too large (>500 lines)": 1,
+    "COMPLEXITY|app/src/main/java/com/example/mykeyboard/MainActivity.kt|File MainActivity.kt is too large (>500 lines)": 1,
+    "COMPLEXITY|app/src/main/java/com/example/mykeyboard/metrics/KeyboardMetrics.kt|File KeyboardMetrics.kt is too large (>500 lines)": 1,
+    "COMPLEXITY|app/src/main/java/com/example/mykeyboard/predictor/BasicPredictor.kt|File BasicPredictor.kt is too large (>500 lines)": 1,
+    "COMPLEXITY|app/src/main/java/com/example/mykeyboard/swipe/SwipeWordResolver.kt|File SwipeWordResolver.kt is too large (>500 lines)": 1,
+    "COMPLEXITY|app/src/test/java/com/example/mykeyboard/InputReplayFailureInjectionTest.kt|File InputReplayFailureInjectionTest.kt is too large (>500 lines)": 1
+  },
+  "fileInstability": {
+    "ai-cto/scripts/test-live-scan-grounding.js": 3,
+    "ai-cto/scripts/test-execution-engine.js": 2,
+    "ai-cto/scripts/test-safe-execution-engine.js": 2,
+    "ai-cto/scripts/test-safe-maintenance-engine.js": 2,
+    "ai-cto/scripts/test-task-pipeline.js": 2,
+    "chaos_test.js": 2,
+    "ai-cto/whatsapp/natural-response-builder.js": 3,
+    "app/src/main/java/com/example/mykeyboard/KeyboardService.kt": 3,
+    "app/src/main/java/com/example/mykeyboard/MainActivity.kt": 3,
+    "app/src/main/java/com/example/mykeyboard/metrics/KeyboardMetrics.kt": 3,
+    "app/src/main/java/com/example/mykeyboard/predictor/BasicPredictor.kt": 3,
+    "app/src/main/java/com/example/mykeyboard/swipe/SwipeWordResolver.kt": 3,
+    "app/src/test/java/com/example/mykeyboard/InputReplayFailureInjectionTest.kt": 3
+  },
+  "memoryPolicy": {
+    "fullMemoryFrom": "2026-06-04",
+    "resetAllowed": false,
+    "storage": "ai-cto/.brain_state.json"
+  },
+  "schoolModeMemory": [],
+  "scanMode": "LIVE_REPO_SCAN",
+  "liveScan": {
+    "scannedAt": "2026-05-22T08:33:50.027Z",
+    "source": "actual_repo_files",
+    "issueCount": 7,
+    "hardcodedSecretCount": 0
+  }
 }

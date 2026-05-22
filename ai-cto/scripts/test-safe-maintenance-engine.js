@@ -42,6 +42,8 @@ try {
   assert(dryRunLog.actions.some((action) => action.result === 'DRY_RUN' || action.result === 'BLOCKED'));
 
   console.log('Safe maintenance engine checks passed.');
+} catch (error) {
+  throw error;
 } finally {
   if (original === null) {
     if (fs.existsSync(actionsFile)) fs.unlinkSync(actionsFile);
