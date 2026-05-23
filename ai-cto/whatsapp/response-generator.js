@@ -83,7 +83,7 @@ function generateResponse(command, state, memory = {}, details = {}) {
   switch (command) {
     case 'status':
       return [
-        'Founder Sir, CTO status',
+        'Founder, CTO status',
         ...heartbeat,
         `${healthIcon} Health: ${health}`,
         `${momentumIcon} Momentum: ${momentum}`,
@@ -97,7 +97,7 @@ function generateResponse(command, state, memory = {}, details = {}) {
 
     case 'health':
       return [
-        'Founder Sir, engineering health',
+        'Founder, engineering health',
         `${healthIcon} Score: ${health}`,
         `${momentumIcon} Momentum: ${momentum}`,
         '',
@@ -107,14 +107,14 @@ function generateResponse(command, state, memory = {}, details = {}) {
 
     case 'risks':
       return [
-        'Founder Sir, latest risks',
+        'Founder, latest risks',
         ...linesOrFallback(state.sections.risks, 'No new critical risk listed in the latest report.'),
         ...fixOffer(state)
       ].join('\n');
 
     case 'momentum':
       return [
-        'Founder Sir, momentum',
+        'Founder, momentum',
         `${momentumIcon} State: ${momentum}`,
         `${healthIcon} Health: ${health}`,
         '',
@@ -124,21 +124,21 @@ function generateResponse(command, state, memory = {}, details = {}) {
 
     case 'latest_fixes':
       return [
-        'Founder Sir, latest fixes',
+        'Founder, latest fixes',
         ...linesOrFallback(state.sections.completedFixes, 'No completed fix was recorded in the latest run.')
       ].join('\n');
 
     case 'unresolved':
     case 'pending_issues':
       return [
-        'Founder Sir, unresolved issues',
+        'Founder, unresolved issues',
         ...linesOrFallback(state.sections.unresolved, 'No unresolved issue is recorded in the latest state.'),
         ...fixOffer(state)
       ].join('\n');
 
     case 'what_changed':
       return [
-        'Founder Sir, what changed',
+        'Founder, what changed',
         `\ud83d\udd52 Last trend: ${state.changed.lastTrendAt || 'not recorded yet'}`,
         `\ud83d\udccc Issues in latest trend: ${state.changed.issueCount == null ? 'unknown' : state.changed.issueCount}`,
         '',
@@ -151,7 +151,7 @@ function generateResponse(command, state, memory = {}, details = {}) {
 
     case 'next_priorities':
       return [
-        'Founder Sir, next priorities',
+        'Founder, next priorities',
         ...linesOrFallback(state.sections.nextPriority, 'No next priority is recorded yet.'),
         '',
         'Safest safe move',
@@ -160,13 +160,13 @@ function generateResponse(command, state, memory = {}, details = {}) {
 
     case 'approvals':
       return [
-        'Founder Sir, pending approvals',
+        'Founder, pending approvals',
         ...linesOrFallback(state.sections.approvals, 'No approval item is pending in the latest report.')
       ].join('\n');
 
     case 'keyboard_health':
       return [
-        'Founder Sir, keyboard health',
+        'Founder, keyboard health',
         `${healthIcon} Repo health: ${health}`,
         `${momentumIcon} Momentum: ${momentum}`,
         '',
@@ -181,7 +181,7 @@ function generateResponse(command, state, memory = {}, details = {}) {
     case 'cto_summary':
     case 'weekly_summary':
       return [
-        'Founder Sir, CTO summary',
+        'Founder, CTO summary',
         `${healthIcon} Health: ${health}`,
         `${momentumIcon} Momentum: ${momentum}`,
         `\ud83e\udde0 Last focus: ${memory.lastRequestedFocusArea || 'none'}`,
@@ -211,7 +211,7 @@ function generateResponse(command, state, memory = {}, details = {}) {
 
     case 'focus':
       return [
-        `Founder Sir, focus set: ${details.focusTopic}`,
+        `Founder, focus set: ${details.focusTopic}`,
         `${healthIcon} Health: ${health}`,
         `${momentumIcon} Momentum: ${momentum}`,
         '',
@@ -222,7 +222,7 @@ function generateResponse(command, state, memory = {}, details = {}) {
     case 'malformed':
     case 'conversational_fallback':
       return [
-        'Sir, quick CTO update',
+        'Founder, quick CTO update',
         `${healthIcon} Health: ${health}`,
         `${momentumIcon} Momentum: ${momentum}`,
         '',
@@ -235,7 +235,7 @@ function generateResponse(command, state, memory = {}, details = {}) {
 
     case 'unknown':
       return [
-        'Sir, quick CTO update',
+        'Founder, quick CTO update',
         `${healthIcon} Health: ${health}`,
         `${momentumIcon} Momentum: ${momentum}`,
         '',
@@ -247,7 +247,7 @@ function generateResponse(command, state, memory = {}, details = {}) {
 
     default:
       return [
-        'Founder Sir, CTO commands',
+        'Founder, CTO commands',
         'status, health, momentum, latest risks, unresolved, what changed, pending approvals, keyboard health, cto summary, school mode, focus <topic>'
       ].join('\n');
   }

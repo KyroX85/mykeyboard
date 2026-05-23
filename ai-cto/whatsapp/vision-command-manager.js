@@ -42,7 +42,7 @@ async function classifyVisionMessage({ message, state, memory, client = createNv
         'Vision command means founder describes something they want changed, improved, fixed, or built.',
         `Message: ${message}`,
         `Health: ${state && state.healthScore}`,
-        `Recent memory: ${JSON.stringify((memory && memory.recentMessages || []).slice(0, 5))}`
+        `Recent memory: ${JSON.stringify((memory && memory.recentMessages || []).slice(-10))}`
       ].join('\n')
     }
   ], {
@@ -67,7 +67,7 @@ async function createVisionPlan({ message, state, memory, client = createNvidiaC
         `Founder command: ${message}`,
         `Current roadmap phase: ${roadmap.currentPhase || 'unknown'}`,
         `Current health: ${state && state.healthScore}`,
-        `Memory: ${JSON.stringify((memory && memory.recentMessages || []).slice(0, 5))}`
+        `Memory: ${JSON.stringify((memory && memory.recentMessages || []).slice(-10))}`
       ].join('\n')
     }
   ], {
@@ -110,7 +110,7 @@ function cancelPendingVisionCommand() {
   return cancelled;
 }
 
-async function approvePendingVisionCommand({ root = process.cwd(), client = createNvidiaClient(), commit = false, push = false }) {
+async function approvePendingVisionCommand({ root = process.cwd(), client = createNvidiaClient(), commit = false, push = false, validationCommand = null }) {
   const state = readVisionCommandState();
   if (!state.pending) return null;
   const pending = {
@@ -123,12 +123,13 @@ async function approvePendingVisionCommand({ root = process.cwd(), client = crea
     client,
     commit,
     push,
+    validationCommand,
     issue: planToIssue(pending.plan)
   });
   const completed = {
     ...pending,
     outcome: result.status,
-    commitHash: extractCommitHash(result.commitOutput),
+    commitHash: result.commitHash || extractCommitHash(result.commitOutput),
     result
   };
   writeVisionCommandState({
@@ -152,7 +153,7 @@ function formatVisionPlan(entry) {
   const plan = entry.plan;
   if (plan.roadmapConflict) {
     return [
-      '🎯 CTO: Sir this improvement may conflict with current roadmap phase.',
+      '🎯 CTO: Founder, this improvement may conflict with current roadmap phase.',
       plan.conflictMessage || 'We are in Phase 1 stabilization.',
       'Options:',
       '1. Schedule it for Phase 2',

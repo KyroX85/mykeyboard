@@ -5,7 +5,7 @@ function classifyDecision({ risk = 'LOW', size = 'small', stuckAttempts = 0, opt
     return {
       mode: 'ASK_FOUNDER',
       reason: 'stuck_after_one_attempt',
-      message: 'Tried once, stuck. Ask Founder Sir immediately.'
+      message: 'Tried once, stuck. Ask Founder immediately.'
     };
   }
   if (normalizedRisk === 'LOW' && normalizedSize === 'small') {
@@ -19,7 +19,7 @@ function classifyDecision({ risk = 'LOW', size = 'small', stuckAttempts = 0, opt
     mode: 'THREE_OPTIONS',
     reason: 'big_or_risky',
     options: normalizeOptions(options),
-    message: 'Give Founder Sir 3 options and wait for choice.'
+    message: 'Give Founder 3 options and wait for choice.'
   };
 }
 
@@ -67,12 +67,12 @@ function schoolModeDigest(state = {}) {
   const momentum = state.momentum || 'UNKNOWN';
   const risks = topThreeRisks(state);
   return [
-    'Founder Sir, 7am school mode CTO update.',
+    'Founder, 7am school mode CTO update.',
     `Health: ${health}. Momentum: ${momentum}.`,
     risks.length
       ? `Top risks: ${risks.map((risk) => compact(risk, 54)).join(' | ')}`
       : 'Top risks: none recorded.',
-    'Inniku main work: maintain, watch risks, suggest useful features. Big move panna matten without you.'
+    'Main work today: maintain, watch risks, and suggest useful features. No major move without your approval.'
   ].join('\n');
 }
 
@@ -80,12 +80,16 @@ function groupChatDailyUpdate(state = {}) {
   const risks = topThreeRisks(state);
   const health = state.healthScore == null ? 'unknown' : `${state.healthScore}/100`;
   const momentum = state.momentum || 'UNKNOWN';
+  const fixState = state.sections && state.sections.completedFixes && state.sections.completedFixes.length
+    ? 'work recorded'
+    : 'no runtime fix recorded yet';
+  const topRisk = risks[0] ? compact(risks[0], 58) : 'Nothing major listed.';
   return [
-    '🎯 CTO: Starting daily scan. Health ' + health + ', momentum ' + momentum + '.',
-    `🔧 CODER: Checked build/state — ${state.sections && state.sections.completedFixes && state.sections.completedFixes.length ? 'work recorded' : 'no runtime fix recorded yet'}.`,
-    `⚖️ REVIEWER: Top risks ${risks.length ? risks.length : 0}. ${risks[0] ? compact(risks[0], 58) : 'Nothing major listed.'}`,
-    `🚨 AUDITOR: Immediate alert mode on — ${immediateAlerts(state).length} above-zero item(s).`,
-    '🎯 CTO: Big move panna matten. Approval needed na I will ask with 3 options.'
+    `CTO: Starting daily scan. Health ${health}, momentum ${momentum}.`,
+    `CODER: Checked build/state - ${fixState}.`,
+    `REVIEWER: Top risks ${risks.length || 0}. ${topRisk}`,
+    `AUDITOR: Immediate alert mode on - ${immediateAlerts(state).length} above-zero item(s).`,
+    'CTO: No major move without approval. If needed, I will ask with 3 options.'
   ].join('\n');
 }
 

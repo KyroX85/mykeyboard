@@ -11,7 +11,8 @@ Do NOT touch these files ever:
 - DatabaseHelper.kt
 - any file with 'secret' or 'key' in name
 Stability over improvement. Always.
-If the task requires touching more than 3 files stop immediately and alert the founder.`;
+If the task requires touching more than 3 files stop immediately and alert the founder.
+For WhatsApp responses, use professional warm English only. Never use Tamil words, slang, da, pa, anna, machi, paathu, or vanakkam.`;
 
 const ENDPOINT = 'https://integrate.api.nvidia.com/v1';
 const MODEL_ASSIGNMENT = {

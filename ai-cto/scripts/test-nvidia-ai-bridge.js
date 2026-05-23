@@ -49,6 +49,19 @@ async function run() {
         };
       }
       if (joined.includes('Break this founder vision command')) {
+        if (joined.includes('Hello.kt')) {
+          return {
+            choices: [{ message: { content: JSON.stringify({
+              task: 'Create test file Hello.kt',
+              files: ['Hello.kt'],
+              changes: ['Create the requested Kotlin test file'],
+              risk: 'LOW',
+              estimatedLines: 3,
+              roadmapConflict: false
+            }) } }],
+            usage: { total_tokens: 57 }
+          };
+        }
         return {
           choices: [{ message: { content: JSON.stringify({
             task: 'Improve keyboard key responsiveness safely',
@@ -67,7 +80,7 @@ async function run() {
       };
     }
     return {
-      choices: [{ message: { content: 'fixed file content\n' } }],
+      choices: [{ message: { content: request.messages.map((message) => message.content).join('\n').includes('Hello.kt') ? 'class Hello\n' : 'fixed file content\n' } }],
       usage: { total_tokens: 99 }
     };
   };
@@ -99,7 +112,11 @@ async function run() {
       summary: { topRisk: 'One risk' }
     },
     memory: {
-      recentMessages: [{ role: 'agent', summary: 'Last status' }]
+      recentMessages: Array.from({ length: 12 }, (_, index) => ({
+        role: index % 2 ? 'agent' : 'founder',
+        summary: `Message ${index}`,
+        founderMessage: index === 10 ? 'create a test file called Hello.kt' : null
+      }))
     },
     roadmap: { currentPhase: 'PHASE 1 - STABILIZATION' }
   });
@@ -110,6 +127,8 @@ async function run() {
   assert(prompt.system.includes('Do not use Tamil words'));
   assert(!/Tamil mixed|Tamil naturally/i.test(prompt.system));
   assert(prompt.user.includes('Founder message: hi'));
+  assert(prompt.user.includes('create a test file called Hello.kt'));
+  assert.strictEqual((prompt.user.match(/Message /g) || []).length, 10);
 
   const aiReply = await maybeGenerateAiWhatsAppResponse({
     founderMessage: 'hi',
@@ -209,6 +228,47 @@ async function run() {
   }, { recentMessages: [] }, { client, commit: false });
   assert.strictEqual(visionNo.command, 'vision_command_cancelled');
   assert(visionNo.response.toLowerCase().includes('cancelled'));
+
+  const tempRootForVision = fs.mkdtempSync(path.join(os.tmpdir(), 'cto-vision-test-'));
+  try {
+    fs.mkdirSync(path.join(tempRootForVision, 'ai-cto'), { recursive: true });
+    fs.writeFileSync(path.join(tempRootForVision, 'ai-cto', 'VISION_NORTH_STAR.md'), 'Vision: stable keyboard.');
+    fs.writeFileSync(path.join(tempRootForVision, 'ai-cto', '.brain_state.json'), JSON.stringify({
+      healthScore: 80,
+      unresolvedIssues: []
+    }, null, 2));
+    execFileSync('git', ['init'], { cwd: tempRootForVision });
+    execFileSync('git', ['config', 'user.email', 'cto-test@example.com'], { cwd: tempRootForVision });
+    execFileSync('git', ['config', 'user.name', 'CTO Test'], { cwd: tempRootForVision });
+    execFileSync('git', ['add', '.'], { cwd: tempRootForVision });
+    execFileSync('git', ['commit', '-m', 'fixture'], { cwd: tempRootForVision });
+
+    const helloPlan = await routeMessageWithAi('create a test file called Hello.kt', {
+      healthScore: 80,
+      momentum: 'MOVING',
+      sections: { risks: [], unresolved: [], approvals: [] },
+      summary: { topRisk: 'none' }
+    }, { recentMessages: [] }, { client });
+    assert.strictEqual(helloPlan.command, 'vision_command_pending');
+    const helloRun = await routeMessageWithAi('ok go ahead', {
+      healthScore: 80,
+      momentum: 'MOVING',
+      sections: { risks: [], unresolved: [], approvals: [] },
+      summary: { topRisk: 'none' }
+    }, { recentMessages: [{ role: 'agent', summary: 'Planned Hello.kt creation.' }] }, {
+      client,
+      root: tempRootForVision,
+      commit: true,
+      push: false,
+      validationCommand: [process.execPath, '-e', "require('fs').existsSync('Hello.kt') || process.exit(1)"]
+    });
+    assert.strictEqual(helloRun.command, 'vision_command_approved');
+    assert(helloRun.response.includes('Commit:'));
+    assert(fs.existsSync(path.join(tempRootForVision, 'Hello.kt')));
+    assert(execFileSync('git', ['log', '--oneline', '-1'], { cwd: tempRootForVision, encoding: 'utf8' }).includes('cto: apply AI fix for Hello.kt'));
+  } finally {
+    fs.rmSync(tempRootForVision, { recursive: true, force: true });
+  }
   } finally {
     if (actionLogBackup == null) {
       if (fs.existsSync(ACTION_LOG_FILE)) fs.unlinkSync(ACTION_LOG_FILE);

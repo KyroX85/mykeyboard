@@ -66,14 +66,14 @@ assert.strictEqual(immediateAlerts(state).length, 5);
 
 const digest = schoolModeDigest(state);
 assert(digest.includes('7am school mode CTO update'));
-assert(digest.includes('Inniku'));
-assert(digest.includes('Big move panna matten'));
+assert(digest.includes('Main work today'));
+assert(digest.includes('No major move'));
 
 const group = groupChatDailyUpdate(state);
-assert(group.includes('🎯 CTO:'));
-assert(group.includes('🔧 CODER:'));
-assert(group.includes('⚖️ REVIEWER:'));
-assert(group.includes('🚨 AUDITOR:'));
+assert(group.includes('CTO:'));
+assert(group.includes('CODER:'));
+assert(group.includes('REVIEWER:'));
+assert(group.includes('AUDITOR:'));
 
 const roadmap = readRoadmap();
 assert(roadmap.northStar.includes('By May 2027'));
@@ -126,9 +126,9 @@ assert(stabilized.contextConfidence < 0.6);
 const schoolResponse = routeMessage('school mode', state).response;
 assert(schoolResponse.includes('SCHOOL MODE'));
 assert(schoolResponse.includes('Health: 64/100'));
-assert(schoolResponse.includes('Inniku'));
-assert(schoolResponse.includes('🎯 CTO:'));
-assert(schoolResponse.includes('🔧 CODER:'));
+assert(schoolResponse.includes('Main work today'));
+assert(schoolResponse.includes('CTO:'));
+assert(schoolResponse.includes('CODER:'));
 
 const spawnResponse = routeMessage('spawn visual hierarchy specialist for keyboard toolbar friction', state).response;
 assert(spawnResponse.includes('Spawning:'));
@@ -137,7 +137,7 @@ const spawnApproval = routeMessage('YES', state).response;
 assert(spawnApproval.includes('Approved'));
 
 const whatsappDaily = buildMessage(state);
-assert(whatsappDaily.includes('🎯 CTO:'));
+assert(whatsappDaily.includes('CTO:'));
 assert(whatsappDaily.includes('Immediate alerts:'));
 
 assert(manual.includes('School Mode Intelligence'));

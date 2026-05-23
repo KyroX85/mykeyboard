@@ -15,7 +15,7 @@ function buildMessage(state) {
     '',
     alerts.length
       ? `Immediate alerts: ${alerts.map((alert) => alert.risk).join(' | ')}`
-      : 'Immediate alerts: none da.'
+      : 'Immediate alerts: none.'
   ].join('\n').slice(0, 1500);
 }
 

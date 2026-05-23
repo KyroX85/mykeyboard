@@ -208,8 +208,8 @@ function createApp() {
       state.workflowFreshness = workflowFreshness(state);
       const memory = readConversationMemory();
       const routed = await routeMessageWithAi(body, state, memory, {
-        commit: process.env.CTO_AI_EXECUTION_COMMIT === 'true',
-        push: process.env.CTO_AI_EXECUTION_PUSH === 'true'
+        commit: process.env.CTO_AI_EXECUTION_COMMIT !== 'false',
+        push: process.env.CTO_AI_EXECUTION_PUSH !== 'false'
       });
       const cooldownKey = routed.command === 'agent'
         ? `agent:${routed.agent}:${routed.intent}`

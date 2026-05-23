@@ -278,7 +278,7 @@ function buildFounderPushback(warnings = [], productReasoning = {}) {
   return {
     required,
     message: required
-      ? 'Sir, I should push back: this adds complexity without verified typing or UX improvement.'
+      ? 'Founder, I should push back: this adds complexity without verified typing or UX improvement.'
       : 'No pushback needed from current grounded state.',
     reason: required ? warnings[0] : null,
     saferAlternative: required

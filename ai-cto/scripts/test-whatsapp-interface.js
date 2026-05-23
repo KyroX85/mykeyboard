@@ -110,7 +110,7 @@ assert.strictEqual(shouldUseGeneralFallback('hello'), true);
 assert.strictEqual(shouldUseGeneralFallback('whats going on'), true);
 
 const status = routeMessage('status', sampleState).response;
-assert(status.includes('Founder Sir'));
+assert(status.includes('Founder, CTO status'));
 assert(status.includes('Health: 25/100'));
 assert(status.includes(':app:lintDebug: PASSED'));
 
@@ -289,7 +289,7 @@ assert(operational.includes('product signals'));
 assert(operational.includes('LOW OPERATIONAL IMPACT'));
 assert(operational.split('\n').length <= 5);
 
-const xml = twiml('Founder Sir, 5 < 6 & safe');
+const xml = twiml('Founder, 5 < 6 & safe');
 assert(xml.includes('&lt;'));
 assert(xml.includes('&amp;'));
 

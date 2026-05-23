@@ -201,6 +201,24 @@ function commitFix(root, files, message) {
   return git(root, ['commit', '-m', message]);
 }
 
+function pushFix(root) {
+  const token = process.env.GITHUB_TOKEN || '';
+  if (!token) {
+    return git(root, ['push']);
+  }
+  const remote = git(root, ['remote', 'get-url', 'origin']);
+  if (!/^https:\/\/github\.com\//i.test(remote)) {
+    return git(root, ['push']);
+  }
+  const authed = remote.replace(/^https:\/\/github\.com\//i, `https://x-access-token:${token}@github.com/`);
+  git(root, ['remote', 'set-url', 'origin', authed]);
+  try {
+    return git(root, ['push']);
+  } finally {
+    git(root, ['remote', 'set-url', 'origin', remote]);
+  }
+}
+
 function diffWithinHardLimits(root, limits = {}) {
   const maxFiles = limits.maxFiles || 3;
   const maxLines = limits.maxLines || 50;
@@ -210,7 +228,9 @@ function diffWithinHardLimits(root, limits = {}) {
   } catch {
     output = '';
   }
-  const rows = output.split(/\r?\n/).filter(Boolean);
+  const trackedRows = output.split(/\r?\n/).filter(Boolean);
+  const untrackedRows = untrackedDiffRows(root);
+  const rows = [...trackedRows, ...untrackedRows];
   const filesChanged = rows.length;
   const linesChanged = rows.reduce((total, row) => {
     const parts = row.split(/\s+/);
@@ -225,6 +245,21 @@ function diffWithinHardLimits(root, limits = {}) {
     return { allowed: false, filesChanged, linesChanged, reason: `Diff changes more than ${maxLines} lines.` };
   }
   return { allowed: true, filesChanged, linesChanged, reason: 'Diff within hard limits.' };
+}
+
+function untrackedDiffRows(root) {
+  let output = '';
+  try {
+    output = git(root, ['ls-files', '--others', '--exclude-standard']);
+  } catch {
+    return [];
+  }
+  return output.split(/\r?\n/).filter(Boolean).map((file) => {
+    const full = repoPath(root, file);
+    const content = fs.existsSync(full) ? fs.readFileSync(full, 'utf8') : '';
+    const lines = content ? content.split(/\r?\n/).filter((line, index, all) => index < all.length - 1 || line.length > 0).length : 0;
+    return `${lines}\t0\t${file}`;
+  });
 }
 
 async function executeAiBridge(options = {}) {
@@ -248,7 +283,7 @@ async function executeAiBridge(options = {}) {
   const file = normalizePath(issue.file);
   if (isForbiddenFile(file)) return { status: 'FOUNDER_APPROVAL_REQUIRED', riskLevel: 'HIGH', reason: 'Forbidden file scope.' };
   const target = repoPath(root, file);
-  if (!fs.existsSync(target)) return { status: 'NO_FIXABLE_ISSUE', reason: `File not found: ${file}` };
+  const fileExists = fs.existsSync(target);
 
   const risk = await classifyRiskWithLlama({ client, issue, root, now });
   if (risk.riskLevel === 'HIGH') {
@@ -260,7 +295,7 @@ async function executeAiBridge(options = {}) {
     };
   }
 
-  const before = fs.readFileSync(target, 'utf8');
+  const before = fileExists ? fs.readFileSync(target, 'utf8') : '';
   const generated = await generateFixWithDeepSeek({ client, root, issue, file, content: before });
   if (!generated.ok || !generated.content) return { status: 'MODEL_FAILED', riskLevel: risk.riskLevel, reason: generated.reason || generated.error };
 
@@ -278,10 +313,12 @@ async function executeAiBridge(options = {}) {
     };
   }
 
+  fs.mkdirSync(path.dirname(target), { recursive: true });
   fs.writeFileSync(target, after);
   const diffCheck = diffWithinHardLimits(root);
   if (!diffCheck.allowed) {
-    fs.writeFileSync(target, before);
+    if (fileExists) fs.writeFileSync(target, before);
+    else fs.rmSync(target, { force: true });
     appendActionLog(root, {
       agentName: 'Reviewer',
       actionTaken: `blocked AI fix for ${file}`,
@@ -303,7 +340,8 @@ async function executeAiBridge(options = {}) {
   try {
     runValidation(root, file, options.validationCommand);
   } catch (error) {
-    fs.writeFileSync(target, before);
+    if (fileExists) fs.writeFileSync(target, before);
+    else fs.rmSync(target, { force: true });
     appendActionLog(root, {
       agentName: 'Coder',
       actionTaken: `rolled back DeepSeek fix for ${file}`,
@@ -318,7 +356,8 @@ async function executeAiBridge(options = {}) {
 
   let commitOutput = null;
   if (options.commit !== false) commitOutput = commitFix(root, [file], `cto: apply AI fix for ${file}`);
-  if (options.push === true) git(root, ['push']);
+  const commitHash = commitOutput ? extractCommitHash(commitOutput) || git(root, ['rev-parse', '--short', 'HEAD']) : null;
+  if (options.push === true) pushFix(root);
 
   appendActionLog(root, {
     agentName: 'Coder',
@@ -334,13 +373,15 @@ async function executeAiBridge(options = {}) {
     status: 'COMPLETED',
     riskLevel: 'LOW',
     file,
+    diff: diffCheck,
     modelUsed: { fix: MODEL_ASSIGNMENT.deepseek.model, reviewer: MODEL_ASSIGNMENT.llama.model },
+    commitHash,
     commitOutput,
     report: [
       `🔧 CODER: Fixed ${file}`,
       '🧠 Brain used: DeepSeek V4 Flash',
       `✅ Result: ${options.commit === false ? 'applied without commit' : 'committed'}`,
-      `📝 Commit: ${commitOutput ? firstLine(commitOutput) : 'not committed'}`
+      `📝 Commit: ${commitHash || 'not committed'}`
     ].join('\n')
   };
 }
@@ -351,6 +392,11 @@ function stripCodeFence(value) {
 
 function firstLine(value) {
   return String(value || '').split(/\r?\n/)[0];
+}
+
+function extractCommitHash(output) {
+  const match = String(output || '').match(/\[.+?\s+([a-f0-9]{7,40})\]/i);
+  return match ? match[1] : null;
 }
 
 if (require.main === module) {

@@ -275,7 +275,9 @@ async function routeMessageWithAi(message, state, memory = {}, options = {}) {
   }
 
   const routed = routeMessage(message, state, memory);
-  if (routed.matchedRoute === 'safe_low_confidence_fallback' || routed.matchedRoute === 'conversational_fallback') {
+  if (routed.matchedRoute === 'agent_intent' ||
+    routed.matchedRoute === 'safe_low_confidence_fallback' ||
+    routed.matchedRoute === 'conversational_fallback') {
     const vision = await maybeCreateVisionCommand(message, state, memory, options);
     if (vision) return vision;
   }
@@ -298,11 +300,11 @@ async function routeMessageWithAi(message, state, memory = {}, options = {}) {
 }
 
 async function maybeRouteVisionDecision(normalized, options = {}) {
-  if (!['yes', 'y', 'no', 'n'].includes(normalized)) return null;
+  if (!isVisionApproval(normalized) && !isVisionRejection(normalized)) return null;
   const state = readVisionCommandState();
   if (!state.pending) return null;
 
-  if (normalized === 'no' || normalized === 'n') {
+  if (isVisionRejection(normalized)) {
     const cancelled = cancelPendingVisionCommand();
     return {
       command: 'vision_command_cancelled',
@@ -316,7 +318,8 @@ async function maybeRouteVisionDecision(normalized, options = {}) {
     root: options.root,
     client: options.client,
     commit: options.commit,
-    push: options.push
+    push: options.push,
+    validationCommand: options.validationCommand
   });
   return {
     command: 'vision_command_approved',
@@ -325,6 +328,14 @@ async function maybeRouteVisionDecision(normalized, options = {}) {
     response: formatVisionApprovalResult(completed),
     usedAi: true
   };
+}
+
+function isVisionApproval(normalized) {
+  return ['yes', 'y', 'ok go', 'ok go ahead', 'go ahead', 'proceed', 'do it', 'execute', 'start'].includes(normalized);
+}
+
+function isVisionRejection(normalized) {
+  return ['no', 'n', 'cancel', 'stop', 'reject'].includes(normalized);
 }
 
 async function maybeCreateVisionCommand(message, state, memory, options = {}) {

@@ -184,7 +184,7 @@ function readConversationMemory() {
     frictionReducers: Array.isArray(memory.frictionReducers) ? memory.frictionReducers : [],
     fakeProgressPatterns: Array.isArray(memory.fakeProgressPatterns) ? memory.fakeProgressPatterns : [],
     nextContinuationAction: memory.nextContinuationAction || null,
-    recentMessages: Array.isArray(memory.recentMessages) ? memory.recentMessages.slice(0, 5) : []
+    recentMessages: Array.isArray(memory.recentMessages) ? memory.recentMessages.slice(0, 10) : []
   };
 }
 
@@ -268,7 +268,7 @@ function rememberMessage(items, entry) {
   return [{
     timestamp: new Date().toISOString(),
     ...entry
-  }, ...list].slice(0, 5);
+  }, ...list].slice(0, 10);
 }
 
 function summarizeRouteMemory(route, state) {

@@ -13,7 +13,7 @@ const AGENT_PERSONALITIES = {
 
 function buildAiWhatsAppPrompt({ founderMessage, agent = 'cto', state = {}, memory = {}, roadmap = readRoadmap() }) {
   const recentActions = readRecentActions();
-  const recentMessages = Array.isArray(memory.recentMessages) ? memory.recentMessages.slice(0, 5) : [];
+  const recentMessages = Array.isArray(memory.recentMessages) ? memory.recentMessages.slice(-10) : [];
   const sections = state.sections || {};
   const system = [
     'You are using Llama 3.3 70B as the Conversation Brain for Aritenis AI.',
@@ -21,7 +21,8 @@ function buildAiWhatsAppPrompt({ founderMessage, agent = 'cto', state = {}, memo
     'You report to the founder who built this product.',
     'You lead a team of 3 agents: Coder, Reviewer, Auditor.',
     'You are professional and respectful. You are warm, direct, and honest.',
-    'English only. Do not use Tamil words, Tanglish, slang, "da", "pa", or "Vanakkam".',
+    'English only. Do not use Tamil words, Tanglish, slang, casual greetings, or informal nicknames.',
+    'Never use these words: da, pa, anna, machi, paathu, vanakkam.',
     'Address the founder as Founder when needed, not by name. Do not use "sir" in every sentence.',
     'The CTO should sound like a real startup CTO reporting to their CEO.',
     'You never give false confidence. You never invent progress. You stay grounded in repo state.',
@@ -41,7 +42,8 @@ function buildAiWhatsAppPrompt({ founderMessage, agent = 'cto', state = {}, memo
   const user = [
     `Founder message: ${founderMessage || ''}`,
     `Detected agent: ${agent}`,
-    `Last 5 messages: ${recentMessages.map((item) => item.summary || item.founderMessage || item.intent).filter(Boolean).join(' | ') || 'none'}`,
+    `Last 10 messages with full context: ${JSON.stringify(recentMessages)}`,
+    'Use the conversation history. Never ask for information already mentioned by the founder or by an agent.',
     `Top risk: ${(state.summary && state.summary.topRisk) || first(array(sections.risks)) || 'none recorded'}`,
     `Momentum: ${state.momentum || 'unknown'}`
   ].join('\n');
