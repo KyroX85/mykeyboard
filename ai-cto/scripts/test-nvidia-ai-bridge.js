@@ -27,7 +27,11 @@ const {
   VISION_COMMAND_LOG_FILE,
   readVisionCommandState
 } = require('../whatsapp/vision-command-manager');
-const { FOUNDER_MEMORY_FILE, clearPendingVisionCommand } = require('../whatsapp/founder-memory');
+const {
+  FOUNDER_MEMORY_FILE,
+  readPendingVisionCommand,
+  clearPendingVisionCommand
+} = require('../whatsapp/founder-memory');
 
 async function run() {
   const actionLogBackup = fs.existsSync(ACTION_LOG_FILE) ? fs.readFileSync(ACTION_LOG_FILE, 'utf8') : null;
@@ -263,6 +267,8 @@ async function run() {
       summary: { topRisk: 'none' }
     }, { recentMessages: [] }, { client });
     assert.strictEqual(helloPlan.command, 'vision_command_pending');
+    assert(readPendingVisionCommand());
+    if (fs.existsSync(VISION_COMMAND_LOG_FILE)) fs.unlinkSync(VISION_COMMAND_LOG_FILE);
     const helloRun = await routeMessageWithAi('ok go ahead', {
       healthScore: 80,
       momentum: 'MOVING',

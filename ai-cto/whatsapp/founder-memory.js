@@ -51,6 +51,7 @@ function writeFounderMemory(memory, root = ROOT) {
   const normalized = normalizeFounderMemory(memory);
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, `${JSON.stringify(normalized, null, 2)}\n`);
+  console.log(`[whatsapp-cto] FOUNDER MEMORY WRITE PATH: ${file}`);
   return normalized;
 }
 
@@ -88,14 +89,26 @@ function rememberVisionCommand({ root = ROOT, command, plan, approval, outcome, 
 
 function setPendingVisionCommand(entry, root = ROOT) {
   const current = readFounderMemory(root);
-  return writeFounderMemory({
+  const next = writeFounderMemory({
     ...current,
     pending_vision_command: entry || null
   }, root);
+  if (entry) {
+    const task = entry.plan && entry.plan.task ? entry.plan.task : entry.command;
+    console.log(`[whatsapp-cto] PENDING COMMAND SAVED TO DISK: ${task}`);
+    console.log(`[whatsapp-cto] PENDING COMMAND DISK PATH: ${memoryPath(root)}`);
+  }
+  return next;
 }
 
 function readPendingVisionCommand(root = ROOT) {
-  return readFounderMemory(root).pending_vision_command || null;
+  const pending = readFounderMemory(root).pending_vision_command || null;
+  if (pending) {
+    const task = pending.plan && pending.plan.task ? pending.plan.task : pending.command;
+    console.log(`[whatsapp-cto] PENDING COMMAND LOADED FROM DISK: ${task}`);
+    console.log(`[whatsapp-cto] PENDING COMMAND DISK PATH: ${memoryPath(root)}`);
+  }
+  return pending;
 }
 
 function clearPendingVisionCommand(root = ROOT) {

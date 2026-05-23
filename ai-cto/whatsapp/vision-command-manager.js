@@ -16,18 +16,19 @@ const ROOT = path.resolve(__dirname, '..', '..');
 const VISION_COMMAND_LOG_FILE = path.join(ROOT, 'ai-cto', 'vision-commands-log.json');
 
 function readVisionCommandState() {
+  const diskPending = readPendingVisionCommand();
   try {
     if (!fs.existsSync(VISION_COMMAND_LOG_FILE)) {
-      return { version: '1.0', pending: readPendingVisionCommand(), commands: [] };
+      return { version: '1.0', pending: diskPending, commands: [] };
     }
     const parsed = JSON.parse(fs.readFileSync(VISION_COMMAND_LOG_FILE, 'utf8'));
     return {
       version: '1.0',
-      pending: parsed.pending || readPendingVisionCommand(),
+      pending: diskPending || parsed.pending || null,
       commands: Array.isArray(parsed.commands) ? parsed.commands : []
     };
   } catch {
-    return { version: '1.0', pending: readPendingVisionCommand(), commands: [] };
+    return { version: '1.0', pending: diskPending, commands: [] };
   }
 }
 
@@ -109,6 +110,7 @@ async function createVisionPlan({ message, state, memory, client = createNvidiaC
     commitHash: null
   };
   const current = readVisionCommandState();
+  setPendingVisionCommand(entry);
   writeVisionCommandState({
     pending: entry,
     commands: [...current.commands, entry]
@@ -119,7 +121,6 @@ async function createVisionPlan({ message, state, memory, client = createNvidiaC
     approval: 'PENDING',
     outcome: 'WAITING_FOR_FOUNDER'
   });
-  setPendingVisionCommand(entry);
   return entry;
 }
 
@@ -147,11 +148,13 @@ function cancelPendingVisionCommand() {
 }
 
 async function approvePendingVisionCommand({ root = process.cwd(), client = createNvidiaClient(), commit = false, push = false, commitMessage = null, validationCommand = null }) {
+  const diskPending = readPendingVisionCommand();
   const state = readVisionCommandState();
-  if (!state.pending) return null;
+  const activePending = diskPending || state.pending;
+  if (!activePending) return null;
   console.log('[whatsapp-cto] APPROVAL RECEIVED: triggering execution');
   const pending = {
-    ...state.pending,
+    ...activePending,
     approval: 'YES',
     decidedAt: new Date().toISOString()
   };
