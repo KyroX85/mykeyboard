@@ -134,7 +134,7 @@ function buildDirectiveResponse(agent, intent, state, memory = {}, directive = n
   const prefix = followUp || isFixFollowUp ? 'Continuing' : 'Assigned';
 
   return [
-    '\uD83C\uDFAF CTO: ' + `${prefix} this sir. ${labelFor(target)} will check ${compact(topic, 48)}.`,
+    '\uD83C\uDFAF CTO: ' + `${prefix} ${labelFor(target)} will check ${compact(topic, 48)}.`,
     `\uD83D\uDD27 CODER: Checking latest repo issues now. Top item: ${compact(topIssue, 72)}`,
     `\u2696\uFE0F REVIEWER: ${compact(validation, 72)}`,
     '\uD83D\uDEA8 AUDITOR: I will block anything risky before execution.'
@@ -167,8 +167,8 @@ function buildSocialTeamResponse(agent, intent, state, memory = {}) {
   }
   if (intent === 'greeting' || intent === 'check_in') {
     return [
-      '\uD83C\uDFAF CTO: Yes sir, team ready da. What are we working on today?',
-      '\uD83D\uDD27 CODER: Ready sir \uD83D\uDCAA',
+      '\uD83C\uDFAF CTO: Founder, team is ready. What would you like to prioritize today?',
+      '\uD83D\uDD27 CODER: Ready.',
       '\u2696\uFE0F REVIEWER: Standing by.',
       '\uD83D\uDEA8 AUDITOR: Monitoring active.'
     ].join('\n');
@@ -178,26 +178,26 @@ function buildSocialTeamResponse(agent, intent, state, memory = {}) {
     const danger = findDanger(state);
     const coderState = first(state.sections.completedFixes) || first(state.changed.completed) || 'No fresh runtime fix recorded yet.';
     return [
-      '\uD83C\uDFAF CTO: Work moving sir, but not calling everything fine yet.',
+      '\uD83C\uDFAF CTO: Work is moving, but I am not calling everything clear yet.',
       `\uD83D\uDEA8 AUDITOR: ${compact(danger || 'No new dangerous issue recorded.', 78)}`,
       `\uD83D\uDD27 CODER: ${compact(coderState, 78)}`,
       `\u2696\uFE0F REVIEWER: ${compact(validationSummary(state), 78)}`,
-      '\uD83C\uDFAF CTO: Your call on next steps Sir.'
+      '\uD83C\uDFAF CTO: What would you like to prioritize next?'
     ].join('\n');
   }
 
   if (intent === 'praise') {
     return [
-      '🎯 CTO: Thank you sir, team worked clean.',
-      '🔧 CODER: Appreciate it sir, more to do still 💪',
-      '⚖️ REVIEWER: I’ll keep the safety gate tight.',
-      '🚨 AUDITOR: Good progress, but I’m still watching risk.'
+      '🎯 CTO: Thank you, Founder. The team will keep execution clean.',
+      '🔧 CODER: Appreciated. More work remains.',
+      '⚖️ REVIEWER: Safety gate remains tight.',
+      '🚨 AUDITOR: Progress noted. Risk monitoring continues.'
     ].join('\n');
   }
 
   if (intent === 'direction') {
     return [
-      '🎯 CTO: Next move sir:',
+      '🎯 CTO: Recommended next move:',
       `1. ${compact(first(state.sections.nextPriority) || 'Stabilize the top unresolved issue.', 72)}`,
       `2. ${compact(first(state.sections.safestOpportunity) || 'Run validation before any fix.', 72)}`,
       '3. Avoid big changes until health improves.'
@@ -206,7 +206,7 @@ function buildSocialTeamResponse(agent, intent, state, memory = {}) {
 
   if (intent === 'recent_fix_question') {
     return [
-      '🎯 CTO: Recent fix memory sir:',
+      '🎯 CTO: Recent fix memory:',
       `🔧 CODER: ${compact(recentFixSummary(memory) || 'No recent fix is recorded in memory yet.', 90)}`,
       `⚖️ REVIEWER: ${compact(validationSummary(state), 78)}`
     ].join('\n');
@@ -241,7 +241,7 @@ function buildOperationalMobile(agent, state, execution, maintenance) {
   const fake = fakePatterns.find((item) => /LOW OPERATIONAL IMPACT|report|Activity without improvement/i.test(item));
   return [
     MOBILE_LABELS[agent] || MOBILE_LABELS.cto,
-    `Attempted: Sir, checked product signals and founder load.`,
+    `Attempted: Founder, checked product signals and founder load.`,
     `Blocked: ${compact(summary[3].replace(/^Founder load:\s*/, ''), 86)}`,
     `Risk: ${fake ? 'LOW OPERATIONAL IMPACT pattern visible.' : 'no fake-progress pattern.'}`,
     `Next: ${compact(summary[4].replace(/^Next:\s*/, ''), 82)}.`
@@ -322,9 +322,8 @@ function shouldPushBack(memory = {}) {
 }
 
 function tonePrefix(memory = {}) {
-  if (memory.lastFounderTone === 'casual') return 'Sollunga sir. ';
-  if (memory.lastFounderTone === 'low_attention') return 'Short version sir: ';
-  return 'Sir, ';
+  if (memory.lastFounderTone === 'low_attention') return 'Short version: ';
+  return 'Founder, ';
 }
 
 function agentLines(agent, context) {
@@ -339,7 +338,7 @@ function ctoLines({ state, topic, memory, tasks, execution, intent }) {
   const activeCount = tasks.totalActive || 0;
   const accountability = buildAccountability('cto', { state, topic, memory, tasks, execution, intent });
   const lines = [
-    `Sir, health ${formatHealth(state)}, momentum ${state.momentum || 'UNKNOWN'}.`,
+    `Founder, health ${formatHealth(state)}, momentum ${state.momentum || 'UNKNOWN'}.`,
     activeCount > 0 ? `${activeCount} active task(s); review gate on.` : 'No critical task moving.',
     `Direction: ${compact(next, 90)}.`,
     ...accountability,
@@ -365,8 +364,8 @@ function coderLines({ state, topic, memory, tasks, maintenance, execution, inten
   const completedExecution = first(execution.completed);
   const noRuntime = noRuntimeProgress(state);
   const lines = [
-    `Sir, I am looking at ${compact(focus)}.`,
-    noRuntime ? 'Sir, no major runtime improvement today. Mostly maintenance and validation work.' : null,
+    `Founder, I am looking at ${compact(focus)}.`,
+    noRuntime ? 'No major runtime improvement today. Mostly maintenance and validation work.' : null,
     latestFix
       ? `Last recorded improvement: ${formatProgressItem(latestFix)}.`
       : 'No completed coding fix is recorded in the latest state.',
@@ -398,8 +397,8 @@ function reviewerLines({ state, topic, memory, tasks, execution }) {
   const blocked = first(tasks.blocked) || first(execution.blocked) || first(execution.rolledBack);
   const lines = [
     topic
-      ? `Sir, I checked ${compact(topic)} from a regression angle.`
-      : 'Sir, I checked the latest state from a regression angle.',
+      ? `Founder, I checked ${compact(topic)} from a regression angle.`
+      : 'Founder, I checked the latest state from a regression angle.',
     warning
       ? `Main concern: ${compact(warning)}.`
       : 'No fresh regression concern is recorded right now.',
@@ -420,8 +419,8 @@ function auditorLines({ state, topic, memory, execution }) {
   const blocked = first(execution.blocked) || first(execution.rolledBack);
   const lines = [
     topic
-      ? `Sir, danger check on ${compact(topic)}.`
-      : 'Sir, danger check only.',
+      ? `Founder, danger check on ${compact(topic)}.`
+      : 'Founder, danger check only.',
     danger
       ? `Danger: ${compact(danger)}.`
       : 'No dangerous issue is recorded in the latest state.',

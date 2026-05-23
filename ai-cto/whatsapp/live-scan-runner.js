@@ -27,7 +27,7 @@ function formatFreshScanResponse(state) {
   const secrets = state.unresolvedIssues.filter((issue) => issue.type === 'SECURITY' && issue.source === 'LIVE_GREP');
   const secretFiles = secrets.map((issue) => issue.file).filter(Boolean).slice(0, 3).join(', ');
   return [
-    '🎯 CTO: Fresh live scan done da.',
+    '🎯 CTO: Fresh live scan is complete.',
     `Health: ${health}. Momentum: ${state.momentum || 'UNKNOWN'}.`,
     `Top finding: ${top}`,
     secrets.length ? `🚨 AUDITOR: Live grep caught ${secrets.length} secret risk(s): ${secretFiles}.` : '🚨 AUDITOR: Live grep found no hardcoded secret.',

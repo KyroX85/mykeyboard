@@ -42,7 +42,8 @@ for (const message of naturalMessages) {
   const response = routeMessage(message, sampleState, {}).response;
   assert(response.length <= MAX_RESPONSE_LENGTH);
   assert.strictEqual(hasForbiddenPersonalityLanguage(response), false);
-  assert(response.includes('Sir'));
+  assert(response.includes('Founder') || response.includes('Risk:') || response.includes('Attempted:') || response.includes('What would you like to prioritize'));
+  assert(!/\bda\b|\bpa\b|Vanakkam|Sollunga/i.test(response));
   assert(/^(🎯 CTO|🔧 CODER|⚖️ REVIEWER|🚨 AUDITOR)/.test(response));
   assert(response.split('\n').length <= 5);
 }

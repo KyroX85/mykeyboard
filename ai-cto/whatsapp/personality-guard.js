@@ -17,7 +17,7 @@ function enforcePersonalityGuardrails(response) {
     guarded = guarded.replace(pattern, 'I can report the engineering state');
   }
   if (guarded.length <= MAX_RESPONSE_LENGTH) return guarded;
-  return `${guarded.slice(0, MAX_RESPONSE_LENGTH - 80).trim()}\n\nMore detail available sir; ask for a specific area.`;
+  return `${guarded.slice(0, MAX_RESPONSE_LENGTH - 80).trim()}\n\nMore detail available, Founder. Ask for a specific area.`;
 }
 
 function hasForbiddenPersonalityLanguage(response) {

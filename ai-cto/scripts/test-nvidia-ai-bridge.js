@@ -62,7 +62,7 @@ async function run() {
         };
       }
       return {
-        choices: [{ message: { content: joined.includes('LOW, MEDIUM or HIGH') ? 'LOW risk' : '🎯 CTO: Yes sir, team ready da.' } }],
+        choices: [{ message: { content: joined.includes('LOW, MEDIUM or HIGH') ? 'LOW risk' : 'Health is at 80. No critical issues. What would you like to prioritize today?' } }],
         usage: { total_tokens: 42 }
       };
     }
@@ -104,7 +104,11 @@ async function run() {
     roadmap: { currentPhase: 'PHASE 1 - STABILIZATION' }
   });
   assert(prompt.system.includes('Llama 3.3 70B'));
-  assert(prompt.system.includes('casual English mixed with Tamil'));
+  assert(prompt.system.includes('English only'));
+  assert(prompt.system.includes('startup CTO reporting to their CEO'));
+  assert(prompt.system.includes('Address the founder as Founder'));
+  assert(prompt.system.includes('Do not use Tamil words'));
+  assert(!/Tamil mixed|Tamil naturally/i.test(prompt.system));
   assert(prompt.user.includes('Founder message: hi'));
 
   const aiReply = await maybeGenerateAiWhatsAppResponse({
@@ -120,7 +124,7 @@ async function run() {
     client
   });
   assert.strictEqual(aiReply.usedAi, true);
-  assert(aiReply.response.includes('team ready'));
+  assert(aiReply.response.includes('Health is at 80'));
 
   const routedAi = await routeMessageWithAi('hi', {
     healthScore: 80,
@@ -129,7 +133,7 @@ async function run() {
     summary: { topRisk: 'none' }
   }, { recentMessages: [] }, { client });
   assert.strictEqual(routedAi.usedAi, true);
-  assert(routedAi.response.includes('team ready'));
+  assert(routedAi.response.includes('What would you like to prioritize'));
 
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'cto-ai-bridge-'));
   try {
@@ -204,7 +208,7 @@ async function run() {
     summary: { topRisk: 'none' }
   }, { recentMessages: [] }, { client, commit: false });
   assert.strictEqual(visionNo.command, 'vision_command_cancelled');
-  assert(visionNo.response.includes('cancelled'));
+  assert(visionNo.response.toLowerCase().includes('cancelled'));
   } finally {
     if (actionLogBackup == null) {
       if (fs.existsSync(ACTION_LOG_FILE)) fs.unlinkSync(ACTION_LOG_FILE);

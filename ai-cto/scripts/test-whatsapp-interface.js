@@ -131,15 +131,15 @@ assert(unknown.response.includes('quick CTO update'));
 
 const hello = routeMessage('hello', sampleState);
 assert.strictEqual(hello.command, 'agent');
-assert(hello.response.includes('team ready'));
+assert(hello.response.includes('team is ready'));
 assert(hello.response.includes('CODER'));
 assert(hello.response.includes('AUDITOR'));
 
 const hi = routeMessage('hi', sampleState);
 assert.strictEqual(hi.matchedRoute, 'greeting_first');
 assert.strictEqual(hi.response, [
-  '\uD83C\uDFAF CTO: Yes sir, team ready da. What are we working on today?',
-  '\uD83D\uDD27 CODER: Ready sir \uD83D\uDCAA',
+  '\uD83C\uDFAF CTO: Founder, team is ready. What would you like to prioritize today?',
+  '\uD83D\uDD27 CODER: Ready.',
   '\u2696\uFE0F REVIEWER: Standing by.',
   '\uD83D\uDEA8 AUDITOR: Monitoring active.'
 ].join('\n'));
@@ -147,7 +147,7 @@ assert(!hi.response.includes('Health:'));
 
 const checkIn = routeMessage('anyone home', sampleState);
 assert.strictEqual(checkIn.command, 'agent');
-assert(checkIn.response.includes('Yes sir'));
+assert(checkIn.response.includes('Founder, team is ready'));
 
 const statusQuestion = routeMessage('how are we doing', sampleState);
 assert.strictEqual(statusQuestion.command, 'agent');
@@ -158,7 +158,7 @@ const casualWork = routeMessage('bro how work is going', sampleState);
 assert.strictEqual(casualWork.command, 'agent');
 assert.strictEqual(casualWork.intent, 'status_question');
 assert(casualWork.response.includes('Work'));
-assert(casualWork.response.includes('not calling everything fine'));
+assert(casualWork.response.includes('not calling everything clear'));
 assert(casualWork.response.includes('CODER'));
 assert(!casualWork.response.includes('Health:'));
 
@@ -204,11 +204,11 @@ assert(!auditorCrossCheck.response.startsWith('🎯 CTO'));
 
 const praise = routeMessage('good job team', sampleState);
 assert.strictEqual(praise.command, 'agent');
-assert(praise.response.includes('Thank you sir'));
+assert(praise.response.includes('Thank you, Founder'));
 
 const direction = routeMessage('what should we do next', sampleState);
 assert.strictEqual(direction.command, 'agent');
-assert(direction.response.includes('Next'));
+assert(direction.response.includes('Recommended next move'));
 
 const recentFix = routeMessage('what did you just fix', sampleState, {
   recentMessages: [
@@ -259,7 +259,7 @@ assert(detailed.split('\n').length > 5);
 
 const casual = routeMessage('dei what doing', sampleState).response;
 assert(casual.includes('CTO'));
-assert(casual.includes('Sollunga sir') || casual.includes('Sir'));
+assert(casual.includes('Founder'));
 assert(casual.split('\n').length <= 5);
 
 const dangerous = routeMessage('reviewer anything dangerous', sampleState).response;

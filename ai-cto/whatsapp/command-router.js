@@ -138,7 +138,7 @@ function routeMessage(message, state, memory = {}) {
         details: { agent: 'cto', intent: 'specialist_assigned', specialist: assigned.agent },
         matchedRoute: 'specialist_assignment',
         response: [
-          `🎯 CTO: Created specialist ${assigned.agent.name} sir.`,
+          `🎯 CTO: Created specialist ${assigned.agent.name}, Founder.`,
           `Brain: ${assigned.agent.brainFile}`,
           `Task: ${assigned.agent.task}`,
           'Reports to CTO only. No autonomous risky execution.'
@@ -150,7 +150,7 @@ function routeMessage(message, state, memory = {}) {
       command: 'spawn_request',
       details: { agent: 'cto', intent: 'spawn_request' },
       matchedRoute: 'spawn_request',
-      response: `🎯 CTO: Spawning: ${proposal.name} — Reason: ${proposal.reason} — Task: ${proposal.task} — Duration: ${proposal.duration}\nFounder Sir, reply YES or NO.`
+      response: `🎯 CTO: Spawning: ${proposal.name} — Reason: ${proposal.reason} — Task: ${proposal.task} — Duration: ${proposal.duration}\nFounder, reply YES or NO.`
     };
   }
 
@@ -292,7 +292,7 @@ async function maybeRouteVisionDecision(normalized, options = {}) {
       command: 'vision_command_cancelled',
       details: { agent: 'cto', intent: 'vision_command_cancelled', visionCommand: cancelled },
       matchedRoute: 'vision_command_decision',
-      response: `🎯 CTO: cancelled sir. I will not execute: ${cancelled.plan.task}.`
+      response: `🎯 CTO: Cancelled, Founder. I will not execute: ${cancelled.plan.task}.`
     };
   }
 
@@ -331,7 +331,7 @@ function maybeRouteExecutionDecision(normalized) {
       command: 'execution_skip',
       details: { agent: 'cto', intent: 'execution_skip' },
       matchedRoute: 'execution_decision',
-      response: '🎯 CTO: Skipped sir. No file changed. I will keep reporting the issue until it is fixed or dismissed.'
+      response: '🎯 CTO: Skipped, Founder. No file changed. I will keep reporting the issue until it is fixed or dismissed.'
     };
   }
 
@@ -361,7 +361,7 @@ function compactPreview(value) {
 function formatExecutionResponse(result) {
   if (result.status === 'COMPLETED') {
     return [
-      '🎯 CTO: Fix executed sir.',
+      '🎯 CTO: Fix executed, Founder.',
       `Risk: ${result.riskLevel}`,
       `Changed: ${(result.files || []).join(', ')}`,
       `Before: ${compactPreview(result.before)}`,
@@ -371,7 +371,7 @@ function formatExecutionResponse(result) {
 
   if (result.status === 'ROLLED_BACK') {
     return [
-      '🎯 CTO: Tried once, rollback done sir.',
+      '🎯 CTO: Tried once. Rollback is complete, Founder.',
       `Risk: ${result.riskLevel}`,
       'Reason: validation failed.',
       'Next: I need founder approval before another attempt.'
@@ -380,7 +380,7 @@ function formatExecutionResponse(result) {
 
   if (result.status === 'STAGING_REQUIRED' || result.status === 'FOUNDER_APPROVAL_REQUIRED') {
     return [
-      '🎯 CTO: I cannot auto-fix this sir.',
+      '🎯 CTO: I cannot auto-fix this, Founder.',
       `Risk: ${result.riskLevel}`,
       'Options:',
       '1. Approve staging branch fix',
@@ -390,7 +390,7 @@ function formatExecutionResponse(result) {
   }
 
   return [
-    '🎯 CTO: No safe execution happened sir.',
+    '🎯 CTO: No safe execution happened, Founder.',
     `Status: ${result.status}`,
     `Reason: ${result.reason || result.message || 'No low-risk fix available.'}`
   ].join('\n');
@@ -401,7 +401,7 @@ function formatAiExecutionResponse(result) {
   if (result.status === 'STAGING_REQUIRED') return result.founderMessage;
   if (result.status === 'FOUNDER_APPROVAL_REQUIRED') {
     return [
-      '🎯 CTO: High-risk fix blocked sir.',
+      '🎯 CTO: High-risk fix blocked, Founder.',
       `Risk: ${result.riskLevel || 'HIGH'}`,
       'Options:',
       ...(result.options || ['Approve human-reviewed patch plan', 'Skip', 'Ask for safer diagnostic']).map((option, index) => `${index + 1}. ${option}`)

@@ -90,7 +90,7 @@ function buildAgentResponse(agent, intent, topic, state, memory, options = {}) {
 
 function clarificationResponse() {
   return [
-    'Sir, which worker should answer?',
+    'Founder, which worker should answer?',
     'Try: CTO summary, coder progress, reviewer risks, auditor dangerous issues.'
   ].join('\n');
 }

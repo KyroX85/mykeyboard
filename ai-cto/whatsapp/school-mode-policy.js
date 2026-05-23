@@ -81,7 +81,7 @@ function groupChatDailyUpdate(state = {}) {
   const health = state.healthScore == null ? 'unknown' : `${state.healthScore}/100`;
   const momentum = state.momentum || 'UNKNOWN';
   return [
-    '🎯 CTO: Starting daily scan da. Health ' + health + ', momentum ' + momentum + '.',
+    '🎯 CTO: Starting daily scan. Health ' + health + ', momentum ' + momentum + '.',
     `🔧 CODER: Checked build/state — ${state.sections && state.sections.completedFixes && state.sections.completedFixes.length ? 'work recorded' : 'no runtime fix recorded yet'}.`,
     `⚖️ REVIEWER: Top risks ${risks.length ? risks.length : 0}. ${risks[0] ? compact(risks[0], 58) : 'Nothing major listed.'}`,
     `🚨 AUDITOR: Immediate alert mode on — ${immediateAlerts(state).length} above-zero item(s).`,

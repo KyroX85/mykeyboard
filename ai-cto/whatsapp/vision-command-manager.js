@@ -161,7 +161,7 @@ function formatVisionPlan(entry) {
     ].join('\n');
   }
   return [
-    "🎯 CTO: Understood sir. Here's the plan—",
+    "🎯 CTO: Understood, Founder. Here's the plan:",
     `📋 Task: ${plan.task}`,
     `📁 Files: ${plan.files.join(', ') || 'not identified'}`,
     `⚠️ Risk: ${plan.risk}`,
@@ -174,7 +174,7 @@ function formatVisionApprovalResult(entry) {
   const result = entry.result || {};
   if (result.status === 'COMPLETED') {
     return [
-      '🔧 CODER: Done sir ✅',
+      '🔧 CODER: Done, Founder.',
       `Implemented: ${entry.plan.task}`,
       `Files changed: ${(result.file ? [result.file] : entry.plan.files).join(', ')}`,
       `Lines changed: ${(result.diff && result.diff.linesChanged) || 'within 50-line limit'}`,
@@ -183,7 +183,7 @@ function formatVisionApprovalResult(entry) {
     ].join('\n');
   }
   return [
-    '🔧 CODER: Could not complete this safely sir.',
+    '🔧 CODER: Could not complete this safely, Founder.',
     `Result: ${result.status || entry.outcome}`,
     `Reason: ${result.reason || result.error || 'Execution blocked by guardrails.'}`
   ].join('\n');

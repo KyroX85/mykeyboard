@@ -78,7 +78,7 @@ const coderReply = buildNaturalResponse({
 });
 
 assert(coderReply.startsWith('🔧 CODER'));
-assert(coderReply.includes('Sollunga sir') || coderReply.includes('Sir'));
+assert(coderReply.includes('Founder'));
 assert(coderReply.includes('Attempted:'));
 assert(coderReply.includes('Blocked:'));
 assert(coderReply.includes('Risk:'));
@@ -162,7 +162,7 @@ const docOnlyReply = buildNaturalResponse({
     priorMemory: {}
   })
 });
-assert(docOnlyReply.includes('Sir, mostly maintenance today. No major typing improvement yet'));
+assert(docOnlyReply.includes('Founder, mostly maintenance today. No major typing improvement yet'));
 assert(docOnlyReply.includes('Risk: low operational impact'));
 assert(docOnlyReply.split('\n').length <= 5);
 
