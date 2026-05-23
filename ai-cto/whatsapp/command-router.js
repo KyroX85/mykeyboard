@@ -11,6 +11,8 @@ const {
 } = require('./specialist-agent-manager');
 const { runFreshScan, formatFreshScanResponse } = require('./live-scan-runner');
 const { executeFirstFixableIssue } = require('../scripts/execution-engine');
+const { executeAiBridge } = require('../scripts/ai-execution-bridge');
+const { maybeGenerateAiWhatsAppResponse } = require('./ai-whatsapp-responder');
 
 const COMMAND_ALIASES = new Map([
   ['status', 'status'],
@@ -226,6 +228,42 @@ function routeMessage(message, state, memory = {}) {
   };
 }
 
+async function routeMessageWithAi(message, state, memory = {}, options = {}) {
+  const normalized = normalizeMessage(message);
+  if (normalized === 'fix now') {
+    const result = await executeAiBridge({
+      root: options.root,
+      client: options.client,
+      commit: options.commit,
+      push: options.push
+    });
+    return {
+      command: 'ai_execution_fix_now',
+      details: { agent: 'cto', intent: 'ai_execution_fix_now', result },
+      matchedRoute: 'ai_execution_bridge',
+      response: formatAiExecutionResponse(result),
+      usedAi: result.status !== 'SKIPPED'
+    };
+  }
+
+  const routed = routeMessage(message, state, memory);
+  const ai = await maybeGenerateAiWhatsAppResponse({
+    founderMessage: message,
+    routed,
+    fallbackResponse: routed.response,
+    state,
+    memory,
+    client: options.client
+  });
+  return {
+    ...routed,
+    response: ai.response,
+    usedAi: ai.usedAi,
+    aiModel: ai.model || null,
+    aiReason: ai.reason || null
+  };
+}
+
 function maybeRouteExecutionDecision(normalized) {
   if (normalized === 'skip') {
     return {
@@ -297,6 +335,25 @@ function formatExecutionResponse(result) {
   ].join('\n');
 }
 
+function formatAiExecutionResponse(result) {
+  if (result.report) return result.report;
+  if (result.status === 'STAGING_REQUIRED') return result.founderMessage;
+  if (result.status === 'FOUNDER_APPROVAL_REQUIRED') {
+    return [
+      '🎯 CTO: High-risk fix blocked sir.',
+      `Risk: ${result.riskLevel || 'HIGH'}`,
+      'Options:',
+      ...(result.options || ['Approve human-reviewed patch plan', 'Skip', 'Ask for safer diagnostic']).map((option, index) => `${index + 1}. ${option}`)
+    ].join('\n');
+  }
+  return [
+    '🔧 CODER: AI execution bridge did not apply a fix.',
+    '🧠 Brain used: NVIDIA NIM bridge',
+    `❌ Result: ${result.status}`,
+    `Reason: ${result.reason || result.error || 'No safe fix available.'}`
+  ].join('\n');
+}
+
 function maybeRouteSpawnDecision(normalized) {
   if (!['yes', 'y', 'no', 'n'].includes(normalized)) return null;
   const spawnState = readSpawnState();
@@ -342,6 +399,7 @@ function shouldUseGeneralFallback(normalized) {
 
 module.exports = {
   routeMessage,
+  routeMessageWithAi,
   resolveCommand,
   normalizeMessage,
   shouldUseGeneralFallback

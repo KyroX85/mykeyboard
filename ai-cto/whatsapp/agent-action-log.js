@@ -18,7 +18,7 @@ function readActionLog() {
   }
 }
 
-function logAgentAction({ agentName, actionTaken, reason, riskLevel = 'LOW', outcome = 'RECORDED' }) {
+function logAgentAction({ agentName, actionTaken, reason, riskLevel = 'LOW', outcome = 'RECORDED', ...metadata }) {
   const current = readActionLog();
   const entry = {
     timestamp: new Date().toISOString(),
@@ -26,7 +26,8 @@ function logAgentAction({ agentName, actionTaken, reason, riskLevel = 'LOW', out
     actionTaken: actionTaken || 'unspecified action',
     reason: reason || 'No reason recorded.',
     riskLevel: String(riskLevel || 'LOW').toUpperCase(),
-    outcome: outcome || 'RECORDED'
+    outcome: outcome || 'RECORDED',
+    ...metadata
   };
   const next = {
     version: '1.0',

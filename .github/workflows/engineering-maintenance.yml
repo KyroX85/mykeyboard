@@ -58,6 +58,15 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Run NVIDIA AI Execution Bridge
+        if: always()
+        run: node ai-cto/scripts/ai-execution-bridge.js --commit
+        env:
+          NVIDIA_DEEPSEEK_API_KEY: ${{ secrets.NVIDIA_DEEPSEEK_API_KEY }}
+          NVIDIA_LLAMA_API_KEY: ${{ secrets.NVIDIA_LLAMA_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+
       - name: Prepare Founder Email Report
         if: always()
         run: |

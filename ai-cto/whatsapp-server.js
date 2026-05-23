@@ -1,6 +1,6 @@
 const crypto = require('crypto');
 const express = require('express');
-const { routeMessage } = require('./whatsapp/command-router');
+const { routeMessageWithAi } = require('./whatsapp/command-router');
 const { loadEngineeringState } = require('./whatsapp/state-reader');
 const { updateMemory, readConversationMemory, updateConversationMemory } = require('./whatsapp/memory-store');
 const { logWebhookEvent } = require('./whatsapp/webhook-log');
@@ -154,7 +154,7 @@ function createApp() {
     });
   });
 
-  app.post('/twilio/whatsapp', (req, res) => {
+  app.post('/twilio/whatsapp', async (req, res) => {
     const startedAt = Date.now();
     const id = requestId();
     const incoming = extractTwilioBody(req);
@@ -207,7 +207,10 @@ function createApp() {
       const state = loadEngineeringState();
       state.workflowFreshness = workflowFreshness(state);
       const memory = readConversationMemory();
-      const routed = routeMessage(body, state, memory);
+      const routed = await routeMessageWithAi(body, state, memory, {
+        commit: process.env.CTO_AI_EXECUTION_COMMIT === 'true',
+        push: process.env.CTO_AI_EXECUTION_PUSH === 'true'
+      });
       const cooldownKey = routed.command === 'agent'
         ? `agent:${routed.agent}:${routed.intent}`
         : routed.command;
