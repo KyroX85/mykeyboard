@@ -201,6 +201,32 @@ function commitFix(root, files, message) {
   return git(root, ['commit', '-m', message]);
 }
 
+function diffWithinHardLimits(root, limits = {}) {
+  const maxFiles = limits.maxFiles || 3;
+  const maxLines = limits.maxLines || 50;
+  let output = '';
+  try {
+    output = git(root, ['diff', '--numstat']);
+  } catch {
+    output = '';
+  }
+  const rows = output.split(/\r?\n/).filter(Boolean);
+  const filesChanged = rows.length;
+  const linesChanged = rows.reduce((total, row) => {
+    const parts = row.split(/\s+/);
+    const added = Number(parts[0]);
+    const deleted = Number(parts[1]);
+    return total + (Number.isFinite(added) ? added : 0) + (Number.isFinite(deleted) ? deleted : 0);
+  }, 0);
+  if (filesChanged > maxFiles) {
+    return { allowed: false, filesChanged, linesChanged, reason: `Diff touches more than ${maxFiles} files.` };
+  }
+  if (linesChanged > maxLines) {
+    return { allowed: false, filesChanged, linesChanged, reason: `Diff changes more than ${maxLines} lines.` };
+  }
+  return { allowed: true, filesChanged, linesChanged, reason: 'Diff within hard limits.' };
+}
+
 async function executeAiBridge(options = {}) {
   const root = path.resolve(options.root || process.cwd());
   const now = options.now || new Date();
@@ -253,6 +279,27 @@ async function executeAiBridge(options = {}) {
   }
 
   fs.writeFileSync(target, after);
+  const diffCheck = diffWithinHardLimits(root);
+  if (!diffCheck.allowed) {
+    fs.writeFileSync(target, before);
+    appendActionLog(root, {
+      agentName: 'Reviewer',
+      actionTaken: `blocked AI fix for ${file}`,
+      reason: diffCheck.reason,
+      riskLevel: 'HIGH',
+      outcome: 'WAITING_FOR_FOUNDER_APPROVAL',
+      modelUsed: MODEL_ASSIGNMENT.deepseek.model,
+      tokensConsumed: generated.usage.total_tokens || 0
+    });
+    return {
+      status: 'FOUNDER_APPROVAL_REQUIRED',
+      riskLevel: 'HIGH',
+      file,
+      reason: diffCheck.reason,
+      diff: diffCheck,
+      founderMessage: `⚖️ REVIEWER: AI fix blocked sir.\nReason: ${diffCheck.reason}\nFiles: ${diffCheck.filesChanged}, Lines: ${diffCheck.linesChanged}\nReply YES only if you want a bigger reviewed patch.`
+    };
+  }
   try {
     runValidation(root, file, options.validationCommand);
   } catch (error) {
@@ -324,5 +371,6 @@ module.exports = {
   MAX_LLAMA_CALLS_PER_DAY,
   buildLlamaRiskPrompt,
   buildDeepSeekFixPrompt,
+  diffWithinHardLimits,
   executeAiBridge
 };

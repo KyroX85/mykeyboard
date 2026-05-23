@@ -13,6 +13,15 @@ const { runFreshScan, formatFreshScanResponse } = require('./live-scan-runner');
 const { executeFirstFixableIssue } = require('../scripts/execution-engine');
 const { executeAiBridge } = require('../scripts/ai-execution-bridge');
 const { maybeGenerateAiWhatsAppResponse } = require('./ai-whatsapp-responder');
+const {
+  readVisionCommandState,
+  classifyVisionMessage,
+  createVisionPlan,
+  cancelPendingVisionCommand,
+  approvePendingVisionCommand,
+  formatVisionPlan,
+  formatVisionApprovalResult
+} = require('./vision-command-manager');
 
 const COMMAND_ALIASES = new Map([
   ['status', 'status'],
@@ -230,6 +239,9 @@ function routeMessage(message, state, memory = {}) {
 
 async function routeMessageWithAi(message, state, memory = {}, options = {}) {
   const normalized = normalizeMessage(message);
+  const visionDecision = await maybeRouteVisionDecision(normalized, options);
+  if (visionDecision) return visionDecision;
+
   if (normalized === 'fix now') {
     const result = await executeAiBridge({
       root: options.root,
@@ -247,6 +259,11 @@ async function routeMessageWithAi(message, state, memory = {}, options = {}) {
   }
 
   const routed = routeMessage(message, state, memory);
+  if (routed.matchedRoute === 'safe_low_confidence_fallback' || routed.matchedRoute === 'conversational_fallback') {
+    const vision = await maybeCreateVisionCommand(message, state, memory, options);
+    if (vision) return vision;
+  }
+
   const ai = await maybeGenerateAiWhatsAppResponse({
     founderMessage: message,
     routed,
@@ -261,6 +278,50 @@ async function routeMessageWithAi(message, state, memory = {}, options = {}) {
     usedAi: ai.usedAi,
     aiModel: ai.model || null,
     aiReason: ai.reason || null
+  };
+}
+
+async function maybeRouteVisionDecision(normalized, options = {}) {
+  if (!['yes', 'y', 'no', 'n'].includes(normalized)) return null;
+  const state = readVisionCommandState();
+  if (!state.pending) return null;
+
+  if (normalized === 'no' || normalized === 'n') {
+    const cancelled = cancelPendingVisionCommand();
+    return {
+      command: 'vision_command_cancelled',
+      details: { agent: 'cto', intent: 'vision_command_cancelled', visionCommand: cancelled },
+      matchedRoute: 'vision_command_decision',
+      response: `🎯 CTO: cancelled sir. I will not execute: ${cancelled.plan.task}.`
+    };
+  }
+
+  const completed = await approvePendingVisionCommand({
+    root: options.root,
+    client: options.client,
+    commit: options.commit,
+    push: options.push
+  });
+  return {
+    command: 'vision_command_approved',
+    details: { agent: 'cto', intent: 'vision_command_approved', visionCommand: completed },
+    matchedRoute: 'vision_command_decision',
+    response: formatVisionApprovalResult(completed),
+    usedAi: true
+  };
+}
+
+async function maybeCreateVisionCommand(message, state, memory, options = {}) {
+  const client = options.client;
+  const classification = await classifyVisionMessage({ message, state, memory, client });
+  if (classification.type !== 'VISION_COMMAND') return null;
+  const entry = await createVisionPlan({ message, state, memory, client });
+  return {
+    command: 'vision_command_pending',
+    details: { agent: 'cto', intent: 'vision_command_pending', visionCommand: entry },
+    matchedRoute: 'vision_command_plan',
+    response: formatVisionPlan(entry),
+    usedAi: true
   };
 }
 

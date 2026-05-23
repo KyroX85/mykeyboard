@@ -1,5 +1,18 @@
 const { logAgentAction } = require('./agent-action-log');
 
+const STRICT_GUARDRAIL_PROMPT = `You are working on Aritenis AI — an Android keyboard with emotional AI for Indian teenagers.
+Your ONLY job is to fix or implement exactly what the founder describes.
+Do NOT suggest new features outside the task.
+Do NOT refactor working code unnecessarily.
+Do NOT change anything outside the specific task.
+Do NOT touch these files ever:
+- google-services.json
+- any file in /privacy/ folder
+- DatabaseHelper.kt
+- any file with 'secret' or 'key' in name
+Stability over improvement. Always.
+If the task requires touching more than 3 files stop immediately and alert the founder.`;
+
 const ENDPOINT = 'https://integrate.api.nvidia.com/v1';
 const MODEL_ASSIGNMENT = {
   deepseek: {
@@ -45,11 +58,12 @@ function createNvidiaClient(options = {}) {
 
     const startedAt = Date.now();
     try {
+      const guardedMessages = withGuardrailSystemPrompt(messages);
       const response = await transport({
         endpoint,
         apiKey,
         model: assignment.model,
-        messages,
+        messages: guardedMessages,
         temperature: chatOptions.temperature == null ? 0.2 : chatOptions.temperature,
         maxTokens: chatOptions.maxTokens || 900
       });
@@ -86,6 +100,27 @@ function createNvidiaClient(options = {}) {
   }
 
   return { available, chat };
+}
+
+function withGuardrailSystemPrompt(messages) {
+  const list = Array.isArray(messages) ? messages : [];
+  const first = list[0];
+  if (first && first.role === 'system') {
+    const content = String(first.content || '');
+    return [
+      {
+        ...first,
+        content: content.startsWith(STRICT_GUARDRAIL_PROMPT)
+          ? content
+          : `${STRICT_GUARDRAIL_PROMPT}\n\n${content}`
+      },
+      ...list.slice(1)
+    ];
+  }
+  return [
+    { role: 'system', content: STRICT_GUARDRAIL_PROMPT },
+    ...list
+  ];
 }
 
 async function defaultTransport({ endpoint, apiKey, model, messages, temperature, maxTokens }) {
@@ -131,6 +166,8 @@ function parseRiskLevel(text) {
 module.exports = {
   ENDPOINT,
   MODEL_ASSIGNMENT,
+  STRICT_GUARDRAIL_PROMPT,
   createNvidiaClient,
+  withGuardrailSystemPrompt,
   parseRiskLevel
 };

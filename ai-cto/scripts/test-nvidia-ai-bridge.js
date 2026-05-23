@@ -7,7 +7,8 @@ const { execFileSync } = require('child_process');
 const {
   MODEL_ASSIGNMENT,
   createNvidiaClient,
-  parseRiskLevel
+  parseRiskLevel,
+  STRICT_GUARDRAIL_PROMPT
 } = require('../whatsapp/nvidia-nim-client');
 const {
   buildAiWhatsAppPrompt,
@@ -16,14 +17,20 @@ const {
 const {
   executeAiBridge,
   buildDeepSeekFixPrompt,
-  buildLlamaRiskPrompt
+  buildLlamaRiskPrompt,
+  diffWithinHardLimits
 } = require('./ai-execution-bridge');
 const { routeMessageWithAi } = require('../whatsapp/command-router');
 const { ACTION_LOG_FILE } = require('../whatsapp/agent-action-log');
 const { AGENT_BRAIN_DIR } = require('../whatsapp/main-agent-brain-manager');
+const {
+  VISION_COMMAND_LOG_FILE,
+  readVisionCommandState
+} = require('../whatsapp/vision-command-manager');
 
 async function run() {
   const actionLogBackup = fs.existsSync(ACTION_LOG_FILE) ? fs.readFileSync(ACTION_LOG_FILE, 'utf8') : null;
+  const visionLogBackup = fs.existsSync(VISION_COMMAND_LOG_FILE) ? fs.readFileSync(VISION_COMMAND_LOG_FILE, 'utf8') : null;
   const brainBackup = fs.existsSync(AGENT_BRAIN_DIR)
     ? new Map(fs.readdirSync(AGENT_BRAIN_DIR).map((file) => [file, fs.readFileSync(path.join(AGENT_BRAIN_DIR, file), 'utf8')]))
     : new Map();
@@ -31,9 +38,31 @@ async function run() {
   const calls = [];
   const mockTransport = async (request) => {
     calls.push(request);
+    assert.strictEqual(request.messages[0].role, 'system');
+    assert(request.messages[0].content.startsWith(STRICT_GUARDRAIL_PROMPT));
     if (request.model === MODEL_ASSIGNMENT.llama.model) {
+      const joined = request.messages.map((message) => message.content).join('\n');
+      if (joined.includes('Classify this founder WhatsApp message')) {
+        return {
+          choices: [{ message: { content: 'VISION_COMMAND' } }],
+          usage: { total_tokens: 21 }
+        };
+      }
+      if (joined.includes('Break this founder vision command')) {
+        return {
+          choices: [{ message: { content: JSON.stringify({
+            task: 'Improve keyboard key responsiveness safely',
+            files: ['README.md'],
+            changes: ['Document responsiveness validation plan only'],
+            risk: 'LOW',
+            estimatedLines: 4,
+            roadmapConflict: false
+          }) } }],
+          usage: { total_tokens: 55 }
+        };
+      }
       return {
-        choices: [{ message: { content: request.messages[0].content.includes('LOW, MEDIUM or HIGH') ? 'LOW risk' : '🎯 CTO: Yes sir, team ready da.' } }],
+        choices: [{ message: { content: joined.includes('LOW, MEDIUM or HIGH') ? 'LOW risk' : '🎯 CTO: Yes sir, team ready da.' } }],
         usage: { total_tokens: 42 }
       };
     }
@@ -55,6 +84,7 @@ async function run() {
   assert.strictEqual(deepseek.model, MODEL_ASSIGNMENT.deepseek.model);
   assert.strictEqual(calls[0].apiKey, 'llama-test');
   assert.strictEqual(calls[1].apiKey, 'deepseek-test');
+  assert(calls[0].messages[0].content.startsWith(STRICT_GUARDRAIL_PROMPT));
   assert.strictEqual(parseRiskLevel('This is medium risk.'), 'MEDIUM');
   assert.strictEqual(parseRiskLevel('HIGH because privacy'), 'HIGH');
   assert.strictEqual(parseRiskLevel('safe low cleanup'), 'LOW');
@@ -130,6 +160,8 @@ async function run() {
     });
     assert(fixPrompt.includes('Fix only this specific issue'));
     assert(fixPrompt.includes('Return only the complete fixed file content'));
+    const diffCheck = diffWithinHardLimits(tempRoot, { maxFiles: 3, maxLines: 50 });
+    assert.strictEqual(diffCheck.allowed, true);
 
     const bridge = await executeAiBridge({
       root: tempRoot,
@@ -144,9 +176,35 @@ async function run() {
     assert(fs.readFileSync(path.join(tempRoot, 'README.md'), 'utf8').includes('fixed file content'));
     const log = JSON.parse(fs.readFileSync(path.join(tempRoot, 'ai-cto', 'agent-action-log.json'), 'utf8'));
     assert(log.actions.some((entry) => entry.modelUsed === MODEL_ASSIGNMENT.deepseek.model));
+
+    fs.writeFileSync(path.join(tempRoot, 'README.md'), Array.from({ length: 60 }, (_, index) => `line ${index}`).join('\n'));
+    const blockedDiff = diffWithinHardLimits(tempRoot, { maxFiles: 3, maxLines: 50 });
+    assert.strictEqual(blockedDiff.allowed, false);
+    assert(blockedDiff.reason.includes('50 lines'));
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }
+
+  const visionPlan = await routeMessageWithAi('make keyboard keys feel more responsive', {
+    healthScore: 80,
+    momentum: 'MOVING',
+    sections: { risks: [], unresolved: [], approvals: [] },
+    summary: { topRisk: 'none' }
+  }, { recentMessages: [] }, { client });
+  assert.strictEqual(visionPlan.command, 'vision_command_pending');
+  assert(visionPlan.response.includes('Reply YES to execute or NO to cancel'));
+  const visionState = readVisionCommandState();
+  assert(visionState.pending);
+  assert.strictEqual(visionState.pending.command, 'make keyboard keys feel more responsive');
+
+  const visionNo = await routeMessageWithAi('NO', {
+    healthScore: 80,
+    momentum: 'MOVING',
+    sections: { risks: [], unresolved: [], approvals: [] },
+    summary: { topRisk: 'none' }
+  }, { recentMessages: [] }, { client, commit: false });
+  assert.strictEqual(visionNo.command, 'vision_command_cancelled');
+  assert(visionNo.response.includes('cancelled'));
   } finally {
     if (actionLogBackup == null) {
       if (fs.existsSync(ACTION_LOG_FILE)) fs.unlinkSync(ACTION_LOG_FILE);
@@ -159,6 +217,11 @@ async function run() {
         if (brainBackup.has(file)) fs.writeFileSync(full, brainBackup.get(file));
         else fs.unlinkSync(full);
       }
+    }
+    if (visionLogBackup == null) {
+      if (fs.existsSync(VISION_COMMAND_LOG_FILE)) fs.unlinkSync(VISION_COMMAND_LOG_FILE);
+    } else {
+      fs.writeFileSync(VISION_COMMAND_LOG_FILE, visionLogBackup);
     }
   }
 }
