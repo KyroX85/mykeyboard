@@ -85,7 +85,7 @@ try {
     validation: [],
     summary: { nextPriority: 'none', topRisk: 'none' }
   }).response;
-  assert(scanResponse.includes('Fresh live scan done'));
+  assert(scanResponse.includes('Fresh live scan is complete'));
   assert(scanResponse.includes('State updated from real repo files'));
   assert(scanResponse.includes('live_secret_probe.js'));
 

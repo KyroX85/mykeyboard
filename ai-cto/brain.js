@@ -171,7 +171,7 @@ function deepCodeScan(dir, findings = []) {
       }));
     }
 
-    if (codeWithoutComments.includes('try {') && !/\bcatch\b/.test(codeWithoutComments)) {
+    if (/\btry\s*\{/.test(codeWithoutComments) && !/\b(?:catch|finally)\b/.test(codeWithoutComments)) {
       findings.push(normalizeIssue({
         type: 'ARCHITECTURE',
         impact: 'HIGH',
