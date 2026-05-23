@@ -6,7 +6,10 @@ const { executeAiBridge } = require('../scripts/ai-execution-bridge');
 const {
   readFounderMemory,
   buildFounderMemoryContext,
-  rememberVisionCommand
+  rememberVisionCommand,
+  setPendingVisionCommand,
+  readPendingVisionCommand,
+  clearPendingVisionCommand
 } = require('./founder-memory');
 
 const ROOT = path.resolve(__dirname, '..', '..');
@@ -14,15 +17,17 @@ const VISION_COMMAND_LOG_FILE = path.join(ROOT, 'ai-cto', 'vision-commands-log.j
 
 function readVisionCommandState() {
   try {
-    if (!fs.existsSync(VISION_COMMAND_LOG_FILE)) return { version: '1.0', pending: null, commands: [] };
+    if (!fs.existsSync(VISION_COMMAND_LOG_FILE)) {
+      return { version: '1.0', pending: readPendingVisionCommand(), commands: [] };
+    }
     const parsed = JSON.parse(fs.readFileSync(VISION_COMMAND_LOG_FILE, 'utf8'));
     return {
       version: '1.0',
-      pending: parsed.pending || null,
+      pending: parsed.pending || readPendingVisionCommand(),
       commands: Array.isArray(parsed.commands) ? parsed.commands : []
     };
   } catch {
-    return { version: '1.0', pending: null, commands: [] };
+    return { version: '1.0', pending: readPendingVisionCommand(), commands: [] };
   }
 }
 
@@ -34,6 +39,7 @@ function writeVisionCommandState(state) {
   };
   fs.mkdirSync(path.dirname(VISION_COMMAND_LOG_FILE), { recursive: true });
   fs.writeFileSync(VISION_COMMAND_LOG_FILE, JSON.stringify(next, null, 2));
+  if (next.pending) setPendingVisionCommand(next.pending);
   return next;
 }
 
@@ -113,6 +119,7 @@ async function createVisionPlan({ message, state, memory, client = createNvidiaC
     approval: 'PENDING',
     outcome: 'WAITING_FOR_FOUNDER'
   });
+  setPendingVisionCommand(entry);
   return entry;
 }
 
@@ -129,6 +136,7 @@ function cancelPendingVisionCommand() {
     pending: null,
     commands: state.commands.map((item) => item.id === cancelled.id ? cancelled : item)
   });
+  clearPendingVisionCommand();
   rememberVisionCommand({
     command: cancelled.command,
     plan: cancelled.plan,
@@ -166,6 +174,8 @@ async function approvePendingVisionCommand({ root = process.cwd(), client = crea
     pending: null,
     commands: state.commands.map((item) => item.id === completed.id ? completed : item)
   });
+  clearPendingVisionCommand();
+  if (path.resolve(root) !== ROOT) clearPendingVisionCommand(root);
   rememberVisionCommand({
     root,
     command: completed.command,

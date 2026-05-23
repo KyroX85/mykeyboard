@@ -264,7 +264,8 @@ function createApp() {
       try {
         const memoryCommit = maybeCommitFounderMemory({
           push: process.env.CTO_AI_EXECUTION_PUSH !== 'false',
-          enabled: process.env.CTO_MEMORY_AUTO_COMMIT !== 'false'
+          enabled: process.env.CTO_MEMORY_AUTO_COMMIT !== 'false',
+          force: routed.command === 'vision_command_pending' || routed.command === 'vision_command_approved'
         });
         if (memoryCommit.committed) {
           console.log(`[whatsapp-cto] founder memory committed: ${memoryCommit.hash}`);

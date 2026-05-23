@@ -305,7 +305,19 @@ async function routeMessageWithAi(message, state, memory = {}, options = {}) {
 async function maybeRouteVisionDecision(normalized, options = {}) {
   if (!isVisionApproval(normalized) && !isVisionRejection(normalized)) return null;
   const state = readVisionCommandState();
-  if (!state.pending) return null;
+  if (!state.pending) {
+    return {
+      command: 'vision_command_missing',
+      details: { agent: 'cto', intent: 'vision_command_missing' },
+      matchedRoute: 'vision_command_decision_missing',
+      response: [
+        'CTO: I received the approval, Founder, but no pending vision command is stored.',
+        'Nothing was executed.',
+        'Please send the task again, and I will store it before asking for approval.'
+      ].join('\n'),
+      usedAi: false
+    };
+  }
 
   if (isVisionRejection(normalized)) {
     const cancelled = cancelPendingVisionCommand();

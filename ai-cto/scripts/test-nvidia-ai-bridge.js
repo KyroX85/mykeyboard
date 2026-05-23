@@ -27,7 +27,7 @@ const {
   VISION_COMMAND_LOG_FILE,
   readVisionCommandState
 } = require('../whatsapp/vision-command-manager');
-const { FOUNDER_MEMORY_FILE } = require('../whatsapp/founder-memory');
+const { FOUNDER_MEMORY_FILE, clearPendingVisionCommand } = require('../whatsapp/founder-memory');
 
 async function run() {
   const actionLogBackup = fs.existsSync(ACTION_LOG_FILE) ? fs.readFileSync(ACTION_LOG_FILE, 'utf8') : null;
@@ -155,6 +155,17 @@ async function run() {
   }, { recentMessages: [] }, { client });
   assert.strictEqual(routedAi.usedAi, true);
   assert(routedAi.response.includes('What would you like to prioritize'));
+
+  if (fs.existsSync(VISION_COMMAND_LOG_FILE)) fs.unlinkSync(VISION_COMMAND_LOG_FILE);
+  clearPendingVisionCommand();
+  const noPendingApproval = await routeMessageWithAi('YES', {
+    healthScore: 80,
+    momentum: 'MOVING',
+    sections: { risks: [], unresolved: [], approvals: [] },
+    summary: { topRisk: 'none' }
+  }, { recentMessages: [] }, { client });
+  assert.strictEqual(noPendingApproval.command, 'vision_command_missing');
+  assert(noPendingApproval.response.includes('no pending vision command'));
 
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'cto-ai-bridge-'));
   try {

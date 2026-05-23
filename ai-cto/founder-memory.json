@@ -14,6 +14,7 @@
     "core_moat": "passive behavioral keyboard data"
   },
   "decision_history": [],
+  "pending_vision_command": null,
   "vision_commands_history": [],
   "milestones": [],
   "learned_preferences": [],

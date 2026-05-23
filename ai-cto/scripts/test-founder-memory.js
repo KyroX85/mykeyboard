@@ -9,6 +9,9 @@ const {
   writeFounderMemory,
   rememberFounderInteraction,
   rememberVisionCommand,
+  setPendingVisionCommand,
+  readPendingVisionCommand,
+  clearPendingVisionCommand,
   buildFounderMemoryContext,
   formatFounderMemorySummary,
   maybeCommitFounderMemory
@@ -50,6 +53,17 @@ try {
   assert.strictEqual(context.recent_decisions.length, 1);
   assert.strictEqual(context.founder_preferences.language, 'English only, no Tamil slang');
   assert(formatFounderMemorySummary(memory).includes('create a test file called Hello.kt'));
+
+  setPendingVisionCommand({
+    id: 'vision-test',
+    command: 'create a test file called Hello.kt',
+    plan: { task: 'Create Hello.kt', files: ['app/src/main/java/Hello.kt'] },
+    approval: 'PENDING',
+    outcome: 'WAITING_FOR_FOUNDER'
+  }, tempRoot);
+  assert.strictEqual(readPendingVisionCommand(tempRoot).command, 'create a test file called Hello.kt');
+  clearPendingVisionCommand(tempRoot);
+  assert.strictEqual(readPendingVisionCommand(tempRoot), null);
 
   const routed = routeMessage('memory', {
     healthScore: 80,

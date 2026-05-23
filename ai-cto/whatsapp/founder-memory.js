@@ -24,6 +24,7 @@ const DEFAULT_FOUNDER_MEMORY = {
     core_moat: 'passive behavioral keyboard data'
   },
   decision_history: [],
+  pending_vision_command: null,
   vision_commands_history: [],
   milestones: [],
   learned_preferences: [],
@@ -85,6 +86,26 @@ function rememberVisionCommand({ root = ROOT, command, plan, approval, outcome, 
   }, root);
 }
 
+function setPendingVisionCommand(entry, root = ROOT) {
+  const current = readFounderMemory(root);
+  return writeFounderMemory({
+    ...current,
+    pending_vision_command: entry || null
+  }, root);
+}
+
+function readPendingVisionCommand(root = ROOT) {
+  return readFounderMemory(root).pending_vision_command || null;
+}
+
+function clearPendingVisionCommand(root = ROOT) {
+  const current = readFounderMemory(root);
+  return writeFounderMemory({
+    ...current,
+    pending_vision_command: null
+  }, root);
+}
+
 function summarizeFounderWeek(root = ROOT, now = new Date()) {
   const current = readFounderMemory(root);
   const since = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -123,12 +144,12 @@ function formatFounderMemorySummary(memory = readFounderMemory()) {
   ].join('\n');
 }
 
-function maybeCommitFounderMemory({ root = ROOT, push = false, enabled = true, now = new Date() } = {}) {
+function maybeCommitFounderMemory({ root = ROOT, push = false, enabled = true, force = false, now = new Date() } = {}) {
   if (!enabled) return { committed: false, reason: 'memory auto-commit disabled' };
   const file = path.join('ai-cto', 'founder-memory.json');
   if (!fs.existsSync(path.join(root, file))) return { committed: false, reason: 'memory file missing' };
   if (!hasMemoryChanges(root, file)) return { committed: false, reason: 'no memory changes' };
-  if (!memoryCommitDue(root, file, now)) return { committed: false, reason: 'last memory commit is under 24h old' };
+  if (!force && !memoryCommitDue(root, file, now)) return { committed: false, reason: 'last memory commit is under 24h old' };
   ensureGitIdentity(root);
   git(root, ['add', file]);
   const output = git(root, ['commit', '-m', 'chore: persist founder memory']);
@@ -189,6 +210,7 @@ function normalizeFounderMemory(memory = {}) {
     founder_preferences: { ...DEFAULT_FOUNDER_MEMORY.founder_preferences, ...(memory.founder_preferences || {}) },
     product_context: { ...DEFAULT_FOUNDER_MEMORY.product_context, ...(memory.product_context || {}) },
     decision_history: array(memory.decision_history).slice(-MAX_DECISIONS),
+    pending_vision_command: memory.pending_vision_command || null,
     vision_commands_history: array(memory.vision_commands_history).slice(-MAX_VISION_COMMANDS),
     milestones: array(memory.milestones).slice(-MAX_SUMMARIES),
     learned_preferences: array(memory.learned_preferences).slice(-MAX_SUMMARIES),
@@ -224,6 +246,9 @@ module.exports = {
   writeFounderMemory,
   rememberFounderInteraction,
   rememberVisionCommand,
+  setPendingVisionCommand,
+  readPendingVisionCommand,
+  clearPendingVisionCommand,
   summarizeFounderWeek,
   buildFounderMemoryContext,
   formatFounderMemorySummary,
