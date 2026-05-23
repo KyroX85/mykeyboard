@@ -6,6 +6,11 @@ const { updateMemory, readConversationMemory, updateConversationMemory } = requi
 const { logWebhookEvent } = require('./whatsapp/webhook-log');
 const { createOperationalGuard } = require('./whatsapp/operational-guard');
 const { startupSelfCheck, workflowFreshness } = require('./whatsapp/diagnostics');
+const {
+  rememberFounderInteraction,
+  maybeCommitFounderMemory
+} = require('./whatsapp/founder-memory');
+const { execFileSync } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
 const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || '';
@@ -14,6 +19,30 @@ const FOUNDER_WHATSAPP_NUMBER = normalizePhone(process.env.FOUNDER_WHATSAPP_NUMB
 const ALLOW_UNVERIFIED_WHATSAPP = process.env.ALLOW_UNVERIFIED_WHATSAPP === 'true';
 const STARTED_AT = new Date().toISOString();
 const guard = createOperationalGuard();
+
+function startupExecutionDiagnostics(root = process.cwd()) {
+  const gitAvailable = (() => {
+    try {
+      return execFileSync('git', ['--version'], { cwd: root, stdio: 'pipe', encoding: 'utf8' }).trim();
+    } catch {
+      return 'missing';
+    }
+  })();
+  return {
+    githubToken: process.env.GITHUB_TOKEN ? 'present' : 'missing',
+    commit: process.env.CTO_AI_EXECUTION_COMMIT !== 'false',
+    push: process.env.CTO_AI_EXECUTION_PUSH !== 'false',
+    git: gitAvailable
+  };
+}
+
+function logStartupExecutionDiagnostics() {
+  const diagnostics = startupExecutionDiagnostics();
+  console.log(`[whatsapp-cto] GITHUB_TOKEN: ${diagnostics.githubToken}`);
+  console.log(`[whatsapp-cto] CTO_AI_EXECUTION_COMMIT: ${diagnostics.commit}`);
+  console.log(`[whatsapp-cto] CTO_AI_EXECUTION_PUSH: ${diagnostics.push}`);
+  console.log(`[whatsapp-cto] GIT: ${diagnostics.git}`);
+}
 
 function normalizePhone(value) {
   return String(value || '').replace(/^whatsapp:/i, '').replace(/\s+/g, '');
@@ -165,7 +194,7 @@ function createApp() {
     const configError = assertProductionConfig();
     if (configError) {
       logWebhookEvent({ type: 'config_error', requestId: id, from, body, status: 503, error: configError });
-      res.status(503).type('text/xml').send(twiml(`Founder Sir, CTO WhatsApp is not configured: ${configError}`));
+      res.status(503).type('text/xml').send(twiml(`Founder, CTO WhatsApp is not configured: ${configError}`));
       return;
     }
 
@@ -192,14 +221,14 @@ function createApp() {
     const replay = guard.checkReplay(messageSid);
     if (replay.replayed) {
       logWebhookEvent({ type: 'replay_rejected', requestId: id, from, body, status: 409, meta: { messageSid } });
-      res.status(409).type('text/xml').send(twiml('Founder Sir, duplicate webhook delivery ignored.'));
+      res.status(409).type('text/xml').send(twiml('Founder, duplicate webhook delivery ignored.'));
       return;
     }
 
     const rate = guard.checkRateLimit(from);
     if (rate.limited) {
       logWebhookEvent({ type: 'rate_limited', requestId: id, from, body, status: 429, meta: { count: rate.count } });
-      res.status(429).type('text/xml').send(twiml('Founder Sir, rate limit reached. Try again shortly.'));
+      res.status(429).type('text/xml').send(twiml('Founder, rate limit reached. Try again shortly.'));
       return;
     }
 
@@ -217,13 +246,31 @@ function createApp() {
       const cooldown = guard.checkCommandCooldown(from, cooldownKey);
       if (cooldown.coolingDown) {
         logWebhookEvent({ type: 'command_cooldown', requestId: id, from, body, command: routed.command, status: 429 });
-        res.status(429).type('text/xml').send(twiml('Founder Sir, command cooldown is active. Try again in a few seconds.'));
+        res.status(429).type('text/xml').send(twiml('Founder, command cooldown is active. Try again in a few seconds.'));
         return;
       }
       if (routed.command === 'agent') {
         updateConversationMemory(routed.details, state);
       } else {
         updateMemory(routed.command, state, routed.details);
+      }
+      rememberFounderInteraction({
+        founderMessage: body,
+        agentDecision: routed.command,
+        executed: /execution|approved/i.test(routed.command),
+        outcome: routed.response,
+        commitHash: routed.details && routed.details.visionCommand && routed.details.visionCommand.commitHash
+      });
+      try {
+        const memoryCommit = maybeCommitFounderMemory({
+          push: process.env.CTO_AI_EXECUTION_PUSH !== 'false',
+          enabled: process.env.CTO_MEMORY_AUTO_COMMIT !== 'false'
+        });
+        if (memoryCommit.committed) {
+          console.log(`[whatsapp-cto] founder memory committed: ${memoryCommit.hash}`);
+        }
+      } catch (memoryError) {
+        console.log(`[whatsapp-cto] founder memory commit skipped: ${memoryError.message}`);
       }
       logWebhookEvent({
         type: 'reply',
@@ -252,7 +299,7 @@ function createApp() {
         durationMs: Date.now() - startedAt,
         error: error.message
       });
-      res.status(200).type('text/xml').send(twiml('Founder Sir, CTO status is temporarily unavailable. The reporting worker is still independent and will continue on schedule.'));
+      res.status(200).type('text/xml').send(twiml('Founder, CTO status is temporarily unavailable. The reporting worker is still independent and will continue on schedule.'));
     }
   });
 
@@ -267,6 +314,7 @@ if (require.main === module) {
     founderNumber: FOUNDER_WHATSAPP_NUMBER
   });
   console.log(`[whatsapp-cto] startup self-check ok=${diagnostics.ok}`);
+  logStartupExecutionDiagnostics();
   createApp().listen(PORT, () => {
     console.log(`[whatsapp-cto] listening on port ${PORT}`);
   });
@@ -279,5 +327,6 @@ module.exports = {
   twimlMessages,
   chunkMessage,
   normalizePhone,
-  extractTwilioBody
+  extractTwilioBody,
+  startupExecutionDiagnostics
 };

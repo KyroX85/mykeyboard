@@ -1,0 +1,21 @@
+{
+  "founder_preferences": {
+    "tone": "professional English only",
+    "approval_style": "3 options for big decisions",
+    "report_format": "health + momentum + top 3 risks",
+    "language": "English only, no Tamil slang"
+  },
+  "product_context": {
+    "name": "Aritenis AI",
+    "vision": "emotional AI keyboard for Indian teenagers",
+    "current_phase": "Phase 1 - Stabilization",
+    "phase_start": "2026-06-04",
+    "target_users": "Indian teenagers",
+    "core_moat": "passive behavioral keyboard data"
+  },
+  "decision_history": [],
+  "vision_commands_history": [],
+  "milestones": [],
+  "learned_preferences": [],
+  "conversation_summaries": []
+}

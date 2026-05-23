@@ -2,6 +2,7 @@ const { schoolModeDigest, groupChatDailyUpdate } = require('./school-mode-policy
 const { readRoadmap } = require('./roadmap-reader');
 const { logAgentAction } = require('./agent-action-log');
 const { classifyRisk } = require('../scripts/execution-engine');
+const { readFounderMemory, formatFounderMemorySummary } = require('./founder-memory');
 
 function linesOrFallback(items, fallback) {
   if (!items || items.length === 0) return [fallback];
@@ -203,11 +204,14 @@ function generateResponse(command, state, memory = {}, details = {}) {
 
     case 'build_now':
       return [
-        'Founder Sir, OTA build requested.',
+        'Founder, OTA build requested.',
         'GitHub Actions will validate, build, and distribute only if safety gates pass.',
         'Install path: Firebase App Distribution notification.',
         'If no notification arrives, check the Build and Distribute APK workflow.'
       ].join('\n');
+
+    case 'memory':
+      return formatFounderMemorySummary(readFounderMemory());
 
     case 'focus':
       return [

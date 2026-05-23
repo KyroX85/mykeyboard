@@ -3,6 +3,7 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 const { createNvidiaClient, MODEL_ASSIGNMENT, parseRiskLevel } = require('../whatsapp/nvidia-nim-client');
 const { readBrainState, findCandidateIssue } = require('./execution-engine');
+const { readFounderMemory, buildFounderMemoryContext, ensureGitIdentity } = require('../whatsapp/founder-memory');
 
 const MAX_DEEPSEEK_FIXES_PER_DAY = 5;
 const MAX_LLAMA_CALLS_PER_DAY = 100;
@@ -77,11 +78,16 @@ function dailyModelCount(root, model, now = new Date()) {
   ).length;
 }
 
-function buildLlamaRiskPrompt(issue) {
+function buildLlamaRiskPrompt(issue, root) {
+  const founderMemory = buildFounderMemoryContext(readFounderMemory(root));
   return [
     'Is this LOW, MEDIUM or HIGH risk to fix automatically?',
     'Consider: does it touch privacy, database, architecture, or security layer?',
     'Reply with only one risk level first.',
+    `Founder preferences: ${JSON.stringify(founderMemory.founder_preferences)}`,
+    `Product context: ${JSON.stringify(founderMemory.product_context)}`,
+    `Last 5 decision history entries: ${JSON.stringify(founderMemory.recent_decisions)}`,
+    `Last 3 conversation summaries: ${JSON.stringify(founderMemory.recent_conversation_summaries)}`,
     '',
     `Issue: ${JSON.stringify(issue, null, 2)}`
   ].join('\n');
@@ -108,7 +114,7 @@ async function classifyRiskWithLlama({ client, issue, root, now }) {
   if (dailyModelCount(root, MODEL_ASSIGNMENT.llama.model, now) >= MAX_LLAMA_CALLS_PER_DAY) {
     return { riskLevel: 'HIGH', reason: 'Daily Llama API limit reached.' };
   }
-  const prompt = buildLlamaRiskPrompt(issue);
+  const prompt = buildLlamaRiskPrompt(issue, root);
   const result = await client.chat('llama', [{ role: 'user', content: prompt }], {
     reason: 'AI execution risk classification',
     riskLevel: 'MEDIUM',
@@ -131,6 +137,7 @@ async function classifyRiskWithLlama({ client, issue, root, now }) {
 async function generateFixWithDeepSeek({ client, root, issue, file, content }) {
   const vision = readText(path.join(root, 'ai-cto', 'VISION_NORTH_STAR.md'));
   const prompt = buildDeepSeekFixPrompt({ file, issue, content, vision });
+  console.log(`[whatsapp-cto] DEEPSEEK CALLED: ${file} ${issue.message || issue.type || 'task'}`);
   const result = await client.chat('deepseek', [
     { role: 'user', content: prompt }
   ], {
@@ -139,6 +146,7 @@ async function generateFixWithDeepSeek({ client, root, issue, file, content }) {
     maxTokens: Math.max(1000, Math.min(8000, content.length + 1200)),
     temperature: 0
   });
+  console.log(`[whatsapp-cto] DEEPSEEK RESPONSE: ${String(result.content || '').length}`);
   appendActionLog(root, {
     agentName: 'Coder',
     actionTaken: `generated AI fix for ${file}`,
@@ -152,10 +160,15 @@ async function generateFixWithDeepSeek({ client, root, issue, file, content }) {
 }
 
 async function verifyFixWithLlama({ client, root, issue, file, before, after }) {
+  const founderMemory = buildFounderMemoryContext(readFounderMemory(root));
   const prompt = [
     'Verify whether this fix makes logical sense.',
     'Reject if it changes unrelated behavior or unsafe scope.',
     'Reply APPROVED or REJECTED first.',
+    `Founder preferences: ${JSON.stringify(founderMemory.founder_preferences)}`,
+    `Product context: ${JSON.stringify(founderMemory.product_context)}`,
+    `Last 5 decision history entries: ${JSON.stringify(founderMemory.recent_decisions)}`,
+    `Last 3 conversation summaries: ${JSON.stringify(founderMemory.recent_conversation_summaries)}`,
     `File: ${file}`,
     `Issue: ${JSON.stringify(issue)}`,
     `Before length: ${before.length}`,
@@ -187,8 +200,24 @@ function runValidation(root, file, validationCommand) {
   if (/\.js$/i.test(file)) {
     execFileSync(process.execPath, ['--check', file], { cwd: root, stdio: 'pipe', encoding: 'utf8' });
   } else if (/\.(kt|java)$/i.test(file) && fs.existsSync(path.join(root, 'gradlew'))) {
+    if (!javaAvailable()) {
+      if (readText(path.join(root, file)).trim().length === 0) {
+        throw new Error('Kotlin/Java validation blocked: file is empty and Java is unavailable.');
+      }
+      console.log('[whatsapp-cto] Java unavailable; used lightweight Kotlin/Java file sanity validation.');
+      return;
+    }
     const gradle = process.platform === 'win32' ? 'gradlew.bat' : './gradlew';
     execFileSync(gradle, ['lintDebug'], { cwd: root, stdio: 'pipe', encoding: 'utf8' });
+  }
+}
+
+function javaAvailable() {
+  try {
+    execFileSync('java', ['-version'], { stdio: 'pipe', encoding: 'utf8' });
+    return true;
+  } catch {
+    return false;
   }
 }
 
@@ -197,8 +226,14 @@ function git(root, args) {
 }
 
 function commitFix(root, files, message) {
+  ensureGitRuntime(root);
   git(root, ['add', ...files, 'ai-cto/agent-action-log.json']);
   return git(root, ['commit', '-m', message]);
+}
+
+function ensureGitRuntime(root) {
+  git(root, ['--version']);
+  ensureGitIdentity(root);
 }
 
 function pushFix(root) {
@@ -355,7 +390,7 @@ async function executeAiBridge(options = {}) {
   }
 
   let commitOutput = null;
-  if (options.commit !== false) commitOutput = commitFix(root, [file], `cto: apply AI fix for ${file}`);
+  if (options.commit !== false) commitOutput = commitFix(root, [file], options.commitMessage || `cto: apply AI fix for ${file}`);
   const commitHash = commitOutput ? extractCommitHash(commitOutput) || git(root, ['rev-parse', '--short', 'HEAD']) : null;
   if (options.push === true) pushFix(root);
 

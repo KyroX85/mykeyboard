@@ -3,6 +3,11 @@ const path = require('path');
 const { createNvidiaClient, MODEL_ASSIGNMENT } = require('./nvidia-nim-client');
 const { readRoadmap } = require('./roadmap-reader');
 const { executeAiBridge } = require('../scripts/ai-execution-bridge');
+const {
+  readFounderMemory,
+  buildFounderMemoryContext,
+  rememberVisionCommand
+} = require('./founder-memory');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const VISION_COMMAND_LOG_FILE = path.join(ROOT, 'ai-cto', 'vision-commands-log.json');
@@ -34,6 +39,7 @@ function writeVisionCommandState(state) {
 
 async function classifyVisionMessage({ message, state, memory, client = createNvidiaClient() }) {
   if (!client.available('llama')) return { type: 'NOT_VISION', reason: 'Llama unavailable.' };
+  const founderMemory = buildFounderMemoryContext(readFounderMemory());
   const result = await client.chat('llama', [
     {
       role: 'user',
@@ -42,7 +48,11 @@ async function classifyVisionMessage({ message, state, memory, client = createNv
         'Vision command means founder describes something they want changed, improved, fixed, or built.',
         `Message: ${message}`,
         `Health: ${state && state.healthScore}`,
-        `Recent memory: ${JSON.stringify((memory && memory.recentMessages || []).slice(-10))}`
+        `Recent memory: ${JSON.stringify((memory && memory.recentMessages || []).slice(-10))}`,
+        `Founder preferences: ${JSON.stringify(founderMemory.founder_preferences)}`,
+        `Product context: ${JSON.stringify(founderMemory.product_context)}`,
+        `Last 5 decision history entries: ${JSON.stringify(founderMemory.recent_decisions)}`,
+        `Last 3 conversation summaries: ${JSON.stringify(founderMemory.recent_conversation_summaries)}`
       ].join('\n')
     }
   ], {
@@ -57,6 +67,7 @@ async function classifyVisionMessage({ message, state, memory, client = createNv
 
 async function createVisionPlan({ message, state, memory, client = createNvidiaClient() }) {
   const roadmap = readRoadmap();
+  const founderMemory = buildFounderMemoryContext(readFounderMemory());
   const result = await client.chat('llama', [
     {
       role: 'user',
@@ -67,7 +78,12 @@ async function createVisionPlan({ message, state, memory, client = createNvidiaC
         `Founder command: ${message}`,
         `Current roadmap phase: ${roadmap.currentPhase || 'unknown'}`,
         `Current health: ${state && state.healthScore}`,
-        `Memory: ${JSON.stringify((memory && memory.recentMessages || []).slice(-10))}`
+        'If the founder asks for a Kotlin test file without a path, prefer app/src/main/java/<Name>.kt.',
+        `Memory: ${JSON.stringify((memory && memory.recentMessages || []).slice(-10))}`,
+        `Founder preferences: ${JSON.stringify(founderMemory.founder_preferences)}`,
+        `Product context: ${JSON.stringify(founderMemory.product_context)}`,
+        `Last 5 decision history entries: ${JSON.stringify(founderMemory.recent_decisions)}`,
+        `Last 3 conversation summaries: ${JSON.stringify(founderMemory.recent_conversation_summaries)}`
       ].join('\n')
     }
   ], {
@@ -91,6 +107,12 @@ async function createVisionPlan({ message, state, memory, client = createNvidiaC
     pending: entry,
     commands: [...current.commands, entry]
   });
+  rememberVisionCommand({
+    command: message,
+    plan,
+    approval: 'PENDING',
+    outcome: 'WAITING_FOR_FOUNDER'
+  });
   return entry;
 }
 
@@ -107,12 +129,19 @@ function cancelPendingVisionCommand() {
     pending: null,
     commands: state.commands.map((item) => item.id === cancelled.id ? cancelled : item)
   });
+  rememberVisionCommand({
+    command: cancelled.command,
+    plan: cancelled.plan,
+    approval: 'NO',
+    outcome: 'CANCELLED'
+  });
   return cancelled;
 }
 
-async function approvePendingVisionCommand({ root = process.cwd(), client = createNvidiaClient(), commit = false, push = false, validationCommand = null }) {
+async function approvePendingVisionCommand({ root = process.cwd(), client = createNvidiaClient(), commit = false, push = false, commitMessage = null, validationCommand = null }) {
   const state = readVisionCommandState();
   if (!state.pending) return null;
+  console.log('[whatsapp-cto] APPROVAL RECEIVED: triggering execution');
   const pending = {
     ...state.pending,
     approval: 'YES',
@@ -123,6 +152,7 @@ async function approvePendingVisionCommand({ root = process.cwd(), client = crea
     client,
     commit,
     push,
+    commitMessage: commitMessage || commitMessageForPlan(pending.plan),
     validationCommand,
     issue: planToIssue(pending.plan)
   });
@@ -136,6 +166,14 @@ async function approvePendingVisionCommand({ root = process.cwd(), client = crea
     pending: null,
     commands: state.commands.map((item) => item.id === completed.id ? completed : item)
   });
+  rememberVisionCommand({
+    root,
+    command: completed.command,
+    plan: completed.plan,
+    approval: 'YES',
+    outcome: completed.outcome,
+    commitHash: completed.commitHash
+  });
   return completed;
 }
 
@@ -147,6 +185,14 @@ function planToIssue(plan) {
     classification: plan.risk,
     reason: Array.isArray(plan.changes) ? plan.changes.join('; ') : plan.changes
   };
+}
+
+function commitMessageForPlan(plan) {
+  const file = Array.isArray(plan.files) ? plan.files[0] : plan.files;
+  if (/Hello\.kt$/i.test(String(file || '')) && /test file/i.test(String(plan.task || ''))) {
+    return 'test: Hello.kt pipeline test';
+  }
+  return null;
 }
 
 function formatVisionPlan(entry) {

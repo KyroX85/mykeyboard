@@ -64,6 +64,9 @@ const COMMAND_ALIASES = new Map([
   ['build now', 'build_now'],
   ['ota build', 'build_now'],
   ['new apk', 'build_now'],
+  ['memory', 'memory'],
+  ['what did we discuss last week', 'memory'],
+  ['last thing you fixed', 'memory'],
   ['help', 'help']
 ]);
 
@@ -319,6 +322,7 @@ async function maybeRouteVisionDecision(normalized, options = {}) {
     client: options.client,
     commit: options.commit,
     push: options.push,
+    commitMessage: options.commitMessage,
     validationCommand: options.validationCommand
   });
   return {

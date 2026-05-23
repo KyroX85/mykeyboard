@@ -1,6 +1,7 @@
 const { createNvidiaClient, MODEL_ASSIGNMENT } = require('./nvidia-nim-client');
 const { readActionLog } = require('./agent-action-log');
 const { readRoadmap } = require('./roadmap-reader');
+const { readFounderMemory, buildFounderMemoryContext } = require('./founder-memory');
 
 const MAX_LLAMA_CALLS_PER_DAY = 100;
 
@@ -14,6 +15,7 @@ const AGENT_PERSONALITIES = {
 function buildAiWhatsAppPrompt({ founderMessage, agent = 'cto', state = {}, memory = {}, roadmap = readRoadmap() }) {
   const recentActions = readRecentActions();
   const recentMessages = Array.isArray(memory.recentMessages) ? memory.recentMessages.slice(-10) : [];
+  const founderMemory = buildFounderMemoryContext(readFounderMemory());
   const sections = state.sections || {};
   const system = [
     'You are using Llama 3.3 70B as the Conversation Brain for Aritenis AI.',
@@ -28,6 +30,8 @@ function buildAiWhatsAppPrompt({ founderMessage, agent = 'cto', state = {}, memo
     'You never give false confidence. You never invent progress. You stay grounded in repo state.',
     `Current repo health: ${state.healthScore == null ? 'unknown' : state.healthScore}`,
     `Current phase: ${firstLine(roadmap.currentPhase || 'unknown')}`,
+    `Founder preferences: ${JSON.stringify(founderMemory.founder_preferences)}`,
+    `Product context: ${JSON.stringify(founderMemory.product_context)}`,
     `Recent activity: ${recentActions.join(' | ') || 'No recent action recorded.'}`,
     `Active risks: ${array(sections.risks).concat(array(sections.unresolved)).slice(0, 3).join(' | ') || 'No active risk recorded.'}`,
     `Pending approvals: ${array(sections.approvals).slice(0, 3).join(' | ') || 'none recorded'}`,
@@ -43,6 +47,8 @@ function buildAiWhatsAppPrompt({ founderMessage, agent = 'cto', state = {}, memo
     `Founder message: ${founderMessage || ''}`,
     `Detected agent: ${agent}`,
     `Last 10 messages with full context: ${JSON.stringify(recentMessages)}`,
+    `Last 5 decision history entries: ${JSON.stringify(founderMemory.recent_decisions)}`,
+    `Last 3 conversation summaries: ${JSON.stringify(founderMemory.recent_conversation_summaries)}`,
     'Use the conversation history. Never ask for information already mentioned by the founder or by an agent.',
     `Top risk: ${(state.summary && state.summary.topRisk) || first(array(sections.risks)) || 'none recorded'}`,
     `Momentum: ${state.momentum || 'unknown'}`

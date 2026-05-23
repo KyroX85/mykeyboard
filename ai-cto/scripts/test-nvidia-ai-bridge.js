@@ -27,10 +27,12 @@ const {
   VISION_COMMAND_LOG_FILE,
   readVisionCommandState
 } = require('../whatsapp/vision-command-manager');
+const { FOUNDER_MEMORY_FILE } = require('../whatsapp/founder-memory');
 
 async function run() {
   const actionLogBackup = fs.existsSync(ACTION_LOG_FILE) ? fs.readFileSync(ACTION_LOG_FILE, 'utf8') : null;
   const visionLogBackup = fs.existsSync(VISION_COMMAND_LOG_FILE) ? fs.readFileSync(VISION_COMMAND_LOG_FILE, 'utf8') : null;
+  const founderMemoryBackup = fs.existsSync(FOUNDER_MEMORY_FILE) ? fs.readFileSync(FOUNDER_MEMORY_FILE, 'utf8') : null;
   const brainBackup = fs.existsSync(AGENT_BRAIN_DIR)
     ? new Map(fs.readdirSync(AGENT_BRAIN_DIR).map((file) => [file, fs.readFileSync(path.join(AGENT_BRAIN_DIR, file), 'utf8')]))
     : new Map();
@@ -53,7 +55,7 @@ async function run() {
           return {
             choices: [{ message: { content: JSON.stringify({
               task: 'Create test file Hello.kt',
-              files: ['Hello.kt'],
+              files: ['app/src/main/java/Hello.kt'],
               changes: ['Create the requested Kotlin test file'],
               risk: 'LOW',
               estimatedLines: 3,
@@ -80,7 +82,7 @@ async function run() {
       };
     }
     return {
-      choices: [{ message: { content: request.messages.map((message) => message.content).join('\n').includes('Hello.kt') ? 'class Hello\n' : 'fixed file content\n' } }],
+      choices: [{ message: { content: request.messages.map((message) => message.content).join('\n').includes('Hello.kt') ? '// Pipeline test file for CTO execution.\n' : 'fixed file content\n' } }],
       usage: { total_tokens: 99 }
     };
   };
@@ -260,12 +262,13 @@ async function run() {
       root: tempRootForVision,
       commit: true,
       push: false,
-      validationCommand: [process.execPath, '-e', "require('fs').existsSync('Hello.kt') || process.exit(1)"]
+      commitMessage: 'test: Hello.kt pipeline test',
+      validationCommand: [process.execPath, '-e', "require('fs').existsSync('app/src/main/java/Hello.kt') || process.exit(1)"]
     });
     assert.strictEqual(helloRun.command, 'vision_command_approved');
     assert(helloRun.response.includes('Commit:'));
-    assert(fs.existsSync(path.join(tempRootForVision, 'Hello.kt')));
-    assert(execFileSync('git', ['log', '--oneline', '-1'], { cwd: tempRootForVision, encoding: 'utf8' }).includes('cto: apply AI fix for Hello.kt'));
+    assert(fs.existsSync(path.join(tempRootForVision, 'app', 'src', 'main', 'java', 'Hello.kt')));
+    assert(execFileSync('git', ['log', '--oneline', '-1'], { cwd: tempRootForVision, encoding: 'utf8' }).includes('test: Hello.kt pipeline test'));
   } finally {
     fs.rmSync(tempRootForVision, { recursive: true, force: true });
   }
@@ -286,6 +289,11 @@ async function run() {
       if (fs.existsSync(VISION_COMMAND_LOG_FILE)) fs.unlinkSync(VISION_COMMAND_LOG_FILE);
     } else {
       fs.writeFileSync(VISION_COMMAND_LOG_FILE, visionLogBackup);
+    }
+    if (founderMemoryBackup == null) {
+      if (fs.existsSync(FOUNDER_MEMORY_FILE)) fs.unlinkSync(FOUNDER_MEMORY_FILE);
+    } else {
+      fs.writeFileSync(FOUNDER_MEMORY_FILE, founderMemoryBackup);
     }
   }
 }
