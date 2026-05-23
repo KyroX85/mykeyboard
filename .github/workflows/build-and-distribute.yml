@@ -1,0 +1,220 @@
+name: Build and Distribute APK
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+    inputs:
+      triggered_by:
+        description: "Who requested this build"
+        required: false
+        default: "manual"
+      force:
+        description: "Bypass smart trigger gate"
+        required: false
+        default: "false"
+  schedule:
+    # Sunday 01:30 UTC = Sunday 07:00 IST.
+    - cron: "30 1 * * 0"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: firebase-app-distribution-main
+  cancel-in-progress: false
+
+jobs:
+  distribute:
+    name: Build debug APK and distribute
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    env:
+      ARITENIS_SUPABASE_URL: ${{ secrets.ARITENIS_SUPABASE_URL }}
+      ARITENIS_SUPABASE_ANON_KEY: ${{ secrets.ARITENIS_SUPABASE_ANON_KEY }}
+      GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Decide build eligibility
+        id: gate
+        shell: pwsh
+        run: |
+          $eventName = "${{ github.event_name }}"
+          $force = "${{ github.event.inputs.force }}" -eq "true"
+          $message = git log -1 --pretty=%B
+          $reason = "not eligible"
+          $shouldBuild = $false
+
+          if ($eventName -eq "workflow_dispatch") {
+            $shouldBuild = $true
+            $reason = "manual workflow dispatch"
+          } elseif ($eventName -eq "schedule") {
+            $shouldBuild = $true
+            $reason = "weekly scheduled build"
+          } elseif ($message -match "(?i)\b(agent|fix|fixed|stabilize|security|health|validation|build)\b") {
+            $shouldBuild = $true
+            $reason = "agent/fix commit message"
+          }
+
+          if (Test-Path "ai-cto/.brain_state.json") {
+            $brain = Get-Content -Raw "ai-cto/.brain_state.json" | ConvertFrom-Json
+            $history = @($brain.trendHistory)
+            if ($history.Count -ge 2) {
+              $previous = [int]$history[$history.Count - 2].healthScore
+              $latest = [int]$history[$history.Count - 1].healthScore
+              if (($latest - $previous) -ge 5) {
+                $shouldBuild = $true
+                $reason = "health score improved by $($latest - $previous)"
+              }
+            }
+          }
+
+          $today = (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd")
+          $headers = @{
+            Authorization = "Bearer $env:GITHUB_TOKEN"
+            Accept = "application/vnd.github+json"
+            "X-GitHub-Api-Version" = "2022-11-28"
+            "User-Agent" = "aritenis-build-distributor"
+          }
+          $runs = Invoke-RestMethod -Uri "https://api.github.com/repos/${{ github.repository }}/actions/workflows/build-and-distribute.yml/runs?branch=main&per_page=30" -Headers $headers
+          $todayCount = @($runs.workflow_runs | Where-Object {
+            $_.created_at -like "$today*" -and $_.event -ne "workflow_dispatch"
+          }).Count
+
+          if ($todayCount -ge 3 -and -not $force -and $eventName -ne "workflow_dispatch") {
+            $shouldBuild = $false
+            $reason = "daily auto build cap reached ($todayCount/3)"
+          }
+
+          "should_build=$($shouldBuild.ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "reason=$reason" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "daily_count=$todayCount" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "BUILD_GATE=$shouldBuild ($reason)" | Add-Content -Path $env:GITHUB_STEP_SUMMARY
+
+      - name: Stop when build is not eligible
+        if: steps.gate.outputs.should_build != 'true'
+        shell: pwsh
+        run: |
+          "Build skipped: ${{ steps.gate.outputs.reason }}" | Add-Content -Path $env:GITHUB_STEP_SUMMARY
+
+      - name: Set up Java 17
+        if: steps.gate.outputs.should_build == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        if: steps.gate.outputs.should_build == 'true'
+        uses: android-actions/setup-android@v3
+
+      - name: Restore Google services config
+        if: steps.gate.outputs.should_build == 'true'
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:GOOGLE_SERVICES_JSON)) {
+            throw "Missing GOOGLE_SERVICES_JSON secret."
+          }
+          Set-Content -Path "app/google-services.json" -Value $env:GOOGLE_SERVICES_JSON -Encoding UTF8
+
+      - name: Check health threshold
+        if: steps.gate.outputs.should_build == 'true'
+        shell: pwsh
+        run: |
+          node ai-cto/brain.js
+          $brain = Get-Content -Raw "ai-cto/.brain_state.json" | ConvertFrom-Json
+          $health = [int]$brain.healthScore
+          "HEALTH_SCORE=$health" | Add-Content -Path $env:GITHUB_STEP_SUMMARY
+          if ($health -lt 30) {
+            throw "Refusing distribution because health score is below 30: $health"
+          }
+
+      - name: Grant Gradle permission
+        if: steps.gate.outputs.should_build == 'true'
+        run: chmod +x gradlew
+
+      - name: Validate and build debug APK
+        if: steps.gate.outputs.should_build == 'true'
+        run: ./gradlew --no-daemon :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
+
+      - name: Prepare Firebase release metadata
+        if: steps.gate.outputs.should_build == 'true'
+        id: firebase
+        shell: pwsh
+        run: |
+          $google = Get-Content -Raw "app/google-services.json" | ConvertFrom-Json
+          $appId = $google.client[0].client_info.mobilesdk_app_id
+          if ([string]::IsNullOrWhiteSpace($appId)) {
+            throw "Firebase app id not found in google-services.json."
+          }
+          $commitMessage = git log -1 --pretty=%B
+          $commitHash = git rev-parse --short HEAD
+          $triggeredBy = "${{ github.event.inputs.triggered_by }}"
+          if ([string]::IsNullOrWhiteSpace($triggeredBy)) { $triggeredBy = "${{ github.actor }}" }
+          $notes = @"
+          Version: 1.0.${{ github.run_number }}
+          Commit: $commitHash
+          Changes: $commitMessage
+          Built by: $triggeredBy
+          Trigger: ${{ github.event_name }} / ${{ steps.gate.outputs.reason }}
+          "@
+          $notes = $notes.Trim()
+          "app_id=$appId" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "commit_hash=$commitHash" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "triggered_by=$triggeredBy" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "release_notes<<EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          $notes | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Upload APK to Firebase App Distribution
+        if: steps.gate.outputs.should_build == 'true'
+        uses: wzieba/Firebase-Distribution-Github-Action@v1
+        with:
+          appId: ${{ steps.firebase.outputs.app_id }}
+          token: ${{ secrets.FIREBASE_TOKEN }}
+          groups: founders
+          file: app/build/outputs/apk/debug/app-debug.apk
+          releaseNotes: ${{ steps.firebase.outputs.release_notes }}
+
+      - name: Notify founder on WhatsApp
+        if: steps.gate.outputs.should_build == 'true'
+        shell: pwsh
+        env:
+          TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
+          TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
+          TWILIO_WHATSAPP_FROM: ${{ secrets.TWILIO_WHATSAPP_FROM }}
+          FOUNDER_WHATSAPP_NUMBER: ${{ secrets.FOUNDER_WHATSAPP_NUMBER }}
+        run: |
+          $missing = @("TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_WHATSAPP_FROM", "FOUNDER_WHATSAPP_NUMBER") | Where-Object {
+            [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($_))
+          }
+          if ($missing.Count -gt 0) {
+            "WhatsApp notification skipped. Missing: $($missing -join ', ')" | Add-Content -Path $env:GITHUB_STEP_SUMMARY
+            exit 0
+          }
+
+          $commitMessage = (git log -1 --pretty=%s)
+          $body = @"
+          📱 NEW BUILD READY
+          Version: 1.0.${{ github.run_number }}
+          Commit: ${{ steps.firebase.outputs.commit_hash }}
+          Changes: $commitMessage
+          Install: check Firebase notification
+          Built by: ${{ steps.firebase.outputs.triggered_by }}
+          "@
+          $uri = "https://api.twilio.com/2010-04-01/Accounts/$env:TWILIO_ACCOUNT_SID/Messages.json"
+          $pair = "$($env:TWILIO_ACCOUNT_SID):$($env:TWILIO_AUTH_TOKEN)"
+          $auth = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes($pair))
+          Invoke-RestMethod -Method Post -Uri $uri -Headers @{ Authorization = "Basic $auth" } -Body @{
+            From = $env:TWILIO_WHATSAPP_FROM
+            To = $env:FOUNDER_WHATSAPP_NUMBER
+            Body = $body.Trim()
+          } | Out-Null
+          "WHATSAPP_NOTIFICATION_SENT=true" | Add-Content -Path $env:GITHUB_STEP_SUMMARY

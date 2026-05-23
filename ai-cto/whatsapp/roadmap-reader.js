@@ -9,12 +9,13 @@ function readRoadmap() {
   try {
     const text = fs.existsSync(ROADMAP_FILE) ? fs.readFileSync(ROADMAP_FILE, 'utf8') : '';
     const vision = fs.existsSync(VISION_FILE) ? fs.readFileSync(VISION_FILE, 'utf8') : '';
+    const normalizedText = normalizeLineEndings(text);
     return {
       text,
       vision,
-      northStar: firstMatch(text, /^NORTH STAR:\s*([\s\S]*?)(?=\n\nPHASE 1)/m) || 'Aritenis north star not loaded.',
-      currentPhase: firstMatch(text, /PHASE 1[\s\S]*?(?=\n\nPHASE 2)/m) || 'Phase 1 stabilization not loaded.',
-      rules: firstMatch(text, /AGENT RULES[\s\S]*$/m) || ''
+      northStar: firstMatch(normalizedText, /^NORTH STAR:\s*([\s\S]*?)(?=\n\nPHASE 1)/m) || 'Aritenis north star not loaded.',
+      currentPhase: firstMatch(normalizedText, /PHASE 1[\s\S]*?(?=\n\nPHASE 2)/m) || 'Phase 1 stabilization not loaded.',
+      rules: firstMatch(normalizedText, /AGENT RULES[\s\S]*$/m) || ''
     };
   } catch {
     return {
@@ -25,6 +26,10 @@ function readRoadmap() {
       rules: ''
     };
   }
+}
+
+function normalizeLineEndings(text) {
+  return String(text || '').replace(/\r\n/g, '\n');
 }
 
 function firstMatch(text, regex) {

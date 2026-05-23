@@ -61,6 +61,7 @@ assert.strictEqual(resolveCommand('latest fixes'), 'latest_fixes');
 assert.strictEqual(resolveCommand('weekly summary'), 'weekly_summary');
 assert.strictEqual(resolveCommand('what changed'), 'what_changed');
 assert.strictEqual(resolveCommand('keyboard health'), 'keyboard_health');
+assert.strictEqual(resolveCommand('build now'), 'build_now');
 assert.deepStrictEqual(resolveCommand('focus predictor'), { command: 'focus', focusTopic: 'predictor' });
 assert.strictEqual(resolveCommand('unknown command'), 'unknown');
 assert.deepStrictEqual(parseNaturalIntent('hey coder what are you doing').agent, 'coder');
@@ -112,6 +113,10 @@ const status = routeMessage('status', sampleState).response;
 assert(status.includes('Founder Sir'));
 assert(status.includes('Health: 25/100'));
 assert(status.includes(':app:lintDebug: PASSED'));
+
+const buildNow = routeMessage('build now', sampleState);
+assert.strictEqual(buildNow.command, 'build_now');
+assert(buildNow.response.includes('OTA build requested'));
 
 const risks = routeMessage('risks', sampleState).response;
 assert(risks.includes('Hardcoded Secret'));

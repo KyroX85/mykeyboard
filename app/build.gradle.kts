@@ -9,6 +9,12 @@ fun String.asBuildConfigString(): String =
 fun envValue(name: String): String =
     providers.environmentVariable(name).orElse("").get()
 
+val ciBuildNumber = providers.environmentVariable("GITHUB_RUN_NUMBER")
+    .orElse("1")
+    .get()
+    .toIntOrNull()
+    ?: 1
+
 android {
     namespace = "com.example.mykeyboard"
     compileSdk {
@@ -21,8 +27,8 @@ android {
         applicationId = "com.example.mykeyboard"
         minSdk = 24
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = ciBuildNumber
+        versionName = "1.0.$ciBuildNumber"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "SUPABASE_URL", envValue("ARITENIS_SUPABASE_URL").asBuildConfigString())

@@ -201,6 +201,14 @@ function generateResponse(command, state, memory = {}, details = {}) {
         `North star: ${roadmap.northStar.split(/\r?\n/)[0]}`
       ].join('\n');
 
+    case 'build_now':
+      return [
+        'Founder Sir, OTA build requested.',
+        'GitHub Actions will validate, build, and distribute only if safety gates pass.',
+        'Install path: Firebase App Distribution notification.',
+        'If no notification arrives, check the Build and Distribute APK workflow.'
+      ].join('\n');
+
     case 'focus':
       return [
         `Founder Sir, focus set: ${details.focusTopic}`,

@@ -10,6 +10,7 @@ const {
   readSpawnState
 } = require('./specialist-agent-manager');
 const { runFreshScan, formatFreshScanResponse } = require('./live-scan-runner');
+const { requestOtaBuild } = require('./build-dispatcher');
 const { executeFirstFixableIssue } = require('../scripts/execution-engine');
 const { executeAiBridge } = require('../scripts/ai-execution-bridge');
 const { maybeGenerateAiWhatsAppResponse } = require('./ai-whatsapp-responder');
@@ -60,6 +61,9 @@ const COMMAND_ALIASES = new Map([
   ['scan now', 'scan_now'],
   ['fresh scan', 'scan_now'],
   ['live scan', 'scan_now'],
+  ['build now', 'build_now'],
+  ['ota build', 'build_now'],
+  ['new apk', 'build_now'],
   ['help', 'help']
 ]);
 
@@ -161,6 +165,18 @@ function routeMessage(message, state, memory = {}) {
       details: { agent: 'cto', intent: 'scan_now' },
       matchedRoute: 'exact_command',
       response: formatFreshScanResponse(freshState)
+    };
+  }
+
+  if (/\b(build now|ota build|new apk)\b/.test(normalized)) {
+    requestOtaBuild({ triggeredBy: 'whatsapp' }).catch(() => {});
+    return {
+      command: 'build_now',
+      details: { agent: 'cto', intent: 'build_now' },
+      matchedRoute: 'exact_command',
+      response: generateResponse('build_now', state, memory, {
+        dispatchMode: 'fire_and_forget'
+      })
     };
   }
 
