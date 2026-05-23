@@ -3,10 +3,11 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 const { createNvidiaClient, MODEL_ASSIGNMENT, parseRiskLevel } = require('../whatsapp/nvidia-nim-client');
 const { readBrainState, findCandidateIssue } = require('./execution-engine');
-const { readFounderMemory, buildFounderMemoryContext, ensureGitIdentity } = require('../whatsapp/founder-memory');
+const { readFounderMemory, buildFounderMemoryContext } = require('../whatsapp/founder-memory');
 
 const MAX_DEEPSEEK_FIXES_PER_DAY = 5;
 const MAX_LLAMA_CALLS_PER_DAY = 100;
+const GITHUB_REPO_URL = 'github.com/KyroX85/mykeyboard.git';
 
 function readText(file, fallback = '') {
   try {
@@ -233,25 +234,31 @@ function commitFix(root, files, message) {
 
 function ensureGitRuntime(root) {
   git(root, ['--version']);
-  ensureGitIdentity(root);
+  git(root, ['config', 'user.email', 'cto@aritenis.ai']);
+  git(root, ['config', 'user.name', 'Aritenis CTO']);
 }
 
 function pushFix(root) {
+  ensureGitRuntime(root);
+  configureGitRemote(root);
+  return git(root, ['push', 'origin', 'HEAD:main']);
+}
+
+function configureGitRemote(root) {
   const token = process.env.GITHUB_TOKEN || '';
   if (!token) {
-    return git(root, ['push']);
+    console.log('[whatsapp-cto] GITHUB_TOKEN missing; cannot configure authenticated origin.');
+    return null;
   }
-  const remote = git(root, ['remote', 'get-url', 'origin']);
-  if (!/^https:\/\/github\.com\//i.test(remote)) {
-    return git(root, ['push']);
-  }
-  const authed = remote.replace(/^https:\/\/github\.com\//i, `https://x-access-token:${token}@github.com/`);
-  git(root, ['remote', 'set-url', 'origin', authed]);
+  const repoUrl = `https://${token}@${GITHUB_REPO_URL}`;
   try {
-    return git(root, ['push']);
-  } finally {
-    git(root, ['remote', 'set-url', 'origin', remote]);
+    git(root, ['remote', 'remove', 'origin']);
+  } catch {
+    // Render may not have an origin remote yet.
   }
+  git(root, ['remote', 'add', 'origin', repoUrl]);
+  console.log('[whatsapp-cto] git origin configured for KyroX85/mykeyboard.git');
+  return repoUrl;
 }
 
 function diffWithinHardLimits(root, limits = {}) {
@@ -453,5 +460,7 @@ module.exports = {
   buildLlamaRiskPrompt,
   buildDeepSeekFixPrompt,
   diffWithinHardLimits,
+  configureGitRemote,
+  ensureGitRuntime,
   executeAiBridge
 };

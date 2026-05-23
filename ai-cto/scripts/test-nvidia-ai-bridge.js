@@ -18,7 +18,9 @@ const {
   executeAiBridge,
   buildDeepSeekFixPrompt,
   buildLlamaRiskPrompt,
-  diffWithinHardLimits
+  diffWithinHardLimits,
+  configureGitRemote,
+  ensureGitRuntime
 } = require('./ai-execution-bridge');
 const { routeMessageWithAi } = require('../whatsapp/command-router');
 const { ACTION_LOG_FILE } = require('../whatsapp/agent-action-log');
@@ -37,6 +39,7 @@ async function run() {
   const actionLogBackup = fs.existsSync(ACTION_LOG_FILE) ? fs.readFileSync(ACTION_LOG_FILE, 'utf8') : null;
   const visionLogBackup = fs.existsSync(VISION_COMMAND_LOG_FILE) ? fs.readFileSync(VISION_COMMAND_LOG_FILE, 'utf8') : null;
   const founderMemoryBackup = fs.existsSync(FOUNDER_MEMORY_FILE) ? fs.readFileSync(FOUNDER_MEMORY_FILE, 'utf8') : null;
+  const githubTokenBackup = process.env.GITHUB_TOKEN;
   const brainBackup = fs.existsSync(AGENT_BRAIN_DIR)
     ? new Map(fs.readdirSync(AGENT_BRAIN_DIR).map((file) => [file, fs.readFileSync(path.join(AGENT_BRAIN_DIR, file), 'utf8')]))
     : new Map();
@@ -225,6 +228,21 @@ async function run() {
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }
 
+  const tempRemoteRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'cto-remote-'));
+  try {
+    execFileSync('git', ['init'], { cwd: tempRemoteRoot });
+    process.env.GITHUB_TOKEN = 'test-token';
+    ensureGitRuntime(tempRemoteRoot);
+    configureGitRemote(tempRemoteRoot);
+    assert.strictEqual(execFileSync('git', ['config', 'user.email'], { cwd: tempRemoteRoot, encoding: 'utf8' }).trim(), 'cto@aritenis.ai');
+    assert.strictEqual(execFileSync('git', ['config', 'user.name'], { cwd: tempRemoteRoot, encoding: 'utf8' }).trim(), 'Aritenis CTO');
+    assert.strictEqual(execFileSync('git', ['remote', 'get-url', 'origin'], { cwd: tempRemoteRoot, encoding: 'utf8' }).trim(), 'https://test-token@github.com/KyroX85/mykeyboard.git');
+  } finally {
+    if (githubTokenBackup == null) delete process.env.GITHUB_TOKEN;
+    else process.env.GITHUB_TOKEN = githubTokenBackup;
+    fs.rmSync(tempRemoteRoot, { recursive: true, force: true });
+  }
+
   const visionPlan = await routeMessageWithAi('make keyboard keys feel more responsive', {
     healthScore: 80,
     momentum: 'MOVING',
@@ -312,6 +330,8 @@ async function run() {
     } else {
       fs.writeFileSync(FOUNDER_MEMORY_FILE, founderMemoryBackup);
     }
+    if (githubTokenBackup == null) delete process.env.GITHUB_TOKEN;
+    else process.env.GITHUB_TOKEN = githubTokenBackup;
   }
 }
 
