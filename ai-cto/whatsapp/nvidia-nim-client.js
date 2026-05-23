@@ -17,8 +17,8 @@ For WhatsApp responses, use professional warm English only. Never use Tamil word
 const ENDPOINT = 'https://integrate.api.nvidia.com/v1';
 const MODEL_ASSIGNMENT = {
   deepseek: {
-    label: 'DeepSeek V4 Flash',
-    model: 'deepseek/deepseek-v4-flash',
+    label: 'DeepSeek R1 0528',
+    model: 'deepseek-ai/deepseek-r1-0528',
     envKey: 'NVIDIA_DEEPSEEK_API_KEY',
     role: 'Code Brain'
   },
@@ -128,8 +128,8 @@ async function defaultTransport({ endpoint, apiKey, model, messages, temperature
   const response = await fetch(`${endpoint.replace(/\/$/, '')}/chat/completions`, {
     method: 'POST',
     headers: {
-      authorization: `Bearer ${apiKey}`,
-      'content-type': 'application/json'
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
     },
     body: JSON.stringify({
       model,
@@ -170,5 +170,6 @@ module.exports = {
   STRICT_GUARDRAIL_PROMPT,
   createNvidiaClient,
   withGuardrailSystemPrompt,
+  defaultTransport,
   parseRiskLevel
 };
