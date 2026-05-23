@@ -10,6 +10,7 @@ const {
 } = require('../scripts/operational-assistance');
 const { readRoadmap } = require('./roadmap-reader');
 const { logAgentAction } = require('./agent-action-log');
+const { recordCoreAgentInteraction } = require('./main-agent-brain-manager');
 
 const MOBILE_LABELS = {
   cto: '🧠 CTO',
@@ -39,6 +40,14 @@ function buildNaturalResponse({ agent, intent, topic, state, memory = {}, detail
     reason: roadmap.currentPhase.split(/\r?\n/)[0] || 'Follow roadmap and latest repo state.',
     riskLevel: 'LOW',
     outcome: 'RESPONSE_SENT'
+  });
+  recordCoreAgentInteraction({
+    agent,
+    intent: intent || 'update',
+    topic,
+    action: `prepared WhatsApp ${intent || 'update'} response`,
+    outcome: 'RESPONSE_SENT',
+    riskLevel: 'LOW'
   });
   if (!detailMode) {
     return enforcePersonalityGuardrails(buildMobileResponse(agent, context));

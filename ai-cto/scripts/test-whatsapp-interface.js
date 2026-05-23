@@ -10,6 +10,11 @@ const {
   parseSpawnRequest,
   readSpawnState
 } = require('../whatsapp/specialist-agent-manager');
+const {
+  CORE_AGENTS,
+  ensureCoreAgentBrains,
+  readCoreAgentBrain
+} = require('../whatsapp/main-agent-brain-manager');
 
 const sampleState = {
   generatedAt: '2026-05-20T05:54:15.010Z',
@@ -44,6 +49,10 @@ const sampleState = {
     lastAnalysis: '2026-05-20T05:54:15.010Z'
   }
 };
+
+const initialBrainBackup = fs.existsSync(AGENT_BRAIN_DIR)
+  ? new Map(fs.readdirSync(AGENT_BRAIN_DIR).map((file) => [file, fs.readFileSync(path.join(AGENT_BRAIN_DIR, file), 'utf8')]))
+  : new Map();
 
 assert.strictEqual(resolveCommand('status'), 'status');
 assert.strictEqual(resolveCommand('what are the risks?'), 'risks');
@@ -284,11 +293,29 @@ assert.deepStrictEqual(extractTwilioBody({ body: undefined }).body, '');
 assert.deepStrictEqual(extractTwilioBody({ body: { Body: 'hi', From: 'whatsapp:+1', MessageSid: 'SM1' } }).body, 'hi');
 
 const spawnBackup = fs.existsSync(SPAWN_FILE) ? fs.readFileSync(SPAWN_FILE, 'utf8') : null;
-const brainBackup = fs.existsSync(AGENT_BRAIN_DIR)
-  ? new Map(fs.readdirSync(AGENT_BRAIN_DIR).map((file) => [file, fs.readFileSync(path.join(AGENT_BRAIN_DIR, file), 'utf8')]))
-  : new Map();
 try {
   const beforeIds = new Set(readSpawnState().active.map((agent) => agent.id));
+  const coreBrains = ensureCoreAgentBrains();
+  assert.deepStrictEqual(Object.keys(coreBrains).sort(), CORE_AGENTS.slice().sort());
+  for (const agent of CORE_AGENTS) {
+    const brain = readCoreAgentBrain(agent);
+    assert.strictEqual(brain.agentId, agent);
+    assert.strictEqual(brain.sharedDirection.directionId, 'aritenis-roadmap-2026-2027');
+    assert.strictEqual(brain.sharedDirection.ctoOwnsPriority, true);
+    if (agent !== 'cto') assert.strictEqual(brain.reportsTo, 'CTO');
+  }
+  const routedCoderBrain = routeMessage('hey coder what are you doing', sampleState);
+  assert.strictEqual(routedCoderBrain.agent, 'coder');
+  const coderBrain = readCoreAgentBrain('coder');
+  assert.strictEqual(coderBrain.memory.lastInteraction.intent, 'current_work');
+  assert.strictEqual(coderBrain.memory.lastInteraction.agent, 'coder');
+  assert.strictEqual(coderBrain.sharedDirection.ctoOwnsPriority, true);
+  const routedAuditorBrain = routeMessage('hey auditor check what coder missed', sampleState);
+  assert.strictEqual(routedAuditorBrain.agent, 'auditor');
+  const auditorBrain = readCoreAgentBrain('auditor');
+  assert.strictEqual(auditorBrain.memory.lastInteraction.intent, 'cross_agent_audit');
+  assert.strictEqual(auditorBrain.memory.lastInteraction.agent, 'auditor');
+
   const assigned = routeMessage('cto assign a new agent to do this work', sampleState, {
     lastDiscussedTopic: 'new issue audit',
     unresolvedReference: 'new issues'
@@ -309,7 +336,7 @@ try {
   if (fs.existsSync(AGENT_BRAIN_DIR)) {
     for (const file of fs.readdirSync(AGENT_BRAIN_DIR)) {
       const full = path.join(AGENT_BRAIN_DIR, file);
-      if (brainBackup.has(file)) fs.writeFileSync(full, brainBackup.get(file));
+      if (initialBrainBackup.has(file)) fs.writeFileSync(full, initialBrainBackup.get(file));
       else fs.unlinkSync(full);
     }
   }
