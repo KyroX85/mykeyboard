@@ -241,7 +241,25 @@ function ensureGitRuntime(root) {
 function pushFix(root) {
   ensureGitRuntime(root);
   configureGitRemote(root);
+  syncWithRemoteMain(root);
   return git(root, ['push', 'origin', 'HEAD:main']);
+}
+
+function syncWithRemoteMain(root) {
+  try {
+    git(root, ['fetch', 'origin', 'main']);
+    git(root, ['rebase', 'origin/main']);
+    console.log('[whatsapp-cto] local execution commit synced on top of origin/main');
+    return true;
+  } catch (error) {
+    try {
+      git(root, ['rebase', '--abort']);
+    } catch {
+      // No active rebase, or abort failed after git already cleaned up.
+    }
+    const detail = error && error.stderr ? error.stderr : error && error.message ? error.message : String(error);
+    throw new Error(`Could not sync execution commit with origin/main before push: ${detail}`);
+  }
 }
 
 function configureGitRemote(root) {
@@ -462,5 +480,6 @@ module.exports = {
   diffWithinHardLimits,
   configureGitRemote,
   ensureGitRuntime,
+  syncWithRemoteMain,
   executeAiBridge
 };

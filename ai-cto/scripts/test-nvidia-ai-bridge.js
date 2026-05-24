@@ -22,7 +22,8 @@ const {
   buildLlamaRiskPrompt,
   diffWithinHardLimits,
   configureGitRemote,
-  ensureGitRuntime
+  ensureGitRuntime,
+  syncWithRemoteMain
 } = require('./ai-execution-bridge');
 const { routeMessageWithAi } = require('../whatsapp/command-router');
 const { ACTION_LOG_FILE } = require('../whatsapp/agent-action-log');
@@ -275,6 +276,43 @@ async function run() {
     fs.rmSync(tempRemoteRoot, { recursive: true, force: true });
   }
 
+  const tempBareRemote = fs.mkdtempSync(path.join(os.tmpdir(), 'cto-bare-remote-'));
+  const tempStaleClone = fs.mkdtempSync(path.join(os.tmpdir(), 'cto-stale-clone-'));
+  const tempRemoteWriter = fs.mkdtempSync(path.join(os.tmpdir(), 'cto-remote-writer-'));
+  try {
+    execFileSync('git', ['init', '--bare'], { cwd: tempBareRemote });
+    execFileSync('git', ['init', '-b', 'main'], { cwd: tempStaleClone });
+    execFileSync('git', ['config', 'user.email', 'cto-test@example.com'], { cwd: tempStaleClone });
+    execFileSync('git', ['config', 'user.name', 'CTO Test'], { cwd: tempStaleClone });
+    fs.writeFileSync(path.join(tempStaleClone, 'README.md'), 'base\n');
+    execFileSync('git', ['add', '.'], { cwd: tempStaleClone });
+    execFileSync('git', ['commit', '-m', 'base'], { cwd: tempStaleClone });
+    execFileSync('git', ['remote', 'add', 'origin', tempBareRemote], { cwd: tempStaleClone });
+    execFileSync('git', ['push', 'origin', 'main'], { cwd: tempStaleClone });
+
+    execFileSync('git', ['clone', tempBareRemote, tempRemoteWriter]);
+    execFileSync('git', ['switch', 'main'], { cwd: tempRemoteWriter });
+    execFileSync('git', ['config', 'user.email', 'cto-test@example.com'], { cwd: tempRemoteWriter });
+    execFileSync('git', ['config', 'user.name', 'CTO Test'], { cwd: tempRemoteWriter });
+    fs.writeFileSync(path.join(tempRemoteWriter, 'memory.txt'), 'github-api memory commit\n');
+    execFileSync('git', ['add', '.'], { cwd: tempRemoteWriter });
+    execFileSync('git', ['commit', '-m', 'remote memory commit'], { cwd: tempRemoteWriter });
+    execFileSync('git', ['push', 'origin', 'main'], { cwd: tempRemoteWriter });
+
+    fs.writeFileSync(path.join(tempStaleClone, 'Hello.kt'), '// local execution commit\n');
+    execFileSync('git', ['add', '.'], { cwd: tempStaleClone });
+    execFileSync('git', ['commit', '-m', 'test: Hello.kt pipeline test'], { cwd: tempStaleClone });
+    syncWithRemoteMain(tempStaleClone);
+    execFileSync('git', ['push', 'origin', 'HEAD:main'], { cwd: tempStaleClone });
+    const remoteLog = execFileSync('git', ['--git-dir', tempBareRemote, 'log', '--oneline', '-2', 'main'], { encoding: 'utf8' });
+    assert(remoteLog.includes('test: Hello.kt pipeline test'));
+    assert(remoteLog.includes('remote memory commit'));
+  } finally {
+    fs.rmSync(tempBareRemote, { recursive: true, force: true });
+    fs.rmSync(tempStaleClone, { recursive: true, force: true });
+    fs.rmSync(tempRemoteWriter, { recursive: true, force: true });
+  }
+
   const visionPlan = await routeMessageWithAi('make keyboard keys feel more responsive', {
     healthScore: 80,
     momentum: 'MOVING',
@@ -317,25 +355,62 @@ async function run() {
       summary: { topRisk: 'none' }
     }, { recentMessages: [] }, { client });
     assert.strictEqual(helloPlan.command, 'vision_command_pending');
-    assert(readPendingVisionCommand());
+    const persistedPending = readPendingVisionCommand();
+    assert(persistedPending);
     if (fs.existsSync(VISION_COMMAND_LOG_FILE)) fs.unlinkSync(VISION_COMMAND_LOG_FILE);
-    const helloRun = await routeMessageWithAi('ok go ahead', {
-      healthScore: 80,
-      momentum: 'MOVING',
-      sections: { risks: [], unresolved: [], approvals: [] },
-      summary: { topRisk: 'none' }
-    }, { recentMessages: [{ role: 'agent', summary: 'Planned Hello.kt creation.' }] }, {
-      client,
-      root: tempRootForVision,
-      commit: true,
-      push: false,
-      commitMessage: 'test: Hello.kt pipeline test',
-      validationCommand: [process.execPath, '-e', "require('fs').existsSync('app/src/main/java/Hello.kt') || process.exit(1)"]
-    });
-    assert.strictEqual(helloRun.command, 'vision_command_approved');
-    assert(helloRun.response.includes('Commit:'));
-    assert(fs.existsSync(path.join(tempRootForVision, 'app', 'src', 'main', 'java', 'Hello.kt')));
-    assert(execFileSync('git', ['log', '--oneline', '-1'], { cwd: tempRootForVision, encoding: 'utf8' }).includes('test: Hello.kt pipeline test'));
+    clearPendingVisionCommand();
+    const fetchBackup = global.fetch;
+    process.env.GITHUB_TOKEN = 'github-memory-test';
+    let githubPutCount = 0;
+    try {
+      global.fetch = async (url, request = {}) => {
+        assert.strictEqual(request.headers.Authorization, 'Bearer github-memory-test');
+        if (request.method === 'PUT') {
+          githubPutCount += 1;
+          return {
+            ok: true,
+            json: async () => ({ commit: { sha: `memory-commit-${githubPutCount}` } })
+          };
+        }
+        return {
+          ok: true,
+          json: async () => ({
+            sha: 'memory-sha',
+            content: Buffer.from(JSON.stringify({
+              founder_preferences: { tone: 'professional English only' },
+              product_context: { name: 'Aritenis AI' },
+              decision_history: [],
+              pending_vision_command: persistedPending,
+              vision_commands_history: [],
+              milestones: [],
+              learned_preferences: [],
+              conversation_summaries: []
+            }), 'utf8').toString('base64')
+          })
+        };
+      };
+      const helloRun = await routeMessageWithAi('ok go ahead', {
+        healthScore: 80,
+        momentum: 'MOVING',
+        sections: { risks: [], unresolved: [], approvals: [] },
+        summary: { topRisk: 'none' }
+      }, { recentMessages: [{ role: 'agent', summary: 'Planned Hello.kt creation.' }] }, {
+        client,
+        root: tempRootForVision,
+        commit: true,
+        push: false,
+        commitMessage: 'test: Hello.kt pipeline test',
+        validationCommand: [process.execPath, '-e', "require('fs').existsSync('app/src/main/java/Hello.kt') || process.exit(1)"]
+      });
+      assert.strictEqual(helloRun.command, 'vision_command_approved');
+      assert(helloRun.response.includes('Commit:'));
+      assert(githubPutCount >= 1);
+      assert(fs.existsSync(path.join(tempRootForVision, 'app', 'src', 'main', 'java', 'Hello.kt')));
+      assert(execFileSync('git', ['log', '--oneline', '-1'], { cwd: tempRootForVision, encoding: 'utf8' }).includes('test: Hello.kt pipeline test'));
+    } finally {
+      global.fetch = fetchBackup;
+      delete process.env.GITHUB_TOKEN;
+    }
   } finally {
     fs.rmSync(tempRootForVision, { recursive: true, force: true });
   }

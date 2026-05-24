@@ -18,11 +18,12 @@ const {
   readVisionCommandState,
   classifyVisionMessage,
   createVisionPlan,
-  cancelPendingVisionCommand,
+  cancelPendingVisionCommandPersistent,
   approvePendingVisionCommand,
   formatVisionPlan,
   formatVisionApprovalResult
 } = require('./vision-command-manager');
+const { readPendingVisionCommandPersistent } = require('./founder-memory');
 
 const COMMAND_ALIASES = new Map([
   ['status', 'status'],
@@ -305,7 +306,11 @@ async function routeMessageWithAi(message, state, memory = {}, options = {}) {
 async function maybeRouteVisionDecision(normalized, options = {}) {
   if (!isVisionApproval(normalized) && !isVisionRejection(normalized)) return null;
   const state = readVisionCommandState();
-  if (!state.pending) {
+  let pending = state.pending || null;
+  if (!pending) {
+    pending = await readPendingVisionCommandPersistent({ root: options.root });
+  }
+  if (!pending) {
     return {
       command: 'vision_command_missing',
       details: { agent: 'cto', intent: 'vision_command_missing' },
@@ -320,7 +325,7 @@ async function maybeRouteVisionDecision(normalized, options = {}) {
   }
 
   if (isVisionRejection(normalized)) {
-    const cancelled = cancelPendingVisionCommand();
+    const cancelled = await cancelPendingVisionCommandPersistent({ root: options.root });
     return {
       command: 'vision_command_cancelled',
       details: { agent: 'cto', intent: 'vision_command_cancelled', visionCommand: cancelled },

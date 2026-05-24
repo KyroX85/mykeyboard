@@ -151,9 +151,38 @@ function cancelPendingVisionCommand() {
   return cancelled;
 }
 
+async function cancelPendingVisionCommandPersistent({ root = ROOT } = {}) {
+  const githubPending = await readPendingVisionCommandPersistent({ root });
+  const diskPending = readPendingVisionCommand(root);
+  const state = readVisionCommandState();
+  const activePending = githubPending || diskPending || state.pending;
+  if (!activePending) return null;
+  const cancelled = {
+    ...activePending,
+    approval: 'NO',
+    outcome: 'CANCELLED',
+    decidedAt: new Date().toISOString()
+  };
+  writeVisionCommandState({
+    pending: null,
+    commands: state.commands.map((item) => item.id === cancelled.id ? cancelled : item)
+  });
+  await clearPendingVisionCommandPersistent({ root });
+  clearPendingVisionCommand(root);
+  if (path.resolve(root) !== ROOT) clearPendingVisionCommand(ROOT);
+  rememberVisionCommand({
+    root,
+    command: cancelled.command,
+    plan: cancelled.plan,
+    approval: 'NO',
+    outcome: 'CANCELLED'
+  });
+  return cancelled;
+}
+
 async function approvePendingVisionCommand({ root = process.cwd(), client = createNvidiaClient(), commit = false, push = false, commitMessage = null, validationCommand = null }) {
-  const githubPending = await readPendingVisionCommandPersistent();
-  const diskPending = readPendingVisionCommand();
+  const githubPending = await readPendingVisionCommandPersistent({ root });
+  const diskPending = readPendingVisionCommand(root);
   const state = readVisionCommandState();
   const activePending = githubPending || diskPending || state.pending;
   if (!activePending) return null;
@@ -288,6 +317,7 @@ module.exports = {
   classifyVisionMessage,
   createVisionPlan,
   cancelPendingVisionCommand,
+  cancelPendingVisionCommandPersistent,
   approvePendingVisionCommand,
   formatVisionPlan,
   formatVisionApprovalResult
