@@ -291,6 +291,10 @@ function createApp() {
       });
       res.status(200).type('text/xml').send(twiml(routed.response));
     } catch (error) {
+      console.log(`[whatsapp-cto] HANDLER ERROR requestId=${id} message=${error.message}`);
+      if (error && error.stack) {
+        console.log(`[whatsapp-cto] HANDLER ERROR STACK requestId=${id}\n${error.stack}`);
+      }
       logWebhookEvent({
         type: 'handler_error',
         requestId: id,
