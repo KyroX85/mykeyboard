@@ -293,7 +293,9 @@ function parseJsonObject(content) {
 }
 
 function normalizePlan(plan, message) {
-  const files = Array.isArray(plan.files) ? plan.files : (plan.files ? [plan.files] : []);
+  const rawFiles = Array.isArray(plan.files) ? plan.files : (plan.files ? [plan.files] : []);
+  const inferredFiles = inferFilesFromFounderMessage(message);
+  const files = rawFiles.length > 0 ? rawFiles : inferredFiles;
   return {
     task: String(plan.task || message || 'Founder vision command').slice(0, 180),
     files: files.map((file) => String(file).replace(/\\/g, '/')).filter(Boolean).slice(0, 3),
@@ -303,6 +305,18 @@ function normalizePlan(plan, message) {
     roadmapConflict: Boolean(plan.roadmapConflict),
     conflictMessage: plan.conflictMessage || null
   };
+}
+
+function inferFilesFromFounderMessage(message) {
+  const text = String(message || '');
+  const fileMatch = text.match(/\b([A-Za-z][\w.-]*\.(?:kt|java|js|json|md|xml|txt))\b/i);
+  if (!fileMatch) return [];
+  const fileName = fileMatch[1];
+  const lower = fileName.toLowerCase();
+  if (lower.endsWith('.kt') || lower.endsWith('.java')) return [`app/src/main/java/${fileName}`];
+  if (lower.endsWith('.md')) return [fileName];
+  if (lower.endsWith('.json')) return [`ai-cto/${fileName}`];
+  return [fileName];
 }
 
 function extractCommitHash(output) {
@@ -320,5 +334,7 @@ module.exports = {
   cancelPendingVisionCommandPersistent,
   approvePendingVisionCommand,
   formatVisionPlan,
-  formatVisionApprovalResult
+  formatVisionApprovalResult,
+  normalizePlan,
+  inferFilesFromFounderMessage
 };

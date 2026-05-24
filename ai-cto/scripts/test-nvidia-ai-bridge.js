@@ -30,7 +30,8 @@ const { ACTION_LOG_FILE } = require('../whatsapp/agent-action-log');
 const { AGENT_BRAIN_DIR } = require('../whatsapp/main-agent-brain-manager');
 const {
   VISION_COMMAND_LOG_FILE,
-  readVisionCommandState
+  readVisionCommandState,
+  normalizePlan
 } = require('../whatsapp/vision-command-manager');
 const {
   FOUNDER_MEMORY_FILE,
@@ -116,6 +117,14 @@ async function run() {
   assert.strictEqual(parseRiskLevel('safe low cleanup'), 'LOW');
   assert.strictEqual(MODEL_ASSIGNMENT.deepseek.model, 'deepseek-ai/deepseek-v4-flash');
   assert.strictEqual(MODEL_ASSIGNMENT.llama.model, 'meta/llama-3.3-70b-instruct');
+  const inferredHelloPlan = normalizePlan({
+    task: 'Create a test file called Hello.kt',
+    files: [],
+    changes: ['Create requested file'],
+    risk: 'LOW',
+    estimatedLines: 3
+  }, 'create a test file called Hello.kt');
+  assert.deepStrictEqual(inferredHelloPlan.files, ['app/src/main/java/Hello.kt']);
 
   const originalFetch = global.fetch;
   try {
