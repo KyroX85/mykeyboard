@@ -14,7 +14,25 @@
     "core_moat": "passive behavioral keyboard data"
   },
   "decision_history": [],
-  "pending_vision_command": null,
+  "pending_vision_command": {
+    "id": "vision-1779635013995",
+    "timestamp": "2026-05-24T15:03:33.995Z",
+    "command": "create a test file called Hello.kt",
+    "plan": {
+      "task": "create a test file called Hello.kt",
+      "files": [],
+      "changes": [
+        "No change list returned."
+      ],
+      "risk": "LOW",
+      "estimatedLines": 50,
+      "roadmapConflict": false,
+      "conflictMessage": null
+    },
+    "approval": "PENDING",
+    "outcome": "WAITING_FOR_FOUNDER",
+    "commitHash": null
+  },
   "vision_commands_history": [],
   "milestones": [],
   "learned_preferences": [],
