@@ -15,15 +15,14 @@ const { executeFirstFixableIssue } = require('../scripts/execution-engine');
 const { executeAiBridge } = require('../scripts/ai-execution-bridge');
 const { maybeGenerateAiWhatsAppResponse } = require('./ai-whatsapp-responder');
 const {
-  readVisionCommandState,
   classifyVisionMessage,
   createVisionPlan,
-  cancelPendingVisionCommandPersistent,
-  approvePendingVisionCommand,
+  executeVisionCommandEntry,
+  approveStatelessVisionCommand,
   formatVisionPlan,
-  formatVisionApprovalResult
+  formatVisionApprovalResult,
+  formatVisionNoTarget
 } = require('./vision-command-manager');
-const { readPendingVisionCommandPersistent } = require('./founder-memory');
 
 const COMMAND_ALIASES = new Map([
   ['status', 'status'],
@@ -304,37 +303,9 @@ async function routeMessageWithAi(message, state, memory = {}, options = {}) {
 }
 
 async function maybeRouteVisionDecision(normalized, options = {}) {
-  if (!isVisionApproval(normalized) && !isVisionRejection(normalized)) return null;
-  const state = readVisionCommandState();
-  let pending = state.pending || null;
-  if (!pending) {
-    pending = await readPendingVisionCommandPersistent({ root: options.root });
-  }
-  if (!pending) {
-    return {
-      command: 'vision_command_missing',
-      details: { agent: 'cto', intent: 'vision_command_missing' },
-      matchedRoute: 'vision_command_decision_missing',
-      response: [
-        'CTO: I received the approval, Founder, but no pending vision command is stored.',
-        'Nothing was executed.',
-        'Please send the task again, and I will store it before asking for approval.'
-      ].join('\n'),
-      usedAi: false
-    };
-  }
-
-  if (isVisionRejection(normalized)) {
-    const cancelled = await cancelPendingVisionCommandPersistent({ root: options.root });
-    return {
-      command: 'vision_command_cancelled',
-      details: { agent: 'cto', intent: 'vision_command_cancelled', visionCommand: cancelled },
-      matchedRoute: 'vision_command_decision',
-      response: `🎯 CTO: Cancelled, Founder. I will not execute: ${cancelled.plan.task}.`
-    };
-  }
-
-  const completed = await approvePendingVisionCommand({
+  const token = approvalTokenFromMessage(normalized);
+  if (!token) return null;
+  const completed = await approveStatelessVisionCommand(token, {
     root: options.root,
     client: options.client,
     commit: options.commit,
@@ -342,32 +313,67 @@ async function maybeRouteVisionDecision(normalized, options = {}) {
     commitMessage: options.commitMessage,
     validationCommand: options.validationCommand
   });
+  if (!completed) {
+    return {
+      command: 'vision_command_invalid_approval',
+      details: { agent: 'cto', intent: 'vision_command_invalid_approval' },
+      matchedRoute: 'vision_command_approval_token',
+      response: [
+        'CTO: Founder, that approval command is invalid or expired.',
+        'Nothing was executed.',
+        'Send the task again and I will generate a fresh approval command.'
+      ].join('\n'),
+      usedAi: false
+    };
+  }
   return {
     command: 'vision_command_approved',
     details: { agent: 'cto', intent: 'vision_command_approved', visionCommand: completed },
-    matchedRoute: 'vision_command_decision',
+    matchedRoute: 'vision_command_approval_token',
     response: formatVisionApprovalResult(completed),
     usedAi: true
   };
 }
 
-function isVisionApproval(normalized) {
-  return ['yes', 'y', 'ok go', 'ok go ahead', 'go ahead', 'proceed', 'do it', 'execute', 'start'].includes(normalized);
+function approvalTokenFromMessage(normalized) {
+  const match = String(normalized || '').match(/^approve-([a-z0-9_-]+)$/i);
+  return match ? match[1] : null;
 }
-
-function isVisionRejection(normalized) {
-  return ['no', 'n', 'cancel', 'stop', 'reject'].includes(normalized);
-}
-
 async function maybeCreateVisionCommand(message, state, memory, options = {}) {
   const client = options.client;
   const classification = await classifyVisionMessage({ message, state, memory, client });
   if (classification.type !== 'VISION_COMMAND') return null;
   const entry = await createVisionPlan({ message, state, memory, client });
+  if (entry.plan.risk === 'LOW' && !entry.plan.roadmapConflict) {
+    if (!entry.plan.files.length) {
+      return {
+        command: 'vision_command_needs_file',
+        details: { agent: 'cto', intent: 'vision_command_needs_file', visionCommand: entry },
+        matchedRoute: 'vision_command_no_target',
+        response: formatVisionNoTarget(entry),
+        usedAi: true
+      };
+    }
+    const completed = await executeVisionCommandEntry(entry, {
+      root: options.root,
+      client: options.client,
+      commit: options.commit,
+      push: options.push,
+      commitMessage: options.commitMessage,
+      validationCommand: options.validationCommand
+    });
+    return {
+      command: 'vision_command_auto_executed',
+      details: { agent: 'cto', intent: 'vision_command_auto_executed', visionCommand: completed },
+      matchedRoute: 'vision_command_low_risk_auto_execute',
+      response: formatVisionApprovalResult(completed),
+      usedAi: true
+    };
+  }
   return {
-    command: 'vision_command_pending',
-    details: { agent: 'cto', intent: 'vision_command_pending', visionCommand: entry },
-    matchedRoute: 'vision_command_plan',
+    command: entry.plan.risk === 'MEDIUM' ? 'vision_command_approval_required' : 'vision_command_high_risk',
+    details: { agent: 'cto', intent: 'vision_command_plan', visionCommand: entry },
+    matchedRoute: 'vision_command_review_required',
     response: formatVisionPlan(entry),
     usedAi: true
   };

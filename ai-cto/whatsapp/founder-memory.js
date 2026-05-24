@@ -29,7 +29,6 @@ const DEFAULT_FOUNDER_MEMORY = {
     core_moat: 'passive behavioral keyboard data'
   },
   decision_history: [],
-  pending_vision_command: null,
   vision_commands_history: [],
   milestones: [],
   learned_preferences: [],
@@ -92,38 +91,6 @@ function rememberVisionCommand({ root = ROOT, command, plan, approval, outcome, 
   }, root);
 }
 
-function setPendingVisionCommand(entry, root = ROOT) {
-  const current = readFounderMemory(root);
-  const next = writeFounderMemory({
-    ...current,
-    pending_vision_command: entry || null
-  }, root);
-  if (entry) {
-    const task = entry.plan && entry.plan.task ? entry.plan.task : entry.command;
-    console.log(`[whatsapp-cto] PENDING COMMAND SAVED TO DISK: ${task}`);
-    console.log(`[whatsapp-cto] PENDING COMMAND DISK PATH: ${memoryPath(root)}`);
-  }
-  return next;
-}
-
-function readPendingVisionCommand(root = ROOT) {
-  const pending = readFounderMemory(root).pending_vision_command || null;
-  if (pending) {
-    const task = pending.plan && pending.plan.task ? pending.plan.task : pending.command;
-    console.log(`[whatsapp-cto] PENDING COMMAND LOADED FROM DISK: ${task}`);
-    console.log(`[whatsapp-cto] PENDING COMMAND DISK PATH: ${memoryPath(root)}`);
-  }
-  return pending;
-}
-
-function clearPendingVisionCommand(root = ROOT) {
-  const current = readFounderMemory(root);
-  return writeFounderMemory({
-    ...current,
-    pending_vision_command: null
-  }, root);
-}
-
 async function readFounderMemoryFromGitHub(options = {}) {
   const token = options.token || process.env.GITHUB_TOKEN || '';
   if (!token) return { ok: false, memory: readFounderMemory(options.root || ROOT), reason: 'GITHUB_TOKEN missing' };
@@ -170,52 +137,6 @@ async function writeFounderMemoryToGitHub(memory, options = {}) {
     commitSha: payload.commit && payload.commit.sha || null,
     path: GITHUB_MEMORY_PATH
   };
-}
-
-async function setPendingVisionCommandPersistent(entry, options = {}) {
-  const latest = await readFounderMemoryFromGitHub(options);
-  const current = latest.memory || readFounderMemory(options.root || ROOT);
-  const next = normalizeFounderMemory({
-    ...current,
-    pending_vision_command: entry || null
-  });
-  writeFounderMemory(next, options.root || ROOT);
-  if (entry) {
-    const task = entry.plan && entry.plan.task ? entry.plan.task : entry.command;
-    console.log(`[whatsapp-cto] PENDING COMMAND SAVED TO DISK: ${task}`);
-    console.log(`[whatsapp-cto] PENDING COMMAND DISK PATH: ${memoryPath(options.root || ROOT)}`);
-  }
-  const saved = await writeFounderMemoryToGitHub(next, {
-    ...options,
-    message: entry
-      ? `chore: store pending vision command ${compact(entry.plan && entry.plan.task || entry.command, 60)}`
-      : 'chore: clear pending vision command'
-  });
-  if ((options.token || process.env.GITHUB_TOKEN) && !saved.ok) {
-    throw new Error(`Could not persist pending vision command to GitHub: ${saved.reason}`);
-  }
-  if (entry && saved.ok) {
-    const task = entry.plan && entry.plan.task ? entry.plan.task : entry.command;
-    console.log(`[whatsapp-cto] PENDING COMMAND SAVED TO GITHUB: ${task}`);
-  } else if (entry) {
-    console.log(`[whatsapp-cto] PENDING COMMAND GITHUB SAVE SKIPPED: ${saved.reason}`);
-  }
-  return { ...saved, memory: next };
-}
-
-async function readPendingVisionCommandPersistent(options = {}) {
-  const latest = await readFounderMemoryFromGitHub(options);
-  const memory = latest.memory || readFounderMemory(options.root || ROOT);
-  const pending = memory.pending_vision_command || null;
-  if (pending) {
-    const task = pending.plan && pending.plan.task ? pending.plan.task : pending.command;
-    console.log(`[whatsapp-cto] PENDING COMMAND LOADED FROM GITHUB: ${task}`);
-  }
-  return pending;
-}
-
-async function clearPendingVisionCommandPersistent(options = {}) {
-  return setPendingVisionCommandPersistent(null, options);
 }
 
 function summarizeFounderWeek(root = ROOT, now = new Date()) {
@@ -322,7 +243,6 @@ function normalizeFounderMemory(memory = {}) {
     founder_preferences: { ...DEFAULT_FOUNDER_MEMORY.founder_preferences, ...(memory.founder_preferences || {}) },
     product_context: { ...DEFAULT_FOUNDER_MEMORY.product_context, ...(memory.product_context || {}) },
     decision_history: array(memory.decision_history).slice(-MAX_DECISIONS),
-    pending_vision_command: memory.pending_vision_command || null,
     vision_commands_history: array(memory.vision_commands_history).slice(-MAX_VISION_COMMANDS),
     milestones: array(memory.milestones).slice(-MAX_SUMMARIES),
     learned_preferences: array(memory.learned_preferences).slice(-MAX_SUMMARIES),
@@ -373,12 +293,6 @@ module.exports = {
   writeFounderMemory,
   rememberFounderInteraction,
   rememberVisionCommand,
-  setPendingVisionCommand,
-  readPendingVisionCommand,
-  clearPendingVisionCommand,
-  setPendingVisionCommandPersistent,
-  readPendingVisionCommandPersistent,
-  clearPendingVisionCommandPersistent,
   readFounderMemoryFromGitHub,
   writeFounderMemoryToGitHub,
   summarizeFounderWeek,

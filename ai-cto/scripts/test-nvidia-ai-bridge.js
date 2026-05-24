@@ -34,9 +34,7 @@ const {
   normalizePlan
 } = require('../whatsapp/vision-command-manager');
 const {
-  FOUNDER_MEMORY_FILE,
-  readPendingVisionCommand,
-  clearPendingVisionCommand
+  FOUNDER_MEMORY_FILE
 } = require('../whatsapp/founder-memory');
 
 async function run() {
@@ -77,14 +75,14 @@ async function run() {
           };
         }
         return {
-          choices: [{ message: { content: JSON.stringify({
-            task: 'Improve keyboard key responsiveness safely',
-            files: ['README.md'],
-            changes: ['Document responsiveness validation plan only'],
-            risk: 'LOW',
-            estimatedLines: 4,
-            roadmapConflict: false
-          }) } }],
+            choices: [{ message: { content: JSON.stringify({
+              task: 'Improve keyboard key responsiveness safely',
+              files: ['README.md'],
+              changes: ['Document responsiveness validation plan only'],
+              risk: 'MEDIUM',
+              estimatedLines: 4,
+              roadmapConflict: false
+            }) } }],
           usage: { total_tokens: 55 }
         };
       }
@@ -206,17 +204,6 @@ async function run() {
   assert.strictEqual(routedAi.usedAi, true);
   assert(routedAi.response.includes('What would you like to prioritize'));
 
-  if (fs.existsSync(VISION_COMMAND_LOG_FILE)) fs.unlinkSync(VISION_COMMAND_LOG_FILE);
-  clearPendingVisionCommand();
-  const noPendingApproval = await routeMessageWithAi('YES', {
-    healthScore: 80,
-    momentum: 'MOVING',
-    sections: { risks: [], unresolved: [], approvals: [] },
-    summary: { topRisk: 'none' }
-  }, { recentMessages: [] }, { client });
-  assert.strictEqual(noPendingApproval.command, 'vision_command_missing');
-  assert(noPendingApproval.response.includes('no pending vision command'));
-
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'cto-ai-bridge-'));
   try {
     fs.mkdirSync(path.join(tempRoot, 'ai-cto'), { recursive: true });
@@ -328,20 +315,10 @@ async function run() {
     sections: { risks: [], unresolved: [], approvals: [] },
     summary: { topRisk: 'none' }
   }, { recentMessages: [] }, { client });
-  assert.strictEqual(visionPlan.command, 'vision_command_pending');
-  assert(visionPlan.response.includes('Reply YES to execute or NO to cancel'));
+  assert.strictEqual(visionPlan.command, 'vision_command_approval_required');
+  assert(visionPlan.response.includes('Reply APPROVE-'));
   const visionState = readVisionCommandState();
-  assert(visionState.pending);
-  assert.strictEqual(visionState.pending.command, 'make keyboard keys feel more responsive');
-
-  const visionNo = await routeMessageWithAi('NO', {
-    healthScore: 80,
-    momentum: 'MOVING',
-    sections: { risks: [], unresolved: [], approvals: [] },
-    summary: { topRisk: 'none' }
-  }, { recentMessages: [] }, { client, commit: false });
-  assert.strictEqual(visionNo.command, 'vision_command_cancelled');
-  assert(visionNo.response.toLowerCase().includes('cancelled'));
+  assert.strictEqual(visionState.commands[visionState.commands.length - 1].command, 'make keyboard keys feel more responsive');
 
   const tempRootForVision = fs.mkdtempSync(path.join(os.tmpdir(), 'cto-vision-test-'));
   try {
@@ -362,64 +339,18 @@ async function run() {
       momentum: 'MOVING',
       sections: { risks: [], unresolved: [], approvals: [] },
       summary: { topRisk: 'none' }
-    }, { recentMessages: [] }, { client });
-    assert.strictEqual(helloPlan.command, 'vision_command_pending');
-    const persistedPending = readPendingVisionCommand();
-    assert(persistedPending);
-    if (fs.existsSync(VISION_COMMAND_LOG_FILE)) fs.unlinkSync(VISION_COMMAND_LOG_FILE);
-    clearPendingVisionCommand();
-    const fetchBackup = global.fetch;
-    process.env.GITHUB_TOKEN = 'github-memory-test';
-    let githubPutCount = 0;
-    try {
-      global.fetch = async (url, request = {}) => {
-        assert.strictEqual(request.headers.Authorization, 'Bearer github-memory-test');
-        if (request.method === 'PUT') {
-          githubPutCount += 1;
-          return {
-            ok: true,
-            json: async () => ({ commit: { sha: `memory-commit-${githubPutCount}` } })
-          };
-        }
-        return {
-          ok: true,
-          json: async () => ({
-            sha: 'memory-sha',
-            content: Buffer.from(JSON.stringify({
-              founder_preferences: { tone: 'professional English only' },
-              product_context: { name: 'Aritenis AI' },
-              decision_history: [],
-              pending_vision_command: persistedPending,
-              vision_commands_history: [],
-              milestones: [],
-              learned_preferences: [],
-              conversation_summaries: []
-            }), 'utf8').toString('base64')
-          })
-        };
-      };
-      const helloRun = await routeMessageWithAi('ok go ahead', {
-        healthScore: 80,
-        momentum: 'MOVING',
-        sections: { risks: [], unresolved: [], approvals: [] },
-        summary: { topRisk: 'none' }
-      }, { recentMessages: [{ role: 'agent', summary: 'Planned Hello.kt creation.' }] }, {
-        client,
-        root: tempRootForVision,
-        commit: true,
-        push: false,
-        commitMessage: 'test: Hello.kt pipeline test',
-        validationCommand: [process.execPath, '-e', "require('fs').existsSync('app/src/main/java/Hello.kt') || process.exit(1)"]
-      });
-      assert.strictEqual(helloRun.command, 'vision_command_approved');
-      assert(helloRun.response.includes('Commit:'));
-      assert(githubPutCount >= 1);
-      assert(fs.existsSync(path.join(tempRootForVision, 'app', 'src', 'main', 'java', 'Hello.kt')));
-      assert(execFileSync('git', ['log', '--oneline', '-1'], { cwd: tempRootForVision, encoding: 'utf8' }).includes('test: Hello.kt pipeline test'));
-    } finally {
-      global.fetch = fetchBackup;
-      delete process.env.GITHUB_TOKEN;
-    }
+    }, { recentMessages: [] }, {
+      client,
+      root: tempRootForVision,
+      commit: true,
+      push: false,
+      commitMessage: 'test: Hello.kt pipeline test',
+      validationCommand: [process.execPath, '-e', "require('fs').existsSync('app/src/main/java/Hello.kt') || process.exit(1)"]
+    });
+    assert.strictEqual(helloPlan.command, 'vision_command_auto_executed');
+    assert(helloPlan.response.includes('Commit:'));
+    assert(fs.existsSync(path.join(tempRootForVision, 'app', 'src', 'main', 'java', 'Hello.kt')));
+    assert(execFileSync('git', ['log', '--oneline', '-1'], { cwd: tempRootForVision, encoding: 'utf8' }).includes('test: Hello.kt pipeline test'));
   } finally {
     fs.rmSync(tempRootForVision, { recursive: true, force: true });
   }

@@ -9,15 +9,10 @@ const {
   writeFounderMemory,
   rememberFounderInteraction,
   rememberVisionCommand,
-  setPendingVisionCommand,
-  readPendingVisionCommand,
-  clearPendingVisionCommand,
-  setPendingVisionCommandPersistent,
-  readPendingVisionCommandPersistent,
-  clearPendingVisionCommandPersistent,
   buildFounderMemoryContext,
   formatFounderMemorySummary,
-  maybeCommitFounderMemory
+  maybeCommitFounderMemory,
+  writeFounderMemoryToGitHub
 } = require('../whatsapp/founder-memory');
 const { routeMessage } = require('../whatsapp/command-router');
 const { ACTION_LOG_FILE } = require('../whatsapp/agent-action-log');
@@ -41,7 +36,7 @@ try {
   rememberFounderInteraction({
     root: tempRoot,
     founderMessage: 'create a test file called Hello.kt',
-    agentDecision: 'vision_command_pending',
+    agentDecision: 'vision_command_auto_executed',
     executed: false,
     outcome: 'Plan generated'
   });
@@ -60,20 +55,8 @@ try {
   assert.strictEqual(context.founder_preferences.language, 'English only, no Tamil slang');
   assert(formatFounderMemorySummary(memory).includes('create a test file called Hello.kt'));
 
-  setPendingVisionCommand({
-    id: 'vision-test',
-    command: 'create a test file called Hello.kt',
-    plan: { task: 'Create Hello.kt', files: ['app/src/main/java/Hello.kt'] },
-    approval: 'PENDING',
-    outcome: 'WAITING_FOR_FOUNDER'
-  }, tempRoot);
-  assert.strictEqual(readPendingVisionCommand(tempRoot).command, 'create a test file called Hello.kt');
-  clearPendingVisionCommand(tempRoot);
-  assert.strictEqual(readPendingVisionCommand(tempRoot), null);
-
   const githubMemory = {
-    ...readFounderMemory(tempRoot),
-    pending_vision_command: null
+    ...readFounderMemory(tempRoot)
   };
   let latestContent = `${JSON.stringify(githubMemory, null, 2)}\n`;
   const githubCalls = [];
@@ -97,20 +80,14 @@ try {
       json: async () => ({ commit: { sha: 'commit-after' }, content: { sha: 'sha-after' } })
     };
   };
-  await setPendingVisionCommandPersistent({
-    id: 'vision-github',
-    command: 'create a test file called Hello.kt',
-    plan: { task: 'Create Hello.kt', files: ['app/src/main/java/Hello.kt'] },
-    approval: 'PENDING',
-    outcome: 'WAITING_FOR_FOUNDER'
+  const saved = await writeFounderMemoryToGitHub({
+    ...readFounderMemory(tempRoot),
+    milestones: [{ timestamp: new Date().toISOString(), summary: 'GitHub memory write test' }]
   }, { root: tempRoot, token: 'github-token', fetchImpl });
+  assert.strictEqual(saved.ok, true);
   assert.strictEqual(githubCalls[0].request.headers.Authorization, 'Bearer github-token');
   assert(githubCalls.some((call) => call.request.method === 'PUT'));
-  assert(JSON.parse(latestContent).pending_vision_command.plan.task.includes('Hello.kt'));
-  const pendingFromGitHub = await readPendingVisionCommandPersistent({ root: tempRoot, token: 'github-token', fetchImpl });
-  assert.strictEqual(pendingFromGitHub.plan.task, 'Create Hello.kt');
-  await clearPendingVisionCommandPersistent({ root: tempRoot, token: 'github-token', fetchImpl });
-  assert.strictEqual(JSON.parse(latestContent).pending_vision_command, null);
+  assert.strictEqual(JSON.parse(latestContent).milestones[0].summary, 'GitHub memory write test');
 
   const routed = routeMessage('memory', {
     healthScore: 80,
