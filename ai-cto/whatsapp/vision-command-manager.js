@@ -126,6 +126,7 @@ async function executeVisionCommandEntry(entry, { root = process.cwd(), client =
     push,
     commitMessage: commitMessage || commitMessageForPlan(approved.plan),
     validationCommand,
+    skipLlamaReviewForLowRisk: approved.plan.risk === 'LOW',
     issue: planToIssue(approved.plan)
   });
   const completed = {

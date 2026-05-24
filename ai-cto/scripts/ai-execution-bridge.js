@@ -360,7 +360,10 @@ async function executeAiBridge(options = {}) {
   if (!generated.ok || !generated.content) return { status: 'MODEL_FAILED', riskLevel: risk.riskLevel, reason: generated.reason || generated.error };
 
   const after = stripCodeFence(generated.content);
-  const verified = await verifyFixWithLlama({ client, root, issue, file, before, after });
+  const shouldReviewWithLlama = risk.riskLevel !== 'LOW' || !options.skipLlamaReviewForLowRisk;
+  const verified = shouldReviewWithLlama
+    ? await verifyFixWithLlama({ client, root, issue, file, before, after })
+    : true;
   if (!verified) return { status: 'DISCARDED', riskLevel: risk.riskLevel, reason: 'Llama rejected the fix.' };
 
   if (risk.riskLevel === 'MEDIUM') {

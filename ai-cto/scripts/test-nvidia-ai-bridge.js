@@ -334,6 +334,10 @@ async function run() {
     execFileSync('git', ['add', '.'], { cwd: tempRootForVision });
     execFileSync('git', ['commit', '-m', 'fixture'], { cwd: tempRootForVision });
 
+    const llamaVerifyCallsBeforeHello = calls.filter((request) =>
+      request.model === MODEL_ASSIGNMENT.llama.model &&
+      request.messages.map((message) => message.content).join('\n').includes('Verify whether this fix makes logical sense')
+    ).length;
     const helloPlan = await routeMessageWithAi('create a test file called Hello.kt', {
       healthScore: 80,
       momentum: 'MOVING',
@@ -349,6 +353,11 @@ async function run() {
     });
     assert.strictEqual(helloPlan.command, 'vision_command_auto_executed');
     assert(helloPlan.response.includes('Commit:'));
+    const llamaVerifyCallsAfterHello = calls.filter((request) =>
+      request.model === MODEL_ASSIGNMENT.llama.model &&
+      request.messages.map((message) => message.content).join('\n').includes('Verify whether this fix makes logical sense')
+    ).length;
+    assert.strictEqual(llamaVerifyCallsAfterHello, llamaVerifyCallsBeforeHello);
     assert(fs.existsSync(path.join(tempRootForVision, 'app', 'src', 'main', 'java', 'Hello.kt')));
     assert(execFileSync('git', ['log', '--oneline', '-1'], { cwd: tempRootForVision, encoding: 'utf8' }).includes('test: Hello.kt pipeline test'));
   } finally {
