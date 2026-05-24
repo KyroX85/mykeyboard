@@ -112,7 +112,7 @@ async function run() {
   assert.strictEqual(parseRiskLevel('This is medium risk.'), 'MEDIUM');
   assert.strictEqual(parseRiskLevel('HIGH because privacy'), 'HIGH');
   assert.strictEqual(parseRiskLevel('safe low cleanup'), 'LOW');
-  assert.strictEqual(MODEL_ASSIGNMENT.deepseek.model, 'deepseek-ai/deepseek-r1-0528');
+  assert.strictEqual(MODEL_ASSIGNMENT.deepseek.model, 'deepseek-ai/deepseek-v4-flash');
   assert.strictEqual(MODEL_ASSIGNMENT.llama.model, 'meta/llama-3.3-70b-instruct');
 
   const originalFetch = global.fetch;
@@ -137,7 +137,7 @@ async function run() {
     assert.strictEqual(capturedRequest.request.headers.Authorization, 'Bearer test-api-key');
     assert.strictEqual(capturedRequest.request.headers['Content-Type'], 'application/json');
     const body = JSON.parse(capturedRequest.request.body);
-    assert.strictEqual(body.model, 'deepseek-ai/deepseek-r1-0528');
+    assert.strictEqual(body.model, 'deepseek-ai/deepseek-v4-flash');
     assert.strictEqual(body.max_tokens, 1024);
   } finally {
     global.fetch = originalFetch;

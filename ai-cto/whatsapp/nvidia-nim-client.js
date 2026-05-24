@@ -18,7 +18,7 @@ const ENDPOINT = 'https://integrate.api.nvidia.com/v1';
 const MODEL_ASSIGNMENT = {
   deepseek: {
     label: 'DeepSeek R1 0528',
-    model: 'deepseek-ai/deepseek-r1-0528',
+    model: 'deepseek-ai/deepseek-v4-flash',
     envKey: 'NVIDIA_DEEPSEEK_API_KEY',
     role: 'Code Brain'
   },
