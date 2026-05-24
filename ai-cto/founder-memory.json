@@ -14,27 +14,7 @@
     "core_moat": "passive behavioral keyboard data"
   },
   "decision_history": [],
-  "pending_vision_command": {
-    "id": "vision-1779638695794",
-    "timestamp": "2026-05-24T16:04:55.794Z",
-    "command": "create a test file called Hello.kt",
-    "plan": {
-      "task": "Create a test file called Hello.kt",
-      "files": [
-        "app/src/main/java/Hello.kt"
-      ],
-      "changes": [
-        "Create a new Kotlin file with a basic class or function"
-      ],
-      "risk": "LOW",
-      "estimatedLines": 5,
-      "roadmapConflict": false,
-      "conflictMessage": "No conflict with current phase goals, as creating a test file does not introduce new features or instability."
-    },
-    "approval": "PENDING",
-    "outcome": "WAITING_FOR_FOUNDER",
-    "commitHash": null
-  },
+  "pending_vision_command": null,
   "vision_commands_history": [],
   "milestones": [],
   "learned_preferences": [],
