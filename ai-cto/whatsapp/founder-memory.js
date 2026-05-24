@@ -4,6 +4,11 @@ const { execFileSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const FOUNDER_MEMORY_FILE = path.join(ROOT, 'ai-cto', 'founder-memory.json');
+const GITHUB_OWNER = 'KyroX85';
+const GITHUB_REPO = 'mykeyboard';
+const GITHUB_MEMORY_PATH = 'ai-cto/founder-memory.json';
+const GITHUB_CONTENTS_URL = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${GITHUB_MEMORY_PATH}`;
+const GITHUB_BRANCH = 'main';
 const MAX_DECISIONS = 500;
 const MAX_VISION_COMMANDS = 300;
 const MAX_SUMMARIES = 80;
@@ -117,6 +122,100 @@ function clearPendingVisionCommand(root = ROOT) {
     ...current,
     pending_vision_command: null
   }, root);
+}
+
+async function readFounderMemoryFromGitHub(options = {}) {
+  const token = options.token || process.env.GITHUB_TOKEN || '';
+  if (!token) return { ok: false, memory: readFounderMemory(options.root || ROOT), reason: 'GITHUB_TOKEN missing' };
+  const response = await githubFetch(GITHUB_CONTENTS_URL, {
+    method: 'GET',
+    headers: githubHeaders(token)
+  }, options.fetchImpl);
+  if (!response.ok) {
+    return { ok: false, memory: readFounderMemory(options.root || ROOT), reason: `GitHub GET failed ${response.status}` };
+  }
+  const payload = await response.json();
+  const content = Buffer.from(String(payload.content || ''), 'base64').toString('utf8');
+  return {
+    ok: true,
+    memory: normalizeFounderMemory(JSON.parse(content)),
+    sha: payload.sha || null,
+    path: GITHUB_MEMORY_PATH
+  };
+}
+
+async function writeFounderMemoryToGitHub(memory, options = {}) {
+  const token = options.token || process.env.GITHUB_TOKEN || '';
+  if (!token) return { ok: false, reason: 'GITHUB_TOKEN missing' };
+  const latest = await readFounderMemoryFromGitHub({ ...options, token });
+  const normalized = normalizeFounderMemory(memory);
+  const response = await githubFetch(GITHUB_CONTENTS_URL, {
+    method: 'PUT',
+    headers: githubHeaders(token),
+    body: JSON.stringify({
+      message: options.message || 'chore: persist founder memory',
+      content: Buffer.from(`${JSON.stringify(normalized, null, 2)}\n`, 'utf8').toString('base64'),
+      sha: latest.sha || undefined,
+      branch: GITHUB_BRANCH
+    })
+  }, options.fetchImpl);
+  if (!response.ok) {
+    const body = await response.text().catch(() => '');
+    return { ok: false, reason: `GitHub PUT failed ${response.status}: ${body.slice(0, 200)}` };
+  }
+  const payload = await response.json();
+  return {
+    ok: true,
+    memory: normalized,
+    commitSha: payload.commit && payload.commit.sha || null,
+    path: GITHUB_MEMORY_PATH
+  };
+}
+
+async function setPendingVisionCommandPersistent(entry, options = {}) {
+  const latest = await readFounderMemoryFromGitHub(options);
+  const current = latest.memory || readFounderMemory(options.root || ROOT);
+  const next = normalizeFounderMemory({
+    ...current,
+    pending_vision_command: entry || null
+  });
+  writeFounderMemory(next, options.root || ROOT);
+  if (entry) {
+    const task = entry.plan && entry.plan.task ? entry.plan.task : entry.command;
+    console.log(`[whatsapp-cto] PENDING COMMAND SAVED TO DISK: ${task}`);
+    console.log(`[whatsapp-cto] PENDING COMMAND DISK PATH: ${memoryPath(options.root || ROOT)}`);
+  }
+  const saved = await writeFounderMemoryToGitHub(next, {
+    ...options,
+    message: entry
+      ? `chore: store pending vision command ${compact(entry.plan && entry.plan.task || entry.command, 60)}`
+      : 'chore: clear pending vision command'
+  });
+  if ((options.token || process.env.GITHUB_TOKEN) && !saved.ok) {
+    throw new Error(`Could not persist pending vision command to GitHub: ${saved.reason}`);
+  }
+  if (entry && saved.ok) {
+    const task = entry.plan && entry.plan.task ? entry.plan.task : entry.command;
+    console.log(`[whatsapp-cto] PENDING COMMAND SAVED TO GITHUB: ${task}`);
+  } else if (entry) {
+    console.log(`[whatsapp-cto] PENDING COMMAND GITHUB SAVE SKIPPED: ${saved.reason}`);
+  }
+  return { ...saved, memory: next };
+}
+
+async function readPendingVisionCommandPersistent(options = {}) {
+  const latest = await readFounderMemoryFromGitHub(options);
+  const memory = latest.memory || readFounderMemory(options.root || ROOT);
+  const pending = memory.pending_vision_command || null;
+  if (pending) {
+    const task = pending.plan && pending.plan.task ? pending.plan.task : pending.command;
+    console.log(`[whatsapp-cto] PENDING COMMAND LOADED FROM GITHUB: ${task}`);
+  }
+  return pending;
+}
+
+async function clearPendingVisionCommandPersistent(options = {}) {
+  return setPendingVisionCommandPersistent(null, options);
 }
 
 function summarizeFounderWeek(root = ROOT, now = new Date()) {
@@ -235,6 +334,21 @@ function git(root, args) {
   return execFileSync('git', args, { cwd: root, stdio: 'pipe', encoding: 'utf8' }).trim();
 }
 
+function githubHeaders(token) {
+  return {
+    Authorization: `Bearer ${token}`,
+    Accept: 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28',
+    'Content-Type': 'application/json',
+    'User-Agent': 'Aritenis-CTO-Agent'
+  };
+}
+
+function githubFetch(url, options, fetchImpl) {
+  const transport = fetchImpl || fetch;
+  return transport(url, options);
+}
+
 function extractCommitHash(output) {
   const match = String(output || '').match(/\[.+?\s+([a-f0-9]{7,40})\]/i);
   return match ? match[1] : null;
@@ -262,6 +376,11 @@ module.exports = {
   setPendingVisionCommand,
   readPendingVisionCommand,
   clearPendingVisionCommand,
+  setPendingVisionCommandPersistent,
+  readPendingVisionCommandPersistent,
+  clearPendingVisionCommandPersistent,
+  readFounderMemoryFromGitHub,
+  writeFounderMemoryToGitHub,
   summarizeFounderWeek,
   buildFounderMemoryContext,
   formatFounderMemorySummary,

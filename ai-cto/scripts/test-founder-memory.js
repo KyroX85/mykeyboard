@@ -12,6 +12,9 @@ const {
   setPendingVisionCommand,
   readPendingVisionCommand,
   clearPendingVisionCommand,
+  setPendingVisionCommandPersistent,
+  readPendingVisionCommandPersistent,
+  clearPendingVisionCommandPersistent,
   buildFounderMemoryContext,
   formatFounderMemorySummary,
   maybeCommitFounderMemory
@@ -21,8 +24,11 @@ const { ACTION_LOG_FILE } = require('../whatsapp/agent-action-log');
 
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'founder-memory-'));
 const actionLogBackup = fs.existsSync(ACTION_LOG_FILE) ? fs.readFileSync(ACTION_LOG_FILE, 'utf8') : null;
+const githubTokenBackup = process.env.GITHUB_TOKEN;
 
+async function run() {
 try {
+  delete process.env.GITHUB_TOKEN;
   fs.mkdirSync(path.join(tempRoot, 'ai-cto'), { recursive: true });
   execFileSync('git', ['init'], { cwd: tempRoot });
   execFileSync('git', ['config', 'user.email', 'test@example.com'], { cwd: tempRoot });
@@ -65,6 +71,47 @@ try {
   clearPendingVisionCommand(tempRoot);
   assert.strictEqual(readPendingVisionCommand(tempRoot), null);
 
+  const githubMemory = {
+    ...readFounderMemory(tempRoot),
+    pending_vision_command: null
+  };
+  let latestContent = `${JSON.stringify(githubMemory, null, 2)}\n`;
+  const githubCalls = [];
+  const fetchImpl = async (url, request) => {
+    githubCalls.push({ url, request });
+    if (request.method === 'GET') {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          sha: 'sha-before',
+          content: Buffer.from(latestContent, 'utf8').toString('base64')
+        })
+      };
+    }
+    const body = JSON.parse(request.body);
+    latestContent = Buffer.from(body.content, 'base64').toString('utf8');
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({ commit: { sha: 'commit-after' }, content: { sha: 'sha-after' } })
+    };
+  };
+  await setPendingVisionCommandPersistent({
+    id: 'vision-github',
+    command: 'create a test file called Hello.kt',
+    plan: { task: 'Create Hello.kt', files: ['app/src/main/java/Hello.kt'] },
+    approval: 'PENDING',
+    outcome: 'WAITING_FOR_FOUNDER'
+  }, { root: tempRoot, token: 'github-token', fetchImpl });
+  assert.strictEqual(githubCalls[0].request.headers.Authorization, 'Bearer github-token');
+  assert(githubCalls.some((call) => call.request.method === 'PUT'));
+  assert(JSON.parse(latestContent).pending_vision_command.plan.task.includes('Hello.kt'));
+  const pendingFromGitHub = await readPendingVisionCommandPersistent({ root: tempRoot, token: 'github-token', fetchImpl });
+  assert.strictEqual(pendingFromGitHub.plan.task, 'Create Hello.kt');
+  await clearPendingVisionCommandPersistent({ root: tempRoot, token: 'github-token', fetchImpl });
+  assert.strictEqual(JSON.parse(latestContent).pending_vision_command, null);
+
   const routed = routeMessage('memory', {
     healthScore: 80,
     momentum: 'MOVING',
@@ -96,6 +143,11 @@ try {
   } else {
     fs.writeFileSync(ACTION_LOG_FILE, actionLogBackup);
   }
+  if (githubTokenBackup == null) delete process.env.GITHUB_TOKEN;
+  else process.env.GITHUB_TOKEN = githubTokenBackup;
+}
 }
 
-console.log('Founder memory checks passed.');
+run().then(() => {
+  console.log('Founder memory checks passed.');
+});

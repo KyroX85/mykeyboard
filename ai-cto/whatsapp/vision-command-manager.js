@@ -9,7 +9,10 @@ const {
   rememberVisionCommand,
   setPendingVisionCommand,
   readPendingVisionCommand,
-  clearPendingVisionCommand
+  clearPendingVisionCommand,
+  setPendingVisionCommandPersistent,
+  readPendingVisionCommandPersistent,
+  clearPendingVisionCommandPersistent
 } = require('./founder-memory');
 
 const ROOT = path.resolve(__dirname, '..', '..');
@@ -111,6 +114,7 @@ async function createVisionPlan({ message, state, memory, client = createNvidiaC
   };
   const current = readVisionCommandState();
   setPendingVisionCommand(entry);
+  await setPendingVisionCommandPersistent(entry);
   writeVisionCommandState({
     pending: entry,
     commands: [...current.commands, entry]
@@ -148,9 +152,10 @@ function cancelPendingVisionCommand() {
 }
 
 async function approvePendingVisionCommand({ root = process.cwd(), client = createNvidiaClient(), commit = false, push = false, commitMessage = null, validationCommand = null }) {
+  const githubPending = await readPendingVisionCommandPersistent();
   const diskPending = readPendingVisionCommand();
   const state = readVisionCommandState();
-  const activePending = diskPending || state.pending;
+  const activePending = githubPending || diskPending || state.pending;
   if (!activePending) return null;
   console.log('[whatsapp-cto] APPROVAL RECEIVED: triggering execution');
   const pending = {
@@ -177,6 +182,7 @@ async function approvePendingVisionCommand({ root = process.cwd(), client = crea
     pending: null,
     commands: state.commands.map((item) => item.id === completed.id ? completed : item)
   });
+  await clearPendingVisionCommandPersistent();
   clearPendingVisionCommand();
   if (path.resolve(root) !== ROOT) clearPendingVisionCommand(root);
   rememberVisionCommand({

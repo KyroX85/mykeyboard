@@ -46,6 +46,7 @@ async function run() {
     ? new Map(fs.readdirSync(AGENT_BRAIN_DIR).map((file) => [file, fs.readFileSync(path.join(AGENT_BRAIN_DIR, file), 'utf8')]))
     : new Map();
   try {
+  delete process.env.GITHUB_TOKEN;
   const calls = [];
   const mockTransport = async (request) => {
     calls.push(request);
@@ -270,8 +271,7 @@ async function run() {
     assert.strictEqual(execFileSync('git', ['config', 'user.name'], { cwd: tempRemoteRoot, encoding: 'utf8' }).trim(), 'Aritenis CTO');
     assert.strictEqual(execFileSync('git', ['remote', 'get-url', 'origin'], { cwd: tempRemoteRoot, encoding: 'utf8' }).trim(), 'https://test-token@github.com/KyroX85/mykeyboard.git');
   } finally {
-    if (githubTokenBackup == null) delete process.env.GITHUB_TOKEN;
-    else process.env.GITHUB_TOKEN = githubTokenBackup;
+    delete process.env.GITHUB_TOKEN;
     fs.rmSync(tempRemoteRoot, { recursive: true, force: true });
   }
 
