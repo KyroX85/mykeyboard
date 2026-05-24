@@ -140,6 +140,25 @@ function extractTwilioBody(req) {
   };
 }
 
+function logVisibleWebhook(stage, details = {}) {
+  const safe = {
+    requestId: details.requestId || null,
+    from: details.from ? maskPhoneForConsole(details.from) : null,
+    body: details.body ? String(details.body).replace(/\s+/g, ' ').slice(0, 120) : null,
+    command: details.command || null,
+    status: details.status || null,
+    reason: details.reason || null,
+    parsedKeys: Array.isArray(details.parsedKeys) ? details.parsedKeys : undefined
+  };
+  console.log(`[whatsapp-cto] WEBHOOK ${stage}: ${JSON.stringify(safe)}`);
+}
+
+function maskPhoneForConsole(phone) {
+  const value = String(phone || '');
+  if (value.length <= 4) return '****';
+  return `${'*'.repeat(Math.max(0, value.length - 4))}${value.slice(-4)}`;
+}
+
 function createApp() {
   const app = express();
   app.set('trust proxy', true);
@@ -190,15 +209,23 @@ function createApp() {
     const from = incoming.from;
     const body = incoming.body;
     const messageSid = incoming.messageSid;
+    logVisibleWebhook('received', {
+      requestId: id,
+      from,
+      body,
+      parsedKeys: Object.keys(incoming.parsed)
+    });
 
     const configError = assertProductionConfig();
     if (configError) {
+      logVisibleWebhook('config_error', { requestId: id, from, body, status: 503, reason: configError });
       logWebhookEvent({ type: 'config_error', requestId: id, from, body, status: 503, error: configError });
       res.status(503).type('text/xml').send(twiml(`Founder, CTO WhatsApp is not configured: ${configError}`));
       return;
     }
 
     if (guard.isAbusive(from)) {
+      logVisibleWebhook('abuse_blocked', { requestId: id, from, body, status: 403 });
       logWebhookEvent({ type: 'abuse_blocked', requestId: id, from, body, status: 403 });
       res.status(403).type('text/xml').send(twiml('Access denied.'));
       return;
@@ -206,6 +233,7 @@ function createApp() {
 
     if (!validateTwilioSignature(req)) {
       guard.recordAbuse(from, 'bad_signature');
+      logVisibleWebhook('signature_rejected', { requestId: id, from, body, status: 403 });
       logWebhookEvent({ type: 'signature_rejected', requestId: id, from, body, status: 403 });
       res.status(403).type('text/xml').send(twiml('Access denied.'));
       return;
@@ -213,6 +241,7 @@ function createApp() {
 
     if (FOUNDER_WHATSAPP_NUMBER && from !== FOUNDER_WHATSAPP_NUMBER) {
       guard.recordAbuse(from, 'bad_sender');
+      logVisibleWebhook('sender_rejected', { requestId: id, from, body, status: 403 });
       logWebhookEvent({ type: 'sender_rejected', requestId: id, from, body, status: 403 });
       res.status(403).type('text/xml').send(twiml('Access denied.'));
       return;
@@ -220,6 +249,7 @@ function createApp() {
 
     const replay = guard.checkReplay(messageSid);
     if (replay.replayed) {
+      logVisibleWebhook('replay_rejected', { requestId: id, from, body, status: 409 });
       logWebhookEvent({ type: 'replay_rejected', requestId: id, from, body, status: 409, meta: { messageSid } });
       res.status(409).type('text/xml').send(twiml('Founder, duplicate webhook delivery ignored.'));
       return;
@@ -227,6 +257,7 @@ function createApp() {
 
     const rate = guard.checkRateLimit(from);
     if (rate.limited) {
+      logVisibleWebhook('rate_limited', { requestId: id, from, body, status: 429, reason: `count=${rate.count}` });
       logWebhookEvent({ type: 'rate_limited', requestId: id, from, body, status: 429, meta: { count: rate.count } });
       res.status(429).type('text/xml').send(twiml('Founder, rate limit reached. Try again shortly.'));
       return;
@@ -240,11 +271,20 @@ function createApp() {
         commit: process.env.CTO_AI_EXECUTION_COMMIT !== 'false',
         push: process.env.CTO_AI_EXECUTION_PUSH !== 'false'
       });
+      logVisibleWebhook('routed', {
+        requestId: id,
+        from,
+        body,
+        command: routed.command,
+        status: 200,
+        reason: routed.matchedRoute || routed.command
+      });
       const cooldownKey = routed.command === 'agent'
         ? `agent:${routed.agent}:${routed.intent}`
         : routed.command;
       const cooldown = guard.checkCommandCooldown(from, cooldownKey);
       if (cooldown.coolingDown) {
+        logVisibleWebhook('command_cooldown', { requestId: id, from, body, command: routed.command, status: 429 });
         logWebhookEvent({ type: 'command_cooldown', requestId: id, from, body, command: routed.command, status: 429 });
         res.status(429).type('text/xml').send(twiml('Founder, command cooldown is active. Try again in a few seconds.'));
         return;
@@ -289,6 +329,7 @@ function createApp() {
           fallbackReason: routed.details ? routed.details.fallbackReason : null
         }
       });
+      logVisibleWebhook('reply', { requestId: id, from, body, command: routed.command, status: 200 });
       res.status(200).type('text/xml').send(twiml(routed.response));
     } catch (error) {
       console.log(`[whatsapp-cto] HANDLER ERROR requestId=${id} message=${error.message}`);
