@@ -287,16 +287,19 @@ class SwipeWordResolver {
 
         val maxExtra = when {
             trustedLearned -> 5
+            frequency >= COMMON_WORD_FREQUENCY && word.length >= LONG_WORD_RELAXED_LENGTH -> 5
             frequency >= COMMON_WORD_FREQUENCY -> 5
             else -> 2
         }
         val maxMissing = when {
             trustedLearned -> 5
+            frequency >= COMMON_WORD_FREQUENCY && word.length >= LONG_WORD_RELAXED_LENGTH -> 6
             frequency >= COMMON_WORD_FREQUENCY || word.length >= 6 -> 4
             else -> 2
         }
         val maxAdjacent = when {
             trustedLearned -> 4
+            frequency >= COMMON_WORD_FREQUENCY && word.length >= LONG_WORD_RELAXED_LENGTH -> 4
             frequency >= COMMON_WORD_FREQUENCY -> 3
             else -> 2
         }
@@ -552,6 +555,7 @@ class SwipeWordResolver {
         const val MIN_LONG_SAFE_MATCHES = 4
         const val MIN_SAFE_ADJACENT_MATCHES = 2
         const val LONG_SAFE_WORD_LENGTH = 6
+        const val LONG_WORD_RELAXED_LENGTH = 10
         const val NO_KEY = '\u0000'
         val SAFE_FALLBACK_WORDS = setOf(
             "the",

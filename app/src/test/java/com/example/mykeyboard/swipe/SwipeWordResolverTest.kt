@@ -238,4 +238,29 @@ class SwipeWordResolverTest {
         assertEquals("between", resolver.resolve("betwern", candidates).firstOrNull())
         assertEquals("tomorrow", resolver.resolve("tomorriw", candidates).firstOrNull())
     }
+
+    @Test
+    fun resolvesCompressedLongWordSwipesWithoutOverRejectingInteriorSkips() {
+        val resolver = SwipeWordResolver()
+        val candidates = listOf(
+            SwipeWordCandidate("conversation", frequency = 32),
+            SwipeWordCandidate("development", frequency = 32),
+            SwipeWordCandidate("information", frequency = 32),
+            SwipeWordCandidate("architecture", frequency = 28),
+            SwipeWordCandidate("understanding", frequency = 28),
+            SwipeWordCandidate("because", frequency = 30)
+        )
+
+        assertEquals("conversation", resolver.resolve("cnvrsation", candidates).firstOrNull())
+        assertEquals("development", resolver.resolve("dvlopment", candidates).firstOrNull())
+        assertEquals("information", resolver.resolve("infrmation", candidates).firstOrNull())
+        assertEquals("architecture", resolver.resolve("archtecture", candidates).firstOrNull())
+        val diagnostics = mutableListOf<String>()
+        val understanding = resolver.resolve(
+            listOf("undrstnding"),
+            candidates,
+            debugReporter = diagnostics::add
+        ).firstOrNull()
+        assertEquals(diagnostics.joinToString("\n"), "understanding", understanding)
+    }
 }
