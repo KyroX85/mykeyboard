@@ -541,29 +541,76 @@ class KeyboardService : InputMethodService() {
 
     private fun filterEmojis(query: String, categories: List<KeyboardSymbols.EmojiCategory>): List<String> {
         val lower = query.lowercase()
+        val terms = lower.split(" ").filter { it.isNotBlank() }
         val all = LinkedHashSet<String>()
         categories.forEach { category -> all.addAll(category.emojis) }
         return all.filter { emoji ->
             val hint = emojiSearchHint(emoji)
-            hint.contains(lower)
+            if (terms.isEmpty()) {
+                hint.contains(lower)
+            } else {
+                terms.all { hint.contains(it) }
+            }
         }
     }
 
     private fun emojiSearchHint(emoji: String): String = when (emoji) {
-        "\uD83D\uDE00" -> "grin smile happy"
-        "\uD83D\uDE02" -> "laugh tears"
-        "\uD83D\uDE0D" -> "heart love"
-        "\uD83D\uDE22" -> "cry sad"
-        "\uD83D\uDC4D" -> "thumbs up like"
-        "\uD83D\uDC4E" -> "thumbs down"
-        "\uD83D\uDC36" -> "dog animal"
-        "\uD83D\uDC31" -> "cat animal"
+        "\uD83D\uDE00" -> "grin smile happy face joy"
+        "\uD83D\uDE03" -> "smile happy face grin"
+        "\uD83D\uDE02" -> "laugh tears happy lol"
+        "\uD83D\uDE0D" -> "heart love face eyes"
+        "\uD83D\uDE18" -> "kiss love face"
+        "\uD83D\uDE22" -> "cry sad face tears"
+        "\uD83D\uDE21" -> "angry mad face"
+        "\uD83D\uDE2D" -> "cry sob tears sad"
+        "\uD83D\uDE31" -> "fear shocked face"
+        "\uD83E\uDD2E" -> "vomit sick face"
+        "\uD83E\uDD27" -> "crazy face"
+        "\uD83D\uDC4D" -> "thumbs up like hand"
+        "\uD83D\uDC4E" -> "thumbs down dislike hand"
+        "\uD83D\uDC4F" -> "clap hand applause"
+        "\uD83D\uDCAA" -> "muscle strong gym arm"
+        "\uD83D\uDE4F" -> "pray thanks folded hands"
+        "\uD83D\uDC4B" -> "wave hello hand"
+        "\uD83D\uDC36" -> "dog animal pet"
+        "\uD83D\uDC31" -> "cat animal pet"
+        "\uD83D\uDC3B" -> "bear animal"
+        "\uD83D\uDC2F" -> "tiger animal"
+        "\uD83E\uDD81" -> "lion animal"
+        "\uD83D\uDC37" -> "pig animal"
+        "\uD83D\uDC14" -> "chicken bird animal"
+        "\uD83D\uDC1F" -> "fish sea animal"
+        "\uD83D\uDC19" -> "octopus sea animal"
+        "\uD83C\uDF38" -> "flower nature"
+        "\uD83C\uDF32" -> "tree nature"
         "\uD83C\uDF4E" -> "apple fruit food"
         "\uD83C\uDF55" -> "pizza food"
-        "\uD83D\uDCF1" -> "phone object"
-        "\uD83D\uDCBC" -> "briefcase work"
+        "\uD83C\uDF54" -> "burger food"
+        "\uD83C\uDF5F" -> "fries food"
+        "\u2615" -> "coffee drink"
+        "\uD83C\uDF7A" -> "beer drink"
+        "\uD83E\uDD64" -> "cup drink tea"
+        "\uD83D\uDCF1" -> "phone mobile object"
+        "\uD83D\uDCBB" -> "laptop computer object"
+        "\uD83D\uDCF7" -> "camera photo object"
+        "\uD83D\uDCBC" -> "briefcase work office object"
+        "\u2699\uFE0F" -> "gear settings object"
+        "\uD83D\uDE97" -> "car vehicle travel"
+        "\uD83D\uDE8C" -> "bus vehicle travel"
+        "\u2708\uFE0F" -> "plane travel"
+        "\uD83D\uDE80" -> "rocket travel space"
+        "\u26F5" -> "boat ship travel"
         "\u2764\uFE0F" -> "heart symbol love"
-        else -> ""
+        "\uD83D\uDD25" -> "fire hot"
+        "\u2728" -> "sparkles stars"
+        "\uD83C\uDF89" -> "party celebration"
+        "\uD83D\uDCAF" -> "hundred score"
+        "\u2705" -> "check tick done"
+        "\u26A0\uFE0F" -> "warning alert"
+        "\uD83D\uDD34" -> "red circle symbol"
+        "\uD83D\uDFE2" -> "green circle symbol"
+        "\uD83D\uDD35" -> "blue circle symbol"
+        else -> "emoji"
     }
 
     private fun recordRecentEmoji(emoji: String) {
