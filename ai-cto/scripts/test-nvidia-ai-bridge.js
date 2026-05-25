@@ -100,6 +100,7 @@ async function run() {
 
   const client = createNvidiaClient({
     deepseekKey: 'deepseek-test',
+    qwenCoderKey: 'qwen-test',
     llamaKey: 'llama-test',
     transport: mockTransport
   });
@@ -108,13 +109,17 @@ async function run() {
   assert.strictEqual(llama.model, MODEL_ASSIGNMENT.llama.model);
   const deepseek = await client.chat('deepseek', [{ role: 'user', content: 'fix file' }]);
   assert.strictEqual(deepseek.model, MODEL_ASSIGNMENT.deepseek.model);
+  const qwenCoder = await client.chat('qwenCoder', [{ role: 'user', content: 'fix fallback file' }]);
+  assert.strictEqual(qwenCoder.model, MODEL_ASSIGNMENT.qwenCoder.model);
   assert.strictEqual(calls[0].apiKey, 'llama-test');
   assert.strictEqual(calls[1].apiKey, 'deepseek-test');
+  assert.strictEqual(calls[2].apiKey, 'qwen-test');
   assert(calls[0].messages[0].content.startsWith(STRICT_GUARDRAIL_PROMPT));
   assert.strictEqual(parseRiskLevel('This is medium risk.'), 'MEDIUM');
   assert.strictEqual(parseRiskLevel('HIGH because privacy'), 'HIGH');
   assert.strictEqual(parseRiskLevel('safe low cleanup'), 'LOW');
   assert.strictEqual(MODEL_ASSIGNMENT.deepseek.model, 'deepseek-ai/deepseek-v4-flash');
+  assert.strictEqual(MODEL_ASSIGNMENT.qwenCoder.model, 'qwen/qwen3-coder-480b-a35b-instruct');
   assert.strictEqual(MODEL_ASSIGNMENT.llama.model, 'meta/llama-3.3-70b-instruct');
   assert.strictEqual(getDeepSeekFixLimitStatus(process.cwd()).limit, 20);
   const inferredHelloPlan = normalizePlan({
@@ -270,6 +275,44 @@ async function run() {
     assert(fs.readFileSync(path.join(tempRoot, 'README.md'), 'utf8').includes('fixed file content'));
     const log = JSON.parse(fs.readFileSync(path.join(tempRoot, 'ai-cto', 'agent-action-log.json'), 'utf8'));
     assert(log.actions.some((entry) => entry.modelUsed === MODEL_ASSIGNMENT.deepseek.model));
+    execFileSync('git', ['add', '.'], { cwd: tempRoot });
+    execFileSync('git', ['commit', '-m', 'baseline after deepseek fixture'], { cwd: tempRoot });
+
+    const fallbackCalls = [];
+    const fallbackClient = createNvidiaClient({
+      deepseekKey: 'deepseek-test',
+      qwenCoderKey: 'qwen-test',
+      llamaKey: 'llama-test',
+      transport: async (request) => {
+        fallbackCalls.push(request);
+        const joined = request.messages.map((message) => message.content).join('\n');
+        if (request.model === MODEL_ASSIGNMENT.llama.model) {
+          return {
+            choices: [{ message: { content: joined.includes('LOW, MEDIUM or HIGH') ? 'LOW risk' : 'APPROVED' } }],
+            usage: { total_tokens: 1 }
+          };
+        }
+        if (request.model === MODEL_ASSIGNMENT.deepseek.model) {
+          throw new Error('NVIDIA NIM 429: quota exceeded');
+        }
+        return {
+          choices: [{ message: { content: 'fallback fixed file content\n' } }],
+          usage: { total_tokens: 2 }
+        };
+      }
+    });
+    fs.writeFileSync(path.join(tempRoot, 'README.md'), 'needs fallback\n');
+    const fallbackBridge = await executeAiBridge({
+      root: tempRoot,
+      client: fallbackClient,
+      commit: false,
+      push: false,
+      validationCommand: [process.execPath, '-e', "require('fs').readFileSync('README.md','utf8').includes('fallback fixed') || process.exit(1)"]
+    });
+    assert.strictEqual(fallbackBridge.status, 'COMPLETED');
+    assert.strictEqual(fallbackBridge.modelUsed.fix, MODEL_ASSIGNMENT.qwenCoder.model);
+    assert(fallbackCalls.some((request) => request.model === MODEL_ASSIGNMENT.deepseek.model));
+    assert(fallbackCalls.some((request) => request.model === MODEL_ASSIGNMENT.qwenCoder.model));
 
     fs.writeFileSync(path.join(tempRoot, 'README.md'), Array.from({ length: 60 }, (_, index) => `line ${index}`).join('\n'));
     const blockedDiff = diffWithinHardLimits(tempRoot, { maxFiles: 3, maxLines: 50 });

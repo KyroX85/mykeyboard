@@ -117,9 +117,9 @@ function buildLlamaRiskPrompt(issue, root) {
   ].join('\n');
 }
 
-function buildDeepSeekFixPrompt({ file, issue, content, vision }) {
+function buildCodeFixPrompt({ file, issue, content, vision, modelLabel = 'Code Brain' }) {
   return [
-    'You are DeepSeek V4 Flash, the Code Brain for Aritenis AI.',
+    `You are ${modelLabel}, the Code Brain for Aritenis AI.`,
     'Fix only this specific issue. Do not change anything else.',
     'Return only the complete fixed file content.',
     '',
@@ -131,6 +131,10 @@ function buildDeepSeekFixPrompt({ file, issue, content, vision }) {
     'Current complete file content:',
     content
   ].join('\n');
+}
+
+function buildDeepSeekFixPrompt({ file, issue, content, vision }) {
+  return buildCodeFixPrompt({ file, issue, content, vision, modelLabel: 'DeepSeek V4 Flash' });
 }
 
 async function classifyRiskWithLlama({ client, issue, root, now }) {
@@ -158,29 +162,43 @@ async function classifyRiskWithLlama({ client, issue, root, now }) {
   return { riskLevel: parseRiskLevel(result.content), reason: result.content };
 }
 
-async function generateFixWithDeepSeek({ client, root, issue, file, content }) {
+async function generateFixWithCodeBrain({ client, root, issue, file, content }) {
   const vision = readText(path.join(root, 'ai-cto', 'VISION_NORTH_STAR.md'));
-  const prompt = buildDeepSeekFixPrompt({ file, issue, content, vision });
-  console.log(`[whatsapp-cto] DEEPSEEK CALLED: ${file} ${issue.message || issue.type || 'task'}`);
-  const result = await client.chat('deepseek', [
-    { role: 'user', content: prompt }
-  ], {
-    reason: 'AI code fix generation',
-    riskLevel: 'LOW',
-    maxTokens: Math.max(1000, Math.min(8000, content.length + 1200)),
-    temperature: 0
-  });
-  console.log(`[whatsapp-cto] DEEPSEEK RESPONSE: ${String(result.content || '').length}`);
-  appendActionLog(root, {
-    agentName: 'Coder',
-    actionTaken: `generated AI fix for ${file}`,
-    reason: issue.message || issue.type || 'flagged issue',
-    riskLevel: 'LOW',
-    outcome: result.ok ? 'MODEL_OK' : `MODEL_FAILED ${result.reason || result.error || ''}`.trim(),
-    modelUsed: MODEL_ASSIGNMENT.deepseek.model,
-    tokensConsumed: result.usage.total_tokens || 0
-  });
-  return result;
+  const sequence = ['deepseek', 'qwenCoder'];
+  let lastResult = null;
+  for (const kind of sequence) {
+    const assignment = MODEL_ASSIGNMENT[kind];
+    if (!client.available(kind)) continue;
+    const prompt = buildCodeFixPrompt({ file, issue, content, vision, modelLabel: assignment.label });
+    console.log(`[whatsapp-cto] ${assignment.label.toUpperCase()} CALLED: ${file} ${issue.message || issue.type || 'task'}`);
+    const result = await client.chat(kind, [
+      { role: 'user', content: prompt }
+    ], {
+      reason: kind === 'deepseek' ? 'AI code fix generation' : 'AI code fix generation fallback',
+      riskLevel: 'LOW',
+      maxTokens: Math.max(1000, Math.min(8000, content.length + 1200)),
+      temperature: 0
+    });
+    console.log(`[whatsapp-cto] ${assignment.label.toUpperCase()} RESPONSE: ${String(result.content || '').length}`);
+    appendActionLog(root, {
+      agentName: 'Coder',
+      actionTaken: `generated AI fix for ${file}`,
+      reason: issue.message || issue.type || 'flagged issue',
+      riskLevel: 'LOW',
+      outcome: result.ok ? 'MODEL_OK' : `MODEL_FAILED ${result.reason || result.error || ''}`.trim(),
+      modelUsed: assignment.model,
+      tokensConsumed: result.usage.total_tokens || 0
+    });
+    if (result.ok && result.content) return { ...result, codeBrainKind: kind };
+    lastResult = result;
+  }
+  return lastResult || {
+    ok: false,
+    model: '',
+    content: '',
+    usage: { total_tokens: 0 },
+    reason: 'No configured code brain model is available.'
+  };
 }
 
 async function verifyFixWithLlama({ client, root, issue, file, before, after }) {
@@ -400,7 +418,7 @@ async function executeAiBridge(options = {}) {
   }
 
   const before = fileExists ? fs.readFileSync(target, 'utf8') : '';
-  const generated = await generateFixWithDeepSeek({ client, root, issue, file, content: before });
+  const generated = await generateFixWithCodeBrain({ client, root, issue, file, content: before });
   if (!generated.ok || !generated.content) return { status: 'MODEL_FAILED', riskLevel: risk.riskLevel, reason: generated.reason || generated.error };
 
   const after = stripCodeFence(generated.content);
@@ -481,7 +499,7 @@ async function executeAiBridge(options = {}) {
     riskLevel: 'LOW',
     file,
     diff: diffCheck,
-    modelUsed: { fix: MODEL_ASSIGNMENT.deepseek.model, reviewer: MODEL_ASSIGNMENT.llama.model },
+    modelUsed: { fix: generated.model || MODEL_ASSIGNMENT.deepseek.model, reviewer: MODEL_ASSIGNMENT.llama.model },
     commitHash,
     commitOutput,
     report: [
@@ -524,6 +542,7 @@ module.exports = {
   MAX_LLAMA_CALLS_PER_DAY,
   dailyModelCount,
   getDeepSeekFixLimitStatus,
+  buildCodeFixPrompt,
   buildLlamaRiskPrompt,
   buildDeepSeekFixPrompt,
   diffWithinHardLimits,

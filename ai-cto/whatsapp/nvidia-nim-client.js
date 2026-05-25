@@ -17,10 +17,16 @@ For WhatsApp responses, use professional warm English only. Never use Tamil word
 const ENDPOINT = 'https://integrate.api.nvidia.com/v1';
 const MODEL_ASSIGNMENT = {
   deepseek: {
-    label: 'DeepSeek R1 0528',
+    label: 'DeepSeek V4 Flash',
     model: 'deepseek-ai/deepseek-v4-flash',
     envKey: 'NVIDIA_DEEPSEEK_API_KEY',
     role: 'Code Brain'
+  },
+  qwenCoder: {
+    label: 'Qwen3 Coder',
+    model: 'qwen/qwen3-coder-480b-a35b-instruct',
+    envKey: 'NVIDIA_QWEN_CODER_API_KEY',
+    role: 'Fallback Code Brain'
   },
   llama: {
     label: 'Llama 3.3 70B',
@@ -32,12 +38,14 @@ const MODEL_ASSIGNMENT = {
 
 function createNvidiaClient(options = {}) {
   const deepseekKey = options.deepseekKey || process.env.NVIDIA_DEEPSEEK_API_KEY || '';
+  const qwenCoderKey = options.qwenCoderKey || process.env.NVIDIA_QWEN_CODER_API_KEY || '';
   const llamaKey = options.llamaKey || process.env.NVIDIA_LLAMA_API_KEY || '';
   const transport = options.transport || defaultTransport;
   const endpoint = options.endpoint || ENDPOINT;
 
   function available(kind) {
     if (kind === 'deepseek') return Boolean(deepseekKey);
+    if (kind === 'qwenCoder') return Boolean(qwenCoderKey);
     if (kind === 'llama') return Boolean(llamaKey);
     return false;
   }
@@ -45,7 +53,7 @@ function createNvidiaClient(options = {}) {
   async function chat(kind, messages, chatOptions = {}) {
     const assignment = MODEL_ASSIGNMENT[kind];
     if (!assignment) throw new Error(`Unknown NVIDIA model kind: ${kind}`);
-    const apiKey = kind === 'deepseek' ? deepseekKey : llamaKey;
+    const apiKey = kind === 'deepseek' ? deepseekKey : kind === 'qwenCoder' ? qwenCoderKey : llamaKey;
     if (!apiKey) {
       return {
         ok: false,
@@ -71,7 +79,7 @@ function createNvidiaClient(options = {}) {
       const content = extractContent(response);
       const usage = response && response.usage ? response.usage : { total_tokens: 0 };
       logAgentAction({
-        agentName: kind === 'deepseek' ? 'Coder' : 'CTO',
+        agentName: kind === 'deepseek' || kind === 'qwenCoder' ? 'Coder' : 'CTO',
         actionTaken: `NVIDIA NIM call: ${assignment.label}`,
         reason: chatOptions.reason || assignment.role,
         riskLevel: chatOptions.riskLevel || 'LOW',
@@ -82,7 +90,7 @@ function createNvidiaClient(options = {}) {
       return { ok: true, model: assignment.model, content, usage, raw: response };
     } catch (error) {
       logAgentAction({
-        agentName: kind === 'deepseek' ? 'Coder' : 'CTO',
+        agentName: kind === 'deepseek' || kind === 'qwenCoder' ? 'Coder' : 'CTO',
         actionTaken: `NVIDIA NIM call failed: ${assignment.label}`,
         reason: chatOptions.reason || assignment.role,
         riskLevel: chatOptions.riskLevel || 'MEDIUM',
