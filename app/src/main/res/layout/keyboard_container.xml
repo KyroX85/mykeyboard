@@ -75,9 +75,38 @@
         android:orientation="vertical"
         android:visibility="gone">
 
-        <HorizontalScrollView
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="44dp"
+            android:background="#FF161B22"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingLeft="10dp"
+            android:paddingRight="10dp">
+
+            <EditText
+                android:id="@+id/emojiSearchInput"
+                android:layout_width="match_parent"
+                android:layout_height="34dp"
+                android:background="#FF2A2F38"
+                android:hint="Search emojis"
+                android:paddingLeft="12dp"
+                android:paddingRight="12dp"
+                android:singleLine="true"
+                android:textColor="#FFFFFFFF"
+                android:textColorHint="#FF9EA7B3"
+                android:textSize="14sp" />
+        </LinearLayout>
+
+        <GridView
+            android:id="@+id/emojiPanel"
+            android:layout_width="match_parent"
+            android:layout_height="244dp"
+            android:numColumns="8" />
+
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="46dp"
             android:background="#FF161B22"
             android:fillViewport="true"
             android:scrollbars="none">
@@ -92,16 +121,10 @@
                 android:paddingRight="8dp" />
         </HorizontalScrollView>
 
-        <GridView
-            android:id="@+id/emojiPanel"
-            android:layout_width="match_parent"
-            android:layout_height="244dp"
-            android:numColumns="8" />
-
         <Button
             android:id="@+id/backToKeyboard"
             android:layout_width="match_parent"
-            android:layout_height="44dp"
+            android:layout_height="40dp"
             android:background="#FF2A2F38"
             android:textColor="#FFFFFFFF"
             android:text="ABC" />
