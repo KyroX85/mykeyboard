@@ -22,13 +22,15 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
-import android.widget.ArrayAdapter
+import android.widget.BaseAdapter
 import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.GridView
 import android.widget.LinearLayout
 import android.widget.PopupWindow
 import android.widget.TextView
+import android.view.ViewGroup
+import android.widget.AbsListView
 import com.example.mykeyboard.haptics.HapticKind
 import com.example.mykeyboard.haptics.HapticProfile
 import com.example.mykeyboard.haptics.HapticTapGate
@@ -407,15 +409,16 @@ class KeyboardService : InputMethodService() {
     private fun setupEmojiPanelContent() {
         val categories = KeyboardSymbols.EMOJI_CATEGORIES
         var currentEmojis = categories.firstOrNull()?.emojis ?: KeyboardSymbols.EMOJI_PANEL
+        val emojiCellSize = dp(38)
 
         emojiGrid.numColumns = 8
         emojiGrid.stretchMode = GridView.STRETCH_COLUMN_WIDTH
-        emojiGrid.verticalSpacing = dp(8)
-        emojiGrid.horizontalSpacing = dp(8)
-        emojiGrid.setPadding(dp(8), dp(10), dp(8), dp(6))
+        emojiGrid.verticalSpacing = dp(4)
+        emojiGrid.horizontalSpacing = dp(2)
+        emojiGrid.setPadding(dp(6), dp(8), dp(6), dp(4))
         emojiGrid.clipToPadding = false
 
-        var emojiAdapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, currentEmojis)
+        var emojiAdapter = EmojiGridAdapter(currentEmojis, emojiCellSize)
         emojiGrid.adapter = emojiAdapter
         emojiGrid.setOnItemClickListener { _, _, pos, _ ->
             val selected = currentEmojis.getOrNull(pos) ?: return@setOnItemClickListener
@@ -443,11 +446,7 @@ class KeyboardService : InputMethodService() {
                 setOnClickListener {
                     selectedEmojiCategoryIndex = index
                     currentEmojis = category.emojis
-                    emojiAdapter = ArrayAdapter(
-                        this@KeyboardService,
-                        android.R.layout.simple_list_item_1,
-                        currentEmojis
-                    )
+                    emojiAdapter = EmojiGridAdapter(currentEmojis, emojiCellSize)
                     emojiGrid.adapter = emojiAdapter
                     for (childIndex in 0 until emojiCategoryBar.childCount) {
                         emojiCategoryBar.getChildAt(childIndex).alpha =
@@ -461,6 +460,27 @@ class KeyboardService : InputMethodService() {
         emojiBackButton.setOnClickListener {
             emojiContainer.visibility = View.GONE
             mainContainer.visibility = View.VISIBLE
+        }
+    }
+
+    private inner class EmojiGridAdapter(
+        private val emojis: List<String>,
+        private val cellSize: Int
+    ) : BaseAdapter() {
+        override fun getCount(): Int = emojis.size
+        override fun getItem(position: Int): Any = emojis[position]
+        override fun getItemId(position: Int): Long = position.toLong()
+
+        override fun getView(position: Int, convertView: View?, parent: ViewGroup?): View {
+            val label = (convertView as? TextView) ?: TextView(this@KeyboardService).apply {
+                layoutParams = AbsListView.LayoutParams(cellSize, cellSize)
+                gravity = Gravity.CENTER
+                textSize = 27f
+                includeFontPadding = false
+                setTextColor(Color.WHITE)
+            }
+            label.text = emojis[position]
+            return label
         }
     }
 
