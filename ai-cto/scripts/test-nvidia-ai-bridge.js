@@ -21,6 +21,7 @@ const {
   buildDeepSeekFixPrompt,
   buildLlamaRiskPrompt,
   diffWithinHardLimits,
+  getDeepSeekFixLimitStatus,
   configureGitRemote,
   ensureGitRuntime,
   syncWithRemoteMain
@@ -115,6 +116,7 @@ async function run() {
   assert.strictEqual(parseRiskLevel('safe low cleanup'), 'LOW');
   assert.strictEqual(MODEL_ASSIGNMENT.deepseek.model, 'deepseek-ai/deepseek-v4-flash');
   assert.strictEqual(MODEL_ASSIGNMENT.llama.model, 'meta/llama-3.3-70b-instruct');
+  assert.strictEqual(getDeepSeekFixLimitStatus(process.cwd()).limit, 20);
   const inferredHelloPlan = normalizePlan({
     task: 'Create a test file called Hello.kt',
     files: [],

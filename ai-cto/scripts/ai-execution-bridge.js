@@ -5,7 +5,7 @@ const { createNvidiaClient, MODEL_ASSIGNMENT, parseRiskLevel } = require('../wha
 const { readBrainState, findCandidateIssue } = require('./execution-engine');
 const { readFounderMemory, buildFounderMemoryContext } = require('../whatsapp/founder-memory');
 
-const MAX_DEEPSEEK_FIXES_PER_DAY = 5;
+const MAX_DEEPSEEK_FIXES_PER_DAY = 20;
 const MAX_LLAMA_CALLS_PER_DAY = 100;
 const GITHUB_REPO_URL = 'github.com/KyroX85/mykeyboard.git';
 
@@ -77,6 +77,18 @@ function dailyModelCount(root, model, now = new Date()) {
     String(entry.timestamp || '').startsWith(day) &&
     String(entry.modelUsed || entry.outcome || '').includes(model)
   ).length;
+}
+
+function getDeepSeekFixLimitStatus(root = process.cwd(), now = new Date()) {
+  const used = dailyModelCount(path.resolve(root), MODEL_ASSIGNMENT.deepseek.model, now);
+  const limit = MAX_DEEPSEEK_FIXES_PER_DAY;
+  return {
+    used,
+    limit,
+    remaining: Math.max(0, limit - used),
+    model: MODEL_ASSIGNMENT.deepseek.model,
+    date: now.toISOString().slice(0, 10)
+  };
 }
 
 function buildLlamaRiskPrompt(issue, root) {
@@ -486,6 +498,8 @@ if (require.main === module) {
 module.exports = {
   MAX_DEEPSEEK_FIXES_PER_DAY,
   MAX_LLAMA_CALLS_PER_DAY,
+  dailyModelCount,
+  getDeepSeekFixLimitStatus,
   buildLlamaRiskPrompt,
   buildDeepSeekFixPrompt,
   diffWithinHardLimits,

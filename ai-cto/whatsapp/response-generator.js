@@ -2,6 +2,7 @@ const { schoolModeDigest, groupChatDailyUpdate } = require('./school-mode-policy
 const { readRoadmap } = require('./roadmap-reader');
 const { logAgentAction } = require('./agent-action-log');
 const { classifyRisk } = require('../scripts/execution-engine');
+const { getDeepSeekFixLimitStatus } = require('../scripts/ai-execution-bridge');
 const { readFounderMemory, formatFounderMemorySummary } = require('./founder-memory');
 
 function linesOrFallback(items, fallback) {
@@ -210,6 +211,17 @@ function generateResponse(command, state, memory = {}, details = {}) {
         'If no notification arrives, check the Build and Distribute APK workflow.'
       ].join('\n');
 
+    case 'fix_limit': {
+      const limit = getDeepSeekFixLimitStatus();
+      return [
+        'Founder, DeepSeek fix limit',
+        `Used today: ${limit.used}/${limit.limit}`,
+        `Remaining today: ${limit.remaining}`,
+        `Model: ${limit.model}`,
+        `Date: ${limit.date}`
+      ].join('\n');
+    }
+
     case 'memory':
       return formatFounderMemorySummary(readFounderMemory());
 
@@ -252,7 +264,7 @@ function generateResponse(command, state, memory = {}, details = {}) {
     default:
       return [
         'Founder, CTO commands',
-        'status, health, momentum, latest risks, unresolved, what changed, pending approvals, keyboard health, cto summary, school mode, focus <topic>'
+        'status, health, momentum, latest risks, unresolved, what changed, pending approvals, keyboard health, fix limit, cto summary, school mode, focus <topic>'
       ].join('\n');
   }
 }
