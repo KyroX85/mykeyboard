@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const { createNvidiaClient, MODEL_ASSIGNMENT, parseRiskLevel } = require('../whatsapp/nvidia-nim-client');
-const { readBrainState, findCandidateIssue } = require('./execution-engine');
+const { classifyRisk: classifyLocalRisk, readBrainState, findCandidateIssue } = require('./execution-engine');
 const { readFounderMemory, buildFounderMemoryContext } = require('../whatsapp/founder-memory');
 
 const MAX_DEEPSEEK_FIXES_PER_DAY = 20;
@@ -53,6 +53,17 @@ function isForbiddenFile(file) {
     normalized.includes('/schema') ||
     normalized.includes('/migration') ||
     normalized.includes('roomdatabase');
+}
+
+function hasExplicitReviewRisk(issue = {}) {
+  const riskText = [
+    issue.impact,
+    issue.risk,
+    issue.riskLevel,
+    issue.classification,
+    issue.type
+  ].filter(Boolean).join(' ').toLowerCase();
+  return /\b(medium|high|critical|complexity|security|secret|privacy|architecture)\b/.test(riskText);
 }
 
 function readActionLog(root) {
@@ -362,6 +373,19 @@ async function executeAiBridge(options = {}) {
 
   const file = normalizePath(issue.file);
   if (isForbiddenFile(file)) return { status: 'FOUNDER_APPROVAL_REQUIRED', riskLevel: 'HIGH', reason: 'Forbidden file scope.' };
+  const localRisk = classifyLocalRisk(issue);
+  if (hasExplicitReviewRisk(issue) && !localRisk.allowedAutoExecute) {
+    return {
+      status: localRisk.riskLevel === 'HIGH' ? 'FOUNDER_APPROVAL_REQUIRED' : 'STAGING_REQUIRED',
+      riskLevel: localRisk.riskLevel,
+      file,
+      reason: localRisk.reason,
+      diffPreview: `Autonomous bridge skipped ${file}; ${localRisk.reason}`,
+      options: localRisk.riskLevel === 'HIGH'
+        ? ['Approve a human-reviewed patch plan', 'Skip this issue', 'Ask for safer diagnostic only']
+        : undefined
+    };
+  }
   const target = repoPath(root, file);
   const fileExists = fs.existsSync(target);
 

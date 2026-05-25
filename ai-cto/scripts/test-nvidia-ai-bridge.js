@@ -279,6 +279,33 @@ async function run() {
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }
 
+  const tempMediumRiskRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'cto-medium-risk-'));
+  try {
+    fs.mkdirSync(path.join(tempMediumRiskRoot, 'ai-cto', 'scripts'), { recursive: true });
+    fs.writeFileSync(path.join(tempMediumRiskRoot, 'ai-cto', 'scripts', 'ai-execution-bridge.js'), 'large file\n');
+    fs.writeFileSync(path.join(tempMediumRiskRoot, 'ai-cto', '.brain_state.json'), JSON.stringify({
+      healthScore: 55,
+      unresolvedIssues: [{
+        type: 'COMPLEXITY',
+        impact: 'MEDIUM',
+        message: 'File ai-execution-bridge.js is too large (>500 lines)',
+        file: 'ai-cto/scripts/ai-execution-bridge.js'
+      }]
+    }, null, 2));
+    const callsBeforeMediumRisk = calls.length;
+    const mediumRiskBridge = await executeAiBridge({
+      root: tempMediumRiskRoot,
+      client,
+      commit: false,
+      push: false
+    });
+    assert.strictEqual(mediumRiskBridge.status, 'STAGING_REQUIRED');
+    assert.strictEqual(mediumRiskBridge.riskLevel, 'MEDIUM');
+    assert.strictEqual(calls.length, callsBeforeMediumRisk);
+  } finally {
+    fs.rmSync(tempMediumRiskRoot, { recursive: true, force: true });
+  }
+
   const tempRemoteRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'cto-remote-'));
   try {
     execFileSync('git', ['init'], { cwd: tempRemoteRoot });
