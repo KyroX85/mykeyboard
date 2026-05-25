@@ -18,6 +18,7 @@ const {
   classifyVisionMessage,
   createVisionPlan,
   createDeterministicVisionEntry,
+  createProductImprovementProposal,
   answerDuplicateTargetOption,
   executeVisionCommandEntry,
   approveStatelessVisionCommand,
@@ -300,6 +301,8 @@ async function routeMessageWithAi(message, state, memory = {}, options = {}) {
   if (routed.matchedRoute === 'agent_intent' ||
     routed.matchedRoute === 'safe_low_confidence_fallback' ||
     routed.matchedRoute === 'conversational_fallback') {
+    const productProposal = isExplicitFileCommand(message) ? null : createProductImprovementProposal(message);
+    if (productProposal) return productProposal;
     const vision = await maybeCreateVisionCommand(message, state, memory, options);
     if (vision) return vision;
   }
@@ -335,6 +338,13 @@ function maybeRouteAcknowledgement(normalized) {
     ].join('\n'),
     usedAi: false
   };
+}
+
+function isExplicitFileCommand(message) {
+  const normalized = normalizeMessage(message);
+  return /\b(create|add|make|remove|delete)\b/.test(normalized) &&
+    /\b(test file|file)\b/.test(normalized) &&
+    /\b[a-z][\w.-]*(?:\.kt|\.java|\.txt|kt|java|txt)\b/i.test(String(message || ''));
 }
 
 async function maybeRouteVisionDecision(normalized, options = {}) {

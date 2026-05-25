@@ -32,7 +32,8 @@ const { AGENT_BRAIN_DIR } = require('../whatsapp/main-agent-brain-manager');
 const {
   VISION_COMMAND_LOG_FILE,
   readVisionCommandState,
-  normalizePlan
+  normalizePlan,
+  isProtectedProductFile
 } = require('../whatsapp/vision-command-manager');
 const {
   FOUNDER_MEMORY_FILE
@@ -152,6 +153,16 @@ async function run() {
     estimatedLines: 3
   }, 'create a secret file called secret-key.json');
   assert.strictEqual(forbiddenCreatePlan.risk, 'HIGH');
+  assert.strictEqual(isProtectedProductFile('app/src/main/java/com/example/mykeyboard/predictor/BasicPredictor.kt'), true);
+  assert.strictEqual(isProtectedProductFile('app/src/main/java/com/example/mykeyboard/swipe/SwipeGestureTracker.kt'), true);
+  const protectedPlan = normalizePlan({
+    task: 'Improve swipe reliability',
+    files: ['app/src/main/java/com/example/mykeyboard/swipe/SwipeWordResolver.kt'],
+    changes: ['Tune resolver scoring'],
+    risk: 'LOW',
+    estimatedLines: 8
+  }, 'improve swipe reliability');
+  assert.strictEqual(protectedPlan.risk, 'MEDIUM');
 
   const originalFetch = global.fetch;
   try {
@@ -458,10 +469,19 @@ async function run() {
     sections: { risks: [], unresolved: [], approvals: [] },
     summary: { topRisk: 'none' }
   }, { recentMessages: [] }, { client });
-  assert.strictEqual(visionPlan.command, 'vision_command_approval_required');
-  assert(visionPlan.response.includes('Reply APPROVE-'));
-  const visionState = readVisionCommandState();
-  assert.strictEqual(visionState.commands[visionState.commands.length - 1].command, 'make keyboard keys feel more responsive');
+  assert.strictEqual(visionPlan.command, 'product_improvement_review_required');
+  assert(visionPlan.response.includes('protected product code'));
+  assert(visionPlan.response.includes('staging-branch patch'));
+
+  const swipeProposal = await routeMessageWithAi('improve swipe reliability', {
+    healthScore: 80,
+    momentum: 'MOVING',
+    sections: { risks: [], unresolved: [], approvals: [] },
+    summary: { topRisk: 'none' }
+  }, { recentMessages: [] }, { client });
+  assert.strictEqual(swipeProposal.command, 'product_improvement_review_required');
+  assert(swipeProposal.response.includes('SwipeGestureTracker.kt'));
+  assert(swipeProposal.response.includes('Options:'));
 
   const tempRootForVision = fs.mkdtempSync(path.join(os.tmpdir(), 'cto-vision-test-'));
   try {

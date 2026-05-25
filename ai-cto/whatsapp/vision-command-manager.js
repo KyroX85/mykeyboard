@@ -132,6 +132,76 @@ function createDeterministicVisionEntry(message) {
   return entry;
 }
 
+function createProductImprovementProposal(message) {
+  const normalized = String(message || '').toLowerCase();
+  if (!/\b(improve|fix|reduce|make|stabilize|smooth|optimize)\b/.test(normalized)) return null;
+  const topic = detectProductImprovementTopic(normalized);
+  if (!topic) return null;
+  const files = protectedFilesForTopic(topic);
+  return {
+    command: 'product_improvement_review_required',
+    details: {
+      agent: 'cto',
+      intent: 'product_improvement_review_required',
+      topic,
+      files
+    },
+    matchedRoute: 'product_improvement_proposal',
+    response: formatProductImprovementProposal({ topic, files }),
+    usedAi: false
+  };
+}
+
+function detectProductImprovementTopic(normalized) {
+  if (/\bswipe|gesture|trail|word resolver|long word\b/.test(normalized)) return 'swipe reliability';
+  if (/\bpredict|prediction|predictor|suggestion|correction\b/.test(normalized)) return 'typing prediction';
+  if (/\btyping|latency|keypress|lag|responsive|response|speed\b/.test(normalized)) return 'typing responsiveness';
+  if (/\bbackspace|delete key|correction burst\b/.test(normalized)) return 'backspace comfort';
+  if (/\bsymbol|emoji|number row|layout|spacing\b/.test(normalized)) return 'keyboard layout';
+  if (/\bkeyboard|ime|input\b/.test(normalized)) return 'keyboard stability';
+  return null;
+}
+
+function protectedFilesForTopic(topic) {
+  switch (topic) {
+    case 'swipe reliability':
+      return [
+        'app/src/main/java/com/example/mykeyboard/swipe/SwipeGestureTracker.kt',
+        'app/src/main/java/com/example/mykeyboard/swipe/SwipeWordResolver.kt',
+        'app/src/main/java/com/example/mykeyboard/swipe/SwipeTrailView.kt'
+      ];
+    case 'typing prediction':
+      return ['app/src/main/java/com/example/mykeyboard/predictor/BasicPredictor.kt'];
+    case 'typing responsiveness':
+      return [
+        'app/src/main/java/com/example/mykeyboard/KeyboardService.kt',
+        'app/src/main/java/com/example/mykeyboard/KeyboardSizingProfile.kt'
+      ];
+    case 'backspace comfort':
+      return ['app/src/main/java/com/example/mykeyboard/KeyboardService.kt'];
+    case 'keyboard layout':
+      return [
+        'app/src/main/java/com/example/mykeyboard/KeyboardSymbols.kt',
+        'app/src/main/java/com/example/mykeyboard/KeyboardSizingProfile.kt',
+        'app/src/main/res/layout/keyboard_container.xml'
+      ];
+    default:
+      return ['app/src/main/java/com/example/mykeyboard/KeyboardService.kt'];
+  }
+}
+
+function formatProductImprovementProposal({ topic, files }) {
+  return [
+    `CTO: Founder, ${topic} touches protected product code.`,
+    'I will not edit it directly from chat.',
+    `Files: ${files.slice(0, 3).join(', ')}`,
+    'Options:',
+    '1. Create a review plan only',
+    '2. Prepare a staging-branch patch after validation',
+    '3. Cancel'
+  ].join('\n');
+}
+
 async function classifyVisionMessage({ message, state, memory, client = createNvidiaClient() }) {
   if (!client.available('llama')) return { type: 'NOT_VISION', reason: 'Llama unavailable.' };
   const founderMemory = buildFounderMemoryContext(readFounderMemory());
@@ -463,6 +533,7 @@ function classifyVisionPlanRisk(plan, message) {
   const text = `${message || ''} ${plan.task || ''} ${array(plan.changes).join(' ')}`.toLowerCase();
   const files = array(plan.files);
   if (files.some(isForbiddenVisionFile)) return 'HIGH';
+  if (files.some(isProtectedProductFile)) return 'MEDIUM';
   if (/\b(remove|delete)\b/.test(text) && /\btest file\b/.test(text)) return 'LOW';
   if (/\b(create|add|make)\b/.test(text) && /\bfile\b/.test(text)) return 'LOW';
   if (Number(plan.estimatedLines) > 0 && Number(plan.estimatedLines) < 20) return 'LOW';
@@ -472,16 +543,33 @@ function classifyVisionPlanRisk(plan, message) {
   return /HIGH/i.test(plan.risk) ? 'HIGH' : /MEDIUM/i.test(plan.risk) ? 'MEDIUM' : 'LOW';
 }
 
+function isProtectedProductFile(file) {
+  const normalized = String(file || '').replace(/\\/g, '/').toLowerCase();
+  return normalized.endsWith('/keyboardservice.kt') ||
+    normalized.endsWith('/predictor/basicpredictor.kt') ||
+    normalized.includes('/swipe/') ||
+    normalized.includes('/metrics/') ||
+    normalized.includes('/haptics/') ||
+    normalized.endsWith('/keyboardsizingprofile.kt') ||
+    normalized.endsWith('/keyboardsymbols.kt') ||
+    normalized.endsWith('/longpresssymbolmap.kt') ||
+    normalized.includes('build.gradle') ||
+    normalized.includes('settings.gradle') ||
+    normalized.includes('/privacy/') ||
+    normalized.includes('database');
+}
+
 function isForbiddenVisionFile(file) {
   const normalized = String(file || '').replace(/\\/g, '/').toLowerCase();
+  const basename = normalized.split('/').pop() || '';
   return normalized.endsWith('google-services.json') ||
     normalized.includes('/privacy/') ||
     normalized.includes('privacy') ||
     normalized.includes('databasehelper.kt') ||
     normalized.includes('/database/') ||
     normalized.includes('/db/') ||
-    normalized.includes('secret') ||
-    normalized.includes('key');
+    basename.includes('secret') ||
+    basename.includes('key');
 }
 
 function array(value) {
@@ -569,6 +657,7 @@ module.exports = {
   classifyVisionMessage,
   createVisionPlan,
   createDeterministicVisionEntry,
+  createProductImprovementProposal,
   executeVisionCommandEntry,
   approveStatelessVisionCommand,
   formatVisionPlan,
@@ -576,6 +665,7 @@ module.exports = {
   formatVisionNoTarget,
   normalizePlan,
   classifyVisionPlanRisk,
+  isProtectedProductFile,
   isForbiddenVisionFile,
   inferFilesFromFounderMessage,
   createApprovalCommand,
