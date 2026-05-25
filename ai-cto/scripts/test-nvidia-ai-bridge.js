@@ -279,6 +279,12 @@ async function run() {
     for (let index = 0; index < 4; index += 1) {
       fs.rmSync(path.join(tempRoot, `NewFile${index}.txt`), { force: true });
     }
+    fs.writeFileSync(path.join(tempRoot, 'LargeNewFile.txt'), Array.from({ length: 80 }, (_, index) => `new line ${index}`).join('\n'));
+    const largeNewFileDiff = diffWithinHardLimits(tempRoot, { maxFiles: 3, maxLines: 50 });
+    assert.strictEqual(largeNewFileDiff.allowed, true);
+    assert.strictEqual(largeNewFileDiff.existingLinesChanged, 0);
+    assert.strictEqual(largeNewFileDiff.newFileLinesChanged, 80);
+    fs.rmSync(path.join(tempRoot, 'LargeNewFile.txt'), { force: true });
 
     const bridge = await executeAiBridge({
       root: tempRoot,

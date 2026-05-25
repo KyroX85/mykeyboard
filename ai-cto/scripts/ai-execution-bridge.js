@@ -323,6 +323,7 @@ function configureGitRemote(root) {
 function diffWithinHardLimits(root, limits = {}) {
   const maxFiles = limits.maxFiles || 3;
   const maxLines = limits.maxLines || 50;
+  const maxNewFileLines = limits.maxNewFileLines || 200;
   let output = '';
   try {
     output = git(root, ['diff', '--numstat']);
@@ -337,6 +338,12 @@ function diffWithinHardLimits(root, limits = {}) {
   const ignoredFilesChanged = rows.length - guardRows.length;
   const existingFilesChanged = guardRows.filter((row) => row.source === 'tracked').length;
   const newFilesChanged = guardRows.filter((row) => row.source === 'untracked').length;
+  const existingLinesChanged = guardRows
+    .filter((row) => row.source === 'tracked')
+    .reduce((total, row) => total + row.added + row.deleted, 0);
+  const newFileLinesChanged = guardRows
+    .filter((row) => row.source === 'untracked')
+    .reduce((total, row) => total + row.added + row.deleted, 0);
   const linesChanged = guardRows.reduce((total, row) => total + row.added + row.deleted, 0);
   if (existingFilesChanged > maxFiles) {
     return {
@@ -345,14 +352,49 @@ function diffWithinHardLimits(root, limits = {}) {
       existingFilesChanged,
       newFilesChanged,
       ignoredFilesChanged,
+      existingLinesChanged,
+      newFileLinesChanged,
       linesChanged,
       reason: `Diff modifies more than ${maxFiles} existing files.`
     };
   }
-  if (linesChanged > maxLines) {
-    return { allowed: false, filesChanged, existingFilesChanged, newFilesChanged, ignoredFilesChanged, linesChanged, reason: `Diff changes more than ${maxLines} lines.` };
+  if (existingLinesChanged > maxLines) {
+    return {
+      allowed: false,
+      filesChanged,
+      existingFilesChanged,
+      newFilesChanged,
+      ignoredFilesChanged,
+      existingLinesChanged,
+      newFileLinesChanged,
+      linesChanged,
+      reason: `Diff changes more than ${maxLines} lines in existing files.`
+    };
   }
-  return { allowed: true, filesChanged, existingFilesChanged, newFilesChanged, ignoredFilesChanged, linesChanged, reason: 'Diff within hard limits.' };
+  if (newFileLinesChanged > maxNewFileLines) {
+    return {
+      allowed: false,
+      filesChanged,
+      existingFilesChanged,
+      newFilesChanged,
+      ignoredFilesChanged,
+      existingLinesChanged,
+      newFileLinesChanged,
+      linesChanged,
+      reason: `New file content changes more than ${maxNewFileLines} lines.`
+    };
+  }
+  return {
+    allowed: true,
+    filesChanged,
+    existingFilesChanged,
+    newFilesChanged,
+    ignoredFilesChanged,
+    existingLinesChanged,
+    newFileLinesChanged,
+    linesChanged,
+    reason: 'Diff within hard limits.'
+  };
 }
 
 function parseNumstatRows(output, source) {
