@@ -121,18 +121,30 @@ function expectedTwilioSignature(url, params) {
 }
 
 function validateTwilioSignature(req) {
-  if (!TWILIO_AUTH_TOKEN) return ALLOW_UNVERIFIED_WHATSAPP;
+  return checkTwilioSignature(req).valid;
+}
 
+function checkTwilioSignature(req) {
   const provided = req.get('X-Twilio-Signature') || '';
-  if (!provided) return false;
+  const candidates = signatureUrlCandidates(req);
+  const debug = {
+    hasAuthToken: Boolean(TWILIO_AUTH_TOKEN),
+    allowUnverified: ALLOW_UNVERIFIED_WHATSAPP,
+    hasProvidedSignature: Boolean(provided),
+    candidateCount: candidates.length,
+    candidateUrls: candidates
+  };
+  if (!TWILIO_AUTH_TOKEN) return { valid: ALLOW_UNVERIFIED_WHATSAPP, ...debug };
+  if (!provided) return { valid: false, ...debug };
 
   const params = req.body || {};
   const providedBuffer = Buffer.from(provided);
 
-  return signatureUrlCandidates(req).some((url) => {
+  const matchedUrl = candidates.find((url) => {
     const expectedBuffer = Buffer.from(expectedTwilioSignature(url, params));
     return providedBuffer.length === expectedBuffer.length && crypto.timingSafeEqual(providedBuffer, expectedBuffer);
   });
+  return { valid: Boolean(matchedUrl), matchedUrl: matchedUrl || null, ...debug };
 }
 
 function assertProductionConfig() {
@@ -180,6 +192,8 @@ function logVisibleWebhook(stage, details = {}) {
     command: details.command || null,
     status: details.status || null,
     reason: details.reason || null,
+    durationMs: Number.isFinite(details.durationMs) ? details.durationMs : undefined,
+    meta: details.meta && typeof details.meta === 'object' ? details.meta : undefined,
     parsedKeys: Array.isArray(details.parsedKeys) ? details.parsedKeys : undefined
   };
   console.log(`[whatsapp-cto] WEBHOOK ${stage}: ${JSON.stringify(safe)}`);
@@ -245,6 +259,16 @@ function createApp() {
     const from = incoming.from;
     const body = incoming.body;
     const messageSid = incoming.messageSid;
+    res.on('finish', () => {
+      logVisibleWebhook('http_finished', {
+        requestId: id,
+        from,
+        body,
+        status: res.statusCode,
+        reason: 'response_closed',
+        durationMs: Date.now() - startedAt
+      });
+    });
     logVisibleWebhook('received', {
       requestId: id,
       from,
@@ -259,6 +283,7 @@ function createApp() {
       res.status(503).type('text/xml').send(twiml(`Founder, CTO WhatsApp is not configured: ${configError}`));
       return;
     }
+    logVisibleWebhook('config_ok', { requestId: id, from, body, status: 200 });
 
     if (guard.isAbusive(from)) {
       logVisibleWebhook('abuse_blocked', { requestId: id, from, body, status: 403 });
@@ -266,8 +291,23 @@ function createApp() {
       res.status(403).type('text/xml').send(twiml('Access denied.'));
       return;
     }
+    logVisibleWebhook('abuse_check_ok', { requestId: id, from, body, status: 200 });
 
-    if (!validateTwilioSignature(req)) {
+    const signature = checkTwilioSignature(req);
+    logVisibleWebhook('signature_checked', {
+      requestId: id,
+      from,
+      body,
+      status: signature.valid ? 200 : 403,
+      reason: signature.valid ? 'valid' : 'invalid',
+      meta: {
+        hasProvidedSignature: signature.hasProvidedSignature,
+        candidateCount: signature.candidateCount,
+        matchedUrl: signature.matchedUrl || null,
+        candidateUrls: signature.candidateUrls
+      }
+    });
+    if (!signature.valid) {
       guard.recordAbuse(from, 'bad_signature');
       logVisibleWebhook('signature_rejected', { requestId: id, from, body, status: 403 });
       logWebhookEvent({ type: 'signature_rejected', requestId: id, from, body, status: 403 });
@@ -282,8 +322,17 @@ function createApp() {
       res.status(403).type('text/xml').send(twiml('Access denied.'));
       return;
     }
+    logVisibleWebhook('sender_check_ok', { requestId: id, from, body, status: 200 });
 
     const replay = guard.checkReplay(messageSid);
+    logVisibleWebhook('replay_checked', {
+      requestId: id,
+      from,
+      body,
+      status: replay.replayed ? 409 : 200,
+      reason: replay.replayed ? 'duplicate_message_sid' : 'fresh_message',
+      meta: { messageSidPresent: Boolean(messageSid) }
+    });
     if (replay.replayed) {
       logVisibleWebhook('replay_rejected', { requestId: id, from, body, status: 409 });
       logWebhookEvent({ type: 'replay_rejected', requestId: id, from, body, status: 409, meta: { messageSid } });
@@ -292,6 +341,14 @@ function createApp() {
     }
 
     const rate = guard.checkRateLimit(from);
+    logVisibleWebhook('rate_checked', {
+      requestId: id,
+      from,
+      body,
+      status: rate.limited ? 429 : 200,
+      reason: `count=${rate.count}`,
+      meta: { retryAfterMs: rate.retryAfterMs }
+    });
     if (rate.limited) {
       logVisibleWebhook('rate_limited', { requestId: id, from, body, status: 429, reason: `count=${rate.count}` });
       logWebhookEvent({ type: 'rate_limited', requestId: id, from, body, status: 429, meta: { count: rate.count } });
@@ -323,6 +380,7 @@ function createApp() {
     }
 
     try {
+      logVisibleWebhook('router_start', { requestId: id, from, body, status: 200 });
       const state = loadEngineeringState();
       state.workflowFreshness = workflowFreshness(state);
       const memory = readConversationMemory();
@@ -390,6 +448,15 @@ function createApp() {
           matchedRoute: routed.matchedRoute || routed.command,
           fallbackReason: routed.details ? routed.details.fallbackReason : null
         }
+      });
+      logVisibleWebhook('twiml_send', {
+        requestId: id,
+        from,
+        body,
+        command: routed.command,
+        status: 200,
+        reason: 'sending_webhook_response',
+        durationMs: Date.now() - startedAt
       });
       logVisibleWebhook('reply', { requestId: id, from, body, command: routed.command, status: 200 });
       res.status(200).type('text/xml').send(twiml(routed.response));
