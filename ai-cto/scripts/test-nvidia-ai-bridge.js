@@ -62,6 +62,19 @@ async function run() {
         };
       }
       if (joined.includes('Break this founder vision command')) {
+        if (/\b(remove|delete)\b/i.test(joined) && joined.includes('Hello.kt')) {
+          return {
+            choices: [{ message: { content: JSON.stringify({
+              task: 'Remove test file Hello.kt',
+              files: ['app/src/main/java/Hello.kt'],
+              changes: ['Remove the requested Kotlin test file'],
+              risk: 'LOW',
+              estimatedLines: 1,
+              roadmapConflict: false
+            }) } }],
+            usage: { total_tokens: 57 }
+          };
+        }
         if (joined.includes('Hello.kt')) {
           return {
             choices: [{ message: { content: JSON.stringify({
@@ -499,6 +512,32 @@ async function run() {
     assert.strictEqual(codeBrainCallsAfterHello, codeBrainCallsBeforeHello);
     assert(fs.existsSync(path.join(tempRootForVision, 'app', 'src', 'main', 'java', 'Hello.kt')));
     assert(execFileSync('git', ['log', '--oneline', '-1'], { cwd: tempRootForVision, encoding: 'utf8' }).includes('test: Hello.kt pipeline test'));
+
+    const codeBrainCallsBeforeDelete = calls.filter((request) =>
+      request.model === MODEL_ASSIGNMENT.deepseek.model ||
+      request.model === MODEL_ASSIGNMENT.qwenCoder.model
+    ).length;
+    const deleteHello = await routeMessageWithAi('remove the test file called Hello.kt', {
+      healthScore: 80,
+      momentum: 'MOVING',
+      sections: { risks: [], unresolved: [], approvals: [] },
+      summary: { topRisk: 'none' }
+    }, { recentMessages: [] }, {
+      client,
+      root: tempRootForVision,
+      commit: true,
+      push: false,
+      commitMessage: 'test: remove Hello.kt pipeline test'
+    });
+    const codeBrainCallsAfterDelete = calls.filter((request) =>
+      request.model === MODEL_ASSIGNMENT.deepseek.model ||
+      request.model === MODEL_ASSIGNMENT.qwenCoder.model
+    ).length;
+    assert.strictEqual(deleteHello.command, 'vision_command_auto_executed');
+    assert(deleteHello.response.includes('Commit:'));
+    assert.strictEqual(codeBrainCallsAfterDelete, codeBrainCallsBeforeDelete);
+    assert(!fs.existsSync(path.join(tempRootForVision, 'app', 'src', 'main', 'java', 'Hello.kt')));
+    assert(execFileSync('git', ['log', '--oneline', '-1'], { cwd: tempRootForVision, encoding: 'utf8' }).includes('test: remove Hello.kt pipeline test'));
 
     const deferredHello = await routeMessageWithAi('create a test file called Hello.kt', {
       healthScore: 80,

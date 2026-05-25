@@ -505,6 +505,9 @@ async function executeAiBridge(options = {}) {
   if (isForbiddenFile(file)) return { status: 'FOUNDER_APPROVAL_REQUIRED', riskLevel: 'HIGH', reason: 'Forbidden file scope.' };
   const target = repoPath(root, file);
   const fileExists = fs.existsSync(target);
+  if (issue.deterministicDelete === true) {
+    return executeDeterministicDelete({ root, file, target, fileExists, issue, commit: options.commit, push: options.push, commitMessage: options.commitMessage });
+  }
   const deterministicContent = deterministicNewFileContent(issue, file, fileExists);
   if (!deterministicContent && (!client.available('llama') || !client.available('deepseek'))) {
     return { status: 'SKIPPED', reason: 'NVIDIA_DEEPSEEK_API_KEY and NVIDIA_LLAMA_API_KEY are required.' };
@@ -637,6 +640,95 @@ async function executeAiBridge(options = {}) {
       `📝 Commit: ${commitHash || 'not committed'}`
     ].join('\n')
   };
+}
+
+function executeDeterministicDelete({ root, file, target, fileExists, issue, commit, push, commitMessage }) {
+  if (isForbiddenFile(file)) return { status: 'FOUNDER_APPROVAL_REQUIRED', riskLevel: 'HIGH', reason: 'Forbidden file scope.' };
+  if (!isSafeDeterministicDeleteTarget(file, issue)) {
+    return { status: 'FOUNDER_APPROVAL_REQUIRED', riskLevel: 'HIGH', file, reason: 'Delete request is outside deterministic safe-delete scope.' };
+  }
+  if (!fileExists) {
+    appendActionLog(root, {
+      agentName: 'Coder',
+      actionTaken: `checked deterministic delete for ${file}`,
+      reason: issue.message || 'test file delete request',
+      riskLevel: 'LOW',
+      outcome: 'NOOP_ALREADY_ABSENT',
+      modelUsed: 'deterministic-delete',
+      tokensConsumed: 0
+    });
+    return {
+      status: 'COMPLETED',
+      riskLevel: 'LOW',
+      file,
+      diff: {
+        allowed: true,
+        filesChanged: 0,
+        existingFilesChanged: 0,
+        newFilesChanged: 0,
+        ignoredFilesChanged: 0,
+        existingLinesChanged: 0,
+        newFileLinesChanged: 0,
+        linesChanged: 0,
+        reason: 'File already absent.'
+      },
+      modelUsed: { fix: 'deterministic-delete', reviewer: null },
+      commitHash: null,
+      commitOutput: null,
+      report: `🔧 CODER: ${file} was already absent.`
+    };
+  }
+
+  const before = fs.readFileSync(target, 'utf8');
+  fs.rmSync(target, { force: true });
+  const diffCheck = diffWithinHardLimits(root, { allowedFiles: [file] });
+  if (!diffCheck.allowed) {
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, before);
+    return { status: 'FOUNDER_APPROVAL_REQUIRED', riskLevel: 'HIGH', file, reason: diffCheck.reason, diff: diffCheck };
+  }
+
+  let commitOutput = null;
+  if (commit !== false) commitOutput = commitFix(root, [file], commitMessage || `test: remove ${path.basename(file)} pipeline test`);
+  const commitHash = commitOutput ? extractCommitHash(commitOutput) || git(root, ['rev-parse', '--short', 'HEAD']) : null;
+  if (push === true) pushFix(root);
+
+  appendActionLog(root, {
+    agentName: 'Coder',
+    actionTaken: `deleted deterministic test file ${file}`,
+    reason: issue.message || 'test file delete request',
+    riskLevel: 'LOW',
+    outcome: 'COMPLETED',
+    modelUsed: 'deterministic-delete',
+    tokensConsumed: 0
+  });
+
+  return {
+    status: 'COMPLETED',
+    riskLevel: 'LOW',
+    file,
+    diff: diffCheck,
+    modelUsed: { fix: 'deterministic-delete', reviewer: null },
+    commitHash,
+    commitOutput,
+    report: [
+      `🔧 CODER: Removed ${file}`,
+      '🧠 Brain used: Deterministic delete',
+      `✅ Result: ${commit === false ? 'applied without commit' : 'committed'}`,
+      `📝 Commit: ${commitHash || 'not committed'}`
+    ].join('\n')
+  };
+}
+
+function isSafeDeterministicDeleteTarget(file, issue) {
+  const text = `${issue && issue.message || ''} ${issue && issue.reason || ''}`.toLowerCase();
+  const normalized = normalizePath(file).toLowerCase();
+  return /\btest file\b/.test(text) &&
+    /\.(kt|java|txt)$/.test(normalized) &&
+    !normalized.includes('mainactivity') &&
+    !normalized.includes('keyboard') &&
+    !normalized.includes('service') &&
+    !normalized.includes('predictor');
 }
 
 function deterministicNewFileContent(issue, file, fileExists) {

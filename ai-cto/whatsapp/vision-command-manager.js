@@ -168,7 +168,8 @@ function planToIssue(plan) {
     file: Array.isArray(plan.files) ? plan.files[0] : plan.files,
     classification: plan.risk,
     reason: Array.isArray(plan.changes) ? plan.changes.join('; ') : plan.changes,
-    deterministicContent: deterministicContentForPlan(plan)
+    deterministicContent: deterministicContentForPlan(plan),
+    deterministicDelete: deterministicDeleteForPlan(plan)
   };
 }
 
@@ -182,8 +183,19 @@ function deterministicContentForPlan(plan) {
   return null;
 }
 
+function deterministicDeleteForPlan(plan) {
+  const file = String(Array.isArray(plan.files) ? plan.files[0] : plan.files || '');
+  const task = `${plan.task || ''} ${Array.isArray(plan.changes) ? plan.changes.join(' ') : plan.changes || ''}`;
+  if (!/\b(remove|delete)\b/i.test(task)) return false;
+  if (!/test file/i.test(task)) return false;
+  return /\.(kt|java|txt)$/i.test(file);
+}
+
 function commitMessageForPlan(plan) {
   const file = Array.isArray(plan.files) ? plan.files[0] : plan.files;
+  if (/Hello\.kt$/i.test(String(file || '')) && /\b(remove|delete)\b/i.test(String(plan.task || ''))) {
+    return 'test: remove Hello.kt pipeline test';
+  }
   if (/Hello\.kt$/i.test(String(file || '')) && /test file/i.test(String(plan.task || ''))) {
     return 'test: Hello.kt pipeline test';
   }
@@ -287,6 +299,7 @@ function classifyVisionPlanRisk(plan, message) {
   const text = `${message || ''} ${plan.task || ''} ${array(plan.changes).join(' ')}`.toLowerCase();
   const files = array(plan.files);
   if (files.some(isForbiddenVisionFile)) return 'HIGH';
+  if (/\b(remove|delete)\b/.test(text) && /\btest file\b/.test(text)) return 'LOW';
   if (/\bcreate\b/.test(text) && /\bfile\b/.test(text)) return 'LOW';
   if (Number(plan.estimatedLines) > 0 && Number(plan.estimatedLines) < 20) return 'LOW';
   if (/\b(comment|comments|color|colors|spacing|text|copy|label|wording)\b/.test(text)) return 'LOW';
