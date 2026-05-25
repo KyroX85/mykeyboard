@@ -74,6 +74,7 @@ class KeyboardService : InputMethodService() {
 
     private lateinit var emojiContainer: LinearLayout
     private lateinit var emojiGrid: GridView
+    private lateinit var emojiCategoryBar: LinearLayout
     private lateinit var emojiBackButton: Button
 
     private val keyButtons = mutableListOf<Button>()
@@ -104,6 +105,7 @@ class KeyboardService : InputMethodService() {
     private var longPressRunnable: Runnable? = null
     private var isLongPressActive = false
     private var activePopup: PopupWindow? = null
+    private var selectedEmojiCategoryIndex = 0
     private var keyPreviewPopup: PopupWindow? = null
     private var keyPreviewText: TextView? = null
     private var routedTouchButton: Button? = null
@@ -256,6 +258,7 @@ class KeyboardService : InputMethodService() {
         
         emojiContainer = layout.findViewById(R.id.emojiContainer)
         emojiGrid = layout.findViewById(R.id.emojiPanel)
+        emojiCategoryBar = layout.findViewById(R.id.emojiCategoryBar)
         emojiBackButton = layout.findViewById(R.id.backToKeyboard)
 
         setupSuggestionBar()
@@ -402,21 +405,57 @@ class KeyboardService : InputMethodService() {
     }
 
     private fun setupEmojiPanelContent() {
-        val emojis = KeyboardSymbols.EMOJI_PANEL
+        val categories = KeyboardSymbols.EMOJI_CATEGORIES
+        var currentEmojis = categories.firstOrNull()?.emojis ?: KeyboardSymbols.EMOJI_PANEL
 
         emojiGrid.numColumns = 8
         emojiGrid.stretchMode = GridView.STRETCH_COLUMN_WIDTH
         emojiGrid.verticalSpacing = dp(8)
         emojiGrid.horizontalSpacing = dp(8)
-        emojiGrid.setPadding(dp(10), dp(10), dp(10), dp(6))
+        emojiGrid.setPadding(dp(8), dp(10), dp(8), dp(6))
         emojiGrid.clipToPadding = false
-        
-        emojiGrid.adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, emojis)
+
+        var emojiAdapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, currentEmojis)
+        emojiGrid.adapter = emojiAdapter
         emojiGrid.setOnItemClickListener { _, _, pos, _ ->
-            if (commitTextSafely(currentInputConnection, emojis[pos], "emoji")) {
+            val selected = currentEmojis.getOrNull(pos) ?: return@setOnItemClickListener
+            if (commitTextSafely(currentInputConnection, selected, "emoji")) {
                 recordCommitLatency()
                 maybeFlushMetrics()
             }
+        }
+
+        emojiCategoryBar.removeAllViews()
+        categories.forEachIndexed { index, category ->
+            val tab = TextView(this).apply {
+                text = category.icon
+                textSize = 20f
+                gravity = Gravity.CENTER
+                setPadding(dp(10), dp(6), dp(10), dp(6))
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    setMargins(dp(4), dp(6), dp(4), dp(6))
+                }
+                background = resources.getDrawable(R.drawable.key_bg, theme)
+                alpha = if (index == selectedEmojiCategoryIndex) 1f else 0.7f
+                setOnClickListener {
+                    selectedEmojiCategoryIndex = index
+                    currentEmojis = category.emojis
+                    emojiAdapter = ArrayAdapter(
+                        this@KeyboardService,
+                        android.R.layout.simple_list_item_1,
+                        currentEmojis
+                    )
+                    emojiGrid.adapter = emojiAdapter
+                    for (childIndex in 0 until emojiCategoryBar.childCount) {
+                        emojiCategoryBar.getChildAt(childIndex).alpha =
+                            if (childIndex == selectedEmojiCategoryIndex) 1f else 0.7f
+                    }
+                }
+            }
+            emojiCategoryBar.addView(tab)
         }
 
         emojiBackButton.setOnClickListener {
