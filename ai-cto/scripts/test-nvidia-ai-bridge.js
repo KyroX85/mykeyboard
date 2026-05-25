@@ -426,8 +426,10 @@ async function run() {
     fs.writeFileSync(path.join(tempStaleClone, 'Hello.kt'), '// local execution commit\n');
     execFileSync('git', ['add', '.'], { cwd: tempStaleClone });
     execFileSync('git', ['commit', '-m', 'test: Hello.kt pipeline test'], { cwd: tempStaleClone });
+    fs.writeFileSync(path.join(tempStaleClone, 'runtime-dirty.log'), 'render runtime dirty file\n');
     syncWithRemoteMain(tempStaleClone);
     execFileSync('git', ['push', 'origin', 'HEAD:main'], { cwd: tempStaleClone });
+    assert(fs.existsSync(path.join(tempStaleClone, 'runtime-dirty.log')));
     const remoteLog = execFileSync('git', ['--git-dir', tempBareRemote, 'log', '--oneline', '-2', 'main'], { encoding: 'utf8' });
     assert(remoteLog.includes('test: Hello.kt pipeline test'));
     assert(remoteLog.includes('remote memory commit'));

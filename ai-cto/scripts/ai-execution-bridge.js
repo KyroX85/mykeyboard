@@ -291,6 +291,7 @@ function pushFix(root) {
 }
 
 function syncWithRemoteMain(root) {
+  const stashed = stashRuntimeChanges(root);
   try {
     git(root, ['fetch', 'origin', 'main']);
     git(root, ['rebase', 'origin/main']);
@@ -304,6 +305,40 @@ function syncWithRemoteMain(root) {
     }
     const detail = error && error.stderr ? error.stderr : error && error.message ? error.message : String(error);
     throw new Error(`Could not sync execution commit with origin/main before push: ${detail}`);
+  } finally {
+    restoreRuntimeChanges(root, stashed);
+  }
+}
+
+function stashRuntimeChanges(root) {
+  const status = gitStatus(root);
+  if (!status) return false;
+  const marker = `cto-runtime-stash-${Date.now()}`;
+  git(root, ['stash', 'push', '--include-untracked', '-m', marker]);
+  console.log('[whatsapp-cto] stashed runtime working tree changes before push sync');
+  return marker;
+}
+
+function restoreRuntimeChanges(root, marker) {
+  if (!marker) return false;
+  const list = git(root, ['stash', 'list']);
+  if (!list.includes(marker)) return false;
+  try {
+    git(root, ['stash', 'pop']);
+    console.log('[whatsapp-cto] restored runtime working tree changes after push sync');
+    return true;
+  } catch (error) {
+    const detail = error && error.stderr ? error.stderr : error && error.message ? error.message : String(error);
+    console.log(`[whatsapp-cto] runtime stash restore needs manual attention: ${detail}`);
+    return false;
+  }
+}
+
+function gitStatus(root) {
+  try {
+    return git(root, ['status', '--porcelain']);
+  } catch {
+    return '';
   }
 }
 
