@@ -329,31 +329,62 @@ function diffWithinHardLimits(root, limits = {}) {
   } catch {
     output = '';
   }
-  const trackedRows = output.split(/\r?\n/).filter(Boolean);
+  const trackedRows = parseNumstatRows(output, 'tracked');
   const untrackedRows = untrackedDiffRows(root);
   const rows = [...trackedRows, ...untrackedRows];
-  const filesChanged = rows.length;
-  const existingFilesChanged = trackedRows.length;
-  const linesChanged = rows.reduce((total, row) => {
-    const parts = row.split(/\s+/);
-    const added = Number(parts[0]);
-    const deleted = Number(parts[1]);
-    return total + (Number.isFinite(added) ? added : 0) + (Number.isFinite(deleted) ? deleted : 0);
-  }, 0);
+  const guardRows = rows.filter((row) => !isOperationalDiffFile(row.file));
+  const filesChanged = guardRows.length;
+  const ignoredFilesChanged = rows.length - guardRows.length;
+  const existingFilesChanged = guardRows.filter((row) => row.source === 'tracked').length;
+  const newFilesChanged = guardRows.filter((row) => row.source === 'untracked').length;
+  const linesChanged = guardRows.reduce((total, row) => total + row.added + row.deleted, 0);
   if (existingFilesChanged > maxFiles) {
     return {
       allowed: false,
       filesChanged,
       existingFilesChanged,
-      newFilesChanged: untrackedRows.length,
+      newFilesChanged,
+      ignoredFilesChanged,
       linesChanged,
       reason: `Diff modifies more than ${maxFiles} existing files.`
     };
   }
   if (linesChanged > maxLines) {
-    return { allowed: false, filesChanged, existingFilesChanged, newFilesChanged: untrackedRows.length, linesChanged, reason: `Diff changes more than ${maxLines} lines.` };
+    return { allowed: false, filesChanged, existingFilesChanged, newFilesChanged, ignoredFilesChanged, linesChanged, reason: `Diff changes more than ${maxLines} lines.` };
   }
-  return { allowed: true, filesChanged, existingFilesChanged, newFilesChanged: untrackedRows.length, linesChanged, reason: 'Diff within hard limits.' };
+  return { allowed: true, filesChanged, existingFilesChanged, newFilesChanged, ignoredFilesChanged, linesChanged, reason: 'Diff within hard limits.' };
+}
+
+function parseNumstatRows(output, source) {
+  return String(output || '')
+    .split(/\r?\n/)
+    .map((row) => parseNumstatRow(row, source))
+    .filter(Boolean);
+}
+
+function parseNumstatRow(row, source) {
+  const parts = String(row || '').split('\t');
+  if (parts.length < 3) return null;
+  const added = Number(parts[0]);
+  const deleted = Number(parts[1]);
+  return {
+    source,
+    added: Number.isFinite(added) ? added : 0,
+    deleted: Number.isFinite(deleted) ? deleted : 0,
+    file: normalizePath(parts.slice(2).join('\t'))
+  };
+}
+
+function isOperationalDiffFile(file) {
+  const normalized = normalizePath(file).toLowerCase();
+  return normalized === 'ai-cto/agent-action-log.json' ||
+    normalized === 'ai-cto/vision-commands-log.json' ||
+    normalized === 'ai-cto/founder-memory.json' ||
+    normalized === 'ai-cto/validation-results.json' ||
+    normalized === 'ai-cto/whatsapp-webhook.log' ||
+    normalized === 'ai-cto/routing-debug.log' ||
+    normalized.endsWith('.log') ||
+    normalized.includes('.corrupt-');
 }
 
 function untrackedDiffRows(root) {
@@ -367,7 +398,7 @@ function untrackedDiffRows(root) {
     const full = repoPath(root, file);
     const content = fs.existsSync(full) ? fs.readFileSync(full, 'utf8') : '';
     const lines = content ? content.split(/\r?\n/).filter((line, index, all) => index < all.length - 1 || line.length > 0).length : 0;
-    return `${lines}\t0\t${file}`;
+    return { source: 'untracked', added: lines, deleted: 0, file: normalizePath(file) };
   });
 }
 

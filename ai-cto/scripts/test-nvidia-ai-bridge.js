@@ -225,6 +225,8 @@ async function run() {
     fs.mkdirSync(path.join(tempRoot, 'ai-cto'), { recursive: true });
     fs.writeFileSync(path.join(tempRoot, 'README.md'), 'bad trailing   \n');
     fs.writeFileSync(path.join(tempRoot, 'ai-cto', 'VISION_NORTH_STAR.md'), 'Vision: stable keyboard.');
+    const baselineActionLog = JSON.stringify({ version: '1.0', actions: [] }, null, 2) + '\n';
+    fs.writeFileSync(path.join(tempRoot, 'ai-cto', 'agent-action-log.json'), baselineActionLog);
     fs.writeFileSync(path.join(tempRoot, 'ai-cto', '.brain_state.json'), JSON.stringify({
       healthScore: 80,
       unresolvedIssues: [{
@@ -251,6 +253,22 @@ async function run() {
     assert(fixPrompt.includes('Return only the complete fixed file content'));
     const diffCheck = diffWithinHardLimits(tempRoot, { maxFiles: 3, maxLines: 50 });
     assert.strictEqual(diffCheck.allowed, true);
+    fs.writeFileSync(path.join(tempRoot, 'ai-cto', 'agent-action-log.json'), JSON.stringify({
+      version: '1.0',
+      actions: Array.from({ length: 80 }, (_, index) => ({
+        timestamp: `2026-05-25T00:${String(index).padStart(2, '0')}:00.000Z`,
+        actionTaken: `test operational action ${index}`
+      }))
+    }, null, 2) + '\n');
+    fs.mkdirSync(path.join(tempRoot, 'app', 'src', 'main', 'java'), { recursive: true });
+    fs.writeFileSync(path.join(tempRoot, 'app', 'src', 'main', 'java', 'Hello.kt'), '// Pipeline test file.\n');
+    const operationalDiff = diffWithinHardLimits(tempRoot, { maxFiles: 3, maxLines: 50 });
+    assert.strictEqual(operationalDiff.allowed, true);
+    assert.strictEqual(operationalDiff.filesChanged, 1);
+    assert.strictEqual(operationalDiff.newFilesChanged, 1);
+    assert(operationalDiff.ignoredFilesChanged >= 1);
+    fs.writeFileSync(path.join(tempRoot, 'ai-cto', 'agent-action-log.json'), baselineActionLog);
+    fs.rmSync(path.join(tempRoot, 'app'), { recursive: true, force: true });
     for (let index = 0; index < 4; index += 1) {
       fs.writeFileSync(path.join(tempRoot, `NewFile${index}.txt`), `new ${index}\n`);
     }
