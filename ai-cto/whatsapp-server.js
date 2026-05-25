@@ -159,6 +159,19 @@ function extractTwilioBody(req) {
   };
 }
 
+function isFastGreeting(body) {
+  return /^(hi|hello|hey|sup|bro|yo|good morning|good evening)$/i.test(String(body || '').trim());
+}
+
+function fastGreetingReply() {
+  return [
+    'CTO: Founder, team is online.',
+    'CODER: Ready.',
+    'REVIEWER: Standing by.',
+    'AUDITOR: Monitoring active.'
+  ].join('\n');
+}
+
 function logVisibleWebhook(stage, details = {}) {
   const safe = {
     requestId: details.requestId || null,
@@ -283,6 +296,29 @@ function createApp() {
       logVisibleWebhook('rate_limited', { requestId: id, from, body, status: 429, reason: `count=${rate.count}` });
       logWebhookEvent({ type: 'rate_limited', requestId: id, from, body, status: 429, meta: { count: rate.count } });
       res.status(429).type('text/xml').send(twiml('Founder, rate limit reached. Try again shortly.'));
+      return;
+    }
+
+    if (isFastGreeting(body)) {
+      logVisibleWebhook('fast_reply', {
+        requestId: id,
+        from,
+        body,
+        command: 'fast_greeting',
+        status: 200,
+        reason: 'server_fast_path'
+      });
+      logWebhookEvent({
+        type: 'fast_reply',
+        requestId: id,
+        from,
+        body,
+        command: 'fast_greeting',
+        status: 200,
+        durationMs: Date.now() - startedAt,
+        meta: { matchedRoute: 'server_fast_greeting' }
+      });
+      res.status(200).type('text/xml').send(twiml(fastGreetingReply()));
       return;
     }
 
