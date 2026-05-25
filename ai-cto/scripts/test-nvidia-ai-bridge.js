@@ -627,6 +627,20 @@ async function run() {
     assert.strictEqual(duplicateOption3.command, 'duplicate_target_leave_unchanged');
     assert(duplicateOption3.response.includes('No edit, no commit'));
     assert(execFileSync('git', ['log', '--oneline', '-1'], { cwd: tempRootForVision, encoding: 'utf8' }).includes('test: existing swipe reliability notes'));
+    const ackAfterDecision = await routeMessageWithAi('ok', {
+      healthScore: 80,
+      momentum: 'MOVING',
+      sections: { risks: [], unresolved: [], approvals: [] },
+      summary: { topRisk: 'none' }
+    }, { recentMessages: [] }, {
+      client,
+      root: tempRootForVision,
+      commit: true,
+      push: false
+    });
+    assert.strictEqual(ackAfterDecision.command, 'acknowledgement');
+    assert(ackAfterDecision.response.includes('No new action started'));
+    assert(execFileSync('git', ['log', '--oneline', '-1'], { cwd: tempRootForVision, encoding: 'utf8' }).includes('test: existing swipe reliability notes'));
   } finally {
     fs.rmSync(tempRootForVision, { recursive: true, force: true });
   }

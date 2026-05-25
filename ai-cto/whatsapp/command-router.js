@@ -274,6 +274,9 @@ async function routeMessageWithAi(message, state, memory = {}, options = {}) {
   const duplicateOption = answerDuplicateTargetOption(normalized);
   if (duplicateOption) return duplicateOption;
 
+  const acknowledgement = maybeRouteAcknowledgement(normalized);
+  if (acknowledgement) return acknowledgement;
+
   const visionDecision = await maybeRouteVisionDecision(normalized, options);
   if (visionDecision) return visionDecision;
 
@@ -315,6 +318,22 @@ async function routeMessageWithAi(message, state, memory = {}, options = {}) {
     usedAi: ai.usedAi,
     aiModel: ai.model || null,
     aiReason: ai.reason || null
+  };
+}
+
+function maybeRouteAcknowledgement(normalized) {
+  if (!/^(ok|okay|k|kk|thanks|thank you|done|cool|fine|nice|perfect|good)$/i.test(String(normalized || ''))) {
+    return null;
+  }
+  return {
+    command: 'acknowledgement',
+    details: { agent: 'cto', intent: 'acknowledgement' },
+    matchedRoute: 'acknowledgement',
+    response: [
+      'CTO: Acknowledged, Founder.',
+      'No new action started.'
+    ].join('\n'),
+    usedAi: false
   };
 }
 
