@@ -63,6 +63,7 @@ assert.strictEqual(resolveCommand('what changed'), 'what_changed');
 assert.strictEqual(resolveCommand('keyboard health'), 'keyboard_health');
 assert.strictEqual(resolveCommand('build now'), 'build_now');
 assert.strictEqual(resolveCommand('fix limit'), 'fix_limit');
+assert.strictEqual(resolveCommand('execution status'), 'execution_status');
 assert.deepStrictEqual(resolveCommand('focus predictor'), { command: 'focus', focusTopic: 'predictor' });
 assert.strictEqual(resolveCommand('unknown command'), 'unknown');
 assert.deepStrictEqual(parseNaturalIntent('hey coder what are you doing').agent, 'coder');
@@ -124,6 +125,12 @@ assert.strictEqual(fixLimit.command, 'fix_limit');
 assert(fixLimit.response.includes('DeepSeek fix limit'));
 assert(fixLimit.response.includes('/20'));
 assert(fixLimit.response.includes('Remaining today'));
+
+const executionStatus = routeMessage('execution status', sampleState);
+assert.strictEqual(executionStatus.command, 'execution_status');
+assert(executionStatus.response.includes('execution status'));
+assert(executionStatus.response.includes('Commit:'));
+assert(executionStatus.response.includes('Push:'));
 
 const risks = routeMessage('risks', sampleState).response;
 assert(risks.includes('Hardcoded Secret'));

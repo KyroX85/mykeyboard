@@ -222,6 +222,22 @@ function generateResponse(command, state, memory = {}, details = {}) {
       ].join('\n');
     }
 
+    case 'execution_status': {
+      const limit = getDeepSeekFixLimitStatus();
+      const commitEnabled = process.env.CTO_AI_EXECUTION_COMMIT !== 'false';
+      const pushEnabled = process.env.CTO_AI_EXECUTION_PUSH !== 'false';
+      const githubReady = Boolean(process.env.GITHUB_TOKEN);
+      const ready = commitEnabled && pushEnabled && githubReady && limit.remaining > 0;
+      return [
+        `🎯 CTO: execution status is ${ready ? 'READY' : 'LIMITED'}, Founder.`,
+        `State: ${ready ? 'READY' : 'LIMITED'}`,
+        `Commit: ${commitEnabled ? 'enabled' : 'disabled'}`,
+        `Push: ${pushEnabled ? 'enabled' : 'disabled'}`,
+        `GitHub token: ${githubReady ? 'present' : 'missing'}`,
+        `Fixes remaining today: ${limit.remaining}/${limit.limit}`
+      ].join('\n');
+    }
+
     case 'memory':
       return formatFounderMemorySummary(readFounderMemory());
 
@@ -264,7 +280,7 @@ function generateResponse(command, state, memory = {}, details = {}) {
     default:
       return [
         'Founder, CTO commands',
-        'status, health, momentum, latest risks, unresolved, what changed, pending approvals, keyboard health, fix limit, cto summary, school mode, focus <topic>'
+        'status, health, momentum, latest risks, unresolved, what changed, pending approvals, keyboard health, fix limit, execution status, cto summary, school mode, focus <topic>'
       ].join('\n');
   }
 }
