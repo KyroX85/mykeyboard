@@ -269,7 +269,11 @@ function git(root, args) {
 
 function commitFix(root, files, message) {
   ensureGitRuntime(root);
-  git(root, ['add', ...files, 'ai-cto/agent-action-log.json']);
+  const stagedFiles = [...files];
+  if (fs.existsSync(path.join(root, 'ai-cto', 'agent-action-log.json'))) {
+    stagedFiles.push('ai-cto/agent-action-log.json');
+  }
+  git(root, ['add', ...stagedFiles]);
   return git(root, ['commit', '-m', message]);
 }
 
@@ -452,18 +456,21 @@ async function executeAiBridge(options = {}) {
   const issue = options.issue || findCandidateIssue(state);
 
   if (!issue || !issue.file) return { status: 'NO_FIXABLE_ISSUE', reason: 'No issue with file target.' };
-  if (!client.available('llama') || !client.available('deepseek')) {
-    return { status: 'SKIPPED', reason: 'NVIDIA_DEEPSEEK_API_KEY and NVIDIA_LLAMA_API_KEY are required.' };
-  }
   if (Number.isFinite(Number(state.healthScore)) && Number(state.healthScore) < 30) {
     return { status: 'BLOCKED', reason: 'Health score below 30.', riskLevel: 'HIGH' };
-  }
-  if (dailyModelCount(root, MODEL_ASSIGNMENT.deepseek.model, now) >= MAX_DEEPSEEK_FIXES_PER_DAY) {
-    return { status: 'BLOCKED', reason: 'Daily DeepSeek fix limit reached.', riskLevel: 'HIGH' };
   }
 
   const file = normalizePath(issue.file);
   if (isForbiddenFile(file)) return { status: 'FOUNDER_APPROVAL_REQUIRED', riskLevel: 'HIGH', reason: 'Forbidden file scope.' };
+  const target = repoPath(root, file);
+  const fileExists = fs.existsSync(target);
+  const deterministicContent = deterministicNewFileContent(issue, file, fileExists);
+  if (!deterministicContent && (!client.available('llama') || !client.available('deepseek'))) {
+    return { status: 'SKIPPED', reason: 'NVIDIA_DEEPSEEK_API_KEY and NVIDIA_LLAMA_API_KEY are required.' };
+  }
+  if (!deterministicContent && dailyModelCount(root, MODEL_ASSIGNMENT.deepseek.model, now) >= MAX_DEEPSEEK_FIXES_PER_DAY) {
+    return { status: 'BLOCKED', reason: 'Daily DeepSeek fix limit reached.', riskLevel: 'HIGH' };
+  }
   const localRisk = classifyLocalRisk(issue);
   if (hasExplicitReviewRisk(issue) && !localRisk.allowedAutoExecute) {
     return {
@@ -475,12 +482,12 @@ async function executeAiBridge(options = {}) {
       options: localRisk.riskLevel === 'HIGH'
         ? ['Approve a human-reviewed patch plan', 'Skip this issue', 'Ask for safer diagnostic only']
         : undefined
-    };
+      };
   }
-  const target = repoPath(root, file);
-  const fileExists = fs.existsSync(target);
 
-  const risk = await classifyRiskWithLlama({ client, issue, root, now });
+  const risk = deterministicContent
+    ? { riskLevel: 'LOW', reason: 'Deterministic low-risk new file template.' }
+    : await classifyRiskWithLlama({ client, issue, root, now });
   if (risk.riskLevel === 'HIGH') {
     return {
       status: 'FOUNDER_APPROVAL_REQUIRED',
@@ -491,7 +498,14 @@ async function executeAiBridge(options = {}) {
   }
 
   const before = fileExists ? fs.readFileSync(target, 'utf8') : '';
-  const generated = await generateFixWithCodeBrain({ client, root, issue, file, content: before });
+  const generated = deterministicContent
+    ? {
+        ok: true,
+        model: 'deterministic-new-file-template',
+        content: deterministicContent,
+        usage: { total_tokens: 0 }
+      }
+    : await generateFixWithCodeBrain({ client, root, issue, file, content: before });
   if (!generated.ok || !generated.content) return { status: 'MODEL_FAILED', riskLevel: risk.riskLevel, reason: generated.reason || generated.error };
 
   const after = stripCodeFence(generated.content);
@@ -559,11 +573,11 @@ async function executeAiBridge(options = {}) {
 
   appendActionLog(root, {
     agentName: 'Coder',
-    actionTaken: `executed DeepSeek fix for ${file}`,
+    actionTaken: `executed code fix for ${file}`,
     reason: issue.message || issue.type || 'flagged issue',
     riskLevel: 'LOW',
     outcome: 'COMPLETED',
-    modelUsed: MODEL_ASSIGNMENT.deepseek.model,
+    modelUsed: generated.model || MODEL_ASSIGNMENT.deepseek.model,
     tokensConsumed: generated.usage.total_tokens || 0
   });
 
@@ -577,11 +591,20 @@ async function executeAiBridge(options = {}) {
     commitOutput,
     report: [
       `🔧 CODER: Fixed ${file}`,
-      '🧠 Brain used: DeepSeek V4 Flash',
+      `🧠 Brain used: ${generated.model === 'deterministic-new-file-template' ? 'Deterministic file template' : 'DeepSeek V4 Flash'}`,
       `✅ Result: ${options.commit === false ? 'applied without commit' : 'committed'}`,
       `📝 Commit: ${commitHash || 'not committed'}`
     ].join('\n')
   };
+}
+
+function deterministicNewFileContent(issue, file, fileExists) {
+  if (fileExists) return null;
+  const content = typeof issue.deterministicContent === 'string' ? issue.deterministicContent : null;
+  if (!content) return null;
+  if (isForbiddenFile(file)) return null;
+  if (content.length > 4000) return null;
+  return content.endsWith('\n') ? content : `${content}\n`;
 }
 
 function stripCodeFence(value) {

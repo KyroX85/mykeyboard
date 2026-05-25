@@ -167,8 +167,19 @@ function planToIssue(plan) {
     message: plan.task,
     file: Array.isArray(plan.files) ? plan.files[0] : plan.files,
     classification: plan.risk,
-    reason: Array.isArray(plan.changes) ? plan.changes.join('; ') : plan.changes
+    reason: Array.isArray(plan.changes) ? plan.changes.join('; ') : plan.changes,
+    deterministicContent: deterministicContentForPlan(plan)
   };
+}
+
+function deterministicContentForPlan(plan) {
+  const file = String(Array.isArray(plan.files) ? plan.files[0] : plan.files || '');
+  const task = String(plan.task || '');
+  if (!/test file/i.test(task)) return null;
+  if (/\.kt$/i.test(file)) return '// Pipeline test file for CTO execution.\n';
+  if (/\.java$/i.test(file)) return '// Pipeline test file for CTO execution.\n';
+  if (/\.txt$/i.test(file)) return 'Pipeline test file for CTO execution.\n';
+  return null;
 }
 
 function commitMessageForPlan(plan) {
