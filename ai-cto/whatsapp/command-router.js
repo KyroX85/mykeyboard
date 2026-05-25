@@ -301,6 +301,14 @@ async function routeMessageWithAi(message, state, memory = {}, options = {}) {
   }
 
   const routed = routeMessage(message, state, memory);
+  if (routed.matchedRoute === 'greeting_first') {
+    return {
+      ...routed,
+      usedAi: false,
+      aiReason: 'deterministic greeting fast path'
+    };
+  }
+
   if (routed.matchedRoute === 'agent_intent' ||
     routed.matchedRoute === 'safe_low_confidence_fallback' ||
     routed.matchedRoute === 'conversational_fallback') {

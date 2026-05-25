@@ -4,6 +4,7 @@ const { readRoadmap } = require('./roadmap-reader');
 const { readFounderMemory, buildFounderMemoryContext } = require('./founder-memory');
 
 const MAX_LLAMA_CALLS_PER_DAY = 100;
+const LLAMA_RESPONSE_TIMEOUT_MS = Number(process.env.LLAMA_RESPONSE_TIMEOUT_MS || 8000);
 
 const AGENT_PERSONALITIES = {
   cto: 'CTO: You are calm, strategic, and decisive. Sound like a real startup CTO reporting to their CEO.',
@@ -71,14 +72,20 @@ async function maybeGenerateAiWhatsAppResponse({ founderMessage, routed, fallbac
     state,
     memory
   });
-  const result = await client.chat('llama', [
-    { role: 'system', content: prompt.system },
-    { role: 'user', content: prompt.user }
-  ], {
-    reason: 'WhatsApp conversation response',
-    maxTokens: 500,
-    temperature: 0.35
-  });
+  const result = await withTimeout(
+    client.chat('llama', [
+      { role: 'system', content: prompt.system },
+      { role: 'user', content: prompt.user }
+    ], {
+      reason: 'WhatsApp conversation response',
+      maxTokens: 500,
+      temperature: 0.35
+    }),
+    LLAMA_RESPONSE_TIMEOUT_MS
+  ).catch((error) => ({
+    ok: false,
+    reason: error.message || 'Llama response timeout.'
+  }));
 
   if (!result.ok || !result.content) {
     return { usedAi: false, response: fallbackResponse, reason: result.reason || result.error || 'Llama response unavailable.' };
@@ -89,6 +96,15 @@ async function maybeGenerateAiWhatsAppResponse({ founderMessage, routed, fallbac
     model: MODEL_ASSIGNMENT.llama.model,
     usage: result.usage
   };
+}
+
+function withTimeout(promise, timeoutMs) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(`Llama response timeout after ${timeoutMs}ms`)), timeoutMs);
+    })
+  ]);
 }
 
 function dailyLlamaCalls(now = new Date()) {
@@ -126,6 +142,7 @@ function limitWhatsApp(text) {
 
 module.exports = {
   MAX_LLAMA_CALLS_PER_DAY,
+  LLAMA_RESPONSE_TIMEOUT_MS,
   buildAiWhatsAppPrompt,
   maybeGenerateAiWhatsAppResponse
 };
