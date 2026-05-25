@@ -80,7 +80,7 @@ async function run() {
               files: ['README.md'],
               changes: ['Document responsiveness validation plan only'],
               risk: 'MEDIUM',
-              estimatedLines: 4,
+              estimatedLines: 24,
               roadmapConflict: false
             }) } }],
           usage: { total_tokens: 55 }
@@ -119,10 +119,19 @@ async function run() {
     task: 'Create a test file called Hello.kt',
     files: [],
     changes: ['Create requested file'],
-    risk: 'LOW',
+    risk: 'HIGH',
     estimatedLines: 3
   }, 'create a test file called Hello.kt');
   assert.deepStrictEqual(inferredHelloPlan.files, ['app/src/main/java/Hello.kt']);
+  assert.strictEqual(inferredHelloPlan.risk, 'LOW');
+  const forbiddenCreatePlan = normalizePlan({
+    task: 'Create a secret file',
+    files: ['ai-cto/secret-key.json'],
+    changes: ['Create requested file'],
+    risk: 'LOW',
+    estimatedLines: 3
+  }, 'create a secret file called secret-key.json');
+  assert.strictEqual(forbiddenCreatePlan.risk, 'HIGH');
 
   const originalFetch = global.fetch;
   try {

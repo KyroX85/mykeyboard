@@ -258,15 +258,46 @@ function normalizePlan(plan, message) {
   const rawFiles = Array.isArray(plan.files) ? plan.files : (plan.files ? [plan.files] : []);
   const inferredFiles = inferFilesFromFounderMessage(message);
   const files = rawFiles.length > 0 ? rawFiles : inferredFiles;
+  const normalizedFiles = files.map((file) => String(file).replace(/\\/g, '/')).filter(Boolean).slice(0, 3);
+  const task = String(plan.task || message || 'Founder vision command').slice(0, 180);
+  const estimatedLines = Number.isFinite(Number(plan.estimatedLines)) ? Number(plan.estimatedLines) : 50;
   return {
-    task: String(plan.task || message || 'Founder vision command').slice(0, 180),
-    files: files.map((file) => String(file).replace(/\\/g, '/')).filter(Boolean).slice(0, 3),
+    task,
+    files: normalizedFiles,
     changes: Array.isArray(plan.changes) ? plan.changes.slice(0, 5) : [String(plan.changes || 'No change list returned.')],
-    risk: /HIGH/i.test(plan.risk) ? 'HIGH' : /MEDIUM/i.test(plan.risk) ? 'MEDIUM' : 'LOW',
-    estimatedLines: Number.isFinite(Number(plan.estimatedLines)) ? Number(plan.estimatedLines) : 50,
+    risk: classifyVisionPlanRisk({ ...plan, task, files: normalizedFiles, estimatedLines }, message),
+    estimatedLines,
     roadmapConflict: Boolean(plan.roadmapConflict),
     conflictMessage: plan.conflictMessage || null
   };
+}
+
+function classifyVisionPlanRisk(plan, message) {
+  const text = `${message || ''} ${plan.task || ''} ${array(plan.changes).join(' ')}`.toLowerCase();
+  const files = array(plan.files);
+  if (files.some(isForbiddenVisionFile)) return 'HIGH';
+  if (/\bcreate\b/.test(text) && /\bfile\b/.test(text)) return 'LOW';
+  if (Number(plan.estimatedLines) > 0 && Number(plan.estimatedLines) < 20) return 'LOW';
+  if (/\b(comment|comments|color|colors|spacing|text|copy|label|wording)\b/.test(text)) return 'LOW';
+  if (/\b(privacy|database|architecture|security|auth)\b/.test(text)) return 'HIGH';
+  if (/\b(modify|change|update|add)\b/.test(text) && /\b(function|logic|existing)\b/.test(text)) return 'MEDIUM';
+  return /HIGH/i.test(plan.risk) ? 'HIGH' : /MEDIUM/i.test(plan.risk) ? 'MEDIUM' : 'LOW';
+}
+
+function isForbiddenVisionFile(file) {
+  const normalized = String(file || '').replace(/\\/g, '/').toLowerCase();
+  return normalized.endsWith('google-services.json') ||
+    normalized.includes('/privacy/') ||
+    normalized.includes('privacy') ||
+    normalized.includes('databasehelper.kt') ||
+    normalized.includes('/database/') ||
+    normalized.includes('/db/') ||
+    normalized.includes('secret') ||
+    normalized.includes('key');
+}
+
+function array(value) {
+  return Array.isArray(value) ? value : [];
 }
 
 function inferFilesFromFounderMessage(message) {
@@ -330,6 +361,8 @@ module.exports = {
   formatVisionApprovalResult,
   formatVisionNoTarget,
   normalizePlan,
+  classifyVisionPlanRisk,
+  isForbiddenVisionFile,
   inferFilesFromFounderMessage,
   createApprovalCommand,
   encodeApprovalToken,
