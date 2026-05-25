@@ -77,7 +77,32 @@ function formatExecutionHistory(limit = 5) {
   });
 }
 
+function withStateDefaults(state) {
+  const source = state && typeof state === 'object' ? state : {};
+  const sections = source.sections && typeof source.sections === 'object' ? source.sections : {};
+  const summary = source.summary && typeof source.summary === 'object' ? source.summary : {};
+  return {
+    ...source,
+    sections: {
+      unresolved: Array.isArray(sections.unresolved) ? sections.unresolved : [],
+      risks: Array.isArray(sections.risks) ? sections.risks : [],
+      repeatedFailures: Array.isArray(sections.repeatedFailures) ? sections.repeatedFailures : [],
+      completedFixes: Array.isArray(sections.completedFixes) ? sections.completedFixes : [],
+      nextPriority: Array.isArray(sections.nextPriority) ? sections.nextPriority : [],
+      safestOpportunity: Array.isArray(sections.safestOpportunity) ? sections.safestOpportunity : [],
+      approvals: Array.isArray(sections.approvals) ? sections.approvals : []
+    },
+    summary: {
+      nextPriority: summary.nextPriority || 'No priority recorded yet.',
+      topRisk: summary.topRisk || 'No active risk recorded right now.'
+    },
+    validation: Array.isArray(source.validation) ? source.validation : [],
+    unresolvedIssues: Array.isArray(source.unresolvedIssues) ? source.unresolvedIssues : []
+  };
+}
+
 function generateResponse(command, state, memory = {}, details = {}) {
+  state = withStateDefaults(state);
   const health = state.healthScore == null ? 'unknown' : `${state.healthScore}/100`;
   const momentum = state.momentum || 'UNKNOWN';
   const generatedAt = state.generatedAt || 'not recorded yet';

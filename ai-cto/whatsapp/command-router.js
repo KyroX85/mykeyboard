@@ -272,6 +272,9 @@ function routeMessage(message, state, memory = {}) {
 
 async function routeMessageWithAi(message, state, memory = {}, options = {}) {
   const normalized = normalizeMessage(message);
+  const sandboxJoin = maybeRouteTwilioSandboxMessage(normalized);
+  if (sandboxJoin) return sandboxJoin;
+
   const duplicateOption = answerDuplicateTargetOption(normalized);
   if (duplicateOption) return duplicateOption;
 
@@ -321,6 +324,23 @@ async function routeMessageWithAi(message, state, memory = {}, options = {}) {
     usedAi: ai.usedAi,
     aiModel: ai.model || null,
     aiReason: ai.reason || null
+  };
+}
+
+function maybeRouteTwilioSandboxMessage(normalized) {
+  const text = String(normalized || '').trim();
+  if (!/^join\s+[\w-]+$/i.test(text)) {
+    return null;
+  }
+  return {
+    command: 'twilio_sandbox_join',
+    details: { agent: 'cto', intent: 'twilio_sandbox_join' },
+    matchedRoute: 'twilio_sandbox_join',
+    response: [
+      'CTO: Twilio sandbox join message received, Founder.',
+      'Webhook is still active. Send "hi" to test the agents.'
+    ].join('\n'),
+    usedAi: false
   };
 }
 
