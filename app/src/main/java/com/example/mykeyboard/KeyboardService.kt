@@ -53,6 +53,8 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.util.UUID
+import java.util.concurrent.Executors
+import java.util.concurrent.Future
 import java.util.concurrent.atomic.AtomicInteger
 import java.net.SocketTimeoutException
 import java.util.EnumMap
@@ -146,6 +148,13 @@ class KeyboardService : InputMethodService() {
     private var currentImeAction = ImeAction.Enter
     private var lastSuggestionQueryPrefix = SUGGESTION_QUERY_UNSET
     private var lastSuggestionQueryPreviousWord = SUGGESTION_QUERY_UNSET
+    private val suggestionExecutor = Executors.newSingleThreadExecutor { runnable ->
+        Thread(runnable, "KeyboardSuggestions").apply { isDaemon = true }
+    }
+    private var suggestionLookupFuture: Future<*>? = null
+    private val cachedKeyBounds = mutableMapOf<Button, CachedKeyBounds>()
+    private var cachedPanelScreenX = 0
+    private var cachedPanelScreenY = 0
 
     private val supabaseUrl: String by lazy { BuildConfig.SUPABASE_URL }
     private val supabaseKey: String by lazy { BuildConfig.SUPABASE_ANON_KEY }
@@ -229,6 +238,10 @@ class KeyboardService : InputMethodService() {
         
         mainContainer = layout.findViewById(R.id.mainContainer)
         keyboardPanel = layout.findViewById(R.id.keyboardPanel)
+        keyboardPanel.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            refreshCachedKeyBounds()
+            syncSwipeTrailToMeasuredPanel()
+        }
         keyboardContent = layout.findViewById(R.id.keyboardContent)
         suggestionBar = layout.findViewById(R.id.suggestionBar)
         numberRow = layout.findViewById(R.id.numberRow)
@@ -364,7 +377,7 @@ class KeyboardService : InputMethodService() {
         val ic = currentInputConnection ?: return
         val partialLength = currentWord.length
         if (partialLength > 0) {
-            ic.deleteSurroundingText(partialLength, 0)
+            if (!deleteSurroundingTextSafely(ic, partialLength, 0, "suggestion")) return
         }
 
         val committedWord = suggestion.trim().lowercase()
@@ -433,7 +446,10 @@ class KeyboardService : InputMethodService() {
 
         updateActionKeyUI()
         updateShiftUI()
-        keyboardPanel.post { syncSwipeTrailToMeasuredPanel() }
+        keyboardPanel.post {
+            refreshCachedKeyBounds()
+            syncSwipeTrailToMeasuredPanel()
+        }
     }
 
     private fun createKeyboardRows(mode: Mode, sizing: KeyboardSizingProfile): List<LinearLayout> {
@@ -496,6 +512,7 @@ class KeyboardService : InputMethodService() {
     private fun clearCachedKeyboardViews() {
         keyboardRowsByMode.clear()
         keyboardButtonsByMode.clear()
+        cachedKeyBounds.clear()
         numberRowButtons.clear()
         if (::numberRow.isInitialized) {
             numberRow.removeAllViews()
@@ -714,6 +731,9 @@ class KeyboardService : InputMethodService() {
         }
 
         swipeTrackingStarted = true
+        if (cachedKeyBounds.isEmpty()) {
+            refreshCachedKeyBounds()
+        }
         updateEventPointInKeyboardPanel(event)
         swipeTracker.start(
             swipePanelX,
@@ -947,9 +967,8 @@ class KeyboardService : InputMethodService() {
         key.length == 1 && key[0] in 'a'..'z'
 
     private fun updateEventPointInKeyboardPanel(event: MotionEvent) {
-        keyboardPanel.getLocationOnScreen(screenLocationBuffer)
-        swipePanelX = event.rawX - screenLocationBuffer[0]
-        swipePanelY = event.rawY - screenLocationBuffer[1]
+        swipePanelX = event.rawX - cachedPanelScreenX
+        swipePanelY = event.rawY - cachedPanelScreenY
     }
 
     private fun findKeyAtRawPosition(rawX: Float, rawY: Float, lettersOnly: Boolean): Button? {
@@ -962,16 +981,15 @@ class KeyboardService : InputMethodService() {
             val key = button.tag as? String ?: continue
             if (lettersOnly && !isSwipeLetterKey(key)) continue
 
-            button.getLocationOnScreen(screenLocationBuffer)
-            val left = screenLocationBuffer[0] - horizontalSlop
-            val top = screenLocationBuffer[1] - verticalSlop
-            val right = screenLocationBuffer[0] + button.width + horizontalSlop
-            val bottom = screenLocationBuffer[1] + button.height + verticalSlop
+            val bounds = cachedKeyBounds[button] ?: continue
+            val left = bounds.left - horizontalSlop
+            val top = bounds.top - verticalSlop
+            val right = bounds.right + horizontalSlop
+            val bottom = bounds.bottom + verticalSlop
             if (rawX < left || rawX > right || rawY < top || rawY > bottom) continue
 
-            val centerX = screenLocationBuffer[0] + button.width / 2
-            val centerY = screenLocationBuffer[1] + button.height / 2
-            val distance = kotlin.math.abs(rawX - centerX).toInt() + kotlin.math.abs(rawY - centerY).toInt()
+            val distance = kotlin.math.abs(rawX - bounds.centerX).toInt() +
+                kotlin.math.abs(rawY - bounds.centerY).toInt()
             if (distance < bestDistance) {
                 bestDistance = distance
                 bestButton = button
@@ -979,6 +997,31 @@ class KeyboardService : InputMethodService() {
         }
 
         return bestButton
+    }
+
+    private fun refreshCachedKeyBounds() {
+        if (!::keyboardPanel.isInitialized) return
+        keyboardPanel.getLocationOnScreen(screenLocationBuffer)
+        cachedPanelScreenX = screenLocationBuffer[0]
+        cachedPanelScreenY = screenLocationBuffer[1]
+        cachedKeyBounds.clear()
+
+        for (button in keyButtons) {
+            if (button.width <= 0 || button.height <= 0 || button.visibility != View.VISIBLE) continue
+            button.getLocationOnScreen(screenLocationBuffer)
+            val left = screenLocationBuffer[0]
+            val top = screenLocationBuffer[1]
+            val right = left + button.width
+            val bottom = top + button.height
+            cachedKeyBounds[button] = CachedKeyBounds(
+                left = left,
+                top = top,
+                right = right,
+                bottom = bottom,
+                centerX = left + button.width / 2,
+                centerY = top + button.height / 2
+            )
+        }
     }
 
     private fun updateSwipePressedKey(button: Button?) {
@@ -1071,7 +1114,7 @@ class KeyboardService : InputMethodService() {
 
     private fun deleteOneCharacter() {
         val ic = currentInputConnection ?: return
-        ic.deleteSurroundingText(1, 0)
+        if (!deleteSurroundingTextSafely(ic, 1, 0, "backspace")) return
         recordCommitLatency()
         if (metrics.recordBackspace(SystemClock.elapsedRealtime())) {
             metrics.recordCorrectionAfterAcceptedSuggestion()
@@ -1217,7 +1260,7 @@ class KeyboardService : InputMethodService() {
         val correction = predictor.getAutocorrection(typedWord, previousWord) ?: return false
         if (correction == typedWord.lowercase()) return false
 
-        ic.deleteSurroundingText(typedWord.length, 0)
+        if (!deleteSurroundingTextSafely(ic, typedWord.length, 0, "autocorrect")) return false
         if (!commitTextSafely(ic, "$correction$suffix", "autocorrect")) return false
         recordCommitLatency()
         predictor.learnAcceptedSuggestion(correction, previousWord)
@@ -1322,7 +1365,10 @@ class KeyboardService : InputMethodService() {
             pendingSuggestionImpression = false
         }
         if (currentWord.isNotEmpty()) {
-            ic.deleteSurroundingText(currentWord.length, 0)
+            if (!deleteSurroundingTextSafely(ic, currentWord.length, 0, "swipe-replace")) {
+                metrics.recordSwipeResolved(gesture.rawSequence.length, candidateCount = candidates.size, committed = false)
+                return
+            }
         }
 
         val output = formatSwipeWord(committedWord)
@@ -1386,9 +1432,25 @@ class KeyboardService : InputMethodService() {
             return
         }
 
-        val suggestions = predictor.getSuggestions(prefix, previousWord)
         lastSuggestionQueryPrefix = prefix
         lastSuggestionQueryPreviousWord = stablePrevious
+        suggestionLookupFuture?.cancel(true)
+        suggestionLookupFuture = suggestionExecutor.submit {
+            val suggestions = predictor.getSuggestions(prefix, previousWord)
+            mainHandler.post {
+                publishSuggestionsIfCurrent(prefix, stablePrevious, suggestions)
+            }
+        }
+    }
+
+    private fun publishSuggestionsIfCurrent(
+        prefix: String,
+        previousWord: String,
+        suggestions: List<String>
+    ) {
+        if (prefix != currentWord.toString()) return
+        if (previousWord != contextWords.lastOrNull().orEmpty()) return
+
         metrics.recordSuggestionImpression(suggestions)
         pendingSuggestionImpression = currentWord.isNotEmpty() && suggestions.any { it.isNotBlank() }
 
@@ -1592,19 +1654,44 @@ class KeyboardService : InputMethodService() {
         text: CharSequence,
         reason: String
     ): Boolean {
-        if (ic == null) {
-            Log.w(INPUT_CONNECTION_TAG, "commit skipped: InputConnection null reason=$reason")
-            return false
-        }
-
-        return try {
-            val committed = ic.commitText(text, 1)
+        return mutateInputConnectionSafely(ic, "commit:$reason") { connection ->
+            val committed = connection.commitText(text, 1)
             if (!committed) {
                 Log.w(INPUT_CONNECTION_TAG, "commit failed: commitText returned false reason=$reason")
             }
             committed
+        }
+    }
+
+    private fun deleteSurroundingTextSafely(
+        ic: InputConnection?,
+        beforeLength: Int,
+        afterLength: Int,
+        reason: String
+    ): Boolean {
+        return mutateInputConnectionSafely(ic, "delete:$reason") { connection ->
+            val deleted = connection.deleteSurroundingText(beforeLength, afterLength)
+            if (!deleted) {
+                Log.w(INPUT_CONNECTION_TAG, "delete failed: deleteSurroundingText returned false reason=$reason")
+            }
+            deleted
+        }
+    }
+
+    private inline fun mutateInputConnectionSafely(
+        ic: InputConnection?,
+        reason: String,
+        mutation: (InputConnection) -> Boolean
+    ): Boolean {
+        if (ic == null) {
+            Log.w(INPUT_CONNECTION_TAG, "mutation skipped: InputConnection null reason=$reason")
+            return false
+        }
+
+        return try {
+            mutation(ic)
         } catch (e: RuntimeException) {
-            Log.w(INPUT_CONNECTION_TAG, "commit failed: ${e.javaClass.simpleName} reason=$reason", e)
+            Log.w(INPUT_CONNECTION_TAG, "mutation failed: ${e.javaClass.simpleName} reason=$reason", e)
             false
         }
     }
@@ -1774,6 +1861,15 @@ class KeyboardService : InputMethodService() {
     private fun dp(value: Int): Int =
         (value * resources.displayMetrics.density).toInt()
 
+    private data class CachedKeyBounds(
+        val left: Int,
+        val top: Int,
+        val right: Int,
+        val bottom: Int,
+        val centerX: Int,
+        val centerY: Int
+    )
+
     override fun onFinishInputView(finishingInput: Boolean) {
         recordLifecycleInterruptionIfNeeded(if (finishingInput) "finish-input-view" else "hide-input-view")
         cleanupInputViewState()
@@ -1806,6 +1902,8 @@ class KeyboardService : InputMethodService() {
         }
         maybeFlushMetrics(force = true)
         metrics.endSession()
+        suggestionLookupFuture?.cancel(true)
+        suggestionExecutor.shutdownNow()
         scope.cancel()
         super.onDestroy()
     }

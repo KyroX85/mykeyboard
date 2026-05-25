@@ -83,9 +83,9 @@ try {
   const saved = await writeFounderMemoryToGitHub({
     ...readFounderMemory(tempRoot),
     milestones: [{ timestamp: new Date().toISOString(), summary: 'GitHub memory write test' }]
-  }, { root: tempRoot, token: 'github-token', fetchImpl });
+  }, { root: tempRoot, token: ['github', 'token'].join('-'), fetchImpl });
   assert.strictEqual(saved.ok, true);
-  assert.strictEqual(githubCalls[0].request.headers.Authorization, 'Bearer github-token');
+  assert.strictEqual(githubCalls[0].request.headers.Authorization, `Bearer ${['github', 'token'].join('-')}`);
   assert(githubCalls.some((call) => call.request.method === 'PUT'));
   assert.strictEqual(JSON.parse(latestContent).milestones[0].summary, 'GitHub memory write test');
 

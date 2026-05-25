@@ -99,6 +99,35 @@ class InteractionRhythmGuardrailsTest {
         }
     }
 
+    @Test
+    fun swipeMoveHitTestingUsesCachedBounds() {
+        val source = sourceFile("app/src/main/java/com/example/mykeyboard/KeyboardService.kt").readText()
+        val findKey = methodBody(source, "findKeyAtRawPosition")
+        val updatePoint = methodBody(source, "updateEventPointInKeyboardPanel")
+
+        assertTrue(source.contains("cachedKeyBounds"))
+        assertTrue(source.contains("refreshCachedKeyBounds()"))
+        assertFalse("swipe hit-test must not call getLocationOnScreen", findKey.contains("getLocationOnScreen"))
+        assertFalse("swipe coordinate update must not call getLocationOnScreen", updatePoint.contains("getLocationOnScreen"))
+    }
+
+    @Test
+    fun suggestionsResolveOffMainThreadAndDiscardStaleResults() {
+        val source = sourceFile("app/src/main/java/com/example/mykeyboard/KeyboardService.kt").readText()
+        val updateSuggestions = methodBody(source, "updateSuggestions")
+        val publishSuggestions = methodBody(source, "publishSuggestionsIfCurrent")
+        val predictorSource = sourceFile("app/src/main/java/com/example/mykeyboard/predictor/BasicPredictor.kt").readText()
+        val collectPrefixMatches = methodBody(predictorSource, "collectPrefixMatches")
+
+        assertTrue(source.contains("suggestionLookupFuture"))
+        assertTrue(source.contains("suggestionExecutor"))
+        assertTrue(updateSuggestions.contains("suggestionLookupFuture?.cancel(true)"))
+        assertTrue(updateSuggestions.contains("suggestionExecutor.submit"))
+        assertTrue(publishSuggestions.contains("prefix != currentWord.toString()"))
+        assertTrue(publishSuggestions.contains("previousWord != contextWords.lastOrNull().orEmpty()"))
+        assertTrue(collectPrefixMatches.contains("MAX_PREFIX_SCAN"))
+    }
+
     private fun sourceFile(relativePath: String): File {
         val current = File("").absoluteFile
         val direct = File(current, relativePath)

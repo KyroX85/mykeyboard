@@ -53,6 +53,7 @@ class BasicPredictor internal constructor(
         private const val MODEL_SCHEMA_VERSION = 3
         private const val TOP_CACHE_SIZE = 96
         private const val MAX_TYPO_SCAN = 96
+        private const val MAX_PREFIX_SCAN = 192
         private const val MAX_SWIPE_SCAN = 160
         private const val MAX_SWIPE_SEQUENCE_VARIANTS = 3
         private const val DEBUG_POOL_WORD_LIMIT = 8
@@ -285,6 +286,7 @@ class BasicPredictor internal constructor(
             if (prefix.isNotEmpty()) {
                 val contextual = if (prev.isNotEmpty()) nextWordCounts[prev] else null
                 collectPrefixMatches(prefix, prev, contextual, CandidateSource.CONTEXTUAL, ranked)
+                collectPrefixMatches(prefix, prev, sessionWordCounts, CandidateSource.UNIGRAM, ranked)
                 collectPrefixMatches(prefix, prev, BUILT_IN_WORD_COUNTS, CandidateSource.UNIGRAM, ranked)
                 collectPrefixMatches(prefix, prev, unigramCounts, CandidateSource.UNIGRAM, ranked)
                 collectTypoMatches(prefix, prev, contextual, CandidateSource.CONTEXTUAL, ranked)
@@ -641,7 +643,10 @@ class BasicPredictor internal constructor(
     ) {
         if (counts.isNullOrEmpty()) return
 
+        var scanned = 0
         for ((word, count) in counts) {
+            if (scanned >= MAX_PREFIX_SCAN) break
+            scanned++
             if (!word.startsWith(prefix)) continue
             if (isLoopingSuggestion(previousWord, word)) continue
             val score = wordTrustScore(word, previousWord, count, source, false)

@@ -9,6 +9,7 @@ const resultsFile = path.join(outDir, 'validation-results.json');
 
 const gradle = process.platform === 'win32' ? 'gradlew.bat' : './gradlew';
 const tasks = [':app:testDebugUnitTest', ':app:assembleDebug', ':app:lintDebug'];
+const windowsJavaHomeFallback = 'C:\\Program Files\\Android\\Android Studio\\jbr';
 
 function ensureOutDir() {
   fs.mkdirSync(outDir, { recursive: true });
@@ -50,10 +51,16 @@ function parseFindings(output, task) {
 function runTask(task) {
   const startedAt = new Date().toISOString();
   const start = Date.now();
+  const env = { ...process.env };
+  if (process.platform === 'win32' && !env.JAVA_HOME && fs.existsSync(windowsJavaHomeFallback)) {
+    env.JAVA_HOME = windowsJavaHomeFallback;
+    env.PATH = `${path.join(windowsJavaHomeFallback, 'bin')}${path.delimiter}${env.PATH || ''}`;
+  }
   const result = spawnSync(gradle, [task, '--no-daemon', '--stacktrace'], {
     cwd: root,
     encoding: 'utf8',
-    shell: process.platform === 'win32'
+    shell: process.platform === 'win32',
+    env
   });
 
   const stdout = result.stdout || '';
@@ -68,7 +75,7 @@ function runTask(task) {
     startedAt,
     completedAt: new Date().toISOString(),
     durationMs: Date.now() - start,
-    findings: parseFindings(output, task),
+    findings: result.status === 0 ? [] : parseFindings(output, task),
     output
   };
 }

@@ -56,9 +56,34 @@ class RuntimeRealityHardeningTest {
         }
 
         val helper = methodBody(source, "commitTextSafely")
-        assertTrue(helper.contains("try"))
-        assertTrue(helper.contains("catch (e: RuntimeException)"))
-        assertTrue(helper.contains("Log.w"))
+        val mutationHelper = methodBody(source, "mutateInputConnectionSafely")
+        assertTrue(helper.contains("mutateInputConnectionSafely"))
+        assertTrue(mutationHelper.contains("try"))
+        assertTrue(mutationHelper.contains("catch (e: RuntimeException)"))
+        assertTrue(mutationHelper.contains("Log.w"))
+    }
+
+    @Test
+    fun inputConnectionMutationsUseSingleRuntimeSafeHelper() {
+        val source = sourceFile("app/src/main/java/com/example/mykeyboard/KeyboardService.kt").readText()
+        val methodsToCheck = listOf(
+            "acceptSuggestion",
+            "deleteOneCharacter",
+            "commitAutocorrectionIfNeeded",
+            "commitSwipeSequence"
+        )
+
+        for (method in methodsToCheck) {
+            val body = methodBody(source, method)
+            assertFalse("$method must not call deleteSurroundingText directly", body.contains(".deleteSurroundingText("))
+        }
+
+        val helper = methodBody(source, "deleteSurroundingTextSafely")
+        val mutationHelper = methodBody(source, "mutateInputConnectionSafely")
+        assertTrue(helper.contains("mutateInputConnectionSafely"))
+        assertTrue(mutationHelper.contains("try"))
+        assertTrue(mutationHelper.contains("catch (e: RuntimeException)"))
+        assertTrue(mutationHelper.contains("Log.w"))
     }
 
     @Test

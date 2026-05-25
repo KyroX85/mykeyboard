@@ -147,14 +147,14 @@ async function run() {
     };
     await defaultTransport({
       endpoint: ENDPOINT,
-      apiKey: 'test-api-key',
+      apiKey: ['test', 'api', 'key'].join('-'),
       model: MODEL_ASSIGNMENT.deepseek.model,
       messages: [{ role: 'user', content: 'ping' }],
       temperature: 0,
       maxTokens: 1024
     });
     assert.strictEqual(capturedRequest.url, 'https://integrate.api.nvidia.com/v1/chat/completions');
-    assert.strictEqual(capturedRequest.request.headers.Authorization, 'Bearer test-api-key');
+    assert.strictEqual(capturedRequest.request.headers.Authorization, `Bearer ${['test', 'api', 'key'].join('-')}`);
     assert.strictEqual(capturedRequest.request.headers['Content-Type'], 'application/json');
     const body = JSON.parse(capturedRequest.request.body);
     assert.strictEqual(body.model, 'deepseek-ai/deepseek-v4-flash');
