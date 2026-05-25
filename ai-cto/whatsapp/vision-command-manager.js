@@ -286,6 +286,16 @@ function formatVisionPlan(entry) {
 function formatVisionApprovalResult(entry) {
   const result = entry && entry.result || {};
   if (result.status === 'COMPLETED') {
+    const changedFiles = result.diff && Number(result.diff.filesChanged);
+    if (!entry.commitHash && changedFiles === 0) {
+      return [
+        'CODER: Done, Founder.',
+        `Checked: ${entry.plan.task}`,
+        `Target: ${(result.file ? [result.file] : entry.plan.files).join(', ')}`,
+        'Result: already clean; file is not present.',
+        'Commit: not needed'
+      ].join('\n');
+    }
     return [
       'CODER: Done, Founder.',
       `Implemented: ${entry.plan.task}`,

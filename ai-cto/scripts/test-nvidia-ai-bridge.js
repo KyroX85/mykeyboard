@@ -539,6 +539,22 @@ async function run() {
     assert(!fs.existsSync(path.join(tempRootForVision, 'app', 'src', 'main', 'java', 'Hello.kt')));
     assert(execFileSync('git', ['log', '--oneline', '-1'], { cwd: tempRootForVision, encoding: 'utf8' }).includes('test: remove Hello.kt pipeline test'));
 
+    const deleteAbsentHello = await routeMessageWithAi('remove the test file called Hello.kt', {
+      healthScore: 80,
+      momentum: 'MOVING',
+      sections: { risks: [], unresolved: [], approvals: [] },
+      summary: { topRisk: 'none' }
+    }, { recentMessages: [] }, {
+      client,
+      root: tempRootForVision,
+      commit: true,
+      push: false,
+      commitMessage: 'test: remove Hello.kt pipeline test'
+    });
+    assert.strictEqual(deleteAbsentHello.command, 'vision_command_auto_executed');
+    assert(deleteAbsentHello.response.includes('already clean'));
+    assert(deleteAbsentHello.response.includes('Commit: not needed'));
+
     fs.writeFileSync(path.join(tempRootForVision, 'app', 'src', 'main', 'java', 'Hello.kt'), '// Pipeline test file for CTO execution.\n');
     execFileSync('git', ['add', '.'], { cwd: tempRootForVision });
     execFileSync('git', ['commit', '-m', 'test: restore Hello.kt for loose delete test'], { cwd: tempRootForVision });
