@@ -328,6 +328,8 @@ function diffWithinHardLimits(root, limits = {}) {
   const maxFiles = limits.maxFiles || 3;
   const maxLines = limits.maxLines || 50;
   const maxNewFileLines = limits.maxNewFileLines || 200;
+  const allowedFiles = new Set((Array.isArray(limits.allowedFiles) ? limits.allowedFiles : [])
+    .map((file) => normalizePath(file).toLowerCase()));
   let output = '';
   try {
     output = git(root, ['diff', '--numstat']);
@@ -337,7 +339,11 @@ function diffWithinHardLimits(root, limits = {}) {
   const trackedRows = parseNumstatRows(output, 'tracked');
   const untrackedRows = untrackedDiffRows(root);
   const rows = [...trackedRows, ...untrackedRows];
-  const guardRows = rows.filter((row) => !isOperationalDiffFile(row.file));
+  const guardRows = rows.filter((row) => {
+    if (isOperationalDiffFile(row.file)) return false;
+    if (allowedFiles.size === 0) return true;
+    return allowedFiles.has(normalizePath(row.file).toLowerCase());
+  });
   const filesChanged = guardRows.length;
   const ignoredFilesChanged = rows.length - guardRows.length;
   const existingFilesChanged = guardRows.filter((row) => row.source === 'tracked').length;
@@ -527,7 +533,7 @@ async function executeAiBridge(options = {}) {
 
   fs.mkdirSync(path.dirname(target), { recursive: true });
   fs.writeFileSync(target, after);
-  const diffCheck = diffWithinHardLimits(root);
+  const diffCheck = diffWithinHardLimits(root, { allowedFiles: [file] });
   if (!diffCheck.allowed) {
     if (fileExists) fs.writeFileSync(target, before);
     else fs.rmSync(target, { force: true });

@@ -285,6 +285,19 @@ async function run() {
     assert.strictEqual(largeNewFileDiff.existingLinesChanged, 0);
     assert.strictEqual(largeNewFileDiff.newFileLinesChanged, 80);
     fs.rmSync(path.join(tempRoot, 'LargeNewFile.txt'), { force: true });
+    fs.writeFileSync(path.join(tempRoot, 'HugeStaleFailedAttempt.kt'), Array.from({ length: 350 }, (_, index) => `// stale ${index}`).join('\n'));
+    fs.mkdirSync(path.join(tempRoot, 'app', 'src', 'main', 'java'), { recursive: true });
+    fs.writeFileSync(path.join(tempRoot, 'app', 'src', 'main', 'java', 'Hello.kt'), '// Pipeline test file.\n');
+    const scopedDiff = diffWithinHardLimits(tempRoot, {
+      maxFiles: 3,
+      maxLines: 50,
+      allowedFiles: ['app/src/main/java/Hello.kt']
+    });
+    assert.strictEqual(scopedDiff.allowed, true);
+    assert.strictEqual(scopedDiff.filesChanged, 1);
+    assert.strictEqual(scopedDiff.newFilesChanged, 1);
+    fs.rmSync(path.join(tempRoot, 'HugeStaleFailedAttempt.kt'), { force: true });
+    fs.rmSync(path.join(tempRoot, 'app'), { recursive: true, force: true });
 
     const bridge = await executeAiBridge({
       root: tempRoot,
