@@ -6,6 +6,7 @@ const { updateMemory, readConversationMemory, updateConversationMemory } = requi
 const { logWebhookEvent } = require('./whatsapp/webhook-log');
 const { createOperationalGuard } = require('./whatsapp/operational-guard');
 const { startupSelfCheck, workflowFreshness } = require('./whatsapp/diagnostics');
+const { executeVisionCommandEntry, formatVisionApprovalResult } = require('./whatsapp/vision-command-manager');
 const {
   rememberFounderInteraction,
   maybeCommitFounderMemory
@@ -136,7 +137,9 @@ function extractTwilioBody(req) {
     parsed,
     from: normalizePhone(parsed.From || ''),
     body: typeof parsed.Body === 'string' ? parsed.Body : '',
-    messageSid: parsed.MessageSid || parsed.SmsMessageSid || ''
+    messageSid: parsed.MessageSid || parsed.SmsMessageSid || '',
+    to: parsed.To || '',
+    accountSid: parsed.AccountSid || ''
   };
 }
 
@@ -273,7 +276,8 @@ function createApp() {
       const memory = readConversationMemory();
       const routed = await routeMessageWithAi(body, state, memory, {
         commit: process.env.CTO_AI_EXECUTION_COMMIT !== 'false',
-        push: process.env.CTO_AI_EXECUTION_PUSH !== 'false'
+        push: process.env.CTO_AI_EXECUTION_PUSH !== 'false',
+        deferLowRiskVisionExecution: true
       });
       logVisibleWebhook('routed', {
         requestId: id,
@@ -337,6 +341,13 @@ function createApp() {
       });
       logVisibleWebhook('reply', { requestId: id, from, body, command: routed.command, status: 200 });
       res.status(200).type('text/xml').send(twiml(routed.response));
+      if (routed.command === 'vision_command_execution_started') {
+        runDeferredVisionExecution({
+          requestId: id,
+          entry: routed.details && routed.details.visionCommand,
+          incoming
+        });
+      }
     } catch (error) {
       console.log(`[whatsapp-cto] HANDLER ERROR requestId=${id} message=${error.message}`);
       if (error && error.stack) {
@@ -356,6 +367,77 @@ function createApp() {
   });
 
   return app;
+}
+
+function runDeferredVisionExecution({ requestId, entry, incoming }) {
+  if (!entry) return;
+  setImmediate(async () => {
+    try {
+      logVisibleWebhook('deferred_execution_started', {
+        requestId,
+        from: incoming.from,
+        body: entry.command,
+        command: 'vision_command_execution_started',
+        status: 202
+      });
+      const completed = await executeVisionCommandEntry(entry, {
+        commit: process.env.CTO_AI_EXECUTION_COMMIT !== 'false',
+        push: process.env.CTO_AI_EXECUTION_PUSH !== 'false'
+      });
+      const message = formatVisionApprovalResult(completed);
+      await sendTwilioWhatsAppMessage({
+        accountSid: incoming.accountSid,
+        from: incoming.to,
+        to: `whatsapp:${incoming.from}`,
+        body: message
+      });
+      logVisibleWebhook('deferred_execution_reply', {
+        requestId,
+        from: incoming.from,
+        body: entry.command,
+        command: 'vision_command_auto_executed',
+        status: 200
+      });
+    } catch (error) {
+      console.log(`[whatsapp-cto] DEFERRED EXECUTION ERROR requestId=${requestId} message=${error.message}`);
+      await sendTwilioWhatsAppMessage({
+        accountSid: incoming.accountSid,
+        from: incoming.to,
+        to: `whatsapp:${incoming.from}`,
+        body: [
+          'CODER: Could not complete this safely, Founder.',
+          'Result: DEFERRED_EXECUTION_FAILED',
+          `Reason: ${error.message}`
+        ].join('\n')
+      }).catch((sendError) => {
+        console.log(`[whatsapp-cto] DEFERRED EXECUTION SEND FAILED requestId=${requestId} message=${sendError.message}`);
+      });
+    }
+  });
+}
+
+async function sendTwilioWhatsAppMessage({ accountSid, from, to, body }) {
+  const sid = accountSid || process.env.TWILIO_ACCOUNT_SID || '';
+  if (!sid) throw new Error('TWILIO_ACCOUNT_SID or inbound AccountSid is required for deferred WhatsApp replies.');
+  if (!TWILIO_AUTH_TOKEN) throw new Error('TWILIO_AUTH_TOKEN is required for deferred WhatsApp replies.');
+  if (!from || !to) throw new Error('Twilio From and To are required for deferred WhatsApp replies.');
+  const params = new URLSearchParams();
+  params.set('From', from);
+  params.set('To', to);
+  params.set('Body', body);
+  const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(sid)}/Messages.json`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${Buffer.from(`${sid}:${TWILIO_AUTH_TOKEN}`).toString('base64')}`,
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: params.toString()
+  });
+  if (!response.ok) {
+    const text = await response.text().catch(() => '');
+    throw new Error(`Twilio send failed ${response.status}: ${text.slice(0, 200)}`);
+  }
+  return response.json();
 }
 
 if (require.main === module) {

@@ -451,6 +451,22 @@ async function run() {
     assert.strictEqual(llamaVerifyCallsAfterHello, llamaVerifyCallsBeforeHello);
     assert(fs.existsSync(path.join(tempRootForVision, 'app', 'src', 'main', 'java', 'Hello.kt')));
     assert(execFileSync('git', ['log', '--oneline', '-1'], { cwd: tempRootForVision, encoding: 'utf8' }).includes('test: Hello.kt pipeline test'));
+
+    const deferredHello = await routeMessageWithAi('create a test file called Hello.kt', {
+      healthScore: 80,
+      momentum: 'MOVING',
+      sections: { risks: [], unresolved: [], approvals: [] },
+      summary: { topRisk: 'none' }
+    }, { recentMessages: [] }, {
+      client,
+      root: tempRootForVision,
+      commit: true,
+      push: false,
+      deferLowRiskVisionExecution: true
+    });
+    assert.strictEqual(deferredHello.command, 'vision_command_execution_started');
+    assert(deferredHello.response.includes('Starting execution now'));
+    assert(deferredHello.response.includes('send the commit result separately'));
   } finally {
     fs.rmSync(tempRootForVision, { recursive: true, force: true });
   }

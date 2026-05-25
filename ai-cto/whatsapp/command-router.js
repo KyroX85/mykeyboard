@@ -357,6 +357,20 @@ async function maybeCreateVisionCommand(message, state, memory, options = {}) {
         usedAi: true
       };
     }
+    if (options.deferLowRiskVisionExecution) {
+      return {
+        command: 'vision_command_execution_started',
+        details: { agent: 'cto', intent: 'vision_command_execution_started', visionCommand: entry },
+        matchedRoute: 'vision_command_low_risk_deferred',
+        response: [
+          'CTO: Founder, low-risk task accepted. Starting execution now.',
+          `Task: ${entry.plan.task}`,
+          `Files: ${entry.plan.files.join(', ')}`,
+          'I will send the commit result separately when it finishes.'
+        ].join('\n'),
+        usedAi: true
+      };
+    }
     const completed = await executeVisionCommandEntry(entry, {
       root: options.root,
       client: options.client,
