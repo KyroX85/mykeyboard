@@ -46,7 +46,11 @@ object KeyboardSymbols {
                 "\uD83E\uDEE0", "\uD83D\uDE34", "\uD83E\uDD24", "\uD83D\uDE2A",
                 "\uD83D\uDE35", "\uD83E\uDD75", "\uD83E\uDD76", "\uD83E\uDD2E",
                 "\uD83E\uDD27", "\uD83D\uDE35\u200D\uD83D\uDCAB", "\uD83D\uDE35\u200D\uD83D\uDCA8", "\uD83D\uDE08",
-                "\uD83D\uDC7F", "\uD83D\uDC79", "\uD83D\uDC7B", "\uD83D\uDC7D"
+                "\uD83D\uDC7F", "\uD83D\uDC79", "\uD83D\uDC7B", "\uD83D\uDC7D",
+                "\uD83E\uDD73", "\uD83E\uDD20", "\uD83E\uDD2F", "\uD83E\uDEE5",
+                "\uD83E\uDEE8", "\uD83E\uDEE2", "\uD83D\uDE3A", "\uD83D\uDE3B",
+                "\uD83D\uDE3C", "\uD83D\uDE3D", "\uD83D\uDE3E", "\uD83D\uDE3F",
+                "\uD83D\uDE40", "\uD83D\uDE41", "\uD83D\uDE2F", "\uD83D\uDE32"
             )
         ),
         EmojiCategory(
@@ -63,7 +67,11 @@ object KeyboardSymbols {
                 "\uD83E\uDDBE", "\uD83E\uDDBF", "\uD83E\uDDD1", "\uD83D\uDC68",
                 "\uD83D\uDC69", "\uD83D\uDC66", "\uD83D\uDC67", "\uD83D\uDC76",
                 "\uD83D\uDC75", "\uD83D\uDC74", "\uD83D\uDE4D", "\uD83D\uDE4E",
-                "\uD83D\uDE45", "\uD83D\uDE46", "\uD83D\uDE4B", "\uD83D\uDE47"
+                "\uD83D\uDE45", "\uD83D\uDE46", "\uD83D\uDE4B", "\uD83D\uDE47",
+                "\uD83D\uDE4E", "\uD83E\uDD26", "\uD83E\uDD37", "\uD83D\uDEB6",
+                "\uD83C\uDFC3", "\uD83D\uDC83", "\uD83D\uDD7A", "\uD83E\uDDD8",
+                "\uD83E\uDDD9", "\uD83E\uDDDB", "\uD83E\uDDDD", "\uD83E\uDDDE",
+                "\uD83D\uDC6E", "\uD83D\uDC77", "\uD83D\uDC69\u200D\u2695\uFE0F", "\uD83D\uDC68\u200D\u2695\uFE0F"
             )
         ),
         EmojiCategory(
@@ -80,7 +88,11 @@ object KeyboardSymbols {
                 "\uD83E\uDD9F", "\uD83D\uDC90", "\uD83C\uDF38", "\uD83C\uDF39",
                 "\uD83C\uDF3A", "\uD83C\uDF3B", "\uD83C\uDF37", "\uD83C\uDF3C",
                 "\uD83C\uDF32", "\uD83C\uDF33", "\uD83C\uDF34", "\uD83C\uDF35",
-                "\uD83C\uDF3F", "\u2618\uFE0F", "\uD83C\uDF31", "\uD83C\uDF40"
+                "\uD83C\uDF3F", "\u2618\uFE0F", "\uD83C\uDF31", "\uD83C\uDF40",
+                "\uD83C\uDF0D", "\uD83C\uDF0E", "\uD83C\uDF0F", "\uD83C\uDF15",
+                "\uD83C\uDF16", "\uD83C\uDF17", "\uD83C\uDF18", "\uD83C\uDF11",
+                "\u2600\uFE0F", "\u26C5", "\u2601\uFE0F", "\u2B50",
+                "\uD83C\uDF08", "\u2602\uFE0F", "\u26A1\uFE0F", "\u2744\uFE0F"
             )
         ),
         EmojiCategory(
@@ -97,7 +109,11 @@ object KeyboardSymbols {
                 "\uD83C\uDF5B", "\uD83C\uDF72", "\uD83E\uDD58", "\uD83C\uDF73",
                 "\uD83E\uDD5A", "\uD83E\uDD5E", "\uD83E\uDDD0", "\uD83C\uDF77",
                 "\uD83E\uDD42", "\uD83E\uDD43", "\uD83E\uDED6", "\uD83E\uDED7",
-                "\uD83C\uDF4C", "\uD83E\uDED0", "\uD83E\uDED1", "\uD83C\uDF52"
+                "\uD83C\uDF4C", "\uD83E\uDED0", "\uD83E\uDED1", "\uD83C\uDF52",
+                "\uD83E\uDD65", "\uD83E\uDD6F", "\uD83E\uDD60", "\uD83E\uDD5D",
+                "\uD83E\uDD5C", "\uD83E\uDD6E", "\uD83C\uDF5A", "\uD83C\uDF63",
+                "\uD83C\uDF64", "\uD83E\uDD6B", "\uD83C\uDF79", "\uD83E\uDDC3",
+                "\uD83E\uDDC9", "\uD83E\uDDCA", "\uD83C\uDF7D\uFE0F", "\uD83E\uDD62"
             )
         ),
         EmojiCategory(
@@ -115,7 +131,11 @@ object KeyboardSymbols {
                 "\uD83D\uDEE1\uFE0F", "\u26CF\uFE0F", "\u2692\uFE0F", "\u2696\uFE0F",
                 "\uD83D\uDE97", "\uD83D\uDE95", "\uD83D\uDE8C", "\uD83D\uDE89",
                 "\u2708\uFE0F", "\uD83D\uDE80", "\uD83D\uDEF8", "\u26F5",
-                "\uD83D\uDEA2", "\uD83D\uDEA6", "\uD83D\uDEA5", "\uD83D\uDEE3\uFE0F"
+                "\uD83D\uDEA2", "\uD83D\uDEA6", "\uD83D\uDEA5", "\uD83D\uDEE3\uFE0F",
+                "\uD83D\uDD0D", "\uD83D\uDD2D", "\uD83D\uDC8A", "\uD83E\uDE79",
+                "\uD83E\uDDF8", "\uD83E\uDDEA", "\uD83D\uDD2C", "\uD83D\uDD2E",
+                "\uD83D\uDFAE", "\uD83C\uDFAE", "\uD83D\uDCB8", "\uD83D\uDCB3",
+                "\uD83D\uDCB3", "\uD83D\uDCB6", "\uD83D\uDC8E", "\uD83D\uDD31"
             )
         ),
         EmojiCategory(
@@ -134,7 +154,11 @@ object KeyboardSymbols {
                 "\u27BF", "\u267B\uFE0F", "\u267E\uFE0F", "\u26A0\uFE0F",
                 "\u26A1", "\u2757", "\u2753", "\u2755",
                 "\uD83C\uDFF3\uFE0F", "\uD83C\uDFF4", "\uD83C\uDDFA\uD83C\uDDF8", "\uD83C\uDDEE\uD83C\uDDF3",
-                "\uD83C\uDDEC\uD83C\uDDE7", "\uD83C\uDDEF\uD83C\uDDF5", "\uD83C\uDDEB\uD83C\uDDF7", "\uD83C\uDDE6\uD83C\uDDEA"
+                "\uD83C\uDDEC\uD83C\uDDE7", "\uD83C\uDDEF\uD83C\uDDF5", "\uD83C\uDDEB\uD83C\uDDF7", "\uD83C\uDDE6\uD83C\uDDEA",
+                "\uD83C\uDDE8\uD83C\uDDE6", "\uD83C\uDDE9\uD83C\uDDEA", "\uD83C\uDDE7\uD83C\uDDF7", "\uD83C\uDDF2\uD83C\uDDFD",
+                "\uD83C\uDDE6\uD83C\uDDFA", "\uD83C\uDDE8\uD83C\uDDF3", "\uD83C\uDDEA\uD83C\uDDF8", "\uD83C\uDDEE\uD83C\uDDF9",
+                "\uD83D\uDD1F", "\uD83D\uDD30", "\uD83D\uDD34", "\uD83D\uDFE2",
+                "\uD83D\uDFE1", "\uD83D\uDFE0", "\uD83D\uDD35", "\uD83D\uDFE3"
             )
         )
     )
