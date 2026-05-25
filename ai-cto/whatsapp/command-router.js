@@ -18,6 +18,7 @@ const {
   classifyVisionMessage,
   createVisionPlan,
   createDeterministicVisionEntry,
+  answerDuplicateTargetOption,
   executeVisionCommandEntry,
   approveStatelessVisionCommand,
   formatVisionPlan,
@@ -270,6 +271,9 @@ function routeMessage(message, state, memory = {}) {
 
 async function routeMessageWithAi(message, state, memory = {}, options = {}) {
   const normalized = normalizeMessage(message);
+  const duplicateOption = answerDuplicateTargetOption(normalized);
+  if (duplicateOption) return duplicateOption;
+
   const visionDecision = await maybeRouteVisionDecision(normalized, options);
   if (visionDecision) return visionDecision;
 

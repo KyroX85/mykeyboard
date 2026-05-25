@@ -25,6 +25,62 @@ function readVisionCommandState() {
   }
 }
 
+function latestDuplicateTargetDecision() {
+  const commands = readVisionCommandState().commands;
+  return [...commands].reverse().find((entry) =>
+    entry &&
+    entry.outcome === 'DUPLICATE_TARGET' &&
+    entry.result &&
+    entry.result.status === 'DUPLICATE_TARGET'
+  ) || null;
+}
+
+function answerDuplicateTargetOption(option) {
+  const entry = latestDuplicateTargetDecision();
+  if (!entry) return null;
+  const selected = String(option || '').trim();
+  if (selected === '3') {
+    return {
+      command: 'duplicate_target_leave_unchanged',
+      details: { agent: 'cto', intent: 'duplicate_target_leave_unchanged', visionCommand: entry },
+      matchedRoute: 'duplicate_target_option',
+      response: [
+        'CTO: Founder, leaving it unchanged.',
+        `File: ${entry.result.file}`,
+        'No edit, no commit.'
+      ].join('\n'),
+      usedAi: false
+    };
+  }
+  if (selected === '1') {
+    return {
+      command: 'duplicate_target_append_requested',
+      details: { agent: 'cto', intent: 'duplicate_target_append_requested', visionCommand: entry },
+      matchedRoute: 'duplicate_target_option',
+      response: [
+        'CTO: Founder, append needs exact content.',
+        `File: ${entry.result.file}`,
+        'Send: append "<text>" to this file'
+      ].join('\n'),
+      usedAi: false
+    };
+  }
+  if (selected === '2') {
+    return {
+      command: 'duplicate_target_improve_requested',
+      details: { agent: 'cto', intent: 'duplicate_target_improve_requested', visionCommand: entry },
+      matchedRoute: 'duplicate_target_option',
+      response: [
+        'CTO: Founder, improvement needs review before editing an existing file.',
+        `File: ${entry.result.file}`,
+        'Send the exact improvement goal, and I will prepare a reviewed plan.'
+      ].join('\n'),
+      usedAi: false
+    };
+  }
+  return null;
+}
+
 function writeVisionCommandState(state) {
   const next = {
     version: '2.0',
@@ -509,6 +565,7 @@ module.exports = {
   VISION_COMMAND_LOG_FILE,
   readVisionCommandState,
   writeVisionCommandState,
+  answerDuplicateTargetOption,
   classifyVisionMessage,
   createVisionPlan,
   createDeterministicVisionEntry,
