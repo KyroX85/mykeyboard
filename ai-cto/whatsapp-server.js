@@ -93,9 +93,31 @@ function chunkMessage(message, maxLength = 1400) {
   });
 }
 
-function requestUrl(req) {
-  if (PUBLIC_BASE_URL) return `${PUBLIC_BASE_URL.replace(/\/$/, '')}${req.originalUrl}`;
-  return `${req.protocol}://${req.get('host')}${req.originalUrl}`;
+function signatureUrlCandidates(req) {
+  const path = req.originalUrl || req.url || '/twilio/whatsapp';
+  const host = req.get('host');
+  const forwardedProto = req.get('x-forwarded-proto');
+  const candidates = new Set();
+
+  if (PUBLIC_BASE_URL) candidates.add(`${PUBLIC_BASE_URL.replace(/\/$/, '')}${path}`);
+  if (host) {
+    candidates.add(`${req.protocol}://${host}${path}`);
+    candidates.add(`https://${host}${path}`);
+    if (forwardedProto) candidates.add(`${String(forwardedProto).split(',')[0].trim()}://${host}${path}`);
+  }
+
+  return [...candidates].filter(Boolean);
+}
+
+function expectedTwilioSignature(url, params) {
+  const data = Object.keys(params)
+    .sort()
+    .reduce((accumulator, key) => `${accumulator}${key}${params[key]}`, url);
+
+  return crypto
+    .createHmac('sha1', TWILIO_AUTH_TOKEN)
+    .update(Buffer.from(data, 'utf8'))
+    .digest('base64');
 }
 
 function validateTwilioSignature(req) {
@@ -105,18 +127,12 @@ function validateTwilioSignature(req) {
   if (!provided) return false;
 
   const params = req.body || {};
-  const data = Object.keys(params)
-    .sort()
-    .reduce((accumulator, key) => `${accumulator}${key}${params[key]}`, requestUrl(req));
-
-  const expected = crypto
-    .createHmac('sha1', TWILIO_AUTH_TOKEN)
-    .update(Buffer.from(data, 'utf8'))
-    .digest('base64');
-
   const providedBuffer = Buffer.from(provided);
-  const expectedBuffer = Buffer.from(expected);
-  return providedBuffer.length === expectedBuffer.length && crypto.timingSafeEqual(providedBuffer, expectedBuffer);
+
+  return signatureUrlCandidates(req).some((url) => {
+    const expectedBuffer = Buffer.from(expectedTwilioSignature(url, params));
+    return providedBuffer.length === expectedBuffer.length && crypto.timingSafeEqual(providedBuffer, expectedBuffer);
+  });
 }
 
 function assertProductionConfig() {
