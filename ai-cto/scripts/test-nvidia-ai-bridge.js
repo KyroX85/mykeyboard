@@ -453,6 +453,10 @@ async function run() {
       request.model === MODEL_ASSIGNMENT.llama.model &&
       request.messages.map((message) => message.content).join('\n').includes('Verify whether this fix makes logical sense')
     ).length;
+    const codeBrainCallsBeforeHello = calls.filter((request) =>
+      request.model === MODEL_ASSIGNMENT.deepseek.model ||
+      request.model === MODEL_ASSIGNMENT.qwenCoder.model
+    ).length;
     const helloPlan = await routeMessageWithAi('create a test file called Hello.kt', {
       healthScore: 80,
       momentum: 'MOVING',
@@ -472,7 +476,12 @@ async function run() {
       request.model === MODEL_ASSIGNMENT.llama.model &&
       request.messages.map((message) => message.content).join('\n').includes('Verify whether this fix makes logical sense')
     ).length;
+    const codeBrainCallsAfterHello = calls.filter((request) =>
+      request.model === MODEL_ASSIGNMENT.deepseek.model ||
+      request.model === MODEL_ASSIGNMENT.qwenCoder.model
+    ).length;
     assert.strictEqual(llamaVerifyCallsAfterHello, llamaVerifyCallsBeforeHello);
+    assert.strictEqual(codeBrainCallsAfterHello, codeBrainCallsBeforeHello);
     assert(fs.existsSync(path.join(tempRootForVision, 'app', 'src', 'main', 'java', 'Hello.kt')));
     assert(execFileSync('git', ['log', '--oneline', '-1'], { cwd: tempRootForVision, encoding: 'utf8' }).includes('test: Hello.kt pipeline test'));
 

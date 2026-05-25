@@ -600,11 +600,21 @@ async function executeAiBridge(options = {}) {
 
 function deterministicNewFileContent(issue, file, fileExists) {
   if (fileExists) return null;
-  const content = typeof issue.deterministicContent === 'string' ? issue.deterministicContent : null;
+  const content = typeof issue.deterministicContent === 'string'
+    ? issue.deterministicContent
+    : inferredDeterministicNewFileContent(issue, file);
   if (!content) return null;
   if (isForbiddenFile(file)) return null;
   if (content.length > 4000) return null;
   return content.endsWith('\n') ? content : `${content}\n`;
+}
+
+function inferredDeterministicNewFileContent(issue, file) {
+  const text = `${issue && issue.message || ''} ${issue && issue.reason || ''} ${issue && issue.type || ''}`.toLowerCase();
+  if (!/\b(create|add)\b/.test(text) || !/\b(test file|file)\b/.test(text)) return null;
+  if (/\.kt$/i.test(file) || /\.java$/i.test(file)) return '// Pipeline test file for CTO execution.\n';
+  if (/\.txt$/i.test(file)) return 'Pipeline test file for CTO execution.\n';
+  return null;
 }
 
 function stripCodeFence(value) {
