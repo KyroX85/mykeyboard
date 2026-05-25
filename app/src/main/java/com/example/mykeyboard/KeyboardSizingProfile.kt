@@ -36,7 +36,7 @@ data class KeyboardSizingProfile(
 
             val minKeyDp = when {
                 smallestWidthDp < COMPACT_SMALLEST_WIDTH_DP || widthDp < COMPACT_WIDTH_DP -> 47f
-                else -> 50f
+                else -> 48f
             }
             val maxKeyDp = when {
                 smallestWidthDp >= TABLET_SMALLEST_WIDTH_DP -> 60f
@@ -46,7 +46,7 @@ data class KeyboardSizingProfile(
             val keyHeightDp = (widthDp * KEY_WIDTH_RATIO * tallPhoneCompression * tabletCompression)
                 .coerceIn(minKeyDp, maxKeyDp)
 
-            val numberRowDp = (keyHeightDp * NUMBER_ROW_RATIO).coerceIn(24f, 28f)
+            val numberRowDp = (keyHeightDp * NUMBER_ROW_RATIO).coerceIn(38f, 42f)
             val suggestionDp = (keyHeightDp * SUGGESTION_ROW_RATIO).coerceIn(28f, 34f)
             val panelTopDp = if (aspectRatio > 2.05f) 0f else 1f
             val panelBottomDp = if (aspectRatio > 2.05f) 0f else 1f
@@ -60,7 +60,7 @@ data class KeyboardSizingProfile(
                 widthDp >= WIDE_WIDTH_DP -> 1.25f
                 else -> 1.2f
             }
-            val rowMarginDp = (keyGapDp * ROW_MARGIN_TO_GAP_RATIO).coerceIn(0.65f, 0.9f)
+            val rowMarginDp = (keyGapDp * ROW_MARGIN_TO_GAP_RATIO).coerceIn(0.55f, 0.75f)
             val verticalInsetDp = if (keyHeightDp <= 49f) {
                 0f
             } else {
@@ -96,9 +96,9 @@ data class KeyboardSizingProfile(
         private const val COMPACT_WIDTH_DP = 360f
         private const val WIDE_WIDTH_DP = 430f
         private const val KEY_WIDTH_RATIO = 0.135f
-        private const val NUMBER_ROW_RATIO = 0.50f
+        private const val NUMBER_ROW_RATIO = 0.82f
         private const val SUGGESTION_ROW_RATIO = 0.58f
-        private const val ROW_MARGIN_TO_GAP_RATIO = 0.75f
+        private const val ROW_MARGIN_TO_GAP_RATIO = 0.62f
         private const val KEY_VERTICAL_INSET_TO_GAP_RATIO = 0.38f
         private const val SUGGESTION_CHIP_MARGIN_TO_GAP_RATIO = 0.9f
         private const val NUMBER_ROW_PADDING_TO_PANEL_RATIO = 0.5f

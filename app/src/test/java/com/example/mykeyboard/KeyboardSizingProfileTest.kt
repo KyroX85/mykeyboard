@@ -14,10 +14,10 @@ class KeyboardSizingProfileTest {
             smallestWidthDp = 360
         )
 
-        assertTrue(sizing.keyHeightPx in 150..165)
+        assertTrue(sizing.keyHeightPx in 144..165)
         assertTrue(sizing.numberRowHeightPx < sizing.keyHeightPx)
         assertTrue(sizing.suggestionBarHeightPx < sizing.keyHeightPx)
-        assertTrue(sizing.rowVerticalMarginPx <= 3)
+        assertTrue(sizing.rowVerticalMarginPx <= 2)
     }
 
     @Test
@@ -57,7 +57,7 @@ class KeyboardSizingProfileTest {
 
         assertTrue(widePhone.keyHeightPx <= (58 * 3.5f).toInt())
         assertTrue(tablet.keyHeightPx <= 120)
-        assertTrue(tablet.numberRowHeightPx <= 60)
+        assertTrue(tablet.numberRowHeightPx <= 84)
     }
 
     @Test
@@ -69,7 +69,7 @@ class KeyboardSizingProfileTest {
             smallestWidthDp = 360
         )
 
-        assertTrue(sizing.numberRowHeightPx < sizing.suggestionBarHeightPx)
+        assertTrue(sizing.numberRowHeightPx > sizing.suggestionBarHeightPx)
         assertTrue(sizing.suggestionBarHeightPx < sizing.keyHeightPx)
         assertTrue(sizing.homeRowSidePaddingPx > sizing.topRowSidePaddingPx)
         assertTrue(sizing.bottomRowSidePaddingPx >= sizing.topRowSidePaddingPx)
@@ -89,7 +89,7 @@ class KeyboardSizingProfileTest {
         assertTrue(sizing.panelBottomPaddingPx <= 3)
         assertTrue(sizing.keyHorizontalMarginPx in 2..4)
         assertTrue(sizing.rowVerticalMarginPx in 1..3)
-        assertTrue(sizing.keyVerticalMarginPx in 1..2)
+        assertTrue(sizing.keyVerticalMarginPx in 0..2)
         assertTrue(sizing.suggestionHorizontalPaddingPx == sizing.panelHorizontalPaddingPx)
         assertTrue(sizing.numberRowHorizontalPaddingPx <= sizing.panelHorizontalPaddingPx)
         assertTrue(sizing.panelHorizontalPaddingPx >= sizing.keyHorizontalMarginPx * 2)
@@ -124,10 +124,10 @@ class KeyboardSizingProfileTest {
         val numberRatio = sizing.numberRowHeightPx.toFloat() / sizing.keyHeightPx
         val suggestionRatio = sizing.suggestionBarHeightPx.toFloat() / sizing.keyHeightPx
 
-        assertTrue(numberRatio in 0.48f..0.54f)
+        assertTrue(numberRatio in 0.78f..0.86f)
         assertTrue(suggestionRatio in 0.56f..0.62f)
-        assertTrue(sizing.numberRowHeightPx >= 72)
-        assertTrue(sizing.suggestionBarHeightPx > sizing.numberRowHeightPx)
+        assertTrue(sizing.numberRowHeightPx >= 114)
+        assertTrue(sizing.numberRowHeightPx < sizing.keyHeightPx)
     }
 
     @Test
@@ -155,9 +155,9 @@ class KeyboardSizingProfileTest {
         )
         val visualFillHeight = sizing.keyHeightPx - (sizing.keyVerticalMarginPx * 2)
 
-        assertTrue(sizing.keyHeightPx >= 150)
+        assertTrue(sizing.keyHeightPx >= 144)
         assertTrue(visualFillHeight >= 144)
-        assertTrue(sizing.numberRowHeightPx >= 72)
+        assertTrue(sizing.numberRowHeightPx >= 114)
         assertTrue(sizing.suggestionBarHeightPx >= 84)
     }
 
@@ -177,7 +177,7 @@ class KeyboardSizingProfileTest {
             sizing.panelBottomPaddingPx +
             (sizing.rowVerticalMarginPx * 8)
 
-        assertTrue(mainRowsHeight >= 600)
-        assertTrue(visualStackHeight in 760..790)
+        assertTrue(mainRowsHeight >= 576)
+        assertTrue(visualStackHeight in 780..815)
     }
 }
