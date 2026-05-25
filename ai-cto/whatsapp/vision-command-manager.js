@@ -41,7 +41,7 @@ function createDeterministicVisionEntry(message) {
   if (!/\b(test file|file)\b/.test(normalized)) return null;
   const action = /\b(remove|delete)\b/.test(normalized)
     ? 'remove'
-    : /\b(create|add)\b/.test(normalized)
+    : /\b(create|add|make)\b/.test(normalized)
       ? 'create'
       : null;
   if (!action) return null;
@@ -160,6 +160,36 @@ async function executeVisionCommandEntry(entry, { root = process.cwd(), client =
     approval: entry.plan.risk === 'LOW' ? 'AUTO_EXECUTED' : 'APPROVED_BY_TOKEN',
     decidedAt: new Date().toISOString()
   };
+  const duplicate = detectDuplicateCreateTarget(root, approved.plan);
+  if (duplicate) {
+    const completed = {
+      ...approved,
+      outcome: 'DUPLICATE_TARGET',
+      commitHash: null,
+      result: {
+        status: 'DUPLICATE_TARGET',
+        riskLevel: 'LOW',
+        file: duplicate.file,
+        reason: 'Requested file already exists.',
+        options: [
+          'Append notes to the existing file',
+          'Improve the existing file after review',
+          'Leave it unchanged'
+        ]
+      }
+    };
+    const state = readVisionCommandState();
+    writeVisionCommandState({ commands: upsertCommand(state.commands, completed) });
+    rememberVisionCommand({
+      root,
+      command: completed.command,
+      plan: completed.plan,
+      approval: completed.approval,
+      outcome: completed.outcome,
+      commitHash: null
+    });
+    return completed;
+  }
   const result = await executeAiBridge({
     root,
     client,
@@ -212,6 +242,24 @@ function planToIssue(plan) {
     deterministicContent: deterministicContentForPlan(plan),
     deterministicDelete: deterministicDeleteForPlan(plan)
   };
+}
+
+function detectDuplicateCreateTarget(root, plan) {
+  const text = `${plan.task || ''} ${Array.isArray(plan.changes) ? plan.changes.join(' ') : plan.changes || ''}`.toLowerCase();
+  if (!/\b(create|add|make)\b/.test(text)) return null;
+  if (/\b(remove|delete)\b/.test(text)) return null;
+  const files = Array.isArray(plan.files) ? plan.files : (plan.files ? [plan.files] : []);
+  const existing = files.find((file) => fs.existsSync(repoPath(root, file)));
+  return existing ? { file: existing } : null;
+}
+
+function repoPath(root, relativePath) {
+  const resolved = path.resolve(root, String(relativePath || ''));
+  const repoRoot = path.resolve(root);
+  if (!resolved.startsWith(repoRoot + path.sep) && resolved !== repoRoot) {
+    throw new Error(`Refusing path outside repo: ${relativePath}`);
+  }
+  return resolved;
 }
 
 function deterministicContentForPlan(plan) {
@@ -285,6 +333,15 @@ function formatVisionPlan(entry) {
 
 function formatVisionApprovalResult(entry) {
   const result = entry && entry.result || {};
+  if (result.status === 'DUPLICATE_TARGET') {
+    return [
+      `CTO: Founder, ${result.file} already exists.`,
+      'Options:',
+      '1. Append notes to it',
+      '2. Improve the existing file after review',
+      '3. Leave it unchanged'
+    ].join('\n');
+  }
   if (result.status === 'COMPLETED') {
     const changedFiles = result.diff && Number(result.diff.filesChanged);
     if (!entry.commitHash && changedFiles === 0) {
@@ -351,7 +408,7 @@ function classifyVisionPlanRisk(plan, message) {
   const files = array(plan.files);
   if (files.some(isForbiddenVisionFile)) return 'HIGH';
   if (/\b(remove|delete)\b/.test(text) && /\btest file\b/.test(text)) return 'LOW';
-  if (/\bcreate\b/.test(text) && /\bfile\b/.test(text)) return 'LOW';
+  if (/\b(create|add|make)\b/.test(text) && /\bfile\b/.test(text)) return 'LOW';
   if (Number(plan.estimatedLines) > 0 && Number(plan.estimatedLines) < 20) return 'LOW';
   if (/\b(comment|comments|color|colors|spacing|text|copy|label|wording)\b/.test(text)) return 'LOW';
   if (/\b(privacy|database|architecture|security|auth)\b/.test(text)) return 'HIGH';

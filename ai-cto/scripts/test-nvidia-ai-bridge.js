@@ -592,6 +592,27 @@ async function run() {
     assert.strictEqual(deferredHello.command, 'vision_command_execution_started');
     assert(deferredHello.response.includes('Starting execution now'));
     assert(deferredHello.response.includes('send the commit result separately'));
+
+    const swipeNotesPath = path.join(tempRootForVision, 'app', 'src', 'main', 'java', 'SwipeReliabilityNotes.kt');
+    fs.mkdirSync(path.dirname(swipeNotesPath), { recursive: true });
+    fs.writeFileSync(swipeNotesPath, '// Existing swipe reliability notes.\n');
+    execFileSync('git', ['add', '.'], { cwd: tempRootForVision });
+    execFileSync('git', ['commit', '-m', 'test: existing swipe reliability notes'], { cwd: tempRootForVision });
+    const duplicateCreate = await routeMessageWithAi('make a file SwipeReliabilityNotes.kt in repo to improve swipe reliability', {
+      healthScore: 80,
+      momentum: 'MOVING',
+      sections: { risks: [], unresolved: [], approvals: [] },
+      summary: { topRisk: 'none' }
+    }, { recentMessages: [] }, {
+      client,
+      root: tempRootForVision,
+      commit: true,
+      push: false
+    });
+    assert.strictEqual(duplicateCreate.command, 'vision_command_auto_executed');
+    assert(duplicateCreate.response.includes('already exists'));
+    assert(duplicateCreate.response.includes('Append notes'));
+    assert(execFileSync('git', ['log', '--oneline', '-1'], { cwd: tempRootForVision, encoding: 'utf8' }).includes('test: existing swipe reliability notes'));
   } finally {
     fs.rmSync(tempRootForVision, { recursive: true, force: true });
   }
