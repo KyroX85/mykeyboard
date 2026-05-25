@@ -539,6 +539,28 @@ async function run() {
     assert(!fs.existsSync(path.join(tempRootForVision, 'app', 'src', 'main', 'java', 'Hello.kt')));
     assert(execFileSync('git', ['log', '--oneline', '-1'], { cwd: tempRootForVision, encoding: 'utf8' }).includes('test: remove Hello.kt pipeline test'));
 
+    fs.writeFileSync(path.join(tempRootForVision, 'app', 'src', 'main', 'java', 'Hello.kt'), '// Pipeline test file for CTO execution.\n');
+    execFileSync('git', ['add', '.'], { cwd: tempRootForVision });
+    execFileSync('git', ['commit', '-m', 'test: restore Hello.kt for loose delete test'], { cwd: tempRootForVision });
+    const llamaCallsBeforeLooseDelete = calls.filter((request) => request.model === MODEL_ASSIGNMENT.llama.model).length;
+    const looseDelete = await routeMessageWithAi('remove the test file called hellokt', {
+      healthScore: 80,
+      momentum: 'MOVING',
+      sections: { risks: [], unresolved: [], approvals: [] },
+      summary: { topRisk: 'none' }
+    }, { recentMessages: [] }, {
+      client,
+      root: tempRootForVision,
+      commit: true,
+      push: false,
+      commitMessage: 'test: remove Hello.kt pipeline test'
+    });
+    const llamaCallsAfterLooseDelete = calls.filter((request) => request.model === MODEL_ASSIGNMENT.llama.model).length;
+    assert.strictEqual(looseDelete.command, 'vision_command_auto_executed');
+    assert(looseDelete.response.includes('Commit:'));
+    assert.strictEqual(llamaCallsAfterLooseDelete, llamaCallsBeforeLooseDelete);
+    assert(!fs.existsSync(path.join(tempRootForVision, 'app', 'src', 'main', 'java', 'Hello.kt')));
+
     const deferredHello = await routeMessageWithAi('create a test file called Hello.kt', {
       healthScore: 80,
       momentum: 'MOVING',

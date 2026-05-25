@@ -35,6 +35,47 @@ function writeVisionCommandState(state) {
   return next;
 }
 
+function createDeterministicVisionEntry(message) {
+  const text = String(message || '');
+  const normalized = text.toLowerCase();
+  if (!/\b(test file|file)\b/.test(normalized)) return null;
+  const action = /\b(remove|delete)\b/.test(normalized)
+    ? 'remove'
+    : /\b(create|add)\b/.test(normalized)
+      ? 'create'
+      : null;
+  if (!action) return null;
+  const file = inferFileFromLooseMessage(text);
+  if (!file || isForbiddenVisionFile(file)) return null;
+  const name = file.split('/').pop();
+  const task = `${action === 'remove' ? 'Remove' : 'Create'} test file ${name}`;
+  const entry = {
+    id: `vision-${Date.now()}`,
+    timestamp: new Date().toISOString(),
+    command: message,
+    plan: normalizePlan({
+      task,
+      files: [file],
+      changes: [`${action === 'remove' ? 'Remove' : 'Create'} the requested test file`],
+      risk: 'LOW',
+      estimatedLines: 1,
+      roadmapConflict: false
+    }, message),
+    approval: 'AUTO_ALLOWED',
+    outcome: 'PLANNED',
+    commitHash: null
+  };
+  const current = readVisionCommandState();
+  writeVisionCommandState({ commands: [...current.commands, entry] });
+  rememberVisionCommand({
+    command: message,
+    plan: entry.plan,
+    approval: entry.approval,
+    outcome: entry.outcome
+  });
+  return entry;
+}
+
 async function classifyVisionMessage({ message, state, memory, client = createNvidiaClient() }) {
   if (!client.available('llama')) return { type: 'NOT_VISION', reason: 'Llama unavailable.' };
   const founderMemory = buildFounderMemoryContext(readFounderMemory());
@@ -325,6 +366,8 @@ function array(value) {
 }
 
 function inferFilesFromFounderMessage(message) {
+  const looseFile = inferFileFromLooseMessage(message);
+  if (looseFile) return [looseFile];
   const text = String(message || '');
   const fileMatch = text.match(/\b([A-Za-z][\w.-]*\.(?:kt|java|js|json|md|xml|txt))\b/i);
   if (!fileMatch) return [];
@@ -334,6 +377,28 @@ function inferFilesFromFounderMessage(message) {
   if (lower.endsWith('.md')) return [fileName];
   if (lower.endsWith('.json')) return [`ai-cto/${fileName}`];
   return [fileName];
+}
+
+function inferFileFromLooseMessage(message) {
+  const text = String(message || '');
+  const dotted = text.match(/\b([A-Za-z][\w.-]*\.(?:kt|java|txt))\b/i);
+  if (dotted) return filePathForLooseName(dotted[1]);
+  const compact = text.match(/\b([A-Za-z][\w-]*?)(kt|java|txt)\b/i);
+  if (!compact) return null;
+  return filePathForLooseName(`${compact[1]}.${compact[2]}`);
+}
+
+function filePathForLooseName(fileName) {
+  const clean = String(fileName || '').replace(/\\/g, '/').split('/').pop();
+  if (!clean) return null;
+  const lower = clean.toLowerCase();
+  if (lower.endsWith('.kt') || lower.endsWith('.java')) {
+    const [base, ext] = clean.split(/\.(?=[^.]+$)/);
+    const formatted = `${base.charAt(0).toUpperCase()}${base.slice(1)}.${ext}`;
+    return `app/src/main/java/${formatted}`;
+  }
+  if (lower.endsWith('.txt')) return clean;
+  return null;
 }
 
 function createApprovalCommand(entry) {
@@ -379,6 +444,7 @@ module.exports = {
   writeVisionCommandState,
   classifyVisionMessage,
   createVisionPlan,
+  createDeterministicVisionEntry,
   executeVisionCommandEntry,
   approveStatelessVisionCommand,
   formatVisionPlan,

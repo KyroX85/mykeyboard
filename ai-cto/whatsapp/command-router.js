@@ -17,6 +17,7 @@ const { maybeGenerateAiWhatsAppResponse } = require('./ai-whatsapp-responder');
 const {
   classifyVisionMessage,
   createVisionPlan,
+  createDeterministicVisionEntry,
   executeVisionCommandEntry,
   approveStatelessVisionCommand,
   formatVisionPlan,
@@ -352,9 +353,13 @@ function approvalTokenFromMessage(normalized) {
 }
 async function maybeCreateVisionCommand(message, state, memory, options = {}) {
   const client = options.client;
-  const classification = await classifyVisionMessage({ message, state, memory, client });
-  if (classification.type !== 'VISION_COMMAND') return null;
-  const entry = await createVisionPlan({ message, state, memory, client });
+  const deterministicEntry = createDeterministicVisionEntry(message);
+  let entry = deterministicEntry;
+  if (!entry) {
+    const classification = await classifyVisionMessage({ message, state, memory, client });
+    if (classification.type !== 'VISION_COMMAND') return null;
+    entry = await createVisionPlan({ message, state, memory, client });
+  }
   if (entry.plan.risk === 'LOW' && !entry.plan.roadmapConflict) {
     if (!entry.plan.files.length) {
       return {
