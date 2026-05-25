@@ -1,6 +1,6 @@
 const { schoolModeDigest, groupChatDailyUpdate } = require('./school-mode-policy');
 const { readRoadmap } = require('./roadmap-reader');
-const { logAgentAction } = require('./agent-action-log');
+const { logAgentAction, readActionLog } = require('./agent-action-log');
 const { classifyRisk } = require('../scripts/execution-engine');
 const { getDeepSeekFixLimitStatus } = require('../scripts/ai-execution-bridge');
 const { readFounderMemory, formatFounderMemorySummary } = require('./founder-memory');
@@ -61,6 +61,20 @@ function fixOffer(state) {
     `Fix available — risk level: ${risk.riskLevel}`,
     'Reply FIX to execute or SKIP to ignore'
   ];
+}
+
+function formatExecutionHistory(limit = 5) {
+  const actions = readActionLog().actions
+    .filter((entry) => /execut|fix|commit|push|rollback|blocked|staging/i.test(`${entry.actionTaken || ''} ${entry.outcome || ''}`))
+    .slice(-limit)
+    .reverse();
+  if (!actions.length) return ['No execution actions recorded yet.'];
+  return actions.map((entry) => {
+    const when = String(entry.timestamp || '').replace('T', ' ').slice(0, 16) || 'time unknown';
+    const action = String(entry.actionTaken || 'action recorded').slice(0, 90);
+    const outcome = String(entry.outcome || 'RECORDED').slice(0, 70);
+    return `• ${when} — ${entry.agentName || 'Agent'}: ${action} (${outcome})`;
+  });
 }
 
 function generateResponse(command, state, memory = {}, details = {}) {
@@ -238,6 +252,12 @@ function generateResponse(command, state, memory = {}, details = {}) {
       ].join('\n');
     }
 
+    case 'execution_history':
+      return [
+        '🎯 CTO: Recent execution history, Founder.',
+        ...formatExecutionHistory(5)
+      ].join('\n');
+
     case 'memory':
       return formatFounderMemorySummary(readFounderMemory());
 
@@ -280,7 +300,7 @@ function generateResponse(command, state, memory = {}, details = {}) {
     default:
       return [
         'Founder, CTO commands',
-        'status, health, momentum, latest risks, unresolved, what changed, pending approvals, keyboard health, fix limit, execution status, cto summary, school mode, focus <topic>'
+        'status, health, momentum, latest risks, unresolved, what changed, pending approvals, keyboard health, fix limit, execution status, execution history, cto summary, school mode, focus <topic>'
       ].join('\n');
   }
 }

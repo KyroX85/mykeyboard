@@ -132,6 +132,10 @@ assert(executionStatus.response.includes('execution status'));
 assert(executionStatus.response.includes('Commit:'));
 assert(executionStatus.response.includes('Push:'));
 
+const executionHistory = routeMessage('execution history', sampleState);
+assert.strictEqual(executionHistory.command, 'execution_history');
+assert(executionHistory.response.includes('Recent execution history'));
+
 const risks = routeMessage('risks', sampleState).response;
 assert(risks.includes('Hardcoded Secret'));
 assert(risks.includes('Fix available'));
