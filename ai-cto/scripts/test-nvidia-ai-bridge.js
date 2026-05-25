@@ -244,6 +244,16 @@ async function run() {
     assert(fixPrompt.includes('Return only the complete fixed file content'));
     const diffCheck = diffWithinHardLimits(tempRoot, { maxFiles: 3, maxLines: 50 });
     assert.strictEqual(diffCheck.allowed, true);
+    for (let index = 0; index < 4; index += 1) {
+      fs.writeFileSync(path.join(tempRoot, `NewFile${index}.txt`), `new ${index}\n`);
+    }
+    const newFilesDiff = diffWithinHardLimits(tempRoot, { maxFiles: 3, maxLines: 50 });
+    assert.strictEqual(newFilesDiff.allowed, true);
+    assert.strictEqual(newFilesDiff.existingFilesChanged, 0);
+    assert.strictEqual(newFilesDiff.newFilesChanged, 4);
+    for (let index = 0; index < 4; index += 1) {
+      fs.rmSync(path.join(tempRoot, `NewFile${index}.txt`), { force: true });
+    }
 
     const bridge = await executeAiBridge({
       root: tempRoot,

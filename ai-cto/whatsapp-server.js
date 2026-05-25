@@ -184,6 +184,10 @@ function createApp() {
     });
   });
 
+  app.get('/health', (req, res) => {
+    res.redirect(307, '/healthz');
+  });
+
   app.get('/system-health', (req, res) => {
     const state = loadEngineeringState();
     const diagnostics = startupSelfCheck({

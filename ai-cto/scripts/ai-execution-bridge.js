@@ -292,19 +292,27 @@ function diffWithinHardLimits(root, limits = {}) {
   const untrackedRows = untrackedDiffRows(root);
   const rows = [...trackedRows, ...untrackedRows];
   const filesChanged = rows.length;
+  const existingFilesChanged = trackedRows.length;
   const linesChanged = rows.reduce((total, row) => {
     const parts = row.split(/\s+/);
     const added = Number(parts[0]);
     const deleted = Number(parts[1]);
     return total + (Number.isFinite(added) ? added : 0) + (Number.isFinite(deleted) ? deleted : 0);
   }, 0);
-  if (filesChanged > maxFiles) {
-    return { allowed: false, filesChanged, linesChanged, reason: `Diff touches more than ${maxFiles} files.` };
+  if (existingFilesChanged > maxFiles) {
+    return {
+      allowed: false,
+      filesChanged,
+      existingFilesChanged,
+      newFilesChanged: untrackedRows.length,
+      linesChanged,
+      reason: `Diff modifies more than ${maxFiles} existing files.`
+    };
   }
   if (linesChanged > maxLines) {
-    return { allowed: false, filesChanged, linesChanged, reason: `Diff changes more than ${maxLines} lines.` };
+    return { allowed: false, filesChanged, existingFilesChanged, newFilesChanged: untrackedRows.length, linesChanged, reason: `Diff changes more than ${maxLines} lines.` };
   }
-  return { allowed: true, filesChanged, linesChanged, reason: 'Diff within hard limits.' };
+  return { allowed: true, filesChanged, existingFilesChanged, newFilesChanged: untrackedRows.length, linesChanged, reason: 'Diff within hard limits.' };
 }
 
 function untrackedDiffRows(root) {

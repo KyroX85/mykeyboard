@@ -1,0 +1,17 @@
+name: Render Keep Alive
+
+on:
+  schedule:
+    - cron: "*/14 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ping-render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Ping Render health endpoint
+        run: curl -fsSL --max-time 30 https://mykeyboard-8bx0.onrender.com/health
