@@ -89,6 +89,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="34dp"
                 android:background="#FF2A2F38"
+                android:focusable="false"
+                android:focusableInTouchMode="false"
                 android:hint="Search emojis"
                 android:paddingLeft="12dp"
                 android:paddingRight="12dp"
@@ -97,6 +99,23 @@
                 android:textColorHint="#FF9EA7B3"
                 android:textSize="14sp" />
         </LinearLayout>
+
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="36dp"
+            android:background="#FF111722"
+            android:fillViewport="true"
+            android:scrollbars="none">
+
+            <LinearLayout
+                android:id="@+id/emojiSearchKeys"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingLeft="8dp"
+                android:paddingRight="8dp" />
+        </HorizontalScrollView>
 
         <GridView
             android:id="@+id/emojiPanel"

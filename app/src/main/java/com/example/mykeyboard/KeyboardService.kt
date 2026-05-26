@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.content.res.Configuration
 import android.graphics.Color
+import android.graphics.Paint
 import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
 import android.inputmethodservice.InputMethodService
@@ -81,6 +82,7 @@ class KeyboardService : InputMethodService() {
     private lateinit var emojiGrid: GridView
     private lateinit var emojiCategoryBar: LinearLayout
     private lateinit var emojiSearchInput: EditText
+    private lateinit var emojiSearchKeys: LinearLayout
     private lateinit var emojiBackButton: Button
 
     private val keyButtons = mutableListOf<Button>()
@@ -119,6 +121,9 @@ class KeyboardService : InputMethodService() {
     private var swipeTrackingStarted = false
     private var swipePressedButton: Button? = null
     private val recentEmojis = ArrayList<String>(40)
+    private val emojiSearchIndex = HashMap<String, String>(512)
+    private val emojiGlyphPaint by lazy { Paint(Paint.ANTI_ALIAS_FLAG) }
+    private val emojiSearchQuery = StringBuilder()
     private val swipeTracker by lazy {
         SwipeGestureTracker(
             activationSlopPx = dp(SWIPE_ACTIVATION_SLOP_DP).toFloat(),
@@ -194,6 +199,11 @@ class KeyboardService : InputMethodService() {
         const val MAX_RECENT_EMOJIS = 40
         const val PREFS_EMOJI_RECENTS_KEY = "emoji_recents_v1"
         const val RECENT_DELIMITER = "\u0001"
+        val EMOJI_SEARCH_KEYSET = listOf(
+            "a", "b", "c", "d", "e", "f", "g", "h", "i", "j",
+            "k", "l", "m", "n", "o", "p", "q", "r", "s", "t",
+            "u", "v", "w", "x", "y", "z", "space", "\u232B", "clear"
+        )
         const val KEY_PRESS_SCALE = 0.965f
         const val KEY_PREVIEW_WIDTH_DP = 60
         const val KEY_PREVIEW_HEIGHT_DP = 80
@@ -271,6 +281,7 @@ class KeyboardService : InputMethodService() {
         emojiGrid = layout.findViewById(R.id.emojiPanel)
         emojiCategoryBar = layout.findViewById(R.id.emojiCategoryBar)
         emojiSearchInput = layout.findViewById(R.id.emojiSearchInput)
+        emojiSearchKeys = layout.findViewById(R.id.emojiSearchKeys)
         emojiBackButton = layout.findViewById(R.id.backToKeyboard)
 
         setupSuggestionBar()
@@ -446,6 +457,12 @@ class KeyboardService : InputMethodService() {
         }
 
         emojiSearchInput.setText("")
+        emojiSearchQuery.clear()
+        emojiSearchInput.setOnClickListener {
+            if (emojiSearchQuery.isEmpty()) {
+                emojiSearchInput.setText("Type using row below")
+            }
+        }
         emojiSearchInput.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
@@ -459,6 +476,17 @@ class KeyboardService : InputMethodService() {
             }
             override fun afterTextChanged(s: Editable?) = Unit
         })
+        setupEmojiSearchKeys {
+            val query = emojiSearchQuery.toString()
+            val trimmed = query.trim()
+            currentEmojis = if (trimmed.isEmpty()) {
+                categories.getOrNull(selectedEmojiCategoryIndex)?.emojis.orEmpty()
+            } else {
+                filterEmojis(trimmed, categories)
+            }
+            emojiSearchInput.setText(query)
+            emojiAdapter.updateEmojis(currentEmojis)
+        }
 
         fun rebuildCategoryTabs() {
             categories = buildEmojiCategories(baseCategories)
@@ -483,6 +511,7 @@ class KeyboardService : InputMethodService() {
                     alpha = if (index == selectedEmojiCategoryIndex) 1f else 0.66f
                     setOnClickListener {
                         selectedEmojiCategoryIndex = index
+                        emojiSearchQuery.clear()
                         emojiSearchInput.setText("")
                         currentEmojis = category.emojis
                         emojiAdapter.updateEmojis(currentEmojis)
@@ -495,6 +524,7 @@ class KeyboardService : InputMethodService() {
                 emojiCategoryBar.addView(tab)
             }
             currentEmojis = categories.getOrNull(selectedEmojiCategoryIndex)?.emojis.orEmpty()
+            rebuildEmojiSearchIndex(categories)
             emojiAdapter.updateEmojis(currentEmojis)
         }
         rebuildCategoryTabs()
@@ -537,8 +567,44 @@ class KeyboardService : InputMethodService() {
         }
     }
 
+    private fun setupEmojiSearchKeys(onQueryChanged: () -> Unit) {
+        emojiSearchKeys.removeAllViews()
+        EMOJI_SEARCH_KEYSET.forEach { token ->
+            val key = TextView(this).apply {
+                text = when (token) {
+                    "space" -> "_"
+                    "clear" -> "CLR"
+                    else -> token
+                }
+                textSize = if (token == "clear") 11f else 13f
+                gravity = Gravity.CENTER
+                setTextColor(Color.WHITE)
+                setPadding(dp(9), dp(4), dp(9), dp(4))
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    setMargins(dp(2), dp(4), dp(2), dp(4))
+                }
+                background = resources.getDrawable(R.drawable.key_bg, theme)
+                setOnClickListener {
+                    when (token) {
+                        "\u232B" -> if (emojiSearchQuery.isNotEmpty()) {
+                            emojiSearchQuery.deleteCharAt(emojiSearchQuery.length - 1)
+                        }
+                        "space" -> emojiSearchQuery.append(' ')
+                        "clear" -> emojiSearchQuery.clear()
+                        else -> emojiSearchQuery.append(token)
+                    }
+                    onQueryChanged()
+                }
+            }
+            emojiSearchKeys.addView(key)
+        }
+    }
+
     private fun sanitizeEmojiList(input: List<String>): List<String> =
-        input.filter { !it.contains('\u200D') }
+        input.filter { emojiGlyphPaint.hasGlyph(it) }
 
     private fun buildEmojiCategories(baseCategories: List<KeyboardSymbols.EmojiCategory>): List<KeyboardSymbols.EmojiCategory> {
         val output = ArrayList<KeyboardSymbols.EmojiCategory>(baseCategories.size + 1)
@@ -555,11 +621,31 @@ class KeyboardService : InputMethodService() {
         val all = LinkedHashSet<String>()
         categories.forEach { category -> all.addAll(category.emojis) }
         return all.filter { emoji ->
-            val hint = emojiSearchHint(emoji)
+            val hint = emojiSearchIndex[emoji] ?: emojiSearchHint(emoji)
             if (terms.isEmpty()) {
                 hint.contains(lower)
             } else {
                 terms.all { hint.contains(it) }
+            }
+        }
+    }
+
+    private fun rebuildEmojiSearchIndex(categories: List<KeyboardSymbols.EmojiCategory>) {
+        emojiSearchIndex.clear()
+        categories.forEachIndexed { index, category ->
+            val categoryHint = when {
+                category.icon == "\uD83D\uDD52" -> "recent"
+                index == (if (recentEmojis.isNotEmpty()) 1 else 0) -> "smile face emotion"
+                index == (if (recentEmojis.isNotEmpty()) 2 else 1) -> "people hand body"
+                index == (if (recentEmojis.isNotEmpty()) 3 else 2) -> "animal nature"
+                index == (if (recentEmojis.isNotEmpty()) 4 else 3) -> "food drink"
+                index == (if (recentEmojis.isNotEmpty()) 5 else 4) -> "object travel vehicle"
+                else -> "symbol flag"
+            }
+            category.emojis.forEach { emoji ->
+                val explicit = emojiSearchHint(emoji)
+                emojiSearchIndex[emoji] =
+                    if (explicit == "emoji") "$categoryHint emoji" else "$explicit $categoryHint"
             }
         }
     }
