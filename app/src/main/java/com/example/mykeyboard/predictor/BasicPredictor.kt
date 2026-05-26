@@ -14,14 +14,20 @@ import org.json.JSONObject
 class BasicPredictor internal constructor(
     private val prefs: SharedPreferences,
     private val ioScope: CoroutineScope,
-    private val metrics: KeyboardMetrics? = null
+    private val metrics: KeyboardMetrics? = null,
+    private val loadPersistedModelAsync: Boolean = false
 ) {
 
     constructor(
         context: Context,
         ioScope: CoroutineScope,
         metrics: KeyboardMetrics? = null
-    ) : this(context.getSharedPreferences("keyboard_predictions", Context.MODE_PRIVATE), ioScope, metrics)
+    ) : this(
+        context.getSharedPreferences("keyboard_predictions", Context.MODE_PRIVATE),
+        ioScope,
+        metrics,
+        loadPersistedModelAsync = true
+    )
 
     private val nextWordCounts = mutableMapOf<String, MutableMap<String, Int>>()
     private val unigramCounts = mutableMapOf<String, Int>()
@@ -254,12 +260,21 @@ class BasicPredictor internal constructor(
     }
 
     init {
-        loadModel()
-        seedModel()
+        if (loadPersistedModelAsync) {
+            ioScope.launch {
+                loadModel(skipIfDirty = true)
+                seedModel()
+            }
+        } else {
+            loadModel()
+            seedModel()
+        }
     }
 
     private fun seedModel() {
-        if (nextWordCounts.isEmpty() && unigramCounts.isEmpty()) {
+        var seeded = false
+        synchronized(modelLock) {
+            if (nextWordCounts.isNotEmpty() || unigramCounts.isNotEmpty()) return
             for ((first, second) in CONVERSATIONAL_PAIRS) {
                 incrementUnigram(first, 2)
                 incrementUnigram(second, 2)
@@ -273,8 +288,9 @@ class BasicPredictor internal constructor(
             }
             incrementUnigram(SEED_PHRASES.last())
             rebuildTopUnigramCacheLocked()
-            scheduleSaveModel()
+            seeded = true
         }
+        if (seeded) scheduleSaveModel()
     }
 
     fun getSuggestions(currentWord: String, previousWord: String? = null): List<String> {
@@ -1098,7 +1114,7 @@ class BasicPredictor internal constructor(
         }
     }
 
-    private fun loadModel() {
+    private fun loadModel(skipIfDirty: Boolean = false) {
         try {
             val jsonString = prefs.getString(PREFS_MODEL_KEY, null)
                 ?: prefs.getString(PREFS_BIGRAM_KEY, null)
@@ -1120,6 +1136,9 @@ class BasicPredictor internal constructor(
             }
 
             synchronized(modelLock) {
+                if (skipIfDirty && hasSessionLearningLocked()) {
+                    return
+                }
                 nextWordCounts.clear()
                 unigramCounts.clear()
                 acceptedSuggestionCounts.clear()
@@ -1184,6 +1203,12 @@ class BasicPredictor internal constructor(
             clearPersistedModel()
         }
     }
+
+    private fun hasSessionLearningLocked(): Boolean =
+        hasUnsavedModelChanges ||
+            pendingSaveMutations > 0 ||
+            sessionWordCounts.isNotEmpty() ||
+            sessionPairCounts.isNotEmpty()
 
     private fun loadFlatCountObject(source: JSONObject?, target: MutableMap<String, Int>) {
         target.clear()

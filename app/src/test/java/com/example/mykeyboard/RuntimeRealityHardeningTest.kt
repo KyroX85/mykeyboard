@@ -1,5 +1,6 @@
 package com.example.mykeyboard
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -84,6 +85,22 @@ class RuntimeRealityHardeningTest {
         assertTrue(mutationHelper.contains("try"))
         assertTrue(mutationHelper.contains("catch (e: RuntimeException)"))
         assertTrue(mutationHelper.contains("Log.w"))
+    }
+
+    @Test
+    fun editorActionAndKeyEventsUseSingleRuntimeSafeHelper() {
+        val source = sourceFile("app/src/main/java/com/example/mykeyboard/KeyboardService.kt").readText()
+        val imeAction = methodBody(source, "handleImeActionKey")
+
+        assertFalse("handleImeActionKey must not call performEditorAction directly", imeAction.contains(".performEditorAction("))
+        assertFalse("handleImeActionKey must not call sendKeyEvent directly", imeAction.contains(".sendKeyEvent("))
+        assertEquals(1, Regex("""\.performEditorAction\(""").findAll(source).count())
+        assertEquals(1, Regex("""\.sendKeyEvent\(""").findAll(source).count())
+
+        val actionHelper = methodBody(source, "performEditorActionSafely")
+        val keyEventHelper = methodBody(source, "sendKeyEventSafely")
+        assertTrue(actionHelper.contains("mutateInputConnectionSafely"))
+        assertTrue(keyEventHelper.contains("mutateInputConnectionSafely"))
     }
 
     @Test

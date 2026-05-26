@@ -201,6 +201,7 @@ class KeyboardService : InputMethodService() {
         const val SWIPE_HAPTIC_MIN_INTERVAL_MS = 36L
         const val SWIPE_ACTIVATION_SLOP_DP = 18
         const val SWIPE_SAMPLE_DISTANCE_DP = 5
+        const val SWIPE_RESOLVE_WARN_MS = 32L
         const val SHIFT_LONG_PRESS_DELAY_MS = 300L
         const val SYMBOL_LONG_PRESS_DELAY_MS = 230L
         const val SUGGESTION_QUERY_UNSET = "\u0000"
@@ -433,7 +434,7 @@ class KeyboardService : InputMethodService() {
         emojiGrid.setPadding(dp(4), dp(6), dp(4), dp(3))
         emojiGrid.clipToPadding = false
 
-        var emojiAdapter = EmojiGridAdapter(currentEmojis, emojiCellSize)
+        val emojiAdapter = EmojiGridAdapter(currentEmojis, emojiCellSize)
         emojiGrid.adapter = emojiAdapter
         emojiGrid.setOnItemClickListener { _, _, pos, _ ->
             val selected = currentEmojis.getOrNull(pos) ?: return@setOnItemClickListener
@@ -454,8 +455,7 @@ class KeyboardService : InputMethodService() {
                 } else {
                     filterEmojis(query, categories)
                 }
-                emojiAdapter = EmojiGridAdapter(currentEmojis, emojiCellSize)
-                emojiGrid.adapter = emojiAdapter
+                emojiAdapter.updateEmojis(currentEmojis)
             }
             override fun afterTextChanged(s: Editable?) = Unit
         })
@@ -479,13 +479,13 @@ class KeyboardService : InputMethodService() {
                         setMargins(dp(3), dp(6), dp(3), dp(6))
                     }
                     background = resources.getDrawable(R.drawable.key_bg, theme)
+                    contentDescription = emojiCategoryAccessibilityLabel(category, index)
                     alpha = if (index == selectedEmojiCategoryIndex) 1f else 0.66f
                     setOnClickListener {
                         selectedEmojiCategoryIndex = index
                         emojiSearchInput.setText("")
                         currentEmojis = category.emojis
-                        emojiAdapter = EmojiGridAdapter(currentEmojis, emojiCellSize)
-                        emojiGrid.adapter = emojiAdapter
+                        emojiAdapter.updateEmojis(currentEmojis)
                         for (childIndex in 0 until emojiCategoryBar.childCount) {
                             emojiCategoryBar.getChildAt(childIndex).alpha =
                                 if (childIndex == selectedEmojiCategoryIndex) 1f else 0.66f
@@ -495,11 +495,11 @@ class KeyboardService : InputMethodService() {
                 emojiCategoryBar.addView(tab)
             }
             currentEmojis = categories.getOrNull(selectedEmojiCategoryIndex)?.emojis.orEmpty()
-            emojiAdapter = EmojiGridAdapter(currentEmojis, emojiCellSize)
-            emojiGrid.adapter = emojiAdapter
+            emojiAdapter.updateEmojis(currentEmojis)
         }
         rebuildCategoryTabs()
 
+        emojiBackButton.contentDescription = "Back to keyboard"
         emojiBackButton.setOnClickListener {
             emojiContainer.visibility = View.GONE
             mainContainer.visibility = View.VISIBLE
@@ -507,12 +507,20 @@ class KeyboardService : InputMethodService() {
     }
 
     private inner class EmojiGridAdapter(
-        private val emojis: List<String>,
+        emojis: List<String>,
         private val cellSize: Int
     ) : BaseAdapter() {
+        private val emojis = ArrayList<String>(emojis)
+
         override fun getCount(): Int = emojis.size
         override fun getItem(position: Int): Any = emojis[position]
         override fun getItemId(position: Int): Long = position.toLong()
+
+        fun updateEmojis(updated: List<String>) {
+            emojis.clear()
+            emojis.addAll(updated)
+            notifyDataSetChanged()
+        }
 
         override fun getView(position: Int, convertView: View?, parent: ViewGroup?): View {
             val label = (convertView as? TextView) ?: TextView(this@KeyboardService).apply {
@@ -522,7 +530,9 @@ class KeyboardService : InputMethodService() {
                 includeFontPadding = false
                 setTextColor(Color.WHITE)
             }
-            label.text = emojis[position]
+            val emoji = emojis[position]
+            label.text = emoji
+            label.contentDescription = emojiAccessibilityLabel(emoji)
             return label
         }
     }
@@ -552,6 +562,28 @@ class KeyboardService : InputMethodService() {
                 terms.all { hint.contains(it) }
             }
         }
+    }
+
+    private fun emojiCategoryAccessibilityLabel(
+        category: KeyboardSymbols.EmojiCategory,
+        index: Int
+    ): String {
+        if (category.icon == "\uD83D\uDD52") return "Recent emoji"
+        val baseIndex = index - if (recentEmojis.isNotEmpty()) 1 else 0
+        return when (baseIndex) {
+            0 -> "Smileys emoji"
+            1 -> "People emoji"
+            2 -> "Animals and nature emoji"
+            3 -> "Food emoji"
+            4 -> "Objects and travel emoji"
+            5 -> "Symbols and flags emoji"
+            else -> "Emoji category"
+        }
+    }
+
+    private fun emojiAccessibilityLabel(emoji: String): String {
+        val hint = emojiSearchHint(emoji)
+        return if (hint == "emoji") "Emoji $emoji" else "Emoji $hint"
     }
 
     private fun emojiSearchHint(emoji: String): String = when (emoji) {
@@ -1436,13 +1468,13 @@ class KeyboardService : InputMethodService() {
 
         val ic = currentInputConnection ?: return
         prepareForEditorAction()
-        val handled = ic.performEditorAction(currentImeAction.editorActionId)
+        val handled = performEditorActionSafely(ic, currentImeAction.editorActionId, currentImeAction.label)
         recordCommitLatency()
         if (currentImeAction == ImeAction.Done) {
             requestHideSelf(0)
         } else if (!handled && currentImeAction == ImeAction.Next) {
-            ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_TAB))
-            ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_TAB))
+            sendKeyEventSafely(ic, KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_TAB), "next-tab-down")
+            sendKeyEventSafely(ic, KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_TAB), "next-tab-up")
         }
         contextWords.clear()
         updateSuggestions()
@@ -1555,11 +1587,19 @@ class KeyboardService : InputMethodService() {
         } else {
             null
         }
+        val resolveStartedAt = SystemClock.elapsedRealtime()
         val candidates = predictor.getSwipeSuggestions(
             sequences = sequences,
             previousWord = previousWord,
             debugReporter = debugReporter
         )
+        val resolveMs = SystemClock.elapsedRealtime() - resolveStartedAt
+        if (resolveMs > SWIPE_RESOLVE_WARN_MS) {
+            Log.w(
+                SWIPE_DEBUG_TAG,
+                "swipe resolve slow durationMs=$resolveMs sequenceLength=${gesture.rawSequence.length}"
+            )
+        }
         val suggestion = candidates.firstOrNull()
         logSwipeFinishDiagnostics(gesture, trailDiagnostics, candidateCount = candidates.size, winner = suggestion)
         if (suggestion == null) {
@@ -1889,6 +1929,34 @@ class KeyboardService : InputMethodService() {
                 Log.w(INPUT_CONNECTION_TAG, "delete failed: deleteSurroundingText returned false reason=$reason")
             }
             deleted
+        }
+    }
+
+    private fun performEditorActionSafely(
+        ic: InputConnection?,
+        editorActionId: Int,
+        reason: String
+    ): Boolean {
+        return mutateInputConnectionSafely(ic, "editor-action:$reason") { connection ->
+            val handled = connection.performEditorAction(editorActionId)
+            if (!handled) {
+                Log.w(INPUT_CONNECTION_TAG, "editor action returned false reason=$reason")
+            }
+            handled
+        }
+    }
+
+    private fun sendKeyEventSafely(
+        ic: InputConnection?,
+        event: KeyEvent,
+        reason: String
+    ): Boolean {
+        return mutateInputConnectionSafely(ic, "key-event:$reason") { connection ->
+            val sent = connection.sendKeyEvent(event)
+            if (!sent) {
+                Log.w(INPUT_CONNECTION_TAG, "key event returned false reason=$reason")
+            }
+            sent
         }
     }
 

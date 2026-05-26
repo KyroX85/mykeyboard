@@ -43,8 +43,8 @@ class FoundationalDebtGuardrailsTest {
         val gradle = sourceFile("app/build.gradle.kts").readText(Charsets.UTF_8)
 
         assertEquals(1, Regex("""com\.squareup\.okhttp3:okhttp:""").findAll(gradle).count())
-        assertEquals(1, Regex("""io\.github\.jan-tennert\.supabase:postgrest-kt:""").findAll(gradle).count())
-        assertEquals(1, Regex("""io\.github\.jan-tennert\.supabase:supabase-kt:""").findAll(gradle).count())
+        assertEquals(0, Regex("""io\.github\.jan-tennert\.supabase:""").findAll(gradle).count())
+        assertEquals(0, Regex("""io\.ktor:""").findAll(gradle).count())
         assertFalse(gradle.contains("postgrest-kt:1.4.0"))
         assertFalse(gradle.contains("postgrest-kt:2.4.0"))
         assertFalse(gradle.contains("okhttp:4.11.0"))
