@@ -12,6 +12,17 @@ const {
   recordRegressionMemory,
   isProductProtectedFile
 } = require('../product-governance');
+const {
+  beginExecutionCheckpoint,
+  completeExecutionCheckpoint,
+  restoreCheckpoint,
+  recoverInterruptedExecution,
+  cleanupStaleLocks
+} = require('./execution-checkpoint-system');
+const { recordJournalEvent, shouldEnterSafeFailureMode } = require('./action-journal-engine');
+const { readBrainStateStrict, recoverBrainState } = require('./state-integrity');
+const { stewardshipPosture } = require('./stewardship-timer');
+const { evaluateExecutionSanity, enforcePreservationOnly } = require('./execution-sanity-filter');
 
 const MAX_DEEPSEEK_FIXES_PER_DAY = 20;
 const MAX_LLAMA_CALLS_PER_DAY = 100;
@@ -549,6 +560,50 @@ async function executeAiBridge(options = {}) {
   const root = path.resolve(options.root || process.cwd());
   const now = options.now || new Date();
   const client = options.client || createNvidiaClient();
+  cleanupStaleLocks(root, { now });
+  recoverInterruptedExecution(root, { now });
+  const stateIntegrity = readBrainStateStrict(root);
+  if (!stateIntegrity.ok) {
+    recoverBrainState(root);
+    const recoveredIntegrity = readBrainStateStrict(root);
+    if (!recoveredIntegrity.ok) {
+      recordJournalEvent(root, {
+        executionId: `state-block-${now.getTime()}`,
+        action: 'blocked execution due to invalid brain state',
+        status: 'BLOCKED',
+        validationResult: 'FAILED',
+        blockedReason: stateIntegrity.errors.join(', ')
+      });
+      return {
+        status: 'PRESERVATION_ONLY',
+        reason: `Brain state integrity failed: ${stateIntegrity.errors.join(', ')}`
+      };
+    }
+  }
+  const posture = stewardshipPosture({
+    lastFounderInteractionAt: options.lastFounderInteractionAt || latestFounderInteractionAt(root),
+    now: now.toISOString()
+  });
+  const safeFailure = shouldEnterSafeFailureMode(root, {
+    daysSinceFounderPresence: posture.daysAbsent,
+    trustScore: options.trustScore == null ? 100 : options.trustScore,
+    stateIntegrityOk: true,
+    checkpointsOk: true
+  });
+  const preservationGate = enforcePreservationOnly(
+    safeFailure.mode === 'PRESERVATION_ONLY' ? safeFailure : posture,
+    'execution'
+  );
+  if (!preservationGate.allowed) {
+    recordJournalEvent(root, {
+      executionId: `preservation-${now.getTime()}`,
+      action: 'blocked execution in preservation-only mode',
+      status: 'BLOCKED',
+      validationResult: 'NOT_RUN',
+      blockedReason: preservationGate.reason
+    });
+    return { status: 'PRESERVATION_ONLY', reason: preservationGate.reason };
+  }
   const state = readBrainState(root);
   const issue = options.issue || findCandidateIssue(state);
 
@@ -559,6 +614,21 @@ async function executeAiBridge(options = {}) {
 
   const file = normalizePath(issue.file);
   if (isForbiddenFile(file)) return { status: 'FOUNDER_APPROVAL_REQUIRED', riskLevel: 'HIGH', reason: 'Forbidden file scope.' };
+  const sanity = evaluateExecutionSanity({
+    files: [file],
+    task: `${issue.message || ''} ${issue.reason || ''} ${issue.type || ''}`
+  });
+  if (!sanity.allowed) {
+    recordJournalEvent(root, {
+      executionId: `sanity-${now.getTime()}`,
+      action: `blocked execution sanity filter for ${file}`,
+      status: 'BLOCKED',
+      validationResult: 'NOT_RUN',
+      blockedReason: sanity.reasons.join('; '),
+      files: [file]
+    });
+    return { status: 'FOUNDER_APPROVAL_REQUIRED', riskLevel: 'HIGH', file, reason: sanity.reasons.join('; ') };
+  }
   const governanceBlock = productGovernanceBlock(root, issue, file);
   if (governanceBlock) return governanceBlock;
   const target = repoPath(root, file);
@@ -627,12 +697,16 @@ async function executeAiBridge(options = {}) {
     };
   }
 
+  const checkpoint = beginExecutionCheckpoint(root, {
+    executionId: `ai-${Date.now()}-${path.basename(file)}`,
+    files: [file],
+    action: issue.message || issue.type || `AI fix ${file}`
+  });
   fs.mkdirSync(path.dirname(target), { recursive: true });
   fs.writeFileSync(target, after);
   const diffCheck = diffWithinHardLimits(root, { allowedFiles: [file] });
   if (!diffCheck.allowed) {
-    if (fileExists) fs.writeFileSync(target, before);
-    else fs.rmSync(target, { force: true });
+    restoreCheckpoint(root, checkpoint.id, diffCheck.reason);
     appendActionLog(root, {
       agentName: 'Reviewer',
       actionTaken: `blocked AI fix for ${file}`,
@@ -641,6 +715,14 @@ async function executeAiBridge(options = {}) {
       outcome: 'WAITING_FOR_FOUNDER_APPROVAL',
       modelUsed: MODEL_ASSIGNMENT.deepseek.model,
       tokensConsumed: generated.usage.total_tokens || 0
+    });
+    recordJournalEvent(root, {
+      executionId: checkpoint.id,
+      action: `blocked AI fix for ${file}`,
+      status: 'BLOCKED',
+      validationResult: 'FAILED',
+      rollbackReason: diffCheck.reason,
+      files: [file]
     });
     return {
       status: 'FOUNDER_APPROVAL_REQUIRED',
@@ -654,8 +736,7 @@ async function executeAiBridge(options = {}) {
   try {
     runValidation(root, file, options.validationCommand);
   } catch (error) {
-    if (fileExists) fs.writeFileSync(target, before);
-    else fs.rmSync(target, { force: true });
+    restoreCheckpoint(root, checkpoint.id, 'validation failed');
     appendActionLog(root, {
       agentName: 'Coder',
       actionTaken: `rolled back DeepSeek fix for ${file}`,
@@ -664,6 +745,14 @@ async function executeAiBridge(options = {}) {
       outcome: `ROLLED_BACK ${error.message}`,
       modelUsed: MODEL_ASSIGNMENT.deepseek.model,
       tokensConsumed: generated.usage.total_tokens || 0
+    });
+    recordJournalEvent(root, {
+      executionId: checkpoint.id,
+      action: `rolled back AI fix for ${file}`,
+      status: 'ROLLED_BACK',
+      validationResult: 'FAILED',
+      rollbackReason: error.message,
+      files: [file]
     });
     return { status: 'ROLLED_BACK', riskLevel: risk.riskLevel, file, error: error.message };
   }
@@ -681,6 +770,15 @@ async function executeAiBridge(options = {}) {
     outcome: 'COMPLETED',
     modelUsed: generated.model || MODEL_ASSIGNMENT.deepseek.model,
     tokensConsumed: generated.usage.total_tokens || 0
+  });
+  completeExecutionCheckpoint(root, checkpoint.id, { validation: 'passed', commitHash });
+  recordJournalEvent(root, {
+    executionId: checkpoint.id,
+    action: `executed code fix for ${file}`,
+    status: 'COMPLETED',
+    validationResult: 'PASSED',
+    files: [file],
+    founderApproved: false
   });
 
   return {
@@ -740,11 +838,15 @@ function executeDeterministicDelete({ root, file, target, fileExists, issue, com
   }
 
   const before = fs.readFileSync(target, 'utf8');
+  const checkpoint = beginExecutionCheckpoint(root, {
+    executionId: `delete-${Date.now()}-${path.basename(file)}`,
+    files: [file],
+    action: issue.message || `delete ${file}`
+  });
   fs.rmSync(target, { force: true });
   const diffCheck = diffWithinHardLimits(root, { allowedFiles: [file] });
   if (!diffCheck.allowed) {
-    fs.mkdirSync(path.dirname(target), { recursive: true });
-    fs.writeFileSync(target, before);
+    restoreCheckpoint(root, checkpoint.id, diffCheck.reason);
     return { status: 'FOUNDER_APPROVAL_REQUIRED', riskLevel: 'HIGH', file, reason: diffCheck.reason, diff: diffCheck };
   }
 
@@ -761,6 +863,15 @@ function executeDeterministicDelete({ root, file, target, fileExists, issue, com
     outcome: 'COMPLETED',
     modelUsed: 'deterministic-delete',
     tokensConsumed: 0
+  });
+  completeExecutionCheckpoint(root, checkpoint.id, { validation: 'delete-safe', commitHash });
+  recordJournalEvent(root, {
+    executionId: checkpoint.id,
+    action: `deleted deterministic test file ${file}`,
+    status: 'COMPLETED',
+    validationResult: 'PASSED',
+    files: [file],
+    founderApproved: false
   });
 
   return {
@@ -822,6 +933,17 @@ function firstLine(value) {
 function extractCommitHash(output) {
   const match = String(output || '').match(/\[.+?\s+([a-f0-9]{7,40})\]/i);
   return match ? match[1] : null;
+}
+
+function latestFounderInteractionAt(root) {
+  const memory = readJson(path.join(root, 'ai-cto', 'founder-memory.json'), null);
+  const candidates = [
+    memory && memory.last_interaction_at,
+    memory && memory.lastInteractionAt,
+    memory && Array.isArray(memory.decision_history) && memory.decision_history.at(-1) && memory.decision_history.at(-1).timestamp,
+    memory && Array.isArray(memory.vision_commands_history) && memory.vision_commands_history.at(-1) && memory.vision_commands_history.at(-1).timestamp
+  ].filter(Boolean);
+  return candidates[0] || new Date().toISOString();
 }
 
 if (require.main === module) {
