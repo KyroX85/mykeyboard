@@ -1,0 +1,11 @@
+{
+  "version": "1.0",
+  "regressions_introduced_before": [],
+  "founder_rejected_patterns": [],
+  "dangerous_architectural_ideas": [],
+  "ux_mistakes": [],
+  "swipe_failures": [],
+  "bad_symbol_layout_decisions": [],
+  "fake_optimization_attempts": [],
+  "overengineering_incidents": []
+}

@@ -1,0 +1,29 @@
+{
+  "version": "1.0",
+  "agents": {
+    "CTO": {
+      "agent": "CTO",
+      "score": 70,
+      "lastUpdatedAt": null,
+      "events": []
+    },
+    "Coder": {
+      "agent": "Coder",
+      "score": 70,
+      "lastUpdatedAt": null,
+      "events": []
+    },
+    "Reviewer": {
+      "agent": "Reviewer",
+      "score": 70,
+      "lastUpdatedAt": null,
+      "events": []
+    },
+    "Auditor": {
+      "agent": "Auditor",
+      "score": 70,
+      "lastUpdatedAt": null,
+      "events": []
+    }
+  }
+}

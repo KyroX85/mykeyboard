@@ -4,6 +4,14 @@ const { execFileSync } = require('child_process');
 const { createNvidiaClient, MODEL_ASSIGNMENT, parseRiskLevel } = require('../whatsapp/nvidia-nim-client');
 const { classifyRisk: classifyLocalRisk, readBrainState, findCandidateIssue } = require('./execution-engine');
 const { readFounderMemory, buildFounderMemoryContext } = require('../whatsapp/founder-memory');
+const {
+  shouldBlockDirectProductExecution,
+  buildRealityValidationGate,
+  formatGovernanceBlock,
+  recordTrustEvent,
+  recordRegressionMemory,
+  isProductProtectedFile
+} = require('../product-governance');
 
 const MAX_DEEPSEEK_FIXES_PER_DAY = 20;
 const MAX_LLAMA_CALLS_PER_DAY = 100;
@@ -53,6 +61,54 @@ function isForbiddenFile(file) {
     normalized.includes('/schema') ||
     normalized.includes('/migration') ||
     normalized.includes('roomdatabase');
+}
+
+function productGovernanceBlock(root, issue, file) {
+  const task = issue.message || issue.reason || issue.type || 'requested product change';
+  const governance = shouldBlockDirectProductExecution({
+    files: [file],
+    task,
+    changes: [issue.reason, issue.classification, issue.type].filter(Boolean)
+  });
+  if (!governance.blocked) return null;
+
+  const gate = buildRealityValidationGate({
+    root,
+    files: [file],
+    validation: {
+      buildPassed: false,
+      testsPassed: false,
+      lintPassed: false
+    }
+  });
+  recordTrustEvent({
+    root,
+    agent: 'Reviewer',
+    event: 'blocked protected product direct execution',
+    delta: 2,
+    reason: governance.classification.primaryCategory,
+    evidence: file
+  });
+  recordRegressionMemory({
+    root,
+    type: governance.classification.primaryCategory,
+    summary: `Blocked direct execution for protected product file: ${task}`,
+    files: [file],
+    avoidedBy: 'Product governance direct-execution block'
+  });
+  return {
+    status: 'PRODUCT_GOVERNANCE_REVIEW_REQUIRED',
+    riskLevel: governance.classification.primaryCategory,
+    file,
+    reason: 'Protected product file requires branch isolation, validation evidence, and founder approval.',
+    classification: governance.classification,
+    realityGate: gate,
+    founderMessage: formatGovernanceBlock({
+      task,
+      files: [file],
+      classification: governance.classification
+    })
+  };
 }
 
 function hasExplicitReviewRisk(issue = {}) {
@@ -503,6 +559,8 @@ async function executeAiBridge(options = {}) {
 
   const file = normalizePath(issue.file);
   if (isForbiddenFile(file)) return { status: 'FOUNDER_APPROVAL_REQUIRED', riskLevel: 'HIGH', reason: 'Forbidden file scope.' };
+  const governanceBlock = productGovernanceBlock(root, issue, file);
+  if (governanceBlock) return governanceBlock;
   const target = repoPath(root, file);
   const fileExists = fs.existsSync(target);
   if (issue.deterministicDelete === true) {
@@ -644,6 +702,8 @@ async function executeAiBridge(options = {}) {
 
 function executeDeterministicDelete({ root, file, target, fileExists, issue, commit, push, commitMessage }) {
   if (isForbiddenFile(file)) return { status: 'FOUNDER_APPROVAL_REQUIRED', riskLevel: 'HIGH', reason: 'Forbidden file scope.' };
+  const governanceBlock = productGovernanceBlock(root, issue, file);
+  if (governanceBlock) return governanceBlock;
   if (!isSafeDeterministicDeleteTarget(file, issue)) {
     return { status: 'FOUNDER_APPROVAL_REQUIRED', riskLevel: 'HIGH', file, reason: 'Delete request is outside deterministic safe-delete scope.' };
   }
@@ -738,6 +798,7 @@ function deterministicNewFileContent(issue, file, fileExists) {
     : inferredDeterministicNewFileContent(issue, file);
   if (!content) return null;
   if (isForbiddenFile(file)) return null;
+  if (isProductProtectedFile(file)) return null;
   if (content.length > 4000) return null;
   return content.endsWith('\n') ? content : `${content}\n`;
 }

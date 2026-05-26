@@ -1,0 +1,47 @@
+{
+  "version": "1.0",
+  "founderVision": "Aritenis AI must become a trustworthy Android keyboard before adding advanced AI or companion behavior.",
+  "currentPhase": "Phase 1 - Stabilization",
+  "productPhilosophy": [
+    "typing confidence > feature count",
+    "runtime trust > cosmetic complexity",
+    "stable geometry > flashy UI",
+    "evidence before product claims",
+    "small reversible changes only"
+  ],
+  "uxPriorities": [
+    "visual hierarchy maturity",
+    "stable keyboard geometry",
+    "symbol accessibility",
+    "spacebar visibility and clarity",
+    "swipe reliability",
+    "responsiveness",
+    "touch confidence",
+    "rhythm stability",
+    "runtime smoothness",
+    "ergonomic consistency"
+  ],
+  "antiGoals": [
+    "AI theater",
+    "architecture expansion without UX gain",
+    "feature count over typing confidence",
+    "cosmetic churn",
+    "cloud AI in live typing",
+    "new telemetry expansion",
+    "dependency mutation",
+    "workflow mutation"
+  ],
+  "rejectedDirections": [
+    "uncontrolled swipe rewrites",
+    "predictor rewrites without correction evidence",
+    "companion features before keyboard stabilization",
+    "theme engines before trust fixes",
+    "internet-learning loops"
+  ],
+  "neverDoAgainPatterns": [
+    "treat reports as product progress",
+    "directly edit protected keyboard hot paths from chat",
+    "claim improvement without real-device evidence",
+    "increase autonomy while founder feedback is stale"
+  ]
+}

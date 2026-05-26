@@ -251,7 +251,7 @@ function buildOperationalMobile(agent, state, execution, maintenance) {
 function mobileAttempted(agent, state, attemptedLine, noRuntime, topic, memory = {}) {
   const prefix = tonePrefix(memory);
   if (shouldPushBack(memory)) {
-    return `${prefix}${compact(memory.operationalIntelligence.pushback.message, 72)}`;
+    return `${prefix}${compact(memory.operationalIntelligence.pushback.message, 96)}`;
   }
   if (isContextUncertain(memory)) {
     return `${prefix}context not fully verified yet; checking latest grounded state.`;

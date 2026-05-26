@@ -241,7 +241,8 @@ async function run() {
     sections: { risks: [], unresolved: [], approvals: [] },
     summary: { topRisk: 'none' }
   }, { recentMessages: [] }, { client });
-  assert.strictEqual(routedAi.usedAi, true);
+  assert.strictEqual(routedAi.usedAi, false);
+  assert.strictEqual(routedAi.aiReason, 'deterministic greeting fast path');
   assert(routedAi.response.includes('What would you like to prioritize'));
 
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'cto-ai-bridge-'));
