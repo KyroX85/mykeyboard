@@ -44,10 +44,10 @@ class InteractionRhythmGuardrailsTest {
         val addPoint = methodBody(source, "addPoint")
 
         assertTrue(source.contains("const val MAX_POINTS = 192"))
-        assertTrue(addPoint.contains("rollTail()"))
+        assertTrue(addPoint.contains("pointHead = (pointHead + 1) % MAX_POINTS"))
         assertTrue(addPoint.contains("capHit = true"))
-        assertTrue(methodBody(source, "rollTail").contains("xs[index - 1] = xs[index]"))
-        assertTrue(methodBody(source, "rollTail").contains("ys[index - 1] = ys[index]"))
+        assertTrue(source.contains("FloatArray(MAX_POINTS)"))
+        assertTrue(source.contains("private fun circularIndex(offset: Int): Int = (pointHead + offset) % MAX_POINTS"))
     }
 
     @Test

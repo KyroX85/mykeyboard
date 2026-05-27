@@ -8,9 +8,25 @@ class LongPressSymbolMapTest {
 
     @Test
     fun topLetterRowDoesNotExposeLongPressNumbers() {
-        for (key in listOf("q", "w", "e", "r", "t", "y", "u", "i", "o", "p")) {
+        for (key in listOf("y")) {
             assertNull(LongPressSymbolMap.symbolFor(key))
             assertNull(LongPressSymbolMap.hintFor(key))
+        }
+    }
+
+    @Test
+    fun mapsTopRowToHighFrequencySymbolsWithoutNumbers() {
+        assertEquals("\\", LongPressSymbolMap.symbolFor("q"))
+        assertEquals("$", LongPressSymbolMap.symbolFor("w"))
+        assertEquals("€", LongPressSymbolMap.symbolFor("e"))
+        assertEquals("[", LongPressSymbolMap.symbolFor("r"))
+        assertEquals("]", LongPressSymbolMap.symbolFor("t"))
+        assertEquals("_", LongPressSymbolMap.symbolFor("u"))
+        assertEquals("+", LongPressSymbolMap.symbolFor("i"))
+        assertEquals("=", LongPressSymbolMap.symbolFor("o"))
+        assertEquals("*", LongPressSymbolMap.symbolFor("p"))
+        for (key in listOf("q", "w", "e", "r", "t", "u", "i", "o", "p")) {
+            assertEquals(LongPressSymbolMap.symbolFor(key), LongPressSymbolMap.hintFor(key))
         }
     }
 

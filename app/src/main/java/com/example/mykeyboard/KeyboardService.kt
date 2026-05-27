@@ -43,6 +43,7 @@ import com.example.mykeyboard.ime.ImeActionMapper
 import com.example.mykeyboard.metrics.KeyConfidenceZone
 import com.example.mykeyboard.metrics.KeyboardMetrics
 import com.example.mykeyboard.metrics.KeyboardMetricsSnapshot
+import com.example.mykeyboard.metrics.ProductSignalBridge
 import com.example.mykeyboard.predictor.BasicPredictor
 import com.example.mykeyboard.swipe.SwipeGestureTracker
 import com.example.mykeyboard.swipe.SwipeGestureResult
@@ -1724,6 +1725,7 @@ class KeyboardService : InputMethodService() {
         resolveMs: Long,
         sourceSequence: String
     ) {
+        metrics.recordSwipeResolveDuration(resolveMs)
         if (resolveMs > SWIPE_RESOLVE_WARN_MS) {
             Log.w(
                 SWIPE_DEBUG_TAG,
@@ -1956,11 +1958,15 @@ class KeyboardService : InputMethodService() {
         val now = SystemClock.elapsedRealtime()
         if (!force && now - lastMetricsFlushAtMs < METRICS_FLUSH_INTERVAL_MS) return
 
+        val usage = metrics.usageSnapshot(now)
         val snapshot = metrics.flushSnapshot(now)
         if (!snapshot.hasReportableData()) return
 
         lastMetricsFlushAtMs = now
         Log.i(METRICS_TAG, snapshot.toCompactLogLine())
+        
+        // Automatic Local Signal Ingestion
+        ProductSignalBridge.emitAggregateSignal(usage)
     }
 
     private fun KeyboardMetricsSnapshot.hasReportableData(): Boolean =

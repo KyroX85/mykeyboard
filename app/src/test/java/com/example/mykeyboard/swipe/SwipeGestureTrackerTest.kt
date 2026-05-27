@@ -93,6 +93,25 @@ class SwipeGestureTrackerTest {
     }
 
     @Test
+    fun longSequencesKeepAtLeastThreeIntentKeysForResolverStability() {
+        val tracker = SwipeGestureTracker(activationSlopPx = 4f, minSampleDistancePx = 1f)
+
+        tracker.start(0f, 0f, 'c', eventTimeMs = 0L, pressure = 0.72f, touchMajor = 12f)
+        tracker.move(1f, 0f, 'c', eventTimeMs = 62L, pressure = 0.82f, touchMajor = 13f)
+        tracker.move(10f, 0f, 'o', eventTimeMs = 70L, pressure = 0.22f, touchMajor = 7f)
+        tracker.move(20f, 0f, 'n', eventTimeMs = 78L, pressure = 0.22f, touchMajor = 7f)
+        tracker.move(30f, 0f, 'v', eventTimeMs = 130L, pressure = 0.76f, touchMajor = 12f)
+        tracker.move(40f, 0f, 'e', eventTimeMs = 138L, pressure = 0.22f, touchMajor = 7f)
+        tracker.move(50f, 0f, 'r', eventTimeMs = 146L, pressure = 0.22f, touchMajor = 7f)
+        tracker.move(60f, 0f, 's', eventTimeMs = 198L, pressure = 0.8f, touchMajor = 13f)
+
+        val gesture = tracker.finishGesture()
+        assertTrue(gesture.rawSequence.length >= 6)
+        assertTrue(gesture.weightedSequence.length >= 2)
+        assertTrue(gesture.resolutionSequences.size >= 2)
+    }
+
+    @Test
     fun boundsStoredPointsDuringLongGesture() {
         val tracker = SwipeGestureTracker(
             activationSlopPx = 1f,

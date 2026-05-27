@@ -44,6 +44,7 @@ class SwipeWordResolver {
 
         debugReporter?.invoke(buildDebugReport(cleanSequences, resolved))
         if (resolved.isAmbiguousWeakRecovery()) return emptyList()
+        if (resolved.isLowConfidenceWeakRecovery()) return emptyList()
         return resolved
             .map { it.word }
             .take(limit)
@@ -135,6 +136,11 @@ class SwipeWordResolver {
         val second = getOrNull(1) ?: return false
         if (first.tier < WEAK_RECOVERY_TIER || second.tier != first.tier) return false
         return first.score - second.score < MIN_WEAK_RECOVERY_MARGIN
+    }
+
+    private fun List<SwipeResolvedCandidate>.isLowConfidenceWeakRecovery(): Boolean {
+        val first = firstOrNull() ?: return false
+        return first.tier >= WEAK_RECOVERY_TIER && first.score < MIN_LOW_CONFIDENCE_WEAK_SCORE
     }
 
     private fun buildDebugReport(
@@ -285,13 +291,17 @@ class SwipeWordResolver {
         extraPathKeys += sequence.length - sequenceIndex
         missingWordKeys += word.length - wordIndex
 
-        val maxExtra = when {
+        val longWord = word.length >= LONG_WORD_RELAXED_LENGTH
+        val strongLongSignal = longWord &&
+            exactMatches >= MIN_LONG_WORD_EXACT_MATCHES &&
+            adjacentMatches <= MAX_LONG_WORD_ADJACENT
+        var maxExtra = when {
             trustedLearned -> 5
             frequency >= COMMON_WORD_FREQUENCY && word.length >= LONG_WORD_RELAXED_LENGTH -> 5
             frequency >= COMMON_WORD_FREQUENCY -> 5
             else -> 2
         }
-        val maxMissing = when {
+        var maxMissing = when {
             trustedLearned -> 5
             frequency >= COMMON_WORD_FREQUENCY && word.length >= LONG_WORD_RELAXED_LENGTH -> 6
             frequency >= COMMON_WORD_FREQUENCY || word.length >= 6 -> 4
@@ -303,6 +313,10 @@ class SwipeWordResolver {
             frequency >= COMMON_WORD_FREQUENCY -> 3
             else -> 2
         }
+        if (strongLongSignal && frequency >= COMMON_WORD_FREQUENCY && !trustedLearned) {
+            maxExtra += 1
+            maxMissing += 1
+        }
         if (extraPathKeys > maxExtra || missingWordKeys > maxMissing || adjacentMatches > maxAdjacent) return null
         if (exactMatches == 0) return null
 
@@ -311,12 +325,12 @@ class SwipeWordResolver {
             trustedLearned -> 5
             frequency >= COMMON_WORD_FREQUENCY -> 6
             else -> 8
-        }
+        } - if (strongLongSignal && frequency >= COMMON_WORD_FREQUENCY && !trustedLearned) 1 else 0
         val missingPenalty = when {
             trustedLearned -> 6
             frequency >= COMMON_WORD_FREQUENCY -> 7
             else -> 9
-        }
+        } - if (strongLongSignal && frequency >= COMMON_WORD_FREQUENCY && !trustedLearned) 1 else 0
         val penalties = extraPathKeys * extraPenalty + missingWordKeys * missingPenalty + adjacentMatches * 5
         return 82 + coverage - penalties
     }
@@ -544,6 +558,7 @@ class SwipeWordResolver {
         const val WEAK_RECOVERY_TIER = 5
         const val STRONG_PATH_SCORE = 112
         const val MIN_WEAK_RECOVERY_MARGIN = 14
+        const val MIN_LOW_CONFIDENCE_WEAK_SCORE = 92
         const val SHORT_WORD_MAX_LENGTH = 4
         const val ENDPOINT_LOOKBACK = 3
         const val MIN_SCORE = 80
@@ -556,6 +571,8 @@ class SwipeWordResolver {
         const val MIN_SAFE_ADJACENT_MATCHES = 2
         const val LONG_SAFE_WORD_LENGTH = 6
         const val LONG_WORD_RELAXED_LENGTH = 10
+        const val MIN_LONG_WORD_EXACT_MATCHES = 4
+        const val MAX_LONG_WORD_ADJACENT = 4
         const val NO_KEY = '\u0000'
         val SAFE_FALLBACK_WORDS = setOf(
             "the",

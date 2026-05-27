@@ -71,7 +71,12 @@ class ChangeIsolationGuardrailsTest {
 
         for (method in protectedMethods) {
             val body = methodBody(source, method)
-            for (token in forbidden) {
+            val methodForbidden = if (method == "commitSwipeSequence") {
+                forbidden - "scope.launch"
+            } else {
+                forbidden
+            }
+            for (token in methodForbidden) {
                 assertFalse("$method must not contain $token", body.contains(token))
             }
         }

@@ -246,6 +246,8 @@ class SwipeGestureTracker(
 
         val averageWeight = totalWeight / sequence.length
         val threshold = maxOf(MIN_KEEP_WEIGHT, averageWeight * INTENT_KEEP_AVERAGE_RATIO)
+        val longSequence = sequence.length >= LONG_SEQUENCE_INTENT_LENGTH
+        val minWeightedLength = if (longSequence) MIN_LONG_WEIGHTED_SEQUENCE_LENGTH else MIN_SEQUENCE_LENGTH
         weightedSequence.setLength(0)
         intentDebugBuilder.setLength(0)
         for (index in 0 until sequence.length) {
@@ -265,7 +267,7 @@ class SwipeGestureTracker(
             }
         }
 
-        if (weightedSequence.length < MIN_SEQUENCE_LENGTH) return sequence.toString()
+        if (weightedSequence.length < minWeightedLength) return sequence.toString()
         return weightedSequence.toString()
     }
 
@@ -325,6 +327,8 @@ class SwipeGestureTracker(
         const val MIN_INTENT_SPREAD = 0.18f
         const val MIN_KEEP_WEIGHT = 0.52f
         const val INTENT_KEEP_AVERAGE_RATIO = 0.75f
+        const val LONG_SEQUENCE_INTENT_LENGTH = 8
+        const val MIN_LONG_WEIGHTED_SEQUENCE_LENGTH = 3
     }
 }
 

@@ -205,6 +205,27 @@ class BasicPredictorTest {
     }
 
     @Test
+    fun suppressesLowTrustShortAutocorrectsToReduceImmediateUndoRisk() {
+        val predictor = newPredictor()
+        predictor.clearModel()
+
+        predictor.learnWord("hive")
+        predictor.learnWord("hire")
+        predictor.learnWord("hide")
+
+        assertEquals(null, predictor.getAutocorrection("hie"))
+    }
+
+    @Test
+    fun keepsHighConfidenceNeighborTypoAutocorrects() {
+        val predictor = newPredictor()
+        predictor.clearModel()
+
+        assertEquals("you", predictor.getAutocorrection("yiu"))
+        assertEquals("this", predictor.getAutocorrection("tjis"))
+    }
+
+    @Test
     fun suppressesUnrelatedFillerWhileTyping() {
         val predictor = newPredictor()
         predictor.clearModel()

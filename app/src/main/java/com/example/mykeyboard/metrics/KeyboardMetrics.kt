@@ -60,6 +60,10 @@ class KeyboardMetrics(
     private var worstModeSwitchLatencyMs = 0L
     private var latencySpikeSuspicions = 0L
     private var frameHitchSuspicions = 0L
+    private var swipeResolveCount = 0L
+    private var swipeResolveTotalMs = 0L
+    private var swipeResolveWorstMs = 0L
+    private var swipeResolveSpikeSuspicions = 0L
 
     @Synchronized
     fun startSession(nowMs: Long) {
@@ -209,6 +213,18 @@ class KeyboardMetrics(
     }
 
     @Synchronized
+    fun recordSwipeResolveDuration(durationMs: Long) {
+        val safeDuration = max(0L, durationMs)
+        swipeResolveCount++
+        swipeResolveTotalMs += safeDuration
+        swipeResolveWorstMs = max(swipeResolveWorstMs, safeDuration)
+        if (safeDuration >= SWIPE_RESOLVE_SPIKE_MS) {
+            swipeResolveSpikeSuspicions++
+            frameHitchSuspicions++
+        }
+    }
+
+    @Synchronized
     fun recordCorrectionAfterAcceptedSuggestion() {
         correctionsAfterAcceptedSuggestion++
         acceptedSuggestionPendingCorrection = false
@@ -317,7 +333,10 @@ class KeyboardMetrics(
             averageModeSwitchLatencyMs = averageModeSwitchLatencyMs(),
             worstModeSwitchLatencyMs = worstModeSwitchLatencyMs,
             latencySpikeSuspicions = latencySpikeSuspicions,
-            frameHitchSuspicions = frameHitchSuspicions
+            frameHitchSuspicions = frameHitchSuspicions,
+            averageSwipeResolveLatencyMs = averageSwipeResolveLatencyMs(),
+            worstSwipeResolveLatencyMs = swipeResolveWorstMs,
+            swipeResolveSpikeSuspicions = swipeResolveSpikeSuspicions
         )
     }
 
@@ -376,7 +395,10 @@ class KeyboardMetrics(
             averageModeSwitchLatencyMs = averageModeSwitchLatencyMs(),
             worstModeSwitchLatencyMs = worstModeSwitchLatencyMs,
             latencySpikeSuspicions = latencySpikeSuspicions,
-            frameHitchSuspicions = frameHitchSuspicions
+            frameHitchSuspicions = frameHitchSuspicions,
+            averageSwipeResolveLatencyMs = averageSwipeResolveLatencyMs(),
+            worstSwipeResolveLatencyMs = swipeResolveWorstMs,
+            swipeResolveSpikeSuspicions = swipeResolveSpikeSuspicions
         )
     }
 
@@ -443,6 +465,10 @@ class KeyboardMetrics(
         worstModeSwitchLatencyMs = 0L
         latencySpikeSuspicions = 0L
         frameHitchSuspicions = 0L
+        swipeResolveCount = 0L
+        swipeResolveTotalMs = 0L
+        swipeResolveWorstMs = 0L
+        swipeResolveSpikeSuspicions = 0L
     }
 
     private fun recordBurstCommit(nowMs: Long) {
@@ -485,6 +511,9 @@ class KeyboardMetrics(
     private fun averageModeSwitchLatencyMs(): Long =
         if (modeSwitches == 0L) 0L else totalModeSwitchLatencyMs / modeSwitches
 
+    private fun averageSwipeResolveLatencyMs(): Long =
+        if (swipeResolveCount == 0L) 0L else swipeResolveTotalMs / swipeResolveCount
+
     private fun removeLowestAcceptedWord() {
         val entry = acceptedWords.entries.minWithOrNull(
             compareBy<Map.Entry<String, Int>> { it.value }.thenBy { it.key }
@@ -526,6 +555,7 @@ class KeyboardMetrics(
         const val REPEATED_SWIPE_FAILURE_THRESHOLD = 3
         const val LATENCY_SPIKE_MS = 40L
         const val FRAME_HITCH_SUSPECT_MS = 32L
+        const val SWIPE_RESOLVE_SPIKE_MS = 48L
         const val FNV_OFFSET = -0x7ee3623b
         const val FNV_PRIME = 16777619
     }
@@ -574,7 +604,10 @@ data class KeyboardUsageSnapshot(
     val averageModeSwitchLatencyMs: Long,
     val worstModeSwitchLatencyMs: Long,
     val latencySpikeSuspicions: Long,
-    val frameHitchSuspicions: Long
+    val frameHitchSuspicions: Long,
+    val averageSwipeResolveLatencyMs: Long = 0L,
+    val worstSwipeResolveLatencyMs: Long = 0L,
+    val swipeResolveSpikeSuspicions: Long = 0L
 )
 
 data class KeyboardMetricsSnapshot(
@@ -612,7 +645,10 @@ data class KeyboardMetricsSnapshot(
     val averageModeSwitchLatencyMs: Long,
     val worstModeSwitchLatencyMs: Long,
     val latencySpikeSuspicions: Long,
-    val frameHitchSuspicions: Long
+    val frameHitchSuspicions: Long,
+    val averageSwipeResolveLatencyMs: Long = 0L,
+    val worstSwipeResolveLatencyMs: Long = 0L,
+    val swipeResolveSpikeSuspicions: Long = 0L
 ) {
     fun toCompactLogLine(): String =
         "keys=$keyPresses avg=${averageLatencyMs}ms worst=${worstLatencyMs}ms " +
@@ -621,6 +657,7 @@ data class KeyboardMetricsSnapshot(
             "backsAfterAuto=$backspaceAfterAutocomplete swipe=$swipeSuccesses/$swipeAttempts " +
             "swipeBacks=$swipeBackspaces longSwipeFail=$longWordSwipeFailures " +
             "modes=$modeSwitches symbolDep=$symbolLayerDependencyPercent% hitches=$frameHitchSuspicions " +
+            "swipeResolveAvg=${averageSwipeResolveLatencyMs}ms swipeResolveWorst=${worstSwipeResolveLatencyMs}ms " +
             "failures=${totalFailures()}"
 
     fun totalFailures(): Long =

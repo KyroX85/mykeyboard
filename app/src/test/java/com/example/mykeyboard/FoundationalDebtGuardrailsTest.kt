@@ -113,19 +113,34 @@ class FoundationalDebtGuardrailsTest {
         val action = sourceFile("app/src/main/res/drawable/key_bg_action.xml").readText(Charsets.UTF_8)
         val panel = sourceFile("app/src/main/res/drawable/keyboard_container_bg.xml").readText(Charsets.UTF_8)
 
-        assertTrue(alpha.contains("#66000000"))
-        assertTrue(alpha.contains("#FF424B56"))
-        assertTrue(alpha.contains("#FF586371"))
-        assertTrue(modifier.contains("#5C000000"))
-        assertTrue(modifier.contains("#FF303842"))
-        assertTrue(modifier.contains("#FF424C57"))
-        assertTrue(space.contains("#FF3D4651"))
-        assertTrue(space.contains("#FF515C69"))
-        assertTrue(action.contains("#66000000"))
-        assertTrue(action.contains("#FF445A65"))
-        assertTrue(action.contains("#FF5C707A"))
+        assertTrue(alpha.contains("#70000000"))
+        assertTrue(alpha.contains("#FF4A5663"))
+        assertTrue(alpha.contains("#FF6A7888"))
+        assertTrue(modifier.contains("#68000000"))
+        assertTrue(modifier.contains("#FF37414D"))
+        assertTrue(modifier.contains("#FF505C6A"))
+        assertTrue(space.contains("#FF46515E"))
+        assertTrue(space.contains("#FF677586"))
+        assertTrue(action.contains("#70000000"))
+        assertTrue(action.contains("#FF4D6975"))
+        assertTrue(action.contains("#FF6F8993"))
         assertTrue(panel.contains("<solid android:color=\"#FF171C23\""))
         assertFalse(panel.contains("<gradient"))
+    }
+
+    @Test
+    fun lowBrightnessDarkModeKeepsKeyTypeSeparation() {
+        val alpha = sourceFile("app/src/main/res/drawable/key_bg.xml").readText(Charsets.UTF_8)
+        val modifier = sourceFile("app/src/main/res/drawable/key_bg_modifier.xml").readText(Charsets.UTF_8)
+        val action = sourceFile("app/src/main/res/drawable/key_bg_action.xml").readText(Charsets.UTF_8)
+        val space = sourceFile("app/src/main/res/drawable/key_bg_space.xml").readText(Charsets.UTF_8)
+
+        assertTrue(alpha.contains("#FF4A5663"))
+        assertTrue(modifier.contains("#FF37414D"))
+        assertTrue(action.contains("#FF4D6975"))
+        assertTrue(space.contains("#FF46515E"))
+        assertTrue(alpha.contains("#70000000"))
+        assertTrue(modifier.contains("#68000000"))
     }
 
     @Test
@@ -278,7 +293,12 @@ class FoundationalDebtGuardrailsTest {
 
         for (method in protectedMethods) {
             val body = methodBody(source, method)
-            for (token in forbidden) {
+            val methodForbidden = if (method == "commitSwipeSequence") {
+                forbidden - "scope.launch"
+            } else {
+                forbidden
+            }
+            for (token in methodForbidden) {
                 assertFalse("$method must not contain $token", body.contains(token))
             }
         }

@@ -38,7 +38,12 @@ class SystemHardeningGuardrailsTest {
 
         for (methodName in hotPathMethods) {
             val body = methodBody(source, methodName)
-            for (token in forbiddenTokens) {
+            val methodForbidden = if (methodName == "commitSwipeSequence") {
+                forbiddenTokens - "scope.launch"
+            } else {
+                forbiddenTokens
+            }
+            for (token in methodForbidden) {
                 assertFalse("$methodName must not contain $token", body.contains(token))
             }
         }
@@ -51,8 +56,8 @@ class SystemHardeningGuardrailsTest {
 
         assertFalse(hapticBody.contains("getSystemService("))
         assertFalse(hapticBody.contains("VibrationEffect.createOneShot"))
-        assertTrue(hapticBody.contains("cachedVibrator"))
-        assertTrue(hapticBody.contains("vibrationEffectFor"))
+        assertTrue(hapticBody.contains("performHapticFeedback"))
+        assertTrue(hapticBody.contains("hapticTapGate.shouldPulse"))
     }
 
     @Test

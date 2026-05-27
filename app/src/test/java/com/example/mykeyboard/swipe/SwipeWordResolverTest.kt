@@ -263,4 +263,52 @@ class SwipeWordResolverTest {
         ).firstOrNull()
         assertEquals(diagnostics.joinToString("\n"), "understanding", understanding)
     }
+
+    @Test
+    fun keepsLongCommonWordsAvailableWithMultipleInteriorDrifts() {
+        val resolver = SwipeWordResolver()
+        val candidates = listOf(
+            SwipeWordCandidate("conversation", frequency = 32),
+            SwipeWordCandidate("development", frequency = 32),
+            SwipeWordCandidate("architecture", frequency = 28),
+            SwipeWordCandidate("information", frequency = 32),
+            SwipeWordCandidate("confidence", frequency = 28),
+            SwipeWordCandidate("tomorrow", frequency = 28)
+        )
+
+        assertEquals("conversation", resolver.resolve("conversqtion", candidates).firstOrNull())
+        assertEquals("development", resolver.resolve("develooment", candidates).firstOrNull())
+        assertEquals("architecture", resolver.resolve("architecrure", candidates).firstOrNull())
+        assertEquals("information", resolver.resolve("informqtion", candidates).firstOrNull())
+        assertEquals("confidence", resolver.resolve("confidrnce", candidates).firstOrNull())
+        assertEquals("tomorrow", resolver.resolve("tomorroe", candidates).firstOrNull())
+    }
+
+    @Test
+    fun longWordRecoveryStaysConservativeWhenSignalIsTooWeak() {
+        val resolver = SwipeWordResolver()
+        val candidates = listOf(
+            SwipeWordCandidate("conversation", frequency = 32),
+            SwipeWordCandidate("development", frequency = 32),
+            SwipeWordCandidate("understanding", frequency = 28)
+        )
+
+        assertTrue(resolver.resolve("caa", candidates).isEmpty())
+        assertTrue(resolver.resolve("uvx", candidates).isEmpty())
+    }
+
+    @Test
+    fun rejectsLongWordTrustCollapseForChaoticPaths() {
+        val resolver = SwipeWordResolver()
+        val candidates = listOf(
+            SwipeWordCandidate("conversation", frequency = 50),
+            SwipeWordCandidate("development", frequency = 50),
+            SwipeWordCandidate("architecture", frequency = 50),
+            SwipeWordCandidate("information", frequency = 50),
+            SwipeWordCandidate("confidence", frequency = 50)
+        )
+
+        assertTrue(resolver.resolve("qazplmokn", candidates).isEmpty())
+        assertTrue(resolver.resolve("zzzxxyqq", candidates).isEmpty())
+    }
 }

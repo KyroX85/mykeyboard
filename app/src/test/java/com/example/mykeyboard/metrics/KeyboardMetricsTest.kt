@@ -190,6 +190,8 @@ class KeyboardMetricsTest {
         metrics.recordKeyCommit(45L, 100L)
         metrics.recordModeSwitch(durationMs = 20L, symbolLayer = true)
         metrics.recordModeSwitch(durationMs = 40L, symbolLayer = false)
+        metrics.recordSwipeResolveDuration(22L)
+        metrics.recordSwipeResolveDuration(51L)
 
         val usage = metrics.usageSnapshot(1_000L)
         val snapshot = metrics.snapshot(1_000L)
@@ -200,8 +202,52 @@ class KeyboardMetricsTest {
         assertEquals(30, usage.averageModeSwitchLatencyMs)
         assertEquals(40, usage.worstModeSwitchLatencyMs)
         assertEquals(1, usage.latencySpikeSuspicions)
-        assertEquals(2, usage.frameHitchSuspicions)
+        assertEquals(3, usage.frameHitchSuspicions)
+        assertEquals(36, usage.averageSwipeResolveLatencyMs)
+        assertEquals(51, usage.worstSwipeResolveLatencyMs)
+        assertEquals(1, usage.swipeResolveSpikeSuspicions)
         assertEquals(50, snapshot.symbolLayerDependencyPercent)
-        assertEquals(2, snapshot.frameHitchSuspicions)
+        assertEquals(3, snapshot.frameHitchSuspicions)
+        assertEquals(36, snapshot.averageSwipeResolveLatencyMs)
+        assertEquals(1, snapshot.swipeResolveSpikeSuspicions)
+    }
+
+    @Test
+    fun lowEndLatencyAndRetryBurstsAreCapturedAsAggregateSignals() {
+        val metrics = KeyboardMetrics()
+
+        repeat(8) { index ->
+            metrics.recordKeyCommit(durationMs = 55L + (index % 3), nowMs = 100L + index * 80L)
+        }
+        repeat(4) {
+            metrics.recordSwipeFailure(sequenceLength = 10, candidateCount = 0, interrupted = false)
+        }
+        repeat(3) {
+            metrics.recordBackspace(nowMs = 2_000L + it * 200L)
+        }
+
+        val usage = metrics.usageSnapshot(4_000L)
+
+        assertTrue(usage.latencySpikeSuspicions >= 8)
+        assertTrue(usage.frameHitchSuspicions >= 8)
+        assertTrue(usage.repeatedSwipeFailureRuns >= 1)
+        assertTrue(usage.repeatedCorrectionRuns >= 1)
+    }
+
+    @Test
+    fun rapidSymbolSwitchingDependencyIsTrackedForFrictionReview() {
+        val metrics = KeyboardMetrics()
+
+        repeat(10) {
+            metrics.recordModeSwitch(durationMs = 28L, symbolLayer = true)
+        }
+        repeat(3) {
+            metrics.recordModeSwitch(durationMs = 22L, symbolLayer = false)
+        }
+
+        val usage = metrics.usageSnapshot(3_000L)
+        assertEquals(13, usage.modeSwitches)
+        assertEquals(10, usage.symbolLayerSwitches)
+        assertTrue(usage.symbolLayerDependencyPercent >= 75)
     }
 }

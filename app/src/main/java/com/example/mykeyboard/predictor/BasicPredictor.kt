@@ -74,6 +74,8 @@ class BasicPredictor internal constructor(
         private const val MIN_AUTOCORRECT_LENGTH = 3
         private const val MIN_AUTOCORRECT_SCORE = 72
         private const val MIN_AUTOCORRECT_MARGIN = 12
+        private const val MIN_SHORT_AUTOCORRECT_SCORE = 82
+        private const val MIN_SHORT_AUTOCORRECT_MARGIN = 16
         private const val STABILITY_BONUS = 18
 
         private val FALLBACK_SUGGESTIONS = listOf("the", "and", "to")
@@ -375,7 +377,11 @@ class BasicPredictor internal constructor(
 
         val best = ranked.firstOrNull() ?: return null
         val runnerUp = ranked.getOrNull(1)
-        if (runnerUp != null && best.score - runnerUp.score < MIN_AUTOCORRECT_MARGIN) return null
+        val minScore = if (typed.length <= 4) MIN_SHORT_AUTOCORRECT_SCORE else MIN_AUTOCORRECT_SCORE
+        val minMargin = if (typed.length <= 4) MIN_SHORT_AUTOCORRECT_MARGIN else MIN_AUTOCORRECT_MARGIN
+        if (best.score < minScore) return null
+        if (runnerUp != null && best.score - runnerUp.score < minMargin) return null
+        if (shouldSuppressLowTrustAutocorrect(typed, candidates[best.word], best)) return null
         return best.word
     }
 
@@ -902,6 +908,21 @@ class BasicPredictor internal constructor(
         if (collapseRepeatedLetters(typed) == collapseRepeatedLetters(word)) return 14
         if (hasNearbySwap(typed, word)) return 20
         return null
+    }
+
+    private fun shouldSuppressLowTrustAutocorrect(
+        typed: String,
+        candidate: AutocorrectCandidate?,
+        best: CorrectionScore
+    ): Boolean {
+        val current = candidate ?: return true
+        val hasTrustSignal =
+            current.acceptedCount > 0 ||
+                current.contextualCount > 0 ||
+                (COMMON_AUTOCORRECT_COUNTS[current.word] ?: 0) > 0
+        if (hasTrustSignal) return false
+        if (typed.length <= 4 && current.count < 12) return true
+        return best.count < 8 && best.score < (MIN_AUTOCORRECT_SCORE + 10)
     }
 
     private fun hasSingleAdjacentInsertedLetter(typed: String, word: String): Boolean {
