@@ -388,6 +388,294 @@
       "outcome": "MODEL_OK",
       "modelUsed": "deepseek-ai/deepseek-v4-flash",
       "tokensConsumed": 3290
+    },
+    {
+      "timestamp": "2026-05-27T05:59:22.760Z",
+      "agentName": "CTO",
+      "actionTaken": "prepared WhatsApp command response: conversational_fallback",
+      "reason": "PHASE 1 — STABILIZATION (June 4 → Aug 2026)",
+      "riskLevel": "LOW",
+      "outcome": "RESPONSE_SENT"
+    },
+    {
+      "timestamp": "2026-05-27T05:59:23.151Z",
+      "agentName": "CTO",
+      "actionTaken": "prepared WhatsApp command response: conversational_fallback",
+      "reason": "PHASE 1 — STABILIZATION (June 4 → Aug 2026)",
+      "riskLevel": "LOW",
+      "outcome": "RESPONSE_SENT"
+    },
+    {
+      "timestamp": "2026-05-27T05:59:25.199Z",
+      "agentName": "CTO",
+      "actionTaken": "NVIDIA NIM call: Llama 3.3 70B",
+      "reason": "Vision command intent detection",
+      "riskLevel": "LOW",
+      "outcome": "OK model=meta/llama-3.3-70b-instruct tokens=429 durationMs=2434",
+      "modelUsed": "meta/llama-3.3-70b-instruct",
+      "tokensConsumed": 429
+    },
+    {
+      "timestamp": "2026-05-27T05:59:25.753Z",
+      "agentName": "CTO",
+      "actionTaken": "NVIDIA NIM call: Llama 3.3 70B",
+      "reason": "Vision command intent detection",
+      "riskLevel": "LOW",
+      "outcome": "OK model=meta/llama-3.3-70b-instruct tokens=430 durationMs=2601",
+      "modelUsed": "meta/llama-3.3-70b-instruct",
+      "tokensConsumed": 430
+    },
+    {
+      "timestamp": "2026-05-27T05:59:28.164Z",
+      "agentName": "CTO",
+      "actionTaken": "NVIDIA NIM call: Llama 3.3 70B",
+      "reason": "Vision command task breakdown",
+      "riskLevel": "MEDIUM",
+      "outcome": "OK model=meta/llama-3.3-70b-instruct tokens=636 durationMs=2965",
+      "modelUsed": "meta/llama-3.3-70b-instruct",
+      "tokensConsumed": 636
+    },
+    {
+      "timestamp": "2026-05-27T05:59:28.836Z",
+      "agentName": "CTO",
+      "actionTaken": "NVIDIA NIM call: Llama 3.3 70B",
+      "reason": "Vision command task breakdown",
+      "riskLevel": "MEDIUM",
+      "outcome": "OK model=meta/llama-3.3-70b-instruct tokens=637 durationMs=3082",
+      "modelUsed": "meta/llama-3.3-70b-instruct",
+      "tokensConsumed": 637
+    },
+    {
+      "timestamp": "2026-05-27T06:00:37.383Z",
+      "agentName": "CTO",
+      "actionTaken": "prepared WhatsApp command response: conversational_fallback",
+      "reason": "PHASE 1 — STABILIZATION (June 4 → Aug 2026)",
+      "riskLevel": "LOW",
+      "outcome": "RESPONSE_SENT"
+    },
+    {
+      "timestamp": "2026-05-27T06:00:39.498Z",
+      "agentName": "CTO",
+      "actionTaken": "NVIDIA NIM call: Llama 3.3 70B",
+      "reason": "Vision command intent detection",
+      "riskLevel": "LOW",
+      "outcome": "OK model=meta/llama-3.3-70b-instruct tokens=725 durationMs=2114",
+      "modelUsed": "meta/llama-3.3-70b-instruct",
+      "tokensConsumed": 725
+    },
+    {
+      "timestamp": "2026-05-27T06:00:44.281Z",
+      "agentName": "CTO",
+      "actionTaken": "NVIDIA NIM call: Llama 3.3 70B",
+      "reason": "Vision command task breakdown",
+      "riskLevel": "MEDIUM",
+      "outcome": "OK model=meta/llama-3.3-70b-instruct tokens=925 durationMs=4782",
+      "modelUsed": "meta/llama-3.3-70b-instruct",
+      "tokensConsumed": 925
+    },
+    {
+      "timestamp": "2026-05-27T06:02:47.797Z",
+      "agentName": "CTO",
+      "actionTaken": "prepared WhatsApp command response: conversational_fallback",
+      "reason": "PHASE 1 — STABILIZATION (June 4 → Aug 2026)",
+      "riskLevel": "LOW",
+      "outcome": "RESPONSE_SENT"
+    },
+    {
+      "timestamp": "2026-05-27T06:02:49.339Z",
+      "agentName": "CTO",
+      "actionTaken": "prepared WhatsApp command response: conversational_fallback",
+      "reason": "PHASE 1 — STABILIZATION (June 4 → Aug 2026)",
+      "riskLevel": "LOW",
+      "outcome": "RESPONSE_SENT"
+    },
+    {
+      "timestamp": "2026-05-27T06:02:55.956Z",
+      "agentName": "CTO",
+      "actionTaken": "NVIDIA NIM call: Llama 3.3 70B",
+      "reason": "Vision command intent detection",
+      "riskLevel": "LOW",
+      "outcome": "OK model=meta/llama-3.3-70b-instruct tokens=881 durationMs=8158",
+      "modelUsed": "meta/llama-3.3-70b-instruct",
+      "tokensConsumed": 881
+    },
+    {
+      "timestamp": "2026-05-27T06:02:59.177Z",
+      "agentName": "CTO",
+      "actionTaken": "NVIDIA NIM call: Llama 3.3 70B",
+      "reason": "Vision command intent detection",
+      "riskLevel": "LOW",
+      "outcome": "OK model=meta/llama-3.3-70b-instruct tokens=879 durationMs=9838",
+      "modelUsed": "meta/llama-3.3-70b-instruct",
+      "tokensConsumed": 879
+    },
+    {
+      "timestamp": "2026-05-27T06:03:00.581Z",
+      "agentName": "CTO",
+      "actionTaken": "NVIDIA NIM call: Llama 3.3 70B",
+      "reason": "Vision command task breakdown",
+      "riskLevel": "MEDIUM",
+      "outcome": "OK model=meta/llama-3.3-70b-instruct tokens=1096 durationMs=4625",
+      "modelUsed": "meta/llama-3.3-70b-instruct",
+      "tokensConsumed": 1096
+    },
+    {
+      "timestamp": "2026-05-27T06:03:03.120Z",
+      "agentName": "CTO",
+      "actionTaken": "NVIDIA NIM call: Llama 3.3 70B",
+      "reason": "Vision command task breakdown",
+      "riskLevel": "MEDIUM",
+      "outcome": "OK model=meta/llama-3.3-70b-instruct tokens=1082 durationMs=3943",
+      "modelUsed": "meta/llama-3.3-70b-instruct",
+      "tokensConsumed": 1082
+    },
+    {
+      "timestamp": "2026-05-27T06:04:35.396Z",
+      "agentName": "CTO",
+      "actionTaken": "prepared WhatsApp command response: conversational_fallback",
+      "reason": "PHASE 1 — STABILIZATION (June 4 → Aug 2026)",
+      "riskLevel": "LOW",
+      "outcome": "RESPONSE_SENT"
+    },
+    {
+      "timestamp": "2026-05-27T06:04:36.942Z",
+      "agentName": "CTO",
+      "actionTaken": "NVIDIA NIM call: Llama 3.3 70B",
+      "reason": "Vision command intent detection",
+      "riskLevel": "LOW",
+      "outcome": "OK model=meta/llama-3.3-70b-instruct tokens=1003 durationMs=1545",
+      "modelUsed": "meta/llama-3.3-70b-instruct",
+      "tokensConsumed": 1003
+    },
+    {
+      "timestamp": "2026-05-27T06:04:43.497Z",
+      "agentName": "CTO",
+      "actionTaken": "NVIDIA NIM call: Llama 3.3 70B",
+      "reason": "Vision command task breakdown",
+      "riskLevel": "MEDIUM",
+      "outcome": "OK model=meta/llama-3.3-70b-instruct tokens=1259 durationMs=6554",
+      "modelUsed": "meta/llama-3.3-70b-instruct",
+      "tokensConsumed": 1259
+    },
+    {
+      "timestamp": "2026-05-27T06:06:09.226Z",
+      "agentName": "CTO",
+      "actionTaken": "prepared WhatsApp command response: conversational_fallback",
+      "reason": "PHASE 1 — STABILIZATION (June 4 → Aug 2026)",
+      "riskLevel": "LOW",
+      "outcome": "RESPONSE_SENT"
+    },
+    {
+      "timestamp": "2026-05-27T06:06:10.543Z",
+      "agentName": "CTO",
+      "actionTaken": "NVIDIA NIM call: Llama 3.3 70B",
+      "reason": "Vision command intent detection",
+      "riskLevel": "LOW",
+      "outcome": "OK model=meta/llama-3.3-70b-instruct tokens=1152 durationMs=1316",
+      "modelUsed": "meta/llama-3.3-70b-instruct",
+      "tokensConsumed": 1152
+    },
+    {
+      "timestamp": "2026-05-27T06:06:14.890Z",
+      "agentName": "CTO",
+      "actionTaken": "NVIDIA NIM call: Llama 3.3 70B",
+      "reason": "Vision command task breakdown",
+      "riskLevel": "MEDIUM",
+      "outcome": "OK model=meta/llama-3.3-70b-instruct tokens=1341 durationMs=4346",
+      "modelUsed": "meta/llama-3.3-70b-instruct",
+      "tokensConsumed": 1341
+    },
+    {
+      "timestamp": "2026-05-27T06:07:24.118Z",
+      "agentName": "Aritenis CTO",
+      "actionTaken": "prepared WhatsApp unknown response",
+      "reason": "PHASE 1 — STABILIZATION (June 4 → Aug 2026)",
+      "riskLevel": "LOW",
+      "outcome": "RESPONSE_SENT"
+    },
+    {
+      "timestamp": "2026-05-27T06:07:26.147Z",
+      "agentName": "CTO",
+      "actionTaken": "NVIDIA NIM call: Llama 3.3 70B",
+      "reason": "Vision command intent detection",
+      "riskLevel": "LOW",
+      "outcome": "OK model=meta/llama-3.3-70b-instruct tokens=1214 durationMs=2026",
+      "modelUsed": "meta/llama-3.3-70b-instruct",
+      "tokensConsumed": 1214
+    },
+    {
+      "timestamp": "2026-05-27T06:07:28.829Z",
+      "agentName": "CTO",
+      "actionTaken": "NVIDIA NIM call: Llama 3.3 70B",
+      "reason": "Vision command task breakdown",
+      "riskLevel": "MEDIUM",
+      "outcome": "OK model=meta/llama-3.3-70b-instruct tokens=1384 durationMs=2682",
+      "modelUsed": "meta/llama-3.3-70b-instruct",
+      "tokensConsumed": 1384
+    },
+    {
+      "timestamp": "2026-05-27T06:08:10.019Z",
+      "agentName": "CTO",
+      "actionTaken": "prepared WhatsApp command response: conversational_fallback",
+      "reason": "PHASE 1 — STABILIZATION (June 4 → Aug 2026)",
+      "riskLevel": "LOW",
+      "outcome": "RESPONSE_SENT"
+    },
+    {
+      "timestamp": "2026-05-27T06:08:11.917Z",
+      "agentName": "CTO",
+      "actionTaken": "NVIDIA NIM call: Llama 3.3 70B",
+      "reason": "Vision command intent detection",
+      "riskLevel": "LOW",
+      "outcome": "OK model=meta/llama-3.3-70b-instruct tokens=1258 durationMs=1898",
+      "modelUsed": "meta/llama-3.3-70b-instruct",
+      "tokensConsumed": 1258
+    },
+    {
+      "timestamp": "2026-05-27T06:08:14.773Z",
+      "agentName": "CTO",
+      "actionTaken": "NVIDIA NIM call: Llama 3.3 70B",
+      "reason": "Vision command task breakdown",
+      "riskLevel": "MEDIUM",
+      "outcome": "OK model=meta/llama-3.3-70b-instruct tokens=1424 durationMs=2855",
+      "modelUsed": "meta/llama-3.3-70b-instruct",
+      "tokensConsumed": 1424
+    },
+    {
+      "timestamp": "2026-05-27T06:08:55.937Z",
+      "agentName": "CTO",
+      "actionTaken": "prepared WhatsApp command response: conversational_fallback",
+      "reason": "PHASE 1 — STABILIZATION (June 4 → Aug 2026)",
+      "riskLevel": "LOW",
+      "outcome": "RESPONSE_SENT"
+    },
+    {
+      "timestamp": "2026-05-27T06:08:59.771Z",
+      "agentName": "CTO",
+      "actionTaken": "NVIDIA NIM call: Llama 3.3 70B",
+      "reason": "Vision command intent detection",
+      "riskLevel": "LOW",
+      "outcome": "OK model=meta/llama-3.3-70b-instruct tokens=1283 durationMs=3806",
+      "modelUsed": "meta/llama-3.3-70b-instruct",
+      "tokensConsumed": 1283
+    },
+    {
+      "timestamp": "2026-05-27T06:09:02.164Z",
+      "agentName": "CTO",
+      "actionTaken": "NVIDIA NIM call: Llama 3.3 70B",
+      "reason": "Vision command task breakdown",
+      "riskLevel": "MEDIUM",
+      "outcome": "OK model=meta/llama-3.3-70b-instruct tokens=1503 durationMs=2393",
+      "modelUsed": "meta/llama-3.3-70b-instruct",
+      "tokensConsumed": 1503
+    },
+    {
+      "timestamp": "2026-05-27T06:11:09.011Z",
+      "agentName": "Aritenis CTO",
+      "actionTaken": "prepared WhatsApp validation response",
+      "reason": "PHASE 1 — STABILIZATION (June 4 → Aug 2026)",
+      "riskLevel": "LOW",
+      "outcome": "RESPONSE_SENT"
     }
   ]
 }
