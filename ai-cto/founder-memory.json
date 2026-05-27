@@ -13,8 +13,72 @@
     "target_users": "Indian teenagers",
     "core_moat": "passive behavioral keyboard data"
   },
-  "decision_history": [],
-  "vision_commands_history": [],
+  "decision_history": [
+    {
+      "timestamp": "2026-05-27T05:59:28.171Z",
+      "founder_asked": "rewrite the predictor using deep learning",
+      "agents_decided": "vision_command_high_risk",
+      "executed": false,
+      "outcome": "CTO: Founder, this improvement may conflict with the current roadmap phase. Rewriting the predictor using deep learning may introduce new features and instability, conflicting with the current Phase 1 stabilization goals. Founder approval is required to proceed with this task. Options: 1. Schedule i",
+      "commit_hash": null
+    },
+    {
+      "timestamp": "2026-05-27T05:59:28.838Z",
+      "founder_asked": "rewrite the predictor using deep learning",
+      "agents_decided": "vision_command_approval_required",
+      "executed": false,
+      "outcome": "CTO: Founder, this improvement may conflict with the current roadmap phase. Rewriting the predictor using deep learning may introduce new features and instability, conflicting with the current Phase 1 stabilization goals. Founder approval is required to proceed with this task. Options: 1. Schedule i",
+      "commit_hash": null
+    }
+  ],
+  "vision_commands_history": [
+    {
+      "timestamp": "2026-05-27T05:59:28.166Z",
+      "command": "rewrite the predictor using deep learning",
+      "plan": {
+        "task": "Rewrite predictor using deep learning",
+        "files": [
+          "Predictor.kt",
+          "Model.kt",
+          "DeepLearningModel.kt"
+        ],
+        "changes": [
+          "Replace existing predictor logic with deep learning implementation",
+          "Update model architecture to support deep learning"
+        ],
+        "risk": "HIGH",
+        "estimatedLines": 500,
+        "roadmapConflict": true,
+        "conflictMessage": "Rewriting the predictor using deep learning may introduce new features and instability, conflicting with the current Phase 1 stabilization goals. Founder approval is required to proceed with this task."
+      },
+      "approval": "REQUIRED",
+      "execution_result": "PLANNED",
+      "commit_hash": null
+    },
+    {
+      "timestamp": "2026-05-27T05:59:28.837Z",
+      "command": "rewrite the predictor using deep learning",
+      "plan": {
+        "task": "Rewrite predictor using deep learning",
+        "files": [
+          "Predictor.kt",
+          "Model.kt",
+          "DeepLearningModel.kt"
+        ],
+        "changes": [
+          "Replace existing predictor logic with deep learning implementation",
+          "Integrate deep learning model with keyboard functionality"
+        ],
+        "risk": "MEDIUM",
+        "estimatedLines": 500,
+        "roadmapConflict": true,
+        "conflictMessage": "Rewriting the predictor using deep learning may introduce new features and instability, conflicting with the current Phase 1 stabilization goals. Founder approval is required to proceed with this task."
+      },
+      "approval": "REQUIRED",
+      "execution_result": "PLANNED",
+      "commit_hash": null
+    }
+  ],
   "milestones": [],
   "learned_preferences": [],
   "conversation_summaries": []
