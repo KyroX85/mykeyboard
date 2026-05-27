@@ -122,8 +122,12 @@ class KeyboardService : InputMethodService() {
     private var swipePressedButton: Button? = null
     private val recentEmojis = ArrayList<String>(40)
     private val emojiSearchIndex = HashMap<String, String>(512)
+    private val emojiSearchCorpus = ArrayList<String>(512)
     private val emojiGlyphPaint by lazy { Paint(Paint.ANTI_ALIAS_FLAG) }
     private val emojiSearchQuery = StringBuilder()
+    private var emojiSearchApplyRunnable: Runnable? = null
+    private var emojiSearchCategoriesSnapshot: List<KeyboardSymbols.EmojiCategory> = emptyList()
+    private var emojiSearchApplyCallback: ((List<String>) -> Unit)? = null
     private val swipeTracker by lazy {
         SwipeGestureTracker(
             activationSlopPx = dp(SWIPE_ACTIVATION_SLOP_DP).toFloat(),
@@ -166,6 +170,12 @@ class KeyboardService : InputMethodService() {
         Thread(runnable, "KeyboardSuggestions").apply { isDaemon = true }
     }
     private var suggestionLookupFuture: Future<*>? = null
+    private var autocorrectPrefetchFuture: Future<*>? = null
+    private var autocorrectGeneration = 0
+    private var autocorrectPrefetchWord: String? = null
+    private var autocorrectPrefetchPreviousWord: String? = null
+    private var autocorrectPrefetchResult: String? = null
+    private var swipeResolveGeneration = 0
     private val cachedKeyBounds = mutableMapOf<Button, CachedKeyBounds>()
     private var cachedPanelScreenX = 0
     private var cachedPanelScreenY = 0
@@ -212,6 +222,7 @@ class KeyboardService : InputMethodService() {
         const val SWIPE_ACTIVATION_SLOP_DP = 18
         const val SWIPE_SAMPLE_DISTANCE_DP = 5
         const val SWIPE_RESOLVE_WARN_MS = 32L
+        const val EMOJI_SEARCH_DEBOUNCE_MS = 70L
         const val SHIFT_LONG_PRESS_DELAY_MS = 300L
         const val SYMBOL_LONG_PRESS_DELAY_MS = 230L
         const val SUGGESTION_QUERY_UNSET = "\u0000"
@@ -393,9 +404,7 @@ class KeyboardService : InputMethodService() {
             ).apply {
                 setMargins(sizing.keyHorizontalMarginPx, 0, sizing.keyHorizontalMarginPx, 0)
             }
-            setOnClickListener {
-                commitNumberKey(key)
-            }
+            setOnTouchListener { view, event -> handleTouch(view as Button, key, event) }
         }
     }
 
@@ -466,26 +475,17 @@ class KeyboardService : InputMethodService() {
         emojiSearchInput.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                val query = s?.toString()?.trim().orEmpty()
-                currentEmojis = if (query.isEmpty()) {
-                    categories.getOrNull(selectedEmojiCategoryIndex)?.emojis.orEmpty()
-                } else {
-                    filterEmojis(query, categories)
-                }
-                emojiAdapter.updateEmojis(currentEmojis)
+                applyEmojiQuery(s?.toString().orEmpty())
             }
             override fun afterTextChanged(s: Editable?) = Unit
         })
-        setupEmojiSearchKeys {
-            val query = emojiSearchQuery.toString()
-            val trimmed = query.trim()
-            currentEmojis = if (trimmed.isEmpty()) {
-                categories.getOrNull(selectedEmojiCategoryIndex)?.emojis.orEmpty()
-            } else {
-                filterEmojis(trimmed, categories)
-            }
-            emojiSearchInput.setText(query)
+        emojiSearchApplyCallback = { filtered ->
+            currentEmojis = filtered
             emojiAdapter.updateEmojis(currentEmojis)
+        }
+        setupEmojiSearchKeys {
+            emojiSearchInput.setText(emojiSearchQuery.toString())
+            emojiSearchInput.setSelection(emojiSearchInput.text?.length ?: 0)
         }
 
         fun rebuildCategoryTabs() {
@@ -513,6 +513,7 @@ class KeyboardService : InputMethodService() {
                         selectedEmojiCategoryIndex = index
                         emojiSearchQuery.clear()
                         emojiSearchInput.setText("")
+                        emojiSearchInput.clearFocus()
                         currentEmojis = category.emojis
                         emojiAdapter.updateEmojis(currentEmojis)
                         for (childIndex in 0 until emojiCategoryBar.childCount) {
@@ -525,6 +526,7 @@ class KeyboardService : InputMethodService() {
             }
             currentEmojis = categories.getOrNull(selectedEmojiCategoryIndex)?.emojis.orEmpty()
             rebuildEmojiSearchIndex(categories)
+            emojiSearchCategoriesSnapshot = categories
             emojiAdapter.updateEmojis(currentEmojis)
         }
         rebuildCategoryTabs()
@@ -615,12 +617,10 @@ class KeyboardService : InputMethodService() {
         return output
     }
 
-    private fun filterEmojis(query: String, categories: List<KeyboardSymbols.EmojiCategory>): List<String> {
+    private fun filterEmojis(query: String): List<String> {
         val lower = query.lowercase()
         val terms = lower.split(" ").filter { it.isNotBlank() }
-        val all = LinkedHashSet<String>()
-        categories.forEach { category -> all.addAll(category.emojis) }
-        return all.filter { emoji ->
+        return emojiSearchCorpus.filter { emoji ->
             val hint = emojiSearchIndex[emoji] ?: emojiSearchHint(emoji)
             if (terms.isEmpty()) {
                 hint.contains(lower)
@@ -632,6 +632,8 @@ class KeyboardService : InputMethodService() {
 
     private fun rebuildEmojiSearchIndex(categories: List<KeyboardSymbols.EmojiCategory>) {
         emojiSearchIndex.clear()
+        emojiSearchCorpus.clear()
+        val seen = HashSet<String>(512)
         categories.forEachIndexed { index, category ->
             val categoryHint = when {
                 category.icon == "\uD83D\uDD52" -> "recent"
@@ -643,11 +645,27 @@ class KeyboardService : InputMethodService() {
                 else -> "symbol flag"
             }
             category.emojis.forEach { emoji ->
+                if (seen.add(emoji)) {
+                    emojiSearchCorpus.add(emoji)
+                }
                 val explicit = emojiSearchHint(emoji)
                 emojiSearchIndex[emoji] =
                     if (explicit == "emoji") "$categoryHint emoji" else "$explicit $categoryHint"
             }
         }
+    }
+
+    private fun applyEmojiQuery(rawQuery: String) {
+        emojiSearchApplyRunnable?.let(mainHandler::removeCallbacks)
+        val trimmed = rawQuery.trim()
+        emojiSearchApplyRunnable = Runnable {
+            val filtered = if (trimmed.isEmpty()) {
+                emojiSearchCategoriesSnapshot.getOrNull(selectedEmojiCategoryIndex)?.emojis.orEmpty()
+            } else {
+                filterEmojis(trimmed)
+            }
+            emojiSearchApplyCallback?.invoke(filtered)
+        }.also { mainHandler.postDelayed(it, EMOJI_SEARCH_DEBOUNCE_MS) }
     }
 
     private fun emojiCategoryAccessibilityLabel(
@@ -1589,7 +1607,7 @@ class KeyboardService : InputMethodService() {
     ): Boolean {
         if (ic == null || currentWord.isEmpty()) return false
         val typedWord = currentWord.toString()
-        val correction = predictor.getAutocorrection(typedWord, previousWord) ?: return false
+        val correction = consumePrefetchedAutocorrection(typedWord, previousWord) ?: return false
         if (correction == typedWord.lowercase()) return false
 
         if (!deleteSurroundingTextSafely(ic, typedWord.length, 0, "autocorrect")) return false
@@ -1673,13 +1691,39 @@ class KeyboardService : InputMethodService() {
         } else {
             null
         }
-        val resolveStartedAt = SystemClock.elapsedRealtime()
-        val candidates = predictor.getSwipeSuggestions(
-            sequences = sequences,
-            previousWord = previousWord,
-            debugReporter = debugReporter
-        )
-        val resolveMs = SystemClock.elapsedRealtime() - resolveStartedAt
+        val generation = ++swipeResolveGeneration
+        scope.launch {
+            val resolveStartedAt = SystemClock.elapsedRealtime()
+            val candidates = predictor.getSwipeSuggestions(
+                sequences = sequences,
+                previousWord = previousWord,
+                debugReporter = debugReporter
+            )
+            val resolveMs = SystemClock.elapsedRealtime() - resolveStartedAt
+            mainHandler.post {
+                if (generation != swipeResolveGeneration) return@post
+                applySwipeSuggestionResult(
+                    ic = ic,
+                    gesture = gesture,
+                    trailDiagnostics = trailDiagnostics,
+                    candidates = candidates,
+                    previousWord = previousWord,
+                    resolveMs = resolveMs,
+                    sourceSequence = sequences.first()
+                )
+            }
+        }
+    }
+
+    private fun applySwipeSuggestionResult(
+        ic: InputConnection,
+        gesture: SwipeGestureResult,
+        trailDiagnostics: SwipeTrailDiagnostics?,
+        candidates: List<String>,
+        previousWord: String?,
+        resolveMs: Long,
+        sourceSequence: String
+    ) {
         if (resolveMs > SWIPE_RESOLVE_WARN_MS) {
             Log.w(
                 SWIPE_DEBUG_TAG,
@@ -1690,13 +1734,13 @@ class KeyboardService : InputMethodService() {
         logSwipeFinishDiagnostics(gesture, trailDiagnostics, candidateCount = candidates.size, winner = suggestion)
         if (suggestion == null) {
             metrics.recordSwipeResolved(gesture.rawSequence.length, candidateCount = candidates.size, committed = false)
-            Log.w(SWIPE_DEBUG_TAG, "commit skipped: no candidates sequence=${sequences.first()} previous=$previousWord")
+            Log.w(SWIPE_DEBUG_TAG, "commit skipped: no candidates sequence=$sourceSequence previous=$previousWord")
             return
         }
         val committedWord = suggestion.trim().lowercase()
         if (committedWord.length < 2) {
             metrics.recordSwipeResolved(gesture.rawSequence.length, candidateCount = candidates.size, committed = false)
-            Log.w(SWIPE_DEBUG_TAG, "commit skipped: invalid candidate=$suggestion sequence=${sequences.first()}")
+            Log.w(SWIPE_DEBUG_TAG, "commit skipped: invalid candidate=$suggestion sequence=$sourceSequence")
             return
         }
 
@@ -1726,12 +1770,10 @@ class KeyboardService : InputMethodService() {
         currentWord.clear()
         lastAcceptedSuggestion = committedWord
         lastAcceptedSuggestionPreviousWord = previousWord
-
         if (shiftState == ShiftState.ON && !isShiftLongPressing) {
             shiftState = ShiftState.OFF
             updateShiftUI()
         }
-
         updateSuggestions()
         maybeFlushMetrics()
     }
@@ -1772,6 +1814,7 @@ class KeyboardService : InputMethodService() {
             return
         }
 
+        prefetchAutocorrection(prefix, previousWord)
         lastSuggestionQueryPrefix = prefix
         lastSuggestionQueryPreviousWord = stablePrevious
         suggestionLookupFuture?.cancel(true)
@@ -1781,6 +1824,36 @@ class KeyboardService : InputMethodService() {
                 publishSuggestionsIfCurrent(prefix, stablePrevious, suggestions)
             }
         }
+    }
+
+    private fun prefetchAutocorrection(prefix: String, previousWord: String?) {
+        autocorrectGeneration += 1
+        autocorrectPrefetchFuture?.cancel(true)
+        autocorrectPrefetchWord = null
+        autocorrectPrefetchPreviousWord = null
+        autocorrectPrefetchResult = null
+        if (prefix.isEmpty()) return
+
+        val requestGeneration = autocorrectGeneration
+        autocorrectPrefetchFuture = suggestionExecutor.submit {
+            val correction = predictor.getAutocorrection(prefix, previousWord)
+            mainHandler.post {
+                if (requestGeneration != autocorrectGeneration) return@post
+                autocorrectPrefetchWord = prefix
+                autocorrectPrefetchPreviousWord = previousWord
+                autocorrectPrefetchResult = correction
+            }
+        }
+    }
+
+    private fun consumePrefetchedAutocorrection(typedWord: String, previousWord: String?): String? {
+        if (typedWord != autocorrectPrefetchWord) return null
+        if (previousWord != autocorrectPrefetchPreviousWord) return null
+        val value = autocorrectPrefetchResult
+        autocorrectPrefetchWord = null
+        autocorrectPrefetchPreviousWord = null
+        autocorrectPrefetchResult = null
+        return value
     }
 
     private fun publishSuggestionsIfCurrent(
@@ -1818,6 +1891,8 @@ class KeyboardService : InputMethodService() {
         cancelSwipeGesture()
         hapticTapGate.reset()
         isLongPressActive = false
+        emojiSearchApplyRunnable?.let(mainHandler::removeCallbacks)
+        emojiSearchApplyRunnable = null
         if (isShiftLongPressing) {
             restoreShiftAfterLongPress()
         }
@@ -1851,6 +1926,11 @@ class KeyboardService : InputMethodService() {
         pendingSuggestionImpression = false
         lastAcceptedSuggestion = null
         lastAcceptedSuggestionPreviousWord = null
+        autocorrectGeneration += 1
+        autocorrectPrefetchFuture?.cancel(true)
+        autocorrectPrefetchWord = null
+        autocorrectPrefetchPreviousWord = null
+        autocorrectPrefetchResult = null
         if (::predictor.isInitialized) {
             predictor.resetSessionMemory()
         }
@@ -2174,22 +2254,10 @@ class KeyboardService : InputMethodService() {
             return
         }
 
-        val viewHandled = source.performHapticFeedback(
+        source.performHapticFeedback(
             HapticFeedbackConstants.KEYBOARD_TAP,
             HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING
         )
-
-        val profile = HapticProfile.forKey(key)
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            cachedVibrator.cancel()
-            vibrationEffectFor(profile)?.let(cachedVibrator::vibrate)
-        } else if (!viewHandled) {
-            @Suppress("DEPRECATION")
-            cachedVibrator.cancel()
-            @Suppress("DEPRECATION")
-            cachedVibrator.vibrate(profile.durationMs)
-        }
     }
 
     private fun resolveVibrator(): Vibrator =
@@ -2271,6 +2339,7 @@ class KeyboardService : InputMethodService() {
         maybeFlushMetrics(force = true)
         metrics.endSession()
         suggestionLookupFuture?.cancel(true)
+        autocorrectPrefetchFuture?.cancel(true)
         suggestionExecutor.shutdownNow()
         scope.cancel()
         super.onDestroy()

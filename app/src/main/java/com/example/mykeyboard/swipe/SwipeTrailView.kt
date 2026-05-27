@@ -23,6 +23,7 @@ class SwipeTrailView @JvmOverloads constructor(
         strokeWidth = resources.displayMetrics.density * 5f
     }
     private var pointCount = 0
+    private var pointHead = 0
     private var totalPointSamples = 0
     private var totalDistancePx = 0f
     private var capHit = false
@@ -38,6 +39,7 @@ class SwipeTrailView @JvmOverloads constructor(
         animate().cancel()
         alpha = 1f
         pointCount = 0
+        pointHead = 0
         totalPointSamples = 0
         totalDistancePx = 0f
         capHit = false
@@ -46,20 +48,23 @@ class SwipeTrailView @JvmOverloads constructor(
 
     fun addPoint(x: Float, y: Float) {
         if (pointCount > 0) {
-            val previousX = xs[pointCount - 1]
-            val previousY = ys[pointCount - 1]
+            val previousIndex = circularIndex(pointCount - 1)
+            val previousX = xs[previousIndex]
+            val previousY = ys[previousIndex]
             totalDistancePx += kotlin.math.sqrt(distanceSq(previousX, previousY, x, y).toDouble()).toFloat()
         }
         totalPointSamples++
         if (pointCount < MAX_POINTS) {
-            xs[pointCount] = x
-            ys[pointCount] = y
+            val insertIndex = circularIndex(pointCount)
+            xs[insertIndex] = x
+            ys[insertIndex] = y
             pointCount++
         } else {
             capHit = true
-            rollTail()
-            xs[MAX_POINTS - 1] = x
-            ys[MAX_POINTS - 1] = y
+            pointHead = (pointHead + 1) % MAX_POINTS
+            val tailIndex = circularIndex(pointCount - 1)
+            xs[tailIndex] = x
+            ys[tailIndex] = y
         }
         postInvalidateOnAnimation()
     }
@@ -71,6 +76,7 @@ class SwipeTrailView @JvmOverloads constructor(
             .setDuration(FADE_MS)
             .withEndAction {
                 pointCount = 0
+                pointHead = 0
                 postInvalidateOnAnimation()
             }
             .start()
@@ -80,6 +86,7 @@ class SwipeTrailView @JvmOverloads constructor(
         animate().cancel()
         alpha = 0f
         pointCount = 0
+        pointHead = 0
         postInvalidateOnAnimation()
     }
 
@@ -96,22 +103,21 @@ class SwipeTrailView @JvmOverloads constructor(
         if (pointCount < 2) return
 
         path.reset()
-        path.moveTo(xs[0], ys[0])
+        val firstIndex = circularIndex(0)
+        path.moveTo(xs[firstIndex], ys[firstIndex])
         for (index in 1 until pointCount) {
-            val midX = (xs[index - 1] + xs[index]) * 0.5f
-            val midY = (ys[index - 1] + ys[index]) * 0.5f
-            path.quadTo(xs[index - 1], ys[index - 1], midX, midY)
+            val prevIndex = circularIndex(index - 1)
+            val currentIndex = circularIndex(index)
+            val midX = (xs[prevIndex] + xs[currentIndex]) * 0.5f
+            val midY = (ys[prevIndex] + ys[currentIndex]) * 0.5f
+            path.quadTo(xs[prevIndex], ys[prevIndex], midX, midY)
         }
-        path.lineTo(xs[pointCount - 1], ys[pointCount - 1])
+        val lastIndex = circularIndex(pointCount - 1)
+        path.lineTo(xs[lastIndex], ys[lastIndex])
         canvas.drawPath(path, paint)
     }
 
-    private fun rollTail() {
-        for (index in 1 until MAX_POINTS) {
-            xs[index - 1] = xs[index]
-            ys[index - 1] = ys[index]
-        }
-    }
+    private fun circularIndex(offset: Int): Int = (pointHead + offset) % MAX_POINTS
 
     private fun distanceSq(firstX: Float, firstY: Float, secondX: Float, secondY: Float): Float {
         val dx = secondX - firstX

@@ -38,6 +38,7 @@ class SwipeGestureTracker(
 
     var pointCount: Int = 0
         private set
+    private var pointHead = 0
 
     val keySequence: String
         get() = sequence.toString()
@@ -128,6 +129,7 @@ class SwipeGestureTracker(
     private fun reset() {
         isActive = false
         pointCount = 0
+        pointHead = 0
         sequence.setLength(0)
         weightedSequence.setLength(0)
         lastKey = NO_KEY
@@ -148,30 +150,28 @@ class SwipeGestureTracker(
 
     private fun appendPoint(x: Float, y: Float) {
         if (pointCount > 0) {
-            val previousX = xs[pointCount - 1]
-            val previousY = ys[pointCount - 1]
+            val previousIndex = circularIndex(pointCount - 1)
+            val previousX = xs[previousIndex]
+            val previousY = ys[previousIndex]
             totalDistancePx += kotlin.math.sqrt(distanceSq(previousX, previousY, x, y).toDouble()).toFloat()
         }
         totalPointSamples++
         if (pointCount < maxPoints) {
-            xs[pointCount] = x
-            ys[pointCount] = y
+            val insertIndex = circularIndex(pointCount)
+            xs[insertIndex] = x
+            ys[insertIndex] = y
             pointCount++
             return
         }
 
         pointCapHit = true
-        rollTail()
-        xs[maxPoints - 1] = x
-        ys[maxPoints - 1] = y
+        pointHead = (pointHead + 1) % maxPoints
+        val tailIndex = circularIndex(pointCount - 1)
+        xs[tailIndex] = x
+        ys[tailIndex] = y
     }
 
-    private fun rollTail() {
-        for (index in 1 until maxPoints) {
-            xs[index - 1] = xs[index]
-            ys[index - 1] = ys[index]
-        }
-    }
+    private fun circularIndex(offset: Int): Int = (pointHead + offset) % maxPoints
 
     private fun appendKey(key: Char): Boolean {
         if (key == NO_KEY || sequence.length >= maxSequenceLength) return false
