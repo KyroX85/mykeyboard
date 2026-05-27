@@ -1,0 +1,11 @@
+{
+  "version": "1.0",
+  "privacy": "aggregate-only; no raw user text",
+  "subsystemTrustHistory": [],
+  "recurringRegressions": [],
+  "rejectedUnsafePatterns": [],
+  "recurringFrictionSummaries": [],
+  "retentionRiskSummaries": [],
+  "validatedImprovements": []
+}
+

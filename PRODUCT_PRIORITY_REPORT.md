@@ -1,0 +1,11 @@
+## PRODUCT_PRIORITY_REPORT
+- WHAT CHANGED: Added `intelligence/product-priority-engine.js` with retention-first priority buckets.
+- WHAT WAS VERIFIED: Node import and hardening test coverage.
+- WHAT FAILED: None in this pass.
+- WHAT REMAINS THEORETICAL: Live user retention uplift from prioritization.
+- runtime impact: negligible (decision-layer only)
+- retention impact: positive prioritization discipline
+- trust impact: positive (less vanity work)
+- regression risk: low
+- rollback complexity: low
+- unresolved weaknesses: priority quality depends on signal quality
