@@ -167,6 +167,9 @@ class FoundationalDebtGuardrailsTest {
         assertTrue(service.contains("emojiGrid.numColumns = 9"))
         assertTrue(service.contains("textSize = 23f"))
         assertTrue(layout.contains("android:layout_height=\"204dp\""))
+        assertFalse(layout.contains("Search emojis"))
+        assertFalse(layout.contains("emojiSearchInput"))
+        assertFalse(layout.contains("emojiSearchKeys"))
     }
 
     @Test
