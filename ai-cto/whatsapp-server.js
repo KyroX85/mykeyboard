@@ -11,9 +11,11 @@ const {
   rememberFounderInteraction,
   maybeCommitFounderMemory
 } = require('./whatsapp/founder-memory');
+const { createMetricsIngestHandler } = require('./product-metrics-ingest');
 const { execFileSync } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
+const REPO_ROOT = process.env.ARITENIS_REPO_ROOT || process.cwd();
 const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || '';
 const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN || '';
 const FOUNDER_WHATSAPP_NUMBER = normalizePhone(process.env.FOUNDER_WHATSAPP_NUMBER || '');
@@ -208,6 +210,7 @@ function maskPhoneForConsole(phone) {
 function createApp() {
   const app = express();
   app.set('trust proxy', true);
+  app.use(express.json({ limit: '32kb' }));
   app.use(express.urlencoded({ extended: false }));
 
   app.get('/healthz', (req, res) => {
@@ -251,6 +254,8 @@ function createApp() {
       diagnostics
     });
   });
+
+  app.post('/metrics/ingest', createMetricsIngestHandler({ root: REPO_ROOT }));
 
   app.post('/twilio/whatsapp', async (req, res) => {
     const startedAt = Date.now();
@@ -535,15 +540,12 @@ function runDeferredVisionExecution({ requestId, entry, incoming }) {
   });
 }
 
-async function sendTwilioWhatsAppMessage({ accountSid, from, to, body }) {
+async function sendTwilioWhatsAppMessage({ accountSid, from, to, body, mediaUrls = [] }) {
   const sid = accountSid || process.env.TWILIO_ACCOUNT_SID || '';
   if (!sid) throw new Error('TWILIO_ACCOUNT_SID or inbound AccountSid is required for deferred WhatsApp replies.');
   if (!TWILIO_AUTH_TOKEN) throw new Error('TWILIO_AUTH_TOKEN is required for deferred WhatsApp replies.');
   if (!from || !to) throw new Error('Twilio From and To are required for deferred WhatsApp replies.');
-  const params = new URLSearchParams();
-  params.set('From', from);
-  params.set('To', to);
-  params.set('Body', body);
+  const params = buildTwilioMessageParams({ from, to, body, mediaUrls });
   const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(sid)}/Messages.json`, {
     method: 'POST',
     headers: {
@@ -557,6 +559,17 @@ async function sendTwilioWhatsAppMessage({ accountSid, from, to, body }) {
     throw new Error(`Twilio send failed ${response.status}: ${text.slice(0, 200)}`);
   }
   return response.json();
+}
+
+function buildTwilioMessageParams({ from, to, body, mediaUrls = [] } = {}) {
+  const params = new URLSearchParams();
+  params.set('From', from || '');
+  params.set('To', to || '');
+  params.set('Body', body || '');
+  for (const mediaUrl of Array.isArray(mediaUrls) ? mediaUrls : [mediaUrls]) {
+    if (mediaUrl) params.append('MediaUrl', String(mediaUrl));
+  }
+  return params;
 }
 
 if (require.main === module) {
@@ -575,6 +588,7 @@ if (require.main === module) {
 
 module.exports = {
   createApp,
+  buildTwilioMessageParams,
   validateTwilioSignature,
   twiml,
   twimlMessages,

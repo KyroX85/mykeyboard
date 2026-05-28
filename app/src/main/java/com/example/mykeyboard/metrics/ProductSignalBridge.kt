@@ -12,7 +12,10 @@ import java.util.concurrent.Executors
  */
 object ProductSignalBridge {
     private const val TAG = "ProductSignalBridge"
-    private const val INGEST_URL = "http://localhost:3000/metrics/ingest"
+    private val INGEST_URLS = listOf(
+        "http://10.0.2.2:3000/metrics/ingest",
+        "http://localhost:3000/metrics/ingest"
+    )
     private val executor = Executors.newSingleThreadExecutor()
 
     fun emitAggregateSignal(snapshot: KeyboardUsageSnapshot) {
@@ -45,9 +48,22 @@ object ProductSignalBridge {
     }
 
     private fun sendSignal(json: JSONObject) {
+        var delivered = false
+        for (ingestUrl in INGEST_URLS) {
+            if (trySendSignal(json, ingestUrl)) {
+                delivered = true
+                break
+            }
+        }
+        if (!delivered) {
+            Log.w(TAG, "No local product evidence ingestion endpoint accepted signal")
+        }
+    }
+
+    private fun trySendSignal(json: JSONObject, ingestUrl: String): Boolean {
         var connection: HttpURLConnection? = null
         try {
-            val url = URL(INGEST_URL)
+            val url = URL(ingestUrl)
             connection = url.openConnection() as HttpURLConnection
             connection.requestMethod = "POST"
             connection.setRequestProperty("Content-Type", "application/json")
@@ -61,9 +77,12 @@ object ProductSignalBridge {
             val responseCode = connection.responseCode
             if (responseCode != HttpURLConnection.HTTP_OK && responseCode != HttpURLConnection.HTTP_NO_CONTENT) {
                 Log.w(TAG, "Ingestion server returned code: $responseCode")
+                return false
             }
+            return true
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to send signal: ${e.message}")
+            Log.d(TAG, "Product signal endpoint unavailable: ${e.message}")
+            return false
         } finally {
             connection?.disconnect()
         }
