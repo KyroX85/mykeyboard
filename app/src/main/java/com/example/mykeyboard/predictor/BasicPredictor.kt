@@ -10,6 +10,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.json.JSONObject
+import rita.RiTa
+import java.util.regex.Pattern
 
 class BasicPredictor internal constructor(
     private val prefs: SharedPreferences,
@@ -64,6 +66,9 @@ class BasicPredictor internal constructor(
         private const val MAX_SWIPE_SEQUENCE_VARIANTS = 3
         private const val DEBUG_POOL_WORD_LIMIT = 8
         private const val MAX_AUTOCORRECT_SCAN = 128
+        private const val EXTERNAL_DICTIONARY_PREFIX_MIN_LENGTH = 4
+        private const val EXTERNAL_DICTIONARY_LIMIT = 6
+        private const val EXTERNAL_DICTIONARY_COUNT = 6
         private const val MIN_LEARN_WORD_LENGTH = 2
         private const val MAX_LEARN_WORD_LENGTH = 24
         private const val MANUAL_LEARN_WEIGHT = 1
@@ -336,6 +341,7 @@ class BasicPredictor internal constructor(
                 collectPrefixMatches(prefix, prev, contextual, CandidateSource.CONTEXTUAL, ranked)
                 collectPrefixMatches(prefix, prev, sessionWordCounts, CandidateSource.SESSION, ranked)
                 collectPrefixMatches(prefix, prev, BUILT_IN_WORD_COUNTS, CandidateSource.UNIGRAM, ranked)
+                collectExternalDictionaryPrefixMatches(prefix, prev, ranked)
                 collectPrefixMatches(prefix, prev, unigramCounts, CandidateSource.UNIGRAM, ranked)
                 collectTypoMatches(prefix, prev, contextual, CandidateSource.CONTEXTUAL, ranked)
                 collectTypoMatches(prefix, prev, BUILT_IN_WORD_COUNTS, CandidateSource.UNIGRAM, ranked)
@@ -706,6 +712,40 @@ class BasicPredictor internal constructor(
         }
     }
 
+    private fun collectExternalDictionaryPrefixMatches(
+        prefix: String,
+        previousWord: String,
+        output: MutableMap<String, CandidateScore>
+    ) {
+        if (prefix.length < EXTERNAL_DICTIONARY_PREFIX_MIN_LENGTH) return
+
+        val options = mapOf(
+            "limit" to EXTERNAL_DICTIONARY_LIMIT,
+            "minLength" to prefix.length,
+            "maxLength" to MAX_LEARN_WORD_LENGTH,
+            "shuffle" to false
+        )
+        val pattern = Pattern.compile("^${Pattern.quote(prefix)}[a-z]*$")
+        val words = try {
+            RiTa.search(pattern, options)
+        } catch (e: RuntimeException) {
+            emptyArray<String>()
+        }
+
+        for (rawWord in words) {
+            val word = normalizeWordForLearning(rawWord) ?: continue
+            if (!word.startsWith(prefix) || isLoopingSuggestion(previousWord, word)) continue
+            val score = wordTrustScore(
+                word,
+                previousWord,
+                EXTERNAL_DICTIONARY_COUNT,
+                CandidateSource.EXTERNAL,
+                false
+            )
+            addCandidate(output, word, score, EXTERNAL_DICTIONARY_COUNT, false)
+        }
+    }
+
     private fun collectTypoMatches(
         prefix: String,
         previousWord: String,
@@ -852,6 +892,7 @@ class BasicPredictor internal constructor(
         val sourceBoost = when (source) {
             CandidateSource.CONTEXTUAL -> 36
             CandidateSource.SESSION -> 100
+            CandidateSource.EXTERNAL -> 8
             CandidateSource.UNIGRAM -> 12
         }
         val typoPenalty = if (typoMatch) 14 else 0
@@ -859,6 +900,7 @@ class BasicPredictor internal constructor(
         return base * when (source) {
             CandidateSource.CONTEXTUAL -> 8
             CandidateSource.SESSION -> 10
+            CandidateSource.EXTERNAL -> 3
             CandidateSource.UNIGRAM -> 4
         } + sourceBoost + acceptedBoost + sessionBoost + sessionPairBoost - rejectedPenalty - typoPenalty
     }
@@ -1479,6 +1521,7 @@ class BasicPredictor internal constructor(
     private enum class CandidateSource {
         CONTEXTUAL,
         SESSION,
+        EXTERNAL,
         UNIGRAM
     }
 }

@@ -74,6 +74,22 @@ class BasicPredictorTest {
     }
 
     @Test
+    fun externalDictionarySuppliesLongPrefixMatchesWithoutBeatingRepeatedUserWords() {
+        val predictor = newPredictor()
+        predictor.clearModel()
+
+        val dictionarySuggestions = predictor.getSuggestions("conseq")
+        assertTrue(dictionarySuggestions.contains("consequence") || dictionarySuggestions.contains("consequences"))
+
+        predictor.learnWord("consequence")
+        repeat(3) {
+            predictor.learnWord("conjuring")
+        }
+
+        assertEquals("conjuring", predictor.getSuggestions("con").firstOrNull())
+    }
+
+    @Test
     fun builtInDictionarySupportsSwipeCandidates() {
         val predictor = newPredictor()
 
