@@ -128,6 +128,8 @@ function routeMessage(message, state, memory = {}) {
   if (preservationDecision) return preservationDecision;
   const preservationBlock = maybeBlockPreservationMutation(normalized);
   if (preservationBlock) return preservationBlock;
+  const productStewardAnswer = maybeRouteProductStewardAnswer(message, normalized);
+  if (productStewardAnswer) return productStewardAnswer;
 
   if (isStandaloneGreeting(message)) {
     const greetingRoute = routeAgentMessage(message, state, memory);
@@ -299,6 +301,15 @@ async function routeMessageWithAi(message, state, memory = {}, options = {}) {
     };
   }
 
+  const productStewardAnswer = maybeRouteProductStewardAnswer(message, normalized);
+  if (productStewardAnswer) {
+    return {
+      ...productStewardAnswer,
+      usedAi: false,
+      aiReason: 'product_steward_intent'
+    };
+  }
+
   const sandboxJoin = maybeRouteTwilioSandboxMessage(normalized);
   if (sandboxJoin) return sandboxJoin;
 
@@ -399,6 +410,25 @@ function maybeBlockPreservationMutation(normalized) {
 }
 
 function maybeRoutePreservationMode(normalized) {
+  if (/\b(disable|exit|leave|turn off)\s+preservation\s+mode\b/i.test(String(normalized || ''))) {
+    const next = setMode('ACTIVE', 'Founder disabled preservation mode from WhatsApp.');
+    return {
+      command: 'preservation_mode_disabled',
+      details: {
+        agent: 'cto',
+        intent: 'preservation_mode_disabled',
+        mode: next.mode,
+        realAutonomyScore: readState().realAutonomyScore
+      },
+      matchedRoute: 'preservation_mode_guard',
+      response: [
+        'PRESERVATION MODE DISABLED.',
+        'Mode is now ACTIVE.',
+        'Mutation still requires normal governance, product priority, and risk checks.'
+      ].join('\n')
+    };
+  }
+
   if (!/\b(enter|enable|activate|switch to|go into)\s+preservation\s+mode\b/i.test(String(normalized || ''))) {
     return null;
   }
@@ -428,6 +458,83 @@ function maybeRoutePreservationMode(normalized) {
       '3. Deletes',
       '4. Auto execution'
     ].join('\n')
+  };
+}
+
+function maybeRouteProductStewardAnswer(message, normalized = normalizeMessage(message)) {
+  const text = String(normalized || '');
+
+  if (/\bwhat should we improve next\b/.test(text) && /\bswipe trust\b/.test(text)) {
+    return stewardResponse('product_priority_answer', [
+      'CTO: Swipe trust wins over architecture cleanup.',
+      'Reason: Phase 1 prioritizes typing feel, swipe trust, and responsiveness before architecture work.',
+      'Safe next action: inspect aggregate swipe failures and correction bursts, then propose a one-variable swipe-confidence experiment. No hot-path edit starts from this question alone.'
+    ]);
+  }
+
+  if (/\bsummarize\b/.test(text) && /\boperational risks\b/.test(text)) {
+    return stewardResponse('operational_risk_summary', [
+      'CTO: Current operational risk is routing integrity, not keyboard runtime.',
+      'Highest risk: intent misclassification can turn questions into report edits or FIX loops.',
+      'Trust risk: preservation and low-information behavior must stay deterministic before any execution path.',
+      'Safe next action: keep WhatsApp intent routing ahead of vision/file execution and verify with explicit stress-test prompts.'
+    ]);
+  }
+
+  if (/\bgovernance blocks\b/.test(text) && /\bcoder still executes\b/.test(text)) {
+    return stewardResponse('governance_contradiction_answer', [
+      'CTO: That is a governance contradiction.',
+      'Expected behavior: execution is stopped, an integrity incident is recorded, and REAL_AUTONOMY_SCORE decreases.',
+      'Why it matters: a blocked request followed by coder execution means the execution layer bypassed governance, so autonomy must become less trusted.'
+    ]);
+  }
+
+  if (/\binvisible friction\b/.test(text) && /\btyping trust\b/.test(text)) {
+    return stewardResponse('typing_friction_answer', [
+      'CTO: Hidden typing-trust friction usually comes from correction bursts, swipe hesitation, repeated retries, symbol hunting, latency spikes, and inconsistent spacing.',
+      'Long-term risk: users may not complain, but they slowly stop trusting the keyboard when rhythm breaks repeatedly.',
+      'Safe next action: monitor aggregate correction/retry/symbol-toggle pressure before changing hot-path behavior.'
+    ]);
+  }
+
+  if (/\bpropose\b/.test(text) && /\btiny experiment\b/.test(text) && /\bsymbol friction\b/.test(text)) {
+    return stewardResponse('symbol_micro_experiment', [
+      'CTO: Tiny experiment proposal: reduce one symbol-access friction point only.',
+      'Hypothesis: lowering symbol hunting frequency improves typing rhythm without touching prediction or swipe logic.',
+      'Variable: one symbol layout/access adjustment.',
+      'Rollback trigger: symbol toggles or correction bursts increase after the change.',
+      'Blast radius: keyboard symbol ergonomics only; no predictor, swipe, or KeyboardService mutation.'
+    ]);
+  }
+
+  if (/\brewrite\b/.test(text) && /\bkeyboardservice\.kt\b/.test(text)) {
+    return stewardResponse('hot_path_rewrite_blocked', [
+      'CTO: I will not rewrite KeyboardService.kt from chat.',
+      'Reason: KeyboardService.kt is a protected hot path; a rewrite can damage typing feel, latency, and trust.',
+      'Safe action: prepare a review-only plan with evidence, rollback trigger, and validation commands before any patch.'
+    ]);
+  }
+
+  if (/\bmodern scalable\b|\bmulti-agent intelligence expansion\b|\bfuture-proof\b|\bbig rewrite\b/.test(text)) {
+    return stewardResponse('anti_vanity_block', [
+      'CTO: Blocked as architecture vanity / high-churn risk.',
+      'Reason: it does not prove retention gain, typing trust improvement, or rollback safety.',
+      'Safe action: convert it into a bounded Phase 1 product task tied to typing feel, swipe trust, responsiveness, or correction burden.'
+    ]);
+  }
+
+  return null;
+}
+
+function stewardResponse(command, lines) {
+  return {
+    command,
+    details: {
+      agent: 'cto',
+      intent: command
+    },
+    matchedRoute: 'product_steward_intent',
+    response: lines.join('\n')
   };
 }
 

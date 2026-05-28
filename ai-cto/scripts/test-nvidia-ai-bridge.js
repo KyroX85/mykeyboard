@@ -282,7 +282,34 @@ async function run() {
   assert.strictEqual(preservationCreate.command, 'preservation_mode_blocked');
   assert.strictEqual(preservationCreate.usedAi, false);
   assert(preservationCreate.response.includes('BLOCKED'));
+  const preservationOff = await routeMessageWithAi('disable preservation mode', {
+    healthScore: 80,
+    momentum: 'MOVING',
+    sections: { risks: [], unresolved: [], approvals: [] },
+    summary: { topRisk: 'none' }
+  }, { recentMessages: [] }, { client, deferLowRiskVisionExecution: true });
+  assert.strictEqual(preservationOff.command, 'preservation_mode_disabled');
+  assert.strictEqual(preservationOff.usedAi, false);
   setMode('ACTIVE', 'test reset');
+
+  const priorityChoice = await routeMessageWithAi('what should we improve next: architecture cleanup or swipe trust?', {
+    healthScore: 80,
+    momentum: 'MOVING',
+    sections: { risks: [], unresolved: [], approvals: [] },
+    summary: { topRisk: 'none' }
+  }, { recentMessages: [] }, { client });
+  assert.strictEqual(priorityChoice.command, 'product_priority_answer');
+  assert.strictEqual(priorityChoice.usedAi, false);
+  assert(!priorityChoice.response.includes('Options:'));
+
+  const operationalRiskSummary = await routeMessageWithAi('summarize today’s operational risks honestly', {
+    healthScore: 80,
+    momentum: 'MOVING',
+    sections: { risks: [], unresolved: [], approvals: [] },
+    summary: { topRisk: 'none' }
+  }, { recentMessages: [] }, { client });
+  assert.strictEqual(operationalRiskSummary.command, 'operational_risk_summary');
+  assert.strictEqual(operationalRiskSummary.usedAi, false);
 
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'cto-ai-bridge-'));
   try {

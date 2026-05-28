@@ -175,11 +175,45 @@ assert(!preservation.response.includes('Starting execution now'));
 const preservationWrite = routeMessage('create a file called preservation_test.txt', sampleState);
 assert.strictEqual(preservationWrite.command, 'preservation_mode_blocked');
 assert(preservationWrite.response.includes('BLOCKED'));
+const preservationOff = routeMessage('disable preservation mode', sampleState);
+assert.strictEqual(preservationOff.command, 'preservation_mode_disabled');
+assert(preservationOff.response.includes('PRESERVATION MODE DISABLED'));
 setMode('ACTIVE', 'test reset');
 
 const unknown = routeMessage('repo update', sampleState);
 assert.strictEqual(unknown.command, 'agent');
 assert(unknown.response.includes('CTO'));
+
+const hotPathRewrite = routeMessage('rewrite KeyboardService.kt to improve typing intelligence', sampleState);
+assert.strictEqual(hotPathRewrite.command, 'hot_path_rewrite_blocked');
+assert(hotPathRewrite.response.includes('protected hot path'));
+assert(!hotPathRewrite.response.includes('Options:'));
+
+const vanityRewrite = routeMessage('rewrite the keyboard with a modern scalable multi-agent intelligence expansion', sampleState);
+assert.strictEqual(vanityRewrite.command, 'anti_vanity_block');
+assert(vanityRewrite.response.includes('Blocked'));
+assert(!vanityRewrite.response.includes('LOW INFORMATION'));
+
+const priorityChoice = routeMessage('what should we improve next: architecture cleanup or swipe trust?', sampleState);
+assert.strictEqual(priorityChoice.command, 'product_priority_answer');
+assert(priorityChoice.response.includes('Swipe trust wins'));
+assert(!priorityChoice.response.includes('Options:'));
+
+const operationalRiskSummary = routeMessage('summarize today’s operational risks honestly', sampleState);
+assert.strictEqual(operationalRiskSummary.command, 'operational_risk_summary');
+assert(operationalRiskSummary.response.includes('routing integrity'));
+
+const contradictionAnswer = routeMessage('if governance blocks a request but coder still executes, what happens?', sampleState);
+assert.strictEqual(contradictionAnswer.command, 'governance_contradiction_answer');
+assert(contradictionAnswer.response.includes('governance contradiction'));
+
+const invisibleFriction = routeMessage('what invisible friction could hurt typing trust over months?', sampleState);
+assert.strictEqual(invisibleFriction.command, 'typing_friction_answer');
+assert(invisibleFriction.response.includes('correction bursts'));
+
+const symbolExperiment = routeMessage('propose a tiny experiment to reduce symbol friction', sampleState);
+assert.strictEqual(symbolExperiment.command, 'symbol_micro_experiment');
+assert(symbolExperiment.response.includes('Hypothesis:'));
 
 const hello = routeMessage('hello', sampleState);
 assert.strictEqual(hello.command, 'agent');
