@@ -7,6 +7,7 @@ This phase adds a lightweight deterministic WhatsApp conversational CTO interfac
 Implemented:
 
 - Twilio webhook endpoint
+- Twilio outbound sender with Meta WhatsApp Business Cloud API fallback
 - Incoming WhatsApp parsing
 - Command router
 - CTO response generator
@@ -48,6 +49,7 @@ Founder WhatsApp
 ```
 
 The webhook does not run the Android build, does not call paid AI APIs, and does not modify the repository.
+Deferred outbound replies and scheduled reports use Twilio first. If Twilio is unconfigured, rate-limited, or returns a send failure, the sender attempts Meta WhatsApp Business Cloud API next when Meta credentials are configured.
 
 ## Files Added
 
@@ -129,6 +131,7 @@ Use the Twilio free WhatsApp Sandbox for Phase 1.
 Required Twilio values:
 
 - Account Auth Token
+- Account SID
 - WhatsApp Sandbox sender
 - Founder WhatsApp number
 - Incoming message webhook URL:
@@ -138,6 +141,25 @@ https://<render-service-name>.onrender.com/twilio/whatsapp
 ```
 
 Set the Twilio webhook method to `POST`.
+
+## Meta WhatsApp Business API Fallback
+
+Meta fallback is optional and only used for outbound sends when Twilio cannot send.
+
+Required Meta values:
+
+- `META_WHATSAPP_ACCESS_TOKEN`
+- `META_WHATSAPP_PHONE_NUMBER_ID`
+- `META_WHATSAPP_GRAPH_VERSION` such as `v25.0`
+- `META_WHATSAPP_TO` or `FOUNDER_WHATSAPP_NUMBER`
+
+The fallback posts text messages to Meta Graph API:
+
+```text
+POST https://graph.facebook.com/<version>/<phone-number-id>/messages
+```
+
+The payload uses `messaging_product=whatsapp`, recipient phone number, and a text body. Media URLs are appended as text links in Meta fallback mode; Twilio still uses `MediaUrl`.
 
 ## Render Deployment Steps
 
@@ -156,6 +178,11 @@ Environment variables:
 - `PORT` is provided by Render
 - `PUBLIC_BASE_URL=https://<render-service-name>.onrender.com`
 - `TWILIO_AUTH_TOKEN=<twilio-auth-token>`
+- `TWILIO_ACCOUNT_SID=<twilio-account-sid>`
+- `TWILIO_WHATSAPP_FROM=whatsapp:+<twilio-sender>`
+- `META_WHATSAPP_ACCESS_TOKEN=<meta-cloud-api-token>`
+- `META_WHATSAPP_PHONE_NUMBER_ID=<meta-phone-number-id>`
+- `META_WHATSAPP_GRAPH_VERSION=v25.0`
 - `FOUNDER_WHATSAPP_NUMBER=+<country-code-and-number>`
 - `WHATSAPP_RATE_LIMIT_WINDOW_MS=60000`
 - `WHATSAPP_RATE_LIMIT_MAX=12`
@@ -183,6 +210,7 @@ Implemented controls:
 - Founder phone number allowlist
 - Production config enforcement
 - XML escaping for Twilio responses
+- Twilio-first outbound provider fallback to Meta Cloud API
 - Read-only webhook behavior
 - Rate limiting
 - Command cooldowns

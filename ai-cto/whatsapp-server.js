@@ -13,6 +13,10 @@ const {
 } = require('./whatsapp/founder-memory');
 const { createMetricsIngestHandler } = require('./product-metrics-ingest');
 const { execFileSync } = require('child_process');
+const {
+  buildTwilioMessageParams,
+  sendWhatsAppMessageWithFallback
+} = require('./whatsapp/whatsapp-provider');
 
 const PORT = Number(process.env.PORT || 3000);
 const REPO_ROOT = process.env.ARITENIS_REPO_ROOT || process.cwd();
@@ -509,11 +513,17 @@ function runDeferredVisionExecution({ requestId, entry, incoming }) {
         push: process.env.CTO_AI_EXECUTION_PUSH !== 'false'
       });
       const message = formatVisionApprovalResult(completed);
-      await sendTwilioWhatsAppMessage({
-        accountSid: incoming.accountSid,
-        from: incoming.to,
-        to: `whatsapp:${incoming.from}`,
-        body: message
+      await sendWhatsAppMessageWithFallback({
+        body: message,
+        twilio: {
+          accountSid: incoming.accountSid,
+          authToken: TWILIO_AUTH_TOKEN,
+          from: incoming.to,
+          to: `whatsapp:${incoming.from}`
+        },
+        meta: {
+          to: incoming.from
+        }
       });
       logVisibleWebhook('deferred_execution_reply', {
         requestId,
@@ -524,52 +534,26 @@ function runDeferredVisionExecution({ requestId, entry, incoming }) {
       });
     } catch (error) {
       console.log(`[whatsapp-cto] DEFERRED EXECUTION ERROR requestId=${requestId} message=${error.message}`);
-      await sendTwilioWhatsAppMessage({
-        accountSid: incoming.accountSid,
-        from: incoming.to,
-        to: `whatsapp:${incoming.from}`,
+      await sendWhatsAppMessageWithFallback({
         body: [
           'CODER: Could not complete this safely, Founder.',
           'Result: DEFERRED_EXECUTION_FAILED',
           `Reason: ${error.message}`
-        ].join('\n')
+        ].join('\n'),
+        twilio: {
+          accountSid: incoming.accountSid,
+          authToken: TWILIO_AUTH_TOKEN,
+          from: incoming.to,
+          to: `whatsapp:${incoming.from}`
+        },
+        meta: {
+          to: incoming.from
+        }
       }).catch((sendError) => {
         console.log(`[whatsapp-cto] DEFERRED EXECUTION SEND FAILED requestId=${requestId} message=${sendError.message}`);
       });
     }
   });
-}
-
-async function sendTwilioWhatsAppMessage({ accountSid, from, to, body, mediaUrls = [] }) {
-  const sid = accountSid || process.env.TWILIO_ACCOUNT_SID || '';
-  if (!sid) throw new Error('TWILIO_ACCOUNT_SID or inbound AccountSid is required for deferred WhatsApp replies.');
-  if (!TWILIO_AUTH_TOKEN) throw new Error('TWILIO_AUTH_TOKEN is required for deferred WhatsApp replies.');
-  if (!from || !to) throw new Error('Twilio From and To are required for deferred WhatsApp replies.');
-  const params = buildTwilioMessageParams({ from, to, body, mediaUrls });
-  const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(sid)}/Messages.json`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Basic ${Buffer.from(`${sid}:${TWILIO_AUTH_TOKEN}`).toString('base64')}`,
-      'Content-Type': 'application/x-www-form-urlencoded'
-    },
-    body: params.toString()
-  });
-  if (!response.ok) {
-    const text = await response.text().catch(() => '');
-    throw new Error(`Twilio send failed ${response.status}: ${text.slice(0, 200)}`);
-  }
-  return response.json();
-}
-
-function buildTwilioMessageParams({ from, to, body, mediaUrls = [] } = {}) {
-  const params = new URLSearchParams();
-  params.set('From', from || '');
-  params.set('To', to || '');
-  params.set('Body', body || '');
-  for (const mediaUrl of Array.isArray(mediaUrls) ? mediaUrls : [mediaUrls]) {
-    if (mediaUrl) params.append('MediaUrl', String(mediaUrl));
-  }
-  return params;
 }
 
 if (require.main === module) {
@@ -589,6 +573,7 @@ if (require.main === module) {
 module.exports = {
   createApp,
   buildTwilioMessageParams,
+  sendWhatsAppMessageWithFallback,
   validateTwilioSignature,
   twiml,
   twimlMessages,
