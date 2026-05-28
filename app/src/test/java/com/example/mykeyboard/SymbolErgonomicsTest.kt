@@ -10,24 +10,29 @@ class SymbolErgonomicsTest {
     fun criticalSymbolsRemainAccessibleWithinOneTransition() {
         val source = sourceFile("app/src/main/java/com/example/mykeyboard/KeyboardService.kt").readText()
         val rows = methodBody(source, "keyRowsForMode")
-        val stripRows = methodBody(source, "stripKeysForMode")
         val numbersMode = rows.substringAfter("Mode.NUMBERS -> listOf(").substringBefore("Mode.SYMBOLS")
-        val firstAccessNumbers = numbersMode + stripRows.substringAfter("Mode.NUMBERS ->").substringBefore("Mode.SYMBOLS")
 
         for (symbol in listOf("@", "#", "=", "&", "*", "(", ")", "-", "+", "_", "\\", "[", "]", "/", ":", ";", "'", "\"", "?", "!")) {
-            assertTrue("Missing first-transition symbol $symbol", firstAccessNumbers.contains(sourceLiteral(symbol)))
+            val shouldBeInFirstLayer = symbol !in listOf("\\", "[", "]")
+            if (shouldBeInFirstLayer) {
+                assertTrue("Missing first-transition symbol $symbol", numbersMode.contains(sourceLiteral(symbol)))
+            }
         }
     }
 
     @Test
-    fun symbolStripGroupsCodingDelimitersWithoutDuplicatingNumberRow() {
+    fun symbolLayerGroupsSecondaryDelimitersWithoutReplacingNumberStrip() {
         val source = sourceFile("app/src/main/java/com/example/mykeyboard/KeyboardService.kt").readText()
+        val rows = methodBody(source, "keyRowsForMode")
         val stripRows = methodBody(source, "stripKeysForMode")
+        val symbolsMode = rows.substringAfter("Mode.SYMBOLS -> listOf(")
 
-        for (symbol in listOf("{", "}", "[", "]", "<", ">", "\\", "|")) {
-            assertTrue("Missing grouped symbol-strip key $symbol", stripRows.contains(sourceLiteral(symbol)))
+        for (symbol in listOf("{", "}", "[", "]", "<", ">", "\\", "|", "~", "`")) {
+            assertTrue("Missing grouped secondary symbol $symbol", symbolsMode.contains(sourceLiteral(symbol)))
         }
         assertTrue(stripRows.contains("Mode.LETTERS -> NUMBER_ROW_KEYS"))
+        assertTrue(stripRows.contains("Mode.NUMBERS -> NUMBER_ROW_KEYS"))
+        assertTrue(stripRows.contains("Mode.SYMBOLS -> NUMBER_ROW_KEYS"))
     }
 
     @Test

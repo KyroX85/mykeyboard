@@ -740,23 +740,23 @@ class KeyboardService : InputMethodService() {
             listOf(KEY_EMOJI, "123", KEY_SPACE, KEY_ENTER)
         )
         Mode.NUMBERS -> listOf(
-            listOf("#", "$", "%", "&", "*", "(", ")", "-", "+", "="),
-            listOf("#+=", "_", "\\", "[", "]", "{", "}", "<", ">", KEY_BACKSPACE),
-            listOf("~", "`", "|", "^", KeyboardSymbols.RUPEE, KeyboardSymbols.EURO, KeyboardSymbols.POUND),
+            listOf("@", "#", "$", "_", "&", "-", "+", "(", ")", "/"),
+            listOf("#+=", "*", "\"", "'", ":", ";", "!", "?", KEY_BACKSPACE),
+            listOf("%", "=", ",", ".", KeyboardSymbols.RUPEE, KeyboardSymbols.EURO, KeyboardSymbols.POUND),
             listOf("ABC", KEY_SPACE, KEY_ENTER)
         )
         Mode.SYMBOLS -> listOf(
-            listOf("%", "^", KeyboardSymbols.SQUARE_ROOT, KeyboardSymbols.PI, KeyboardSymbols.DIVIDE, "=", "+", "-", "*", "/"),
-            listOf("$", KeyboardSymbols.RUPEE, KeyboardSymbols.EURO, KeyboardSymbols.POUND, "@", "#", "&", ";", ":", KEY_BACKSPACE),
-            listOf("(", ")", "'", "\"", "?", "!", ",", "."),
+            listOf("{", "}", "[", "]", "<", ">", "\\", "|", "~", "`"),
+            listOf("^", KeyboardSymbols.SQUARE_ROOT, KeyboardSymbols.PI, KeyboardSymbols.DIVIDE, KeyboardSymbols.BULLET, KeyboardSymbols.EURO, KeyboardSymbols.POUND, KEY_BACKSPACE),
+            listOf("%", KeyboardSymbols.RUPEE, KeyboardSymbols.BOLT, KeyboardSymbols.CHECK, KeyboardSymbols.HEART, KeyboardSymbols.SPARKLES),
             listOf("ABC", "123", KEY_SPACE, KEY_ENTER)
         )
     }
 
     private fun stripKeysForMode(mode: Mode): List<String> = when (mode) {
         Mode.LETTERS -> NUMBER_ROW_KEYS
-        Mode.NUMBERS -> listOf("?", "!", "'", "\"", ":", ";", ",", ".", "@", "/")
-        Mode.SYMBOLS -> listOf("{", "}", "[", "]", "<", ">", "\\", "|", "~", "`")
+        Mode.NUMBERS -> NUMBER_ROW_KEYS
+        Mode.SYMBOLS -> NUMBER_ROW_KEYS
     }
 
     private fun clearCachedKeyboardViews() {

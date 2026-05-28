@@ -26,6 +26,8 @@ class NumberRowLayoutTest {
         assertTrue(source.contains("val NUMBER_ROW_KEYS = listOf(\"1\", \"2\", \"3\", \"4\", \"5\", \"6\", \"7\", \"8\", \"9\", \"0\")"))
         assertTrue(setupNumberRow.contains("stripKeysForMode(mode)"))
         assertTrue(stripKeysForMode.contains("Mode.LETTERS -> NUMBER_ROW_KEYS"))
+        assertTrue(stripKeysForMode.contains("Mode.NUMBERS -> NUMBER_ROW_KEYS"))
+        assertTrue(stripKeysForMode.contains("Mode.SYMBOLS -> NUMBER_ROW_KEYS"))
         assertTrue(setupNumberRow.contains("HintKeyButton"))
         assertFalse(setupNumberRow.contains("setOnTouchListener"))
         assertFalse(setupNumberRow.contains("scheduleLongPress"))
@@ -72,6 +74,24 @@ class NumberRowLayoutTest {
         assertFalse(setupNumberRow.contains("mode == Mode.LETTERS"))
         assertFalse(rows.substringAfter("Mode.NUMBERS -> listOf(").substringBefore("Mode.SYMBOLS").contains("NUMBER_ROW_KEYS"))
         assertFalse(rows.substringAfter("Mode.SYMBOLS -> listOf(").contains("NUMBER_ROW_KEYS"))
+    }
+
+    @Test
+    fun numberAndSymbolModesKeepNumbersInTopStrip() {
+        val source = sourceFile("app/src/main/java/com/example/mykeyboard/KeyboardService.kt").readText()
+        val stripKeysForMode = methodBody(source, "stripKeysForMode")
+        val rows = methodBody(source, "keyRowsForMode")
+        val numbersMode = rows.substringAfter("Mode.NUMBERS -> listOf(").substringBefore("Mode.SYMBOLS")
+        val symbolsMode = rows.substringAfter("Mode.SYMBOLS -> listOf(")
+
+        assertTrue(stripKeysForMode.contains("Mode.NUMBERS -> NUMBER_ROW_KEYS"))
+        assertTrue(stripKeysForMode.contains("Mode.SYMBOLS -> NUMBER_ROW_KEYS"))
+        assertTrue(numbersMode.contains("\"@\""))
+        assertTrue(numbersMode.contains("\"#\""))
+        assertTrue(numbersMode.contains("\"?\""))
+        assertTrue(symbolsMode.contains("\"{\""))
+        assertTrue(symbolsMode.contains("\"~\""))
+        assertTrue(symbolsMode.contains("KeyboardSymbols.SQUARE_ROOT"))
     }
 
     private fun sourceFile(relativePath: String): File {
