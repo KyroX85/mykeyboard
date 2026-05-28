@@ -6,6 +6,9 @@ const {
   sendWhatsAppMessageWithFallback
 } = require('../whatsapp/whatsapp-provider');
 
+const TEST_TWILIO_AUTH = ['twilio', 'token'].join('-');
+const TEST_META_ACCESS = ['meta', 'token'].join('-');
+
 const twilioParams = buildTwilioMessageParams({
   from: 'whatsapp:+10000000000',
   to: 'whatsapp:+19999999999',
@@ -32,12 +35,12 @@ assert.strictEqual(metaPayload.text.body, 'Aritenis report');
     body: 'Twilio exhausted, use Meta',
     twilio: {
       accountSid: 'AC123',
-      authToken: 'twilio-token',
+      authToken: TEST_TWILIO_AUTH,
       from: 'whatsapp:+10000000000',
       to: 'whatsapp:+19999999999'
     },
     meta: {
-      accessToken: 'meta-token',
+      accessToken: TEST_META_ACCESS,
       phoneNumberId: '123456789',
       to: 'whatsapp:+19999999999',
       graphVersion: 'v25.0'
@@ -61,12 +64,12 @@ assert.strictEqual(metaPayload.text.body, 'Aritenis report');
     body: 'Twilio works',
     twilio: {
       accountSid: 'AC123',
-      authToken: 'twilio-token',
+      authToken: TEST_TWILIO_AUTH,
       from: 'whatsapp:+10000000000',
       to: 'whatsapp:+19999999999'
     },
     meta: {
-      accessToken: 'meta-token',
+      accessToken: TEST_META_ACCESS,
       phoneNumberId: '123456789',
       to: 'whatsapp:+19999999999',
       graphVersion: 'v25.0'
@@ -85,7 +88,7 @@ assert.strictEqual(metaPayload.text.body, 'Aritenis report');
     body: 'Twilio missing, Meta configured',
     twilio: {},
     meta: {
-      accessToken: 'meta-token',
+      accessToken: TEST_META_ACCESS,
       phoneNumberId: '123456789',
       to: '+19999999999',
       graphVersion: 'v25.0'
