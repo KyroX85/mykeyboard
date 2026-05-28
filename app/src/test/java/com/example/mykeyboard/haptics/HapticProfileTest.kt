@@ -1,5 +1,6 @@
 package com.example.mykeyboard.haptics
 
+import com.example.mykeyboard.KeyboardSymbols
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -7,38 +8,38 @@ import org.junit.Test
 class HapticProfileTest {
 
     @Test
-    fun normalKeysUseCrispNoticeablePulse() {
+    fun normalKeysUseStrongerNoticeablePulse() {
         val profile = HapticProfile.forKey("a")
 
         assertEquals(HapticKind.Normal, profile.kind)
-        assertEquals(8L, profile.durationMs)
-        assertEquals(92, profile.amplitude)
+        assertEquals(16L, profile.durationMs)
+        assertEquals(180, profile.amplitude)
     }
 
     @Test
     fun backspaceUsesSharperPulse() {
-        val profile = HapticProfile.forKey("⌫")
+        val profile = HapticProfile.forKey(KeyboardSymbols.BACKSPACE)
 
         assertEquals(HapticKind.Backspace, profile.kind)
-        assertEquals(5L, profile.durationMs)
+        assertEquals(18L, profile.durationMs)
         assertTrue(profile.amplitude > HapticProfile.forKey("a").amplitude)
     }
 
     @Test
     fun enterActionsUseDeeperPulse() {
-        val profile = HapticProfile.forKey("⏎")
+        val profile = HapticProfile.forKey(KeyboardSymbols.ENTER)
 
         assertEquals(HapticKind.Action, profile.kind)
-        assertEquals(10L, profile.durationMs)
+        assertEquals(20L, profile.durationMs)
         assertTrue(profile.amplitude > HapticProfile.forKey("a").amplitude)
     }
 
     @Test
-    fun spacebarUsesSofterPulse() {
+    fun spacebarUsesSofterButNoticeablePulse() {
         val profile = HapticProfile.forKey("space")
 
         assertEquals(HapticKind.Space, profile.kind)
-        assertEquals(6L, profile.durationMs)
+        assertEquals(14L, profile.durationMs)
         assertTrue(profile.amplitude < HapticProfile.forKey("a").amplitude)
     }
 }

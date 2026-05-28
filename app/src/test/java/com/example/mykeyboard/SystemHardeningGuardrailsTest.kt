@@ -57,6 +57,8 @@ class SystemHardeningGuardrailsTest {
         assertFalse(hapticBody.contains("getSystemService("))
         assertFalse(hapticBody.contains("VibrationEffect.createOneShot"))
         assertTrue(hapticBody.contains("performHapticFeedback"))
+        assertTrue(hapticBody.contains("cachedVibrator"))
+        assertFalse(hapticBody.contains(".cancel()"))
         assertTrue(hapticBody.contains("hapticTapGate.shouldPulse"))
     }
 
@@ -68,8 +70,13 @@ class SystemHardeningGuardrailsTest {
         val applyPress = methodBody(source, "applyKeyPressFeedback")
 
         assertTrue(source.contains("cachedAudioManager"))
+        assertTrue(source.contains("cachedToneGenerator"))
         assertFalse(soundBody.contains("getSystemService("))
         assertTrue(soundBody.contains("playSoundEffect"))
+        assertTrue(soundBody.contains("startTone"))
+        assertTrue(source.contains("KEY_SOUND_EFFECT_VOLUME"))
+        assertTrue(source.contains("KEY_TONE_VOLUME_PERCENT"))
+        assertTrue(source.contains("KEY_TONE_DURATION_MS"))
         assertTrue(effectBody.contains("FX_KEYPRESS_DELETE"))
         assertTrue(effectBody.contains("FX_KEYPRESS_RETURN"))
         assertTrue(effectBody.contains("FX_KEYPRESS_SPACEBAR"))

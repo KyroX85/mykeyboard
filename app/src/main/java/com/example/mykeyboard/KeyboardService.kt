@@ -9,6 +9,7 @@ import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
 import android.inputmethodservice.InputMethodService
 import android.media.AudioManager
+import android.media.ToneGenerator
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -138,6 +139,14 @@ class KeyboardService : InputMethodService() {
     private val cachedAudioManager: AudioManager by lazy {
         getSystemService(Context.AUDIO_SERVICE) as AudioManager
     }
+    private val cachedToneGenerator: ToneGenerator? by lazy {
+        try {
+            ToneGenerator(AudioManager.STREAM_MUSIC, KEY_TONE_VOLUME_PERCENT)
+        } catch (e: RuntimeException) {
+            Log.w(INPUT_CONNECTION_TAG, "key tone unavailable: ${e.javaClass.simpleName}")
+            null
+        }
+    }
     private val cachedVibrator: Vibrator by lazy { resolveVibrator() }
     private val normalVibrationEffect: VibrationEffect? by lazy {
         createVibrationEffect(HapticProfile.forKey("a"))
@@ -208,6 +217,9 @@ class KeyboardService : InputMethodService() {
         const val KEY_PREVIEW_WIDTH_DP = 60
         const val KEY_PREVIEW_HEIGHT_DP = 80
         const val HAPTIC_MIN_INTERVAL_MS = 18L
+        const val KEY_SOUND_EFFECT_VOLUME = 1f
+        const val KEY_TONE_VOLUME_PERCENT = 70
+        const val KEY_TONE_DURATION_MS = 28
         const val SWIPE_HAPTIC_MIN_INTERVAL_MS = 36L
         const val SWIPE_ACTIVATION_SLOP_DP = 18
         const val SWIPE_SAMPLE_DISTANCE_DP = 5
@@ -222,6 +234,7 @@ class KeyboardService : InputMethodService() {
         super.onCreate()
         predictor = BasicPredictor(this, scope, metrics)
         cachedAudioManager
+        cachedToneGenerator
         cachedVibrator
         normalVibrationEffect
         backspaceVibrationEffect
@@ -2171,10 +2184,19 @@ class KeyboardService : InputMethodService() {
             HapticFeedbackConstants.KEYBOARD_TAP,
             HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING
         )
+
+        val profile = HapticProfile.forKey(key)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            vibrationEffectFor(profile)?.let(cachedVibrator::vibrate)
+        } else {
+            @Suppress("DEPRECATION")
+            cachedVibrator.vibrate(profile.durationMs)
+        }
     }
 
     private fun performKeyboardTapSound(key: String) {
-        cachedAudioManager.playSoundEffect(soundEffectForKey(key))
+        cachedAudioManager.playSoundEffect(soundEffectForKey(key), KEY_SOUND_EFFECT_VOLUME)
+        cachedToneGenerator?.startTone(toneForKey(key), KEY_TONE_DURATION_MS)
     }
 
     private fun soundEffectForKey(key: String): Int = when (key) {
@@ -2182,6 +2204,12 @@ class KeyboardService : InputMethodService() {
         KEY_ENTER -> AudioManager.FX_KEYPRESS_RETURN
         KEY_SPACE -> AudioManager.FX_KEYPRESS_SPACEBAR
         else -> AudioManager.FX_KEYPRESS_STANDARD
+    }
+
+    private fun toneForKey(key: String): Int = when (key) {
+        KEY_BACKSPACE -> ToneGenerator.TONE_PROP_NACK
+        KEY_ENTER -> ToneGenerator.TONE_PROP_ACK
+        else -> ToneGenerator.TONE_PROP_BEEP
     }
 
     private fun resolveVibrator(): Vibrator =
@@ -2265,6 +2293,7 @@ class KeyboardService : InputMethodService() {
         suggestionLookupFuture?.cancel(true)
         autocorrectPrefetchFuture?.cancel(true)
         suggestionExecutor.shutdownNow()
+        cachedToneGenerator?.release()
         scope.cancel()
         super.onDestroy()
     }

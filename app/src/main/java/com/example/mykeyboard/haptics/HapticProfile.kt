@@ -16,10 +16,10 @@ data class HapticProfile(
 ) {
     companion object {
         private const val KEY_SPACE = "space"
-        private val NORMAL = HapticProfile(HapticKind.Normal, durationMs = 8L, amplitude = 92)
-        private val BACKSPACE = HapticProfile(HapticKind.Backspace, durationMs = 5L, amplitude = 118)
-        private val ACTION = HapticProfile(HapticKind.Action, durationMs = 10L, amplitude = 128)
-        private val SPACE = HapticProfile(HapticKind.Space, durationMs = 6L, amplitude = 64)
+        private val NORMAL = HapticProfile(HapticKind.Normal, durationMs = 16L, amplitude = 180)
+        private val BACKSPACE = HapticProfile(HapticKind.Backspace, durationMs = 18L, amplitude = 210)
+        private val ACTION = HapticProfile(HapticKind.Action, durationMs = 20L, amplitude = 220)
+        private val SPACE = HapticProfile(HapticKind.Space, durationMs = 14L, amplitude = 150)
 
         fun forKey(key: String): HapticProfile = when (key) {
             KeyboardSymbols.BACKSPACE -> BACKSPACE
