@@ -22,6 +22,7 @@
     "cto:screenshot-judgment:test": "node ai-cto/scripts/test-screenshot-product-judgment.js",
     "cto:trustworthy-execution:test": "node ai-cto/scripts/test-trustworthy-product-execution.js",
     "cto:continuous-stewardship:test": "node ai-cto/scripts/test-continuous-product-stewardship.js",
+    "cto:human-conversation:test": "node ai-cto/scripts/test-human-product-conversation.js",
     "cto:product-lab": "node ai-cto/scripts/run-scheduled-product-lab.js",
     "cto:emulator:test": "node ai-cto/scripts/test-emulator-manager.js",
     "cto:emulator:status": "node ai-cto/scripts/emulator-manager.js status",
