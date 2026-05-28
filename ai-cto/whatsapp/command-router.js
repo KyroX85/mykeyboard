@@ -15,6 +15,7 @@ const { runFreshScan, formatFreshScanResponse } = require('./live-scan-runner');
 const { requestOtaBuild } = require('./build-dispatcher');
 const { executeFirstFixableIssue } = require('../scripts/execution-engine');
 const { executeAiBridge } = require('../scripts/ai-execution-bridge');
+const { runProductStewardAutonomy } = require('../scripts/product-steward-autonomy');
 const { maybeGenerateAiWhatsAppResponse } = require('./ai-whatsapp-responder');
 const { detectLowInformation } = require('../uncertainty-filter');
 const { setMode, readState, enforceExecutionAllowed } = require('../../governance/governance');
@@ -467,6 +468,19 @@ function maybeRoutePreservationMode(normalized) {
 
 function maybeRouteProductStewardAnswer(message, normalized = normalizeMessage(message)) {
   const text = String(normalized || '');
+
+  if (/\b(research|inspect|study|scan)\b/.test(text) && /\b(repo|product|roadmap|evidence)\b/.test(text)) {
+    const cycle = runProductStewardAutonomy({ writeReport: true });
+    return stewardResponse('product_steward_repo_research', [
+      'CTO: I researched the repo against the Phase 1 roadmap.',
+      `Top priority: ${cycle.recommendation.topPriority}.`,
+      `Safe action: ${cycle.recommendation.safeAction}.`,
+      `Autonomy mode while you are absent: ${cycle.recommendation.autonomyMode}.`,
+      `Confidence: ${cycle.recommendation.confidence}.`,
+      cycle.recommendation.evidenceGap ? `Evidence gap: ${cycle.recommendation.evidenceGap}` : 'Evidence gap: none blocking this recommendation.',
+      'Report: PRODUCT_STEWARD_AUTONOMY_REPORT.md'
+    ]);
+  }
 
   if (/\bwhat should we improve next\b/.test(text) && /\bswipe trust\b/.test(text)) {
     return stewardResponse('product_priority_answer', buildEvidenceBackedPriorityAnswer(text));
