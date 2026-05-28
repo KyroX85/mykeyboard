@@ -61,6 +61,23 @@ class SystemHardeningGuardrailsTest {
     }
 
     @Test
+    fun keySoundHotPathUsesCachedAudioManagerAndKeyboardEffects() {
+        val source = sourceFile("app/src/main/java/com/example/mykeyboard/KeyboardService.kt").readText()
+        val soundBody = methodBody(source, "performKeyboardTapSound")
+        val effectBody = methodBody(source, "soundEffectForKey")
+        val applyPress = methodBody(source, "applyKeyPressFeedback")
+
+        assertTrue(source.contains("cachedAudioManager"))
+        assertFalse(soundBody.contains("getSystemService("))
+        assertTrue(soundBody.contains("playSoundEffect"))
+        assertTrue(effectBody.contains("FX_KEYPRESS_DELETE"))
+        assertTrue(effectBody.contains("FX_KEYPRESS_RETURN"))
+        assertTrue(effectBody.contains("FX_KEYPRESS_SPACEBAR"))
+        assertTrue(effectBody.contains("FX_KEYPRESS_STANDARD"))
+        assertTrue(applyPress.indexOf("performKeyboardTapSound(key)") < applyPress.indexOf("performKeyboardTapHaptic"))
+    }
+
+    @Test
     fun keyPressFeedbackAvoidsViewPropertyAnimatorAllocation() {
         val source = sourceFile("app/src/main/java/com/example/mykeyboard/KeyboardService.kt").readText()
         val applyPress = methodBody(source, "applyKeyPressFeedback")

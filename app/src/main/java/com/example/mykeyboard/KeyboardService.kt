@@ -8,6 +8,7 @@ import android.graphics.Paint
 import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
 import android.inputmethodservice.InputMethodService
+import android.media.AudioManager
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -134,6 +135,9 @@ class KeyboardService : InputMethodService() {
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val metrics = KeyboardMetrics()
     private val hapticTapGate = HapticTapGate(HAPTIC_MIN_INTERVAL_MS)
+    private val cachedAudioManager: AudioManager by lazy {
+        getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    }
     private val cachedVibrator: Vibrator by lazy { resolveVibrator() }
     private val normalVibrationEffect: VibrationEffect? by lazy {
         createVibrationEffect(HapticProfile.forKey("a"))
@@ -217,6 +221,7 @@ class KeyboardService : InputMethodService() {
     override fun onCreate() {
         super.onCreate()
         predictor = BasicPredictor(this, scope, metrics)
+        cachedAudioManager
         cachedVibrator
         normalVibrationEffect
         backspaceVibrationEffect
@@ -1104,6 +1109,7 @@ class KeyboardService : InputMethodService() {
         button.scaleY = KEY_PRESS_SCALE
         button.translationY = dp(1).toFloat()
         button.elevation = 0f
+        performKeyboardTapSound(key)
         performKeyboardTapHaptic(button, key)
     }
 
@@ -2165,6 +2171,17 @@ class KeyboardService : InputMethodService() {
             HapticFeedbackConstants.KEYBOARD_TAP,
             HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING
         )
+    }
+
+    private fun performKeyboardTapSound(key: String) {
+        cachedAudioManager.playSoundEffect(soundEffectForKey(key))
+    }
+
+    private fun soundEffectForKey(key: String): Int = when (key) {
+        KEY_BACKSPACE -> AudioManager.FX_KEYPRESS_DELETE
+        KEY_ENTER -> AudioManager.FX_KEYPRESS_RETURN
+        KEY_SPACE -> AudioManager.FX_KEYPRESS_SPACEBAR
+        else -> AudioManager.FX_KEYPRESS_STANDARD
     }
 
     private fun resolveVibrator(): Vibrator =
