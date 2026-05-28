@@ -9,6 +9,7 @@ process.env.ARITENIS_FOUNDER_MEMORY_FILE = path.join(os.tmpdir(), 'aritenis-nvid
 process.env.ARITENIS_AGENT_BRAIN_DIR = path.join(os.tmpdir(), 'aritenis-nvidia-agent-brains');
 process.env.ARITENIS_VISION_COMMAND_LOG_FILE = path.join(os.tmpdir(), 'aritenis-nvidia-vision-log.json');
 process.env.ARITENIS_SPAWN_FILE = path.join(os.tmpdir(), 'aritenis-nvidia-spawned-agents.json');
+process.env.ARITENIS_GOVERNANCE_STATE_FILE = path.join(os.tmpdir(), 'aritenis-nvidia-governance-state.json');
 
 const {
   MODEL_ASSIGNMENT,
@@ -33,6 +34,7 @@ const {
   syncWithRemoteMain
 } = require('./ai-execution-bridge');
 const { routeMessageWithAi } = require('../whatsapp/command-router');
+const { setMode } = require('../../governance/governance');
 const { ACTION_LOG_FILE } = require('../whatsapp/agent-action-log');
 const { AGENT_BRAIN_DIR } = require('../whatsapp/main-agent-brain-manager');
 const {
@@ -260,6 +262,26 @@ async function run() {
   assert.strictEqual(routedLowInfo.command, 'low_information');
   assert.strictEqual(routedLowInfo.usedAi, false);
   assert(routedLowInfo.response.includes('LOW INFORMATION DETECTED'));
+
+  const preservationMode = await routeMessageWithAi('enter preservation mode', {
+    healthScore: 80,
+    momentum: 'MOVING',
+    sections: { risks: [], unresolved: [], approvals: [] },
+    summary: { topRisk: 'none' }
+  }, { recentMessages: [] }, { client, deferLowRiskVisionExecution: true });
+  assert.strictEqual(preservationMode.command, 'preservation_mode_enabled');
+  assert.strictEqual(preservationMode.usedAi, false);
+  assert(!preservationMode.response.includes('Starting execution now'));
+  const preservationCreate = await routeMessageWithAi('create a file called preservation_test.txt', {
+    healthScore: 80,
+    momentum: 'MOVING',
+    sections: { risks: [], unresolved: [], approvals: [] },
+    summary: { topRisk: 'none' }
+  }, { recentMessages: [] }, { client, deferLowRiskVisionExecution: true });
+  assert.strictEqual(preservationCreate.command, 'preservation_mode_blocked');
+  assert.strictEqual(preservationCreate.usedAi, false);
+  assert(preservationCreate.response.includes('BLOCKED'));
+  setMode('ACTIVE', 'test reset');
 
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'cto-ai-bridge-'));
   try {

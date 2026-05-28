@@ -15,6 +15,7 @@ const { executeFirstFixableIssue } = require('../scripts/execution-engine');
 const { executeAiBridge } = require('../scripts/ai-execution-bridge');
 const { maybeGenerateAiWhatsAppResponse } = require('./ai-whatsapp-responder');
 const { detectLowInformation } = require('../uncertainty-filter');
+const { setMode, readState, enforceExecutionAllowed } = require('../../governance/governance');
 const {
   classifyVisionMessage,
   createVisionPlan,
@@ -123,6 +124,11 @@ function resolveCommand(message) {
 
 function routeMessage(message, state, memory = {}) {
   const normalized = normalizeMessage(message);
+  const preservationDecision = maybeRoutePreservationMode(normalized);
+  if (preservationDecision) return preservationDecision;
+  const preservationBlock = maybeBlockPreservationMutation(normalized);
+  if (preservationBlock) return preservationBlock;
+
   if (isStandaloneGreeting(message)) {
     const greetingRoute = routeAgentMessage(message, state, memory);
     if (greetingRoute) {
@@ -276,6 +282,23 @@ function routeMessage(message, state, memory = {}) {
 
 async function routeMessageWithAi(message, state, memory = {}, options = {}) {
   const normalized = normalizeMessage(message);
+  const preservationDecision = maybeRoutePreservationMode(normalized);
+  if (preservationDecision) {
+    return {
+      ...preservationDecision,
+      usedAi: false,
+      aiReason: 'preservation_mode_guard'
+    };
+  }
+  const preservationBlock = maybeBlockPreservationMutation(normalized);
+  if (preservationBlock) {
+    return {
+      ...preservationBlock,
+      usedAi: false,
+      aiReason: 'preservation_mode_guard'
+    };
+  }
+
   const sandboxJoin = maybeRouteTwilioSandboxMessage(normalized);
   if (sandboxJoin) return sandboxJoin;
 
@@ -343,6 +366,68 @@ async function routeMessageWithAi(message, state, memory = {}, options = {}) {
     usedAi: ai.usedAi,
     aiModel: ai.model || null,
     aiReason: ai.reason || null
+  };
+}
+
+function maybeBlockPreservationMutation(normalized) {
+  const text = String(normalized || '');
+  if (readState().mode !== 'PRESERVATION_ONLY') return null;
+  if (!/\b(create|make|add|write|edit|change|modify|delete|remove|commit|push|fix now|fix|execute|run build|build now|new apk|ota build)\b/i.test(text)) {
+    return null;
+  }
+  const gate = enforceExecutionAllowed('execute_mutation', {
+    source: 'whatsapp',
+    task: text
+  });
+  if (gate.allowed) return null;
+  return {
+    command: 'preservation_mode_blocked',
+    details: {
+      agent: 'cto',
+      intent: 'preservation_mode_blocked',
+      mode: gate.mode,
+      reason: gate.reason
+    },
+    matchedRoute: 'preservation_mode_guard',
+    response: [
+      'BLOCKED.',
+      gate.reason,
+      '',
+      'Preservation mode allows analysis, reports, scans, summaries, and proposals only.'
+    ].join('\n')
+  };
+}
+
+function maybeRoutePreservationMode(normalized) {
+  if (!/\b(enter|enable|activate|switch to|go into)\s+preservation\s+mode\b/i.test(String(normalized || ''))) {
+    return null;
+  }
+  const next = setMode('PRESERVATION_ONLY', 'Founder requested preservation mode from WhatsApp.');
+  return {
+    command: 'preservation_mode_enabled',
+    details: {
+      agent: 'cto',
+      intent: 'preservation_mode_enabled',
+      mode: next.mode,
+      realAutonomyScore: readState().realAutonomyScore
+    },
+    matchedRoute: 'preservation_mode_guard',
+    response: [
+      'PRESERVATION MODE ENABLED.',
+      'Mutation is now blocked before execution.',
+      '',
+      'Allowed:',
+      '1. Analysis',
+      '2. Reports',
+      '3. Scans',
+      '4. Proposals',
+      '',
+      'Blocked:',
+      '1. File writes',
+      '2. Commits',
+      '3. Deletes',
+      '4. Auto execution'
+    ].join('\n')
   };
 }
 

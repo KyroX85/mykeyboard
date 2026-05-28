@@ -7,8 +7,10 @@ process.env.ARITENIS_ACTION_LOG_FILE = path.join(os.tmpdir(), 'aritenis-whatsapp
 process.env.ARITENIS_AGENT_BRAIN_DIR = path.join(os.tmpdir(), 'aritenis-whatsapp-agent-brains');
 process.env.ARITENIS_VISION_COMMAND_LOG_FILE = path.join(os.tmpdir(), 'aritenis-whatsapp-vision-log.json');
 process.env.ARITENIS_SPAWN_FILE = path.join(os.tmpdir(), 'aritenis-whatsapp-spawned-agents.json');
+process.env.ARITENIS_GOVERNANCE_STATE_FILE = path.join(os.tmpdir(), 'aritenis-whatsapp-governance-state.json');
 
 const { resolveCommand, routeMessage, shouldUseGeneralFallback } = require('../whatsapp/command-router');
+const { setMode } = require('../../governance/governance');
 const { parseNaturalIntent, isStandaloneGreeting } = require('../whatsapp/natural-intent-parser');
 const { twiml, normalizePhone, extractTwilioBody } = require('../whatsapp-server');
 const {
@@ -159,6 +161,15 @@ const lowInfo = routeMessage('banana quantum potato', sampleState);
 assert.strictEqual(lowInfo.command, 'low_information');
 assert(lowInfo.response.includes('LOW INFORMATION DETECTED'));
 assert(!lowInfo.response.includes('quick CTO update'));
+
+const preservation = routeMessage('enter preservation mode', sampleState);
+assert.strictEqual(preservation.command, 'preservation_mode_enabled');
+assert(preservation.response.includes('PRESERVATION MODE ENABLED'));
+assert(!preservation.response.includes('Starting execution now'));
+const preservationWrite = routeMessage('create a file called preservation_test.txt', sampleState);
+assert.strictEqual(preservationWrite.command, 'preservation_mode_blocked');
+assert(preservationWrite.response.includes('BLOCKED'));
+setMode('ACTIVE', 'test reset');
 
 const unknown = routeMessage('repo update', sampleState);
 assert.strictEqual(unknown.command, 'agent');
