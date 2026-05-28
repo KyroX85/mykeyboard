@@ -11,6 +11,7 @@ object KeyboardSymbols {
     const val RUPEE = "\u20B9"
     const val EURO = "\u20AC"
     const val POUND = "\u00A3"
+    const val YEN = "\u00A5"
     const val BULLET = "\u2022"
     const val SQUARE_ROOT = "\u221A"
     const val PI = "\u03C0"
@@ -182,6 +183,8 @@ object KeyboardSymbols {
         "123" -> "Numbers and symbols"
         "ABC" -> "Letters"
         "#+=" -> "More symbols"
+        "1/2" -> "More symbols"
+        "2/2" -> "First symbol page"
         else -> LongPressSymbolMap.symbolFor(key)?.let { "$key, long press for ${symbolName(it)}" } ?: key
     }
 

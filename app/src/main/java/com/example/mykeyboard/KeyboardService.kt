@@ -364,6 +364,15 @@ class KeyboardService : InputMethodService() {
 
     private fun setupNumberRow(sizing: KeyboardSizingProfile = currentKeyboardSizing()) {
         val stripKeys = stripKeysForMode(mode)
+        if (stripKeys.isEmpty()) {
+            numberRow.visibility = View.GONE
+            numberRow.layoutParams = numberRow.layoutParams.apply {
+                height = 0
+            }
+            numberRow.removeAllViews()
+            numberRowButtons.clear()
+            return
+        }
         numberRow.visibility = View.VISIBLE
         numberRow.layoutParams = numberRow.layoutParams.apply {
             height = sizing.numberRowHeightPx
@@ -740,23 +749,23 @@ class KeyboardService : InputMethodService() {
             listOf(KEY_EMOJI, "123", KEY_SPACE, KEY_ENTER)
         )
         Mode.NUMBERS -> listOf(
-            listOf("@", "#", "$", "_", "&", "-", "+", "(", ")", "/"),
-            listOf("#+=", "*", "\"", "'", ":", ";", "!", "?", KEY_BACKSPACE),
-            listOf("%", "=", ",", ".", KeyboardSymbols.RUPEE, KeyboardSymbols.EURO, KeyboardSymbols.POUND),
-            listOf("ABC", KEY_SPACE, KEY_ENTER)
+            listOf("+", "\u00D7", KeyboardSymbols.DIVIDE, "=", "/", "_", "<", ">", "[", "]"),
+            listOf("!", "@", "#", KeyboardSymbols.RUPEE, "%", "^", "&", "*", "(", ")"),
+            listOf("1/2", "-", "'", "\"", ":", ";", ",", "?", KEY_BACKSPACE),
+            listOf("ABC", ",", KEY_SPACE, ".", KEY_ENTER)
         )
         Mode.SYMBOLS -> listOf(
-            listOf("{", "}", "[", "]", "<", ">", "\\", "|", "~", "`"),
-            listOf("^", KeyboardSymbols.SQUARE_ROOT, KeyboardSymbols.PI, KeyboardSymbols.DIVIDE, KeyboardSymbols.BULLET, KeyboardSymbols.EURO, KeyboardSymbols.POUND, KEY_BACKSPACE),
-            listOf("%", KeyboardSymbols.RUPEE, KeyboardSymbols.BOLT, KeyboardSymbols.CHECK, KeyboardSymbols.HEART, KeyboardSymbols.SPARKLES),
-            listOf("ABC", "123", KEY_SPACE, KEY_ENTER)
+            listOf("`", "~", "\\", "|", "{", "}", KeyboardSymbols.EURO, KeyboardSymbols.POUND, KeyboardSymbols.YEN, "$"),
+            listOf("\u00B0", KeyboardSymbols.BULLET, "\u25CB", "\u25CF", "\u25A1", "\u25A0", "\u2664", "\u2662", "\u2667"),
+            listOf("2/2", "\u2606", "\u25AA", "\u00A4", "\u00AB", "\u00BB", "\u00A1", "\u00BF", KEY_BACKSPACE),
+            listOf("ABC", ",", KEY_SPACE, ".", KEY_ENTER)
         )
     }
 
     private fun stripKeysForMode(mode: Mode): List<String> = when (mode) {
         Mode.LETTERS -> NUMBER_ROW_KEYS
         Mode.NUMBERS -> NUMBER_ROW_KEYS
-        Mode.SYMBOLS -> NUMBER_ROW_KEYS
+        Mode.SYMBOLS -> emptyList()
     }
 
     private fun clearCachedKeyboardViews() {
@@ -1423,8 +1432,11 @@ class KeyboardService : InputMethodService() {
             "123" -> {
                 switchKeyboardMode(Mode.NUMBERS, symbolLayer = true)
             }
-            "#+=" -> {
+            "#+=", "1/2" -> {
                 switchKeyboardMode(Mode.SYMBOLS, symbolLayer = true)
+            }
+            "2/2" -> {
+                switchKeyboardMode(Mode.NUMBERS, symbolLayer = true)
             }
             "ABC" -> {
                 switchKeyboardMode(Mode.LETTERS, symbolLayer = false)

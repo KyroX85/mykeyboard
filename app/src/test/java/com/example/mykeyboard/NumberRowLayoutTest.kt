@@ -27,7 +27,7 @@ class NumberRowLayoutTest {
         assertTrue(setupNumberRow.contains("stripKeysForMode(mode)"))
         assertTrue(stripKeysForMode.contains("Mode.LETTERS -> NUMBER_ROW_KEYS"))
         assertTrue(stripKeysForMode.contains("Mode.NUMBERS -> NUMBER_ROW_KEYS"))
-        assertTrue(stripKeysForMode.contains("Mode.SYMBOLS -> NUMBER_ROW_KEYS"))
+        assertTrue(stripKeysForMode.contains("Mode.SYMBOLS -> emptyList()"))
         assertTrue(setupNumberRow.contains("HintKeyButton"))
         assertFalse(setupNumberRow.contains("setOnTouchListener"))
         assertFalse(setupNumberRow.contains("scheduleLongPress"))
@@ -64,20 +64,21 @@ class NumberRowLayoutTest {
     }
 
     @Test
-    fun stripRowStaysVisibleAcrossModesToPreventKeyboardHeightJumps() {
+    fun stripRowStaysVisibleForLettersAndNumbersOnly() {
         val source = sourceFile("app/src/main/java/com/example/mykeyboard/KeyboardService.kt").readText()
         val setupNumberRow = methodBody(source, "setupNumberRow")
         val rows = methodBody(source, "keyRowsForMode")
 
         assertTrue(setupNumberRow.contains("numberRow.visibility = View.VISIBLE"))
+        assertTrue(setupNumberRow.contains("numberRow.visibility = View.GONE"))
         assertTrue(setupNumberRow.contains("height = sizing.numberRowHeightPx"))
-        assertFalse(setupNumberRow.contains("mode == Mode.LETTERS"))
+        assertTrue(setupNumberRow.contains("height = 0"))
         assertFalse(rows.substringAfter("Mode.NUMBERS -> listOf(").substringBefore("Mode.SYMBOLS").contains("NUMBER_ROW_KEYS"))
         assertFalse(rows.substringAfter("Mode.SYMBOLS -> listOf(").contains("NUMBER_ROW_KEYS"))
     }
 
     @Test
-    fun numberAndSymbolModesKeepNumbersInTopStrip() {
+    fun numberModeKeepsNumberStripAndSymbolModeUsesFullRows() {
         val source = sourceFile("app/src/main/java/com/example/mykeyboard/KeyboardService.kt").readText()
         val stripKeysForMode = methodBody(source, "stripKeysForMode")
         val rows = methodBody(source, "keyRowsForMode")
@@ -85,13 +86,13 @@ class NumberRowLayoutTest {
         val symbolsMode = rows.substringAfter("Mode.SYMBOLS -> listOf(")
 
         assertTrue(stripKeysForMode.contains("Mode.NUMBERS -> NUMBER_ROW_KEYS"))
-        assertTrue(stripKeysForMode.contains("Mode.SYMBOLS -> NUMBER_ROW_KEYS"))
+        assertTrue(stripKeysForMode.contains("Mode.SYMBOLS -> emptyList()"))
         assertTrue(numbersMode.contains("\"@\""))
-        assertTrue(numbersMode.contains("\"#\""))
         assertTrue(numbersMode.contains("\"?\""))
+        assertTrue(numbersMode.contains("KEY_BACKSPACE"))
         assertTrue(symbolsMode.contains("\"{\""))
         assertTrue(symbolsMode.contains("\"~\""))
-        assertTrue(symbolsMode.contains("KeyboardSymbols.SQUARE_ROOT"))
+        assertTrue(symbolsMode.contains("\"2/2\""))
     }
 
     private fun sourceFile(relativePath: String): File {
