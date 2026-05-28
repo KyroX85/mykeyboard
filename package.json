@@ -18,6 +18,11 @@
     "cto:product-learning:test": "node ai-cto/scripts/test-product-learning.js",
     "cto:evidence:test": "node ai-cto/scripts/test-product-metrics-ingest.js && node ai-cto/scripts/test-product-signal-bridge-config.js && node ai-cto/scripts/test-whatsapp-metrics-and-media.js",
     "cto:ux-lab:test": "node ai-cto/scripts/test-ux-verification-lab.js",
+    "cto:emulator:test": "node ai-cto/scripts/test-emulator-manager.js",
+    "cto:emulator:status": "node ai-cto/scripts/emulator-manager.js status",
+    "cto:emulator:start": "node ai-cto/scripts/emulator-manager.js start",
+    "cto:emulator:ensure": "node ai-cto/scripts/emulator-manager.js ensure",
+    "cto:emulator:stop": "node ai-cto/scripts/emulator-manager.js stop",
     "cto:hardening:test": "node ai-cto/scripts/test-product-steward-hardening.js",
     "cto:product-steward": "node ai-cto/scripts/product-steward-autonomy.js"
   },
