@@ -126,6 +126,20 @@ class RuntimeRealityHardeningTest {
         assertTrue(disposePreview.contains("keyPreviewText = null"))
     }
 
+    @Test
+    fun startInputViewDoesNotRebuildKeyboardSurfaceDuringTyping() {
+        val source = sourceFile("app/src/main/java/com/example/mykeyboard/KeyboardService.kt").readText()
+        val onStartInputView = methodBody(source, "onStartInputView")
+        val configurationRebuild = methodBody(source, "rebuildKeyboardForConfigurationChange")
+
+        assertFalse(onStartInputView.contains("clearCachedKeyboardViews()"))
+        assertFalse(onStartInputView.contains("buildKeyboard()"))
+        assertFalse(onStartInputView.contains("setupSuggestionBar()"))
+        assertTrue(configurationRebuild.contains("clearCachedKeyboardViews()"))
+        assertTrue(configurationRebuild.contains("buildKeyboard()"))
+        assertTrue(configurationRebuild.contains("setupSuggestionBar()"))
+    }
+
     private fun sourceFile(relativePath: String): File {
         val current = File("").absoluteFile
         val direct = File(current, relativePath)

@@ -243,16 +243,14 @@ class KeyboardService : InputMethodService() {
         super.onStartInputView(info, restarting)
         cleanupInputViewState()
         updateImeAction(info)
-        cachedKeyboardSizing = null
-        if (::keyboardLayout.isInitialized) {
-            clearCachedKeyboardViews()
-            buildKeyboard()
-            setupSuggestionBar()
-        }
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
+        rebuildKeyboardForConfigurationChange()
+    }
+
+    private fun rebuildKeyboardForConfigurationChange() {
         cachedKeyboardSizing = null
         if (::keyboardLayout.isInitialized) {
             clearCachedKeyboardViews()
