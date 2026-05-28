@@ -1,0 +1,10 @@
+appId: com.example.mykeyboard
+name: Aritenis long session scripted flow
+---
+- launchApp
+- tapOn: "scripted test surface"
+- inputText: "scripted test phrase one"
+- inputText: "scripted test phrase two"
+- inputText: "scripted test phrase three"
+- inputText: "scripted test phrase four"
+- takeScreenshot: long-session

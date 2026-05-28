@@ -1,0 +1,7 @@
+appId: com.example.mykeyboard
+name: Aritenis edge key flow
+---
+- launchApp
+- tapOn: "scripted test surface"
+- inputText: "scripted test phrase q p a l z m"
+- takeScreenshot: edge-key

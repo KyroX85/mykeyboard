@@ -1,0 +1,59 @@
+name: Product Lab Validation
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 2 * * *"
+    - cron: "30 8 * * *"
+    - cron: "30 15 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  product-lab:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Build debug APK
+        run: ./gradlew :app:assembleDebug
+
+      - name: Run local product lab unit checks
+        run: node ai-cto/scripts/test-scheduled-product-lab.js
+
+      - name: Boot emulator and capture smoke screenshot
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 31
+          target: google_apis
+          arch: x86_64
+          profile: pixel_3a
+          script: |
+            adb install -r app/build/outputs/apk/debug/app-debug.apk
+            adb shell ime enable com.example.mykeyboard/.KeyboardService || true
+            adb shell ime set com.example.mykeyboard/.KeyboardService || true
+            mkdir -p artifacts/product-lab/screenshots
+            adb exec-out screencap -p > artifacts/product-lab/screenshots/emulator-smoke.png
+
+      - name: Generate product lab reports
+        run: node ai-cto/scripts/run-scheduled-product-lab.js
+
+      - name: Upload product lab artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: product-lab-validation
+          path: |
+            artifacts/product-lab
+            ai-cto/product-lab/reports/*.md
+            ai-cto/product-lab/reports/*.txt

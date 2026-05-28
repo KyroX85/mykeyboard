@@ -1,0 +1,7 @@
+appId: com.example.mykeyboard
+name: Aritenis swipe typing flow
+---
+- launchApp
+- tapOn: "scripted test surface"
+- inputText: "scripted test phrase swipe trust"
+- takeScreenshot: swipe-typing

@@ -1,0 +1,7 @@
+appId: com.example.mykeyboard
+name: Aritenis dark mode readability flow
+---
+- launchApp
+- tapOn: "scripted test surface"
+- inputText: "scripted test phrase dark mode"
+- takeScreenshot: dark-mode

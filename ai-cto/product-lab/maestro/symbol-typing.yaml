@@ -1,0 +1,7 @@
+appId: com.example.mykeyboard
+name: Aritenis symbol typing flow
+---
+- launchApp
+- tapOn: "scripted test surface"
+- inputText: "scripted test phrase 123 @ #"
+- takeScreenshot: symbol-typing
