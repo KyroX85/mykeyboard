@@ -4,6 +4,12 @@ const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
 
+process.env.ARITENIS_ACTION_LOG_FILE = path.join(os.tmpdir(), 'aritenis-nvidia-action-log.json');
+process.env.ARITENIS_FOUNDER_MEMORY_FILE = path.join(os.tmpdir(), 'aritenis-nvidia-founder-memory.json');
+process.env.ARITENIS_AGENT_BRAIN_DIR = path.join(os.tmpdir(), 'aritenis-nvidia-agent-brains');
+process.env.ARITENIS_VISION_COMMAND_LOG_FILE = path.join(os.tmpdir(), 'aritenis-nvidia-vision-log.json');
+process.env.ARITENIS_SPAWN_FILE = path.join(os.tmpdir(), 'aritenis-nvidia-spawned-agents.json');
+
 const {
   MODEL_ASSIGNMENT,
   createNvidiaClient,
@@ -244,6 +250,16 @@ async function run() {
   assert.strictEqual(routedAi.usedAi, false);
   assert.strictEqual(routedAi.aiReason, 'deterministic greeting fast path');
   assert(routedAi.response.includes('What would you like to prioritize'));
+
+  const routedLowInfo = await routeMessageWithAi('banana quantum potato', {
+    healthScore: 80,
+    momentum: 'MOVING',
+    sections: { risks: [], unresolved: [], approvals: [] },
+    summary: { topRisk: 'none' }
+  }, { recentMessages: [] }, { client });
+  assert.strictEqual(routedLowInfo.command, 'low_information');
+  assert.strictEqual(routedLowInfo.usedAi, false);
+  assert(routedLowInfo.response.includes('LOW INFORMATION DETECTED'));
 
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'cto-ai-bridge-'));
   try {

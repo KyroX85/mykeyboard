@@ -12,9 +12,9 @@ function detectLowInformation(input = '') {
   ];
   if (vague.includes(text)) return low('Request matches known low-information pattern.');
   const tokens = text.split(/\s+/).filter(Boolean);
-  const hasAction = /\b(fix|update|test|validate|measure|reduce|stabilize|improve|analyze|report|block|protect)\b/.test(text);
+  const hasAction = /\b(fix|update|test|validate|measure|reduce|stabilize|improve|analyze|report|block|protect|make|create|remove|delete)\b/.test(text);
   const hasTarget = /\b(keyboard|swipe|typing|latency|symbol|predictor|governance|report|test|file|module)\b/.test(text);
-  if (tokens.length < 4 || !hasAction || !hasTarget) {
+  if (tokens.length < 3 || !hasAction || !hasTarget) {
     return low('Missing concrete action and subsystem context.');
   }
   return {
@@ -40,4 +40,3 @@ function low(reason) {
 }
 
 module.exports = { detectLowInformation };
-

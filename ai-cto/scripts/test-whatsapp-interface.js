@@ -1,6 +1,13 @@
 const assert = require('assert');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
+
+process.env.ARITENIS_ACTION_LOG_FILE = path.join(os.tmpdir(), 'aritenis-whatsapp-action-log.json');
+process.env.ARITENIS_AGENT_BRAIN_DIR = path.join(os.tmpdir(), 'aritenis-whatsapp-agent-brains');
+process.env.ARITENIS_VISION_COMMAND_LOG_FILE = path.join(os.tmpdir(), 'aritenis-whatsapp-vision-log.json');
+process.env.ARITENIS_SPAWN_FILE = path.join(os.tmpdir(), 'aritenis-whatsapp-spawned-agents.json');
+
 const { resolveCommand, routeMessage, shouldUseGeneralFallback } = require('../whatsapp/command-router');
 const { parseNaturalIntent, isStandaloneGreeting } = require('../whatsapp/natural-intent-parser');
 const { twiml, normalizePhone, extractTwilioBody } = require('../whatsapp-server');
@@ -148,9 +155,14 @@ assert(skip.response.includes('No file changed'));
 const focus = routeMessage('focus chaos', sampleState).response;
 assert(focus.includes('focus set: chaos'));
 
-const unknown = routeMessage('open the pod bay doors', sampleState);
-assert.strictEqual(unknown.command, 'conversational_fallback');
-assert(unknown.response.includes('quick CTO update'));
+const lowInfo = routeMessage('banana quantum potato', sampleState);
+assert.strictEqual(lowInfo.command, 'low_information');
+assert(lowInfo.response.includes('LOW INFORMATION DETECTED'));
+assert(!lowInfo.response.includes('quick CTO update'));
+
+const unknown = routeMessage('repo update', sampleState);
+assert.strictEqual(unknown.command, 'agent');
+assert(unknown.response.includes('CTO'));
 
 const hello = routeMessage('hello', sampleState);
 assert.strictEqual(hello.command, 'agent');

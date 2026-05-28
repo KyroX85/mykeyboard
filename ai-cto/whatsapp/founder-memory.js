@@ -3,7 +3,9 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..', '..');
-const FOUNDER_MEMORY_FILE = path.join(ROOT, 'ai-cto', 'founder-memory.json');
+const FOUNDER_MEMORY_FILE = process.env.ARITENIS_FOUNDER_MEMORY_FILE
+  ? path.resolve(process.env.ARITENIS_FOUNDER_MEMORY_FILE)
+  : path.join(ROOT, 'ai-cto', 'founder-memory.json');
 const GITHUB_OWNER = 'KyroX85';
 const GITHUB_REPO = 'mykeyboard';
 const GITHUB_MEMORY_PATH = 'ai-cto/founder-memory.json';
@@ -36,6 +38,9 @@ const DEFAULT_FOUNDER_MEMORY = {
 };
 
 function memoryPath(root = ROOT) {
+  if (root === ROOT && process.env.ARITENIS_FOUNDER_MEMORY_FILE) {
+    return path.resolve(process.env.ARITENIS_FOUNDER_MEMORY_FILE);
+  }
   return path.join(root, 'ai-cto', 'founder-memory.json');
 }
 
@@ -53,8 +58,12 @@ function readFounderMemory(root = ROOT) {
 function writeFounderMemory(memory, root = ROOT) {
   const file = memoryPath(root);
   const normalized = normalizeFounderMemory(memory);
-  fs.mkdirSync(path.dirname(file), { recursive: true });
-  fs.writeFileSync(file, `${JSON.stringify(normalized, null, 2)}\n`);
+  try {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, `${JSON.stringify(normalized, null, 2)}\n`);
+  } catch {
+    return normalized;
+  }
   console.log(`[whatsapp-cto] FOUNDER MEMORY WRITE PATH: ${file}`);
   return normalized;
 }

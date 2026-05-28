@@ -10,7 +10,9 @@ const {
 } = require('./founder-memory');
 
 const ROOT = path.resolve(__dirname, '..', '..');
-const VISION_COMMAND_LOG_FILE = path.join(ROOT, 'ai-cto', 'vision-commands-log.json');
+const VISION_COMMAND_LOG_FILE = process.env.ARITENIS_VISION_COMMAND_LOG_FILE
+  ? path.resolve(process.env.ARITENIS_VISION_COMMAND_LOG_FILE)
+  : path.join(ROOT, 'ai-cto', 'vision-commands-log.json');
 
 function readVisionCommandState() {
   try {
@@ -86,8 +88,12 @@ function writeVisionCommandState(state) {
     version: '2.0',
     commands: Array.isArray(state.commands) ? state.commands.slice(-200) : []
   };
-  fs.mkdirSync(path.dirname(VISION_COMMAND_LOG_FILE), { recursive: true });
-  fs.writeFileSync(VISION_COMMAND_LOG_FILE, JSON.stringify(next, null, 2));
+  try {
+    fs.mkdirSync(path.dirname(VISION_COMMAND_LOG_FILE), { recursive: true });
+    fs.writeFileSync(VISION_COMMAND_LOG_FILE, JSON.stringify(next, null, 2));
+  } catch {
+    // Vision logging must not break routing or reviewed execution.
+  }
   return next;
 }
 

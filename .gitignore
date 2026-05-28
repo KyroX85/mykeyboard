@@ -66,6 +66,7 @@ app/src/main/assets/config.properties
 app/google-services.json
 tmp/
 .tmp/
+.tmp-*.json
 
 # AI pipeline generated state
 .ai-pipeline/reports/

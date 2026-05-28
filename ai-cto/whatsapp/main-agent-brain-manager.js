@@ -2,7 +2,9 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..', '..');
-const AGENT_BRAIN_DIR = path.join(ROOT, 'ai-cto', 'agent-brains');
+const AGENT_BRAIN_DIR = process.env.ARITENIS_AGENT_BRAIN_DIR
+  ? path.resolve(process.env.ARITENIS_AGENT_BRAIN_DIR)
+  : path.join(ROOT, 'ai-cto', 'agent-brains');
 const CORE_AGENTS = ['cto', 'coder', 'reviewer', 'auditor'];
 
 const AGENT_PROFILES = {
@@ -53,7 +55,14 @@ const SHARED_DIRECTION = {
 };
 
 function ensureCoreAgentBrains() {
-  fs.mkdirSync(AGENT_BRAIN_DIR, { recursive: true });
+  try {
+    fs.mkdirSync(AGENT_BRAIN_DIR, { recursive: true });
+  } catch {
+    return CORE_AGENTS.reduce((created, agent) => {
+      created[agent] = relativeBrainPath(agent);
+      return created;
+    }, {});
+  }
   return CORE_AGENTS.reduce((created, agent) => {
     const brain = readCoreAgentBrain(agent) || defaultBrain(agent);
     const next = normalizeBrain(agent, brain);
@@ -155,8 +164,12 @@ function normalizeBrain(agent, brain) {
 }
 
 function writeBrain(agent, brain) {
-  fs.mkdirSync(AGENT_BRAIN_DIR, { recursive: true });
-  fs.writeFileSync(brainPath(agent), JSON.stringify(brain, null, 2));
+  try {
+    fs.mkdirSync(AGENT_BRAIN_DIR, { recursive: true });
+    fs.writeFileSync(brainPath(agent), JSON.stringify(brain, null, 2));
+  } catch {
+    // Brain persistence must not break WhatsApp routing.
+  }
 }
 
 function brainPath(agent) {

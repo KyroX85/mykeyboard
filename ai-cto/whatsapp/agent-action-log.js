@@ -2,7 +2,9 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..', '..');
-const ACTION_LOG_FILE = path.join(ROOT, 'ai-cto', 'agent-action-log.json');
+const ACTION_LOG_FILE = process.env.ARITENIS_ACTION_LOG_FILE
+  ? path.resolve(process.env.ARITENIS_ACTION_LOG_FILE)
+  : path.join(ROOT, 'ai-cto', 'agent-action-log.json');
 const MAX_ACTIONS = 500;
 
 function readActionLog() {
@@ -33,7 +35,12 @@ function logAgentAction({ agentName, actionTaken, reason, riskLevel = 'LOW', out
     version: '1.0',
     actions: [...current.actions, entry].slice(-MAX_ACTIONS)
   };
-  fs.writeFileSync(ACTION_LOG_FILE, JSON.stringify(next, null, 2));
+  try {
+    fs.mkdirSync(path.dirname(ACTION_LOG_FILE), { recursive: true });
+    fs.writeFileSync(ACTION_LOG_FILE, JSON.stringify(next, null, 2));
+  } catch {
+    // Logging must never break WhatsApp routing or test execution.
+  }
   return entry;
 }
 

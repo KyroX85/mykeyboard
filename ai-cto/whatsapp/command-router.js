@@ -14,6 +14,7 @@ const { requestOtaBuild } = require('./build-dispatcher');
 const { executeFirstFixableIssue } = require('../scripts/execution-engine');
 const { executeAiBridge } = require('../scripts/ai-execution-bridge');
 const { maybeGenerateAiWhatsAppResponse } = require('./ai-whatsapp-responder');
+const { detectLowInformation } = require('../uncertainty-filter');
 const {
   classifyVisionMessage,
   createVisionPlan,
@@ -229,6 +230,9 @@ function routeMessage(message, state, memory = {}) {
     };
   }
 
+  const lowInformation = maybeRouteLowInformation(message, normalized);
+  if (lowInformation) return lowInformation;
+
   if (shouldUseGeneralFallback(normalized)) {
     logRoutingDecision({
       incoming: message,
@@ -301,6 +305,13 @@ async function routeMessageWithAi(message, state, memory = {}, options = {}) {
   }
 
   const routed = routeMessage(message, state, memory);
+  if (routed.matchedRoute === 'low_information_guard') {
+    return {
+      ...routed,
+      usedAi: false,
+      aiReason: 'low_information_block'
+    };
+  }
   if (routed.matchedRoute === 'greeting_first') {
     return {
       ...routed,
@@ -332,6 +343,37 @@ async function routeMessageWithAi(message, state, memory = {}, options = {}) {
     usedAi: ai.usedAi,
     aiModel: ai.model || null,
     aiReason: ai.reason || null
+  };
+}
+
+function maybeRouteLowInformation(message, normalized = normalizeMessage(message)) {
+  if (shouldUseGeneralFallback(normalized) || isStandaloneGreeting(message)) {
+    return null;
+  }
+  if (COMMAND_ALIASES.has(normalized) || normalized.startsWith('focus ')) {
+    return null;
+  }
+  const lowInformation = detectLowInformation(message);
+  if (!lowInformation.lowInformation) return null;
+  logRoutingDecision({
+    incoming: message,
+    normalized,
+    detectedAgent: null,
+    intent: 'low_information',
+    confidence: 1,
+    matchedRoute: 'low_information_guard',
+    fallbackUsed: false,
+    fallbackReason: lowInformation.reason
+  });
+  return {
+    command: 'low_information',
+    details: {
+      agent: 'cto',
+      intent: 'low_information',
+      reason: lowInformation.reason
+    },
+    matchedRoute: 'low_information_guard',
+    response: lowInformation.response
   };
 }
 

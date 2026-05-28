@@ -3,8 +3,12 @@ const path = require('path');
 const { logAgentAction } = require('./agent-action-log');
 
 const ROOT = path.resolve(__dirname, '..', '..');
-const SPAWN_FILE = path.join(ROOT, 'ai-cto', 'spawned-agents.json');
-const AGENT_BRAIN_DIR = path.join(ROOT, 'ai-cto', 'agent-brains');
+const SPAWN_FILE = process.env.ARITENIS_SPAWN_FILE
+  ? path.resolve(process.env.ARITENIS_SPAWN_FILE)
+  : path.join(ROOT, 'ai-cto', 'spawned-agents.json');
+const AGENT_BRAIN_DIR = process.env.ARITENIS_AGENT_BRAIN_DIR
+  ? path.resolve(process.env.ARITENIS_AGENT_BRAIN_DIR)
+  : path.join(ROOT, 'ai-cto', 'agent-brains');
 
 function readSpawnState() {
   try {
@@ -26,13 +30,22 @@ function writeSpawnState(state) {
     pending: state.pending || null,
     active: Array.isArray(state.active) ? state.active : []
   };
-  fs.writeFileSync(SPAWN_FILE, JSON.stringify(next, null, 2));
+  try {
+    fs.mkdirSync(path.dirname(SPAWN_FILE), { recursive: true });
+    fs.writeFileSync(SPAWN_FILE, JSON.stringify(next, null, 2));
+  } catch {
+    // Specialist state persistence must not break routing.
+  }
   return next;
 }
 
 function createAgentBrain(agent) {
-  fs.mkdirSync(AGENT_BRAIN_DIR, { recursive: true });
   const brainFile = path.join(AGENT_BRAIN_DIR, `${agent.id}.json`);
+  try {
+    fs.mkdirSync(AGENT_BRAIN_DIR, { recursive: true });
+  } catch {
+    return path.relative(ROOT, brainFile).replace(/\\/g, '/');
+  }
   const brain = {
     version: '1.0',
     agentId: agent.id,
@@ -55,7 +68,11 @@ function createAgentBrain(agent) {
     },
     createdAt: new Date().toISOString()
   };
-  fs.writeFileSync(brainFile, JSON.stringify(brain, null, 2));
+  try {
+    fs.writeFileSync(brainFile, JSON.stringify(brain, null, 2));
+  } catch {
+    // Brain persistence is best-effort for specialist routing.
+  }
   return path.relative(ROOT, brainFile).replace(/\\/g, '/');
 }
 
