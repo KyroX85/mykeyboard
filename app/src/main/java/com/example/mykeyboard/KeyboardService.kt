@@ -1895,8 +1895,18 @@ class KeyboardService : InputMethodService() {
         isLongPressActive = false
         emojiSearchApplyRunnable?.let(mainHandler::removeCallbacks)
         emojiSearchApplyRunnable = null
+        restoreMainKeyboardPanel()
         if (isShiftLongPressing) {
             restoreShiftAfterLongPress()
+        }
+    }
+
+    private fun restoreMainKeyboardPanel() {
+        if (::mainContainer.isInitialized) {
+            mainContainer.visibility = View.VISIBLE
+        }
+        if (::emojiContainer.isInitialized) {
+            emojiContainer.visibility = View.GONE
         }
     }
 
