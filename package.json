@@ -19,6 +19,7 @@
     "cto:evidence:test": "node ai-cto/scripts/test-product-metrics-ingest.js && node ai-cto/scripts/test-product-signal-bridge-config.js && node ai-cto/scripts/test-whatsapp-metrics-and-media.js",
     "cto:ux-lab:test": "node ai-cto/scripts/test-ux-verification-lab.js",
     "cto:product-lab:test": "node ai-cto/scripts/test-scheduled-product-lab.js",
+    "cto:screenshot-judgment:test": "node ai-cto/scripts/test-screenshot-product-judgment.js",
     "cto:product-lab": "node ai-cto/scripts/run-scheduled-product-lab.js",
     "cto:emulator:test": "node ai-cto/scripts/test-emulator-manager.js",
     "cto:emulator:status": "node ai-cto/scripts/emulator-manager.js status",
