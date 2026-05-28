@@ -1,3 +1,5 @@
+const fs = require('fs');
+const path = require('path');
 const { generateResponse } = require('./response-generator');
 const { routeAgentMessage } = require('./agent-router');
 const { isStandaloneGreeting } = require('./natural-intent-parser');
@@ -16,6 +18,8 @@ const { executeAiBridge } = require('../scripts/ai-execution-bridge');
 const { maybeGenerateAiWhatsAppResponse } = require('./ai-whatsapp-responder');
 const { detectLowInformation } = require('../uncertainty-filter');
 const { setMode, readState, enforceExecutionAllowed } = require('../../governance/governance');
+
+const ROOT = path.resolve(__dirname, '..', '..');
 const {
   classifyVisionMessage,
   createVisionPlan,
@@ -465,11 +469,7 @@ function maybeRouteProductStewardAnswer(message, normalized = normalizeMessage(m
   const text = String(normalized || '');
 
   if (/\bwhat should we improve next\b/.test(text) && /\bswipe trust\b/.test(text)) {
-    return stewardResponse('product_priority_answer', [
-      'CTO: Swipe trust wins over architecture cleanup.',
-      'Reason: Phase 1 prioritizes typing feel, swipe trust, and responsiveness before architecture work.',
-      'Safe next action: inspect aggregate swipe failures and correction bursts, then propose a one-variable swipe-confidence experiment. No hot-path edit starts from this question alone.'
-    ]);
+    return stewardResponse('product_priority_answer', buildEvidenceBackedPriorityAnswer(text));
   }
 
   if (/\bsummarize\b/.test(text) && /\boperational risks\b/.test(text)) {
@@ -536,6 +536,73 @@ function stewardResponse(command, lines) {
     matchedRoute: 'product_steward_intent',
     response: lines.join('\n')
   };
+}
+
+function buildEvidenceBackedPriorityAnswer(text) {
+  const evidence = readProductEvidenceSnapshot();
+  const architectureMentioned = /\barchitecture cleanup\b/.test(text);
+  const swipeMentioned = /\bswipe trust\b/.test(text);
+  const pressure = evidence.pressureReport;
+  const archive = evidence.archive;
+  const entries = Array.isArray(archive.entries) ? archive.entries : [];
+  const highestPressure = extractReportValue(pressure, 'Highest current pressure') || 'not found in current report';
+  const dangerousSubsystem = extractReportValue(pressure, 'Most dangerous subsystem') || 'not found in current report';
+  const retentionRisk = extractReportValue(pressure, 'Biggest retention risk') || 'not found in current report';
+  const unsafeProposals = extractReportValue(pressure, 'Currently unsafe proposals') || 'not found in current report';
+  const hasAggregateEvidence = entries.length > 0;
+
+  const recommendation = swipeMentioned
+    ? 'swipe trust'
+    : 'the highest Phase 1 trust pressure';
+
+  const lines = [
+    `CTO: Based on current product evidence, ${recommendation} should come before ${architectureMentioned ? 'architecture cleanup' : 'architecture work'}.`,
+    `Evidence checked: PRODUCT_PRESSURE_REPORT.md, product-evidence-archive.json, governance state.`,
+    `Current pressure report: ${highestPressure}.`,
+    `Most dangerous subsystem: ${dangerousSubsystem}.`,
+    `Retention risk: ${retentionRisk}.`
+  ];
+
+  if (!hasAggregateEvidence) {
+    lines.push('Evidence gap: aggregate product evidence archive is still empty, so confidence is report-backed, not field-metrics-backed.');
+  } else {
+    lines.push(`Aggregate evidence entries reviewed: ${entries.length}.`);
+  }
+
+  lines.push(`Why not architecture first: ${unsafeProposals}.`);
+  lines.push('Safe next action: inspect aggregate swipe-failure/correction signals and propose one bounded swipe-confidence experiment before any hot-path edit.');
+  return lines;
+}
+
+function readProductEvidenceSnapshot() {
+  return {
+    archive: readJson(path.join(ROOT, 'ai-cto', 'product-evidence-archive.json'), { entries: [], trends: {} }),
+    pressureReport: readText(path.join(ROOT, 'PRODUCT_PRESSURE_REPORT.md')),
+    governanceState: readJson(path.join(ROOT, 'ai-cto', 'governance-state.json'), {})
+  };
+}
+
+function extractReportValue(markdown, label) {
+  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = String(markdown || '').match(new RegExp(`${escaped}:\\s*([^\\n]+)`, 'i'));
+  return match ? match[1].trim().replace(/\.$/, '') : null;
+}
+
+function readJson(file, fallback) {
+  try {
+    if (!fs.existsSync(file)) return fallback;
+    return JSON.parse(fs.readFileSync(file, 'utf8'));
+  } catch {
+    return fallback;
+  }
+}
+
+function readText(file) {
+  try {
+    return fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
+  } catch {
+    return '';
+  }
 }
 
 function maybeRouteLowInformation(message, normalized = normalizeMessage(message), memory = {}) {

@@ -196,7 +196,9 @@ assert(!vanityRewrite.response.includes('LOW INFORMATION'));
 
 const priorityChoice = routeMessage('what should we improve next: architecture cleanup or swipe trust?', sampleState);
 assert.strictEqual(priorityChoice.command, 'product_priority_answer');
-assert(priorityChoice.response.includes('Swipe trust wins'));
+assert(priorityChoice.response.includes('Evidence checked:'));
+assert(priorityChoice.response.includes('Current pressure report:'));
+assert(priorityChoice.response.includes('Evidence gap:'));
 assert(!priorityChoice.response.includes('Options:'));
 
 const operationalRiskSummary = routeMessage('summarize today’s operational risks honestly', sampleState);

@@ -300,6 +300,8 @@ async function run() {
   }, { recentMessages: [] }, { client });
   assert.strictEqual(priorityChoice.command, 'product_priority_answer');
   assert.strictEqual(priorityChoice.usedAi, false);
+  assert(priorityChoice.response.includes('Evidence checked:'));
+  assert(priorityChoice.response.includes('Evidence gap:'));
   assert(!priorityChoice.response.includes('Options:'));
 
   const operationalRiskSummary = await routeMessageWithAi('summarize today’s operational risks honestly', {
