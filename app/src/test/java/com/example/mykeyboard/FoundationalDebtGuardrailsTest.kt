@@ -154,6 +154,22 @@ class FoundationalDebtGuardrailsTest {
     }
 
     @Test
+    fun emojiPanelKeepsCommonEmotionsAndCompactGrid() {
+        val symbols = sourceFile("app/src/main/java/com/example/mykeyboard/KeyboardSymbols.kt").readText(Charsets.UTF_8)
+        val service = sourceFile("app/src/main/java/com/example/mykeyboard/KeyboardService.kt").readText(Charsets.UTF_8)
+        val layout = sourceFile("app/src/main/res/layout/keyboard_container.xml").readText(Charsets.UTF_8)
+
+        assertTrue(symbols.contains("\"\\uD83D\\uDE22\""))
+        assertTrue(symbols.contains("\"\\uD83D\\uDE2D\""))
+        assertTrue(symbols.contains("\"\\uD83D\\uDE21\""))
+        assertTrue(symbols.contains("\"\\uD83E\\uDD7A\""))
+        assertTrue(service.contains("val emojiCellSize = dp(34)"))
+        assertTrue(service.contains("emojiGrid.numColumns = 9"))
+        assertTrue(service.contains("textSize = 23f"))
+        assertTrue(layout.contains("android:layout_height=\"204dp\""))
+    }
+
+    @Test
     fun maturityReportDocumentsStopConditionsAndVisualRisks() {
         val report = sourceFile("docs/KEYBOARD_MATURITY_REPORT.md").readText(Charsets.UTF_8)
 

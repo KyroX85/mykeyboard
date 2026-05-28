@@ -463,13 +463,13 @@ class KeyboardService : InputMethodService() {
         }
         var categories = buildEmojiCategories(baseCategories)
         var currentEmojis = categories.firstOrNull()?.emojis ?: sanitizeEmojiList(KeyboardSymbols.EMOJI_PANEL)
-        val emojiCellSize = dp(38)
+        val emojiCellSize = dp(34)
 
-        emojiGrid.numColumns = 8
+        emojiGrid.numColumns = 9
         emojiGrid.stretchMode = GridView.STRETCH_COLUMN_WIDTH
-        emojiGrid.verticalSpacing = dp(3)
+        emojiGrid.verticalSpacing = dp(2)
         emojiGrid.horizontalSpacing = dp(1)
-        emojiGrid.setPadding(dp(4), dp(6), dp(4), dp(3))
+        emojiGrid.setPadding(dp(4), dp(5), dp(4), dp(2))
         emojiGrid.clipToPadding = false
 
         val emojiAdapter = EmojiGridAdapter(currentEmojis, emojiCellSize)
@@ -576,7 +576,7 @@ class KeyboardService : InputMethodService() {
             val label = (convertView as? TextView) ?: TextView(this@KeyboardService).apply {
                 layoutParams = AbsListView.LayoutParams(cellSize, cellSize)
                 gravity = Gravity.CENTER
-                textSize = 27f
+                textSize = 23f
                 includeFontPadding = false
                 setTextColor(Color.WHITE)
             }
