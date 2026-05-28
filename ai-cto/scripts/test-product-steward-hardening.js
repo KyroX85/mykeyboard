@@ -18,7 +18,11 @@ function run() {
 
   const low = detectLowInformation('banana quantum potato');
   assert.strictEqual(low.lowInformation, true, 'nonsense must be low information');
-  assert.ok(/LOW INFORMATION DETECTED/.test(low.response), 'response copy must match policy');
+  assert.strictEqual(low.executionMode, 'IGNORE_NOISE', 'nonsense should be ignored as noise');
+  assert.ok(/NOISE \/ STRESS TEST DETECTED/.test(low.response), 'response copy must match policy');
+  const ambiguous = detectLowInformation('do the thing');
+  assert.strictEqual(ambiguous.executionMode, 'CLARIFY', 'ambiguous shorthand should clarify');
+  assert(!ambiguous.response.includes('Options:'), 'clarification should not be a rigid options menu');
 
   const contradictions = detectContradictions([{
     mode: 'PRESERVATION_ONLY',

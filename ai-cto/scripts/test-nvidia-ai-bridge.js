@@ -259,9 +259,10 @@ async function run() {
     sections: { risks: [], unresolved: [], approvals: [] },
     summary: { topRisk: 'none' }
   }, { recentMessages: [] }, { client });
-  assert.strictEqual(routedLowInfo.command, 'low_information');
+  assert.strictEqual(routedLowInfo.command, 'noise_signal_ignored');
   assert.strictEqual(routedLowInfo.usedAi, false);
-  assert(routedLowInfo.response.includes('LOW INFORMATION DETECTED'));
+  assert(routedLowInfo.response.includes('NOISE / STRESS TEST DETECTED'));
+  assert(!routedLowInfo.response.includes('Options:'));
 
   const preservationMode = await routeMessageWithAi('enter preservation mode', {
     healthScore: 80,

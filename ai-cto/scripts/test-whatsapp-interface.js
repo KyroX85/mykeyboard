@@ -158,9 +158,15 @@ const focus = routeMessage('focus chaos', sampleState).response;
 assert(focus.includes('focus set: chaos'));
 
 const lowInfo = routeMessage('banana quantum potato', sampleState);
-assert.strictEqual(lowInfo.command, 'low_information');
-assert(lowInfo.response.includes('LOW INFORMATION DETECTED'));
+assert.strictEqual(lowInfo.command, 'noise_signal_ignored');
+assert(lowInfo.response.includes('NOISE / STRESS TEST DETECTED'));
+assert(lowInfo.response.includes('No FIX loop opened'));
 assert(!lowInfo.response.includes('quick CTO update'));
+
+const ambiguousIntent = routeMessage('do the thing', sampleState);
+assert.strictEqual(ambiguousIntent.command, 'low_information');
+assert(ambiguousIntent.response.includes('AMBIGUOUS INTENT DETECTED'));
+assert(!ambiguousIntent.response.includes('Options:'));
 
 const preservation = routeMessage('enter preservation mode', sampleState);
 assert.strictEqual(preservation.command, 'preservation_mode_enabled');

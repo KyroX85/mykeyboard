@@ -236,7 +236,7 @@ function routeMessage(message, state, memory = {}) {
     };
   }
 
-  const lowInformation = maybeRouteLowInformation(message, normalized);
+  const lowInformation = maybeRouteLowInformation(message, normalized, memory);
   if (lowInformation) return lowInformation;
 
   if (shouldUseGeneralFallback(normalized)) {
@@ -431,30 +431,31 @@ function maybeRoutePreservationMode(normalized) {
   };
 }
 
-function maybeRouteLowInformation(message, normalized = normalizeMessage(message)) {
+function maybeRouteLowInformation(message, normalized = normalizeMessage(message), memory = {}) {
   if (shouldUseGeneralFallback(normalized) || isStandaloneGreeting(message)) {
     return null;
   }
   if (COMMAND_ALIASES.has(normalized) || normalized.startsWith('focus ')) {
     return null;
   }
-  const lowInformation = detectLowInformation(message);
+  const lowInformation = detectLowInformation(message, memory);
   if (!lowInformation.lowInformation) return null;
   logRoutingDecision({
     incoming: message,
     normalized,
     detectedAgent: null,
-    intent: 'low_information',
+    intent: lowInformation.executionMode === 'IGNORE_NOISE' ? 'noise_signal' : 'low_information',
     confidence: 1,
     matchedRoute: 'low_information_guard',
     fallbackUsed: false,
     fallbackReason: lowInformation.reason
   });
   return {
-    command: 'low_information',
+    command: lowInformation.executionMode === 'IGNORE_NOISE' ? 'noise_signal_ignored' : 'low_information',
     details: {
       agent: 'cto',
-      intent: 'low_information',
+      intent: lowInformation.intentClass || 'low_information',
+      executionMode: lowInformation.executionMode,
       reason: lowInformation.reason
     },
     matchedRoute: 'low_information_guard',
