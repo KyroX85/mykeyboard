@@ -7,6 +7,7 @@
 - Added UX lab comparison utilities for thumb-target evidence and annotated SVG output.
 - Added WhatsApp media parameter support so generated comparison images can be sent through Twilio.
 - Added agent-safe emulator manager scripts for status/start/stop and CTO evidence port reversal.
+- Default agent AVD is now `Aritenis_UX_Lab`.
 
 ## WHAT WAS VERIFIED
 - `node ai-cto/scripts/test-product-metrics-ingest.js`
@@ -51,5 +52,6 @@
 - Real phone usage needs either `adb reverse tcp:3000 tcp:3000`, a reachable local machine IP, or an approved local network endpoint.
 - Agents can now use `npm.cmd run cto:emulator:start`, `npm.cmd run cto:emulator:status`, and `npm.cmd run cto:emulator:stop`.
 - Current host blocker: `Pixel_6_Pro` exists, but ADB does not reach `device` state. Agents must treat this as not ready, not as a usable UX lab.
+- Preferred lab device: `Aritenis_UX_Lab`.
 - Screenshot comparison needs a real extracted key-bounds source or curated baseline layouts for mature keyboards.
 - Agents still need founder approval before any layout or hot-path keyboard patch.

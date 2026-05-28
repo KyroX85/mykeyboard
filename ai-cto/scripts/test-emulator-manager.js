@@ -8,9 +8,9 @@ const {
   buildUxLabReadiness
 } = require('../ux-lab/emulator-manager');
 
-const startArgs = buildEmulatorStartArgs({ avdName: 'Pixel_6_Pro' });
+const startArgs = buildEmulatorStartArgs({ avdName: 'Aritenis_UX_Lab' });
 assert(startArgs.includes('-avd'));
-assert(startArgs.includes('Pixel_6_Pro'));
+assert(startArgs.includes('Aritenis_UX_Lab'));
 assert(startArgs.includes('-no-snapshot-save'));
 assert(startArgs.includes('-no-boot-anim'));
 

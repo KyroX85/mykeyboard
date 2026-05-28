@@ -3,7 +3,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const DEFAULT_AVD_NAME = 'Pixel_6_Pro';
+const DEFAULT_AVD_NAME = 'Aritenis_UX_Lab';
 const DEFAULT_PORT = 3000;
 
 function androidSdkRoot() {
