@@ -180,4 +180,42 @@ class KeyboardSizingProfileTest {
         assertTrue(mainRowsHeight >= 576)
         assertTrue(visualStackHeight in 780..815)
     }
+
+    @Test
+    fun landscapeProfileCompressesToAvailableHeight() {
+        val sizing = KeyboardSizingProfile.fromDevice(
+            widthPx = 2400,
+            heightPx = 1080,
+            density = 3f,
+            smallestWidthDp = 360
+        )
+        val visualStackHeight = (sizing.keyHeightPx * 4) +
+            sizing.numberRowHeightPx +
+            sizing.suggestionBarHeightPx +
+            (sizing.rowVerticalMarginPx * 8)
+
+        assertTrue(sizing.keyHeightPx in 114..132)
+        assertTrue(sizing.numberRowHeightPx < sizing.keyHeightPx)
+        assertTrue(visualStackHeight <= 675)
+    }
+
+    @Test
+    fun smallPhonesDoNotUseWidePhoneHeights() {
+        val small = KeyboardSizingProfile.fromDevice(
+            widthPx = 720,
+            heightPx = 1280,
+            density = 2f,
+            smallestWidthDp = 320
+        )
+        val normal = KeyboardSizingProfile.fromDevice(
+            widthPx = 1080,
+            heightPx = 2400,
+            density = 3f,
+            smallestWidthDp = 360
+        )
+
+        assertTrue(small.keyHeightPx < normal.keyHeightPx)
+        assertTrue(small.keyHeightPx >= 90)
+        assertTrue(small.suggestionBarHeightPx < normal.suggestionBarHeightPx)
+    }
 }

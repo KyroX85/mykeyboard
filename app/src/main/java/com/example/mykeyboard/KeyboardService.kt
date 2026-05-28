@@ -67,6 +67,7 @@ import java.net.SocketTimeoutException
 import java.util.EnumMap
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.roundToInt
 
 class KeyboardService : InputMethodService() {
 
@@ -259,6 +260,22 @@ class KeyboardService : InputMethodService() {
         super.onStartInputView(info, restarting)
         cleanupInputViewState()
         updateImeAction(info)
+        cachedKeyboardSizing = null
+        if (::keyboardLayout.isInitialized) {
+            clearCachedKeyboardViews()
+            buildKeyboard()
+            setupSuggestionBar()
+        }
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        cachedKeyboardSizing = null
+        if (::keyboardLayout.isInitialized) {
+            clearCachedKeyboardViews()
+            buildKeyboard()
+            setupSuggestionBar()
+        }
     }
 
     override fun onCreateInputView(): View {
@@ -907,9 +924,21 @@ class KeyboardService : InputMethodService() {
     private fun currentKeyboardSizing(): KeyboardSizingProfile {
         val metrics = resources.displayMetrics
         val configuration = resources.configuration
-        val widthPx = metrics.widthPixels.coerceAtLeast(1)
-        val heightPx = metrics.heightPixels.coerceAtLeast(widthPx)
-        val widthDp = (widthPx / metrics.density.coerceAtLeast(1f)).toInt()
+        val density = metrics.density.coerceAtLeast(1f)
+        val fallbackWidthDp = (metrics.widthPixels / density).toInt()
+        val fallbackHeightDp = (metrics.heightPixels / density).toInt()
+        val widthDp = if (configuration.screenWidthDp != Configuration.SCREEN_WIDTH_DP_UNDEFINED) {
+            configuration.screenWidthDp
+        } else {
+            fallbackWidthDp
+        }.coerceAtLeast(1)
+        val heightDp = if (configuration.screenHeightDp != Configuration.SCREEN_HEIGHT_DP_UNDEFINED) {
+            configuration.screenHeightDp
+        } else {
+            fallbackHeightDp
+        }.coerceAtLeast(1)
+        val widthPx = (widthDp * density).roundToInt().coerceAtLeast(1)
+        val heightPx = (heightDp * density).roundToInt().coerceAtLeast(1)
         val smallestWidthDp = if (
             configuration.smallestScreenWidthDp != Configuration.SMALLEST_SCREEN_WIDTH_DP_UNDEFINED
         ) {
@@ -920,7 +949,7 @@ class KeyboardService : InputMethodService() {
         return KeyboardSizingProfile.fromDevice(
             widthPx = widthPx,
             heightPx = heightPx,
-            density = metrics.density,
+            density = density,
             smallestWidthDp = smallestWidthDp
         )
     }
