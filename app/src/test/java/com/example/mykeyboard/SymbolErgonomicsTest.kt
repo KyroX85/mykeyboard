@@ -41,6 +41,17 @@ class SymbolErgonomicsTest {
     }
 
     @Test
+    fun symbolLayerHasFullHeightPracticalUtilityRow() {
+        val source = sourceFile("app/src/main/java/com/example/mykeyboard/KeyboardService.kt").readText()
+        val rows = methodBody(source, "keyRowsForMode")
+        val symbolsMode = rows.substringAfter("Mode.SYMBOLS -> listOf(")
+
+        for (symbol in listOf("\\u00A7", "\\u00B6", "\\u00A9", "\\u00AE", "\\u2122", "\\u00B1", "\\u2248", "\\u2260", "\\u2264", "\\u2265")) {
+            assertTrue("Missing utility symbol $symbol", symbolsMode.contains("\"$symbol\""))
+        }
+    }
+
+    @Test
     fun secondaryBracesUseLongPressInsteadOfExtraLayerSwitching() {
         assertTrue(LongPressSymbolMap.symbolFor("[") == "{")
         assertTrue(LongPressSymbolMap.symbolFor("]") == "}")

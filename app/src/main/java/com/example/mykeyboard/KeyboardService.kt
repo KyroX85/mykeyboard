@@ -757,6 +757,7 @@ class KeyboardService : InputMethodService() {
         Mode.SYMBOLS -> listOf(
             listOf("`", "~", "\\", "|", "{", "}", KeyboardSymbols.EURO, KeyboardSymbols.POUND, KeyboardSymbols.YEN, "$"),
             listOf("\u00B0", KeyboardSymbols.BULLET, "\u25CB", "\u25CF", "\u25A1", "\u25A0", "\u2664", "\u2662", "\u2667"),
+            listOf("\u00A7", "\u00B6", "\u00A9", "\u00AE", "\u2122", "\u00B1", "\u2248", "\u2260", "\u2264", "\u2265"),
             listOf("2/2", "\u2606", "\u25AA", "\u00A4", "\u00AB", "\u00BB", "\u00A1", "\u00BF", KEY_BACKSPACE),
             listOf("ABC", ",", KEY_SPACE, ".", KEY_ENTER)
         )
