@@ -53,6 +53,24 @@ class BasicPredictorTest {
         assertEquals("beautiful", predictor.getSuggestions("beau").firstOrNull())
         assertEquals("conversation", predictor.getSuggestions("conver").firstOrNull())
         assertEquals("development", predictor.getSuggestions("devel").firstOrNull())
+        assertEquals("consequence", predictor.getSuggestions("conseq").firstOrNull())
+        assertEquals("consequences", predictor.getSuggestions("consequences").firstOrNull())
+    }
+
+    @Test
+    fun repeatedSessionWordsOutrankGenericDictionaryMatches() {
+        val predictor = newPredictor()
+        predictor.clearModel()
+
+        predictor.learnWord("consequence")
+        repeat(3) {
+            predictor.learnWord("conjuring")
+        }
+
+        val suggestions = predictor.getSuggestions("con")
+
+        assertEquals("conjuring", suggestions.firstOrNull())
+        assertTrue(suggestions.contains("consequence"))
     }
 
     @Test

@@ -59,7 +59,7 @@ class BasicPredictor internal constructor(
         private const val MODEL_SCHEMA_VERSION = 3
         private const val TOP_CACHE_SIZE = 96
         private const val MAX_TYPO_SCAN = 96
-        private const val MAX_PREFIX_SCAN = 192
+        private const val MAX_PREFIX_SCAN = 320
         private const val MAX_SWIPE_SCAN = 160
         private const val MAX_SWIPE_SEQUENCE_VARIANTS = 3
         private const val DEBUG_POOL_WORD_LIMIT = 8
@@ -107,13 +107,31 @@ class BasicPredictor internal constructor(
             "can" to 24,
             "comfortable" to 14,
             "confidence" to 18,
+            "consequence" to 6,
+            "consequences" to 6,
+            "conjuring" to 6,
+            "consider" to 14,
+            "considering" to 12,
+            "continue" to 14,
+            "continued" to 12,
             "community" to 12,
             "conversation" to 24,
+            "decision" to 14,
+            "describe" to 12,
+            "difficult" to 12,
             "different" to 16,
             "development" to 24,
+            "dictionary" to 12,
+            "education" to 12,
+            "effective" to 12,
+            "environment" to 12,
             "everything" to 16,
             "experience" to 16,
+            "explain" to 14,
             "favorite" to 14,
+            "familiar" to 12,
+            "function" to 12,
+            "future" to 14,
             "good" to 34,
             "government" to 10,
             "happened" to 12,
@@ -126,6 +144,8 @@ class BasicPredictor internal constructor(
             "architecture" to 16,
             "keyboard" to 18,
             "language" to 14,
+            "learning" to 14,
+            "location" to 12,
             "message" to 16,
             "morning" to 16,
             "necessary" to 12,
@@ -135,15 +155,24 @@ class BasicPredictor internal constructor(
             "performance" to 18,
             "possible" to 16,
             "prediction" to 24,
+            "problem" to 16,
+            "process" to 14,
             "probably" to 14,
             "production" to 16,
             "question" to 16,
+            "reason" to 14,
             "received" to 12,
             "remember" to 14,
             "response" to 14,
+            "result" to 14,
             "send" to 18,
+            "sentence" to 14,
             "something" to 16,
             "sometimes" to 14,
+            "stability" to 14,
+            "suggestion" to 14,
+            "support" to 14,
+            "system" to 14,
             "the" to 48,
             "this" to 38,
             "together" to 14,
@@ -151,6 +180,7 @@ class BasicPredictor internal constructor(
             "typing" to 20,
             "understand" to 16,
             "understanding" to 18,
+            "update" to 14,
             "usually" to 14,
             "what" to 30,
             "where" to 26,
@@ -304,7 +334,7 @@ class BasicPredictor internal constructor(
             if (prefix.isNotEmpty()) {
                 val contextual = if (prev.isNotEmpty()) nextWordCounts[prev] else null
                 collectPrefixMatches(prefix, prev, contextual, CandidateSource.CONTEXTUAL, ranked)
-                collectPrefixMatches(prefix, prev, sessionWordCounts, CandidateSource.UNIGRAM, ranked)
+                collectPrefixMatches(prefix, prev, sessionWordCounts, CandidateSource.SESSION, ranked)
                 collectPrefixMatches(prefix, prev, BUILT_IN_WORD_COUNTS, CandidateSource.UNIGRAM, ranked)
                 collectPrefixMatches(prefix, prev, unigramCounts, CandidateSource.UNIGRAM, ranked)
                 collectTypoMatches(prefix, prev, contextual, CandidateSource.CONTEXTUAL, ranked)
@@ -821,12 +851,14 @@ class BasicPredictor internal constructor(
             ?: 0
         val sourceBoost = when (source) {
             CandidateSource.CONTEXTUAL -> 36
+            CandidateSource.SESSION -> 100
             CandidateSource.UNIGRAM -> 12
         }
         val typoPenalty = if (typoMatch) 14 else 0
 
         return base * when (source) {
             CandidateSource.CONTEXTUAL -> 8
+            CandidateSource.SESSION -> 10
             CandidateSource.UNIGRAM -> 4
         } + sourceBoost + acceptedBoost + sessionBoost + sessionPairBoost - rejectedPenalty - typoPenalty
     }
@@ -1446,6 +1478,7 @@ class BasicPredictor internal constructor(
 
     private enum class CandidateSource {
         CONTEXTUAL,
+        SESSION,
         UNIGRAM
     }
 }
