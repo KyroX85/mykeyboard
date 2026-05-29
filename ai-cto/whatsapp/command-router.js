@@ -12,7 +12,7 @@ const {
   readSpawnState
 } = require('./specialist-agent-manager');
 const { runFreshScan, formatFreshScanResponse } = require('./live-scan-runner');
-const { requestOtaBuild } = require('./build-dispatcher');
+const { requestOtaBuild, requestProductLabScreenshot } = require('./build-dispatcher');
 const { executeFirstFixableIssue } = require('../scripts/execution-engine');
 const { executeAiBridge } = require('../scripts/ai-execution-bridge');
 const { runProductStewardAutonomy } = require('../scripts/product-steward-autonomy');
@@ -139,7 +139,9 @@ function routeMessage(message, state, memory = {}) {
   if (preservationDecision) return preservationDecision;
   const preservationBlock = maybeBlockPreservationMutation(normalized);
   if (preservationBlock) return preservationBlock;
-  const screenshotPlan = maybeRouteProductLabScreenshotPlan(message, normalized);
+  const screenshotWorkflowPlan = maybeRouteProductLabScreenshotWorkflowPlan(normalized);
+  if (screenshotWorkflowPlan) return screenshotWorkflowPlan;
+  const screenshotPlan = maybeRouteProductLabLocalScreenshotPlan(message, normalized);
   if (screenshotPlan) return screenshotPlan;
   const productStewardAnswer = maybeRouteProductStewardAnswer(message, normalized);
   if (productStewardAnswer) return productStewardAnswer;
@@ -307,6 +309,7 @@ async function routeMessageWithAi(message, state, memory = {}, options = {}) {
       aiReason: 'preservation_mode_guard'
     };
   }
+
   const preservationBlock = maybeBlockPreservationMutation(normalized);
   if (preservationBlock) {
     return {
@@ -316,12 +319,21 @@ async function routeMessageWithAi(message, state, memory = {}, options = {}) {
     };
   }
 
-  const screenshotCapture = await maybeRouteProductLabScreenshotCapture(message, normalized, options);
+  const productLabWorkflow = await maybeRouteProductLabScreenshotWorkflow(normalized, options);
+  if (productLabWorkflow) {
+    return {
+      ...productLabWorkflow,
+      usedAi: false,
+      aiReason: 'github_product_lab_screenshot_workflow'
+    };
+  }
+
+  const screenshotCapture = await maybeRouteProductLabLocalScreenshotCapture(message, normalized, options);
   if (screenshotCapture) {
     return {
       ...screenshotCapture,
       usedAi: false,
-      aiReason: 'product_lab_screenshot_capture'
+      aiReason: 'local_product_lab_screenshot_capture'
     };
   }
 
@@ -577,7 +589,21 @@ function maybeRouteFounderDnaDialogue(message, normalized = normalizeMessage(mes
   return answerFounderAlignedProductQuestion(message, readProductEvidenceSnapshot());
 }
 
-function maybeRouteProductLabScreenshotPlan(message, normalized = normalizeMessage(message)) {
+function maybeRouteProductLabScreenshotWorkflowPlan(normalized = '') {
+  if (!isProductLabWorkflowScreenshotCommand(normalized)) return null;
+  return {
+    command: 'product_lab_screenshot_workflow_plan',
+    details: { agent: 'cto', intent: 'product_lab_screenshot_workflow_plan' },
+    matchedRoute: 'product_lab_screenshot_workflow',
+    response: [
+      'CTO: Product Lab screenshot should run in GitHub Actions, not on this PC.',
+      'Execution path: build APK, boot emulator, install Aritenis, capture screenshot, upload product-lab-validation artifact.',
+      'This is evidence collection only. No product code mutation starts.'
+    ].join('\n')
+  };
+}
+
+function maybeRouteProductLabLocalScreenshotPlan(message, normalized = normalizeMessage(message)) {
   if (!isProductLabScreenshotCommand(normalized || message)) return null;
   return buildScreenshotCaptureResponse({
     ok: true,
@@ -587,7 +613,49 @@ function maybeRouteProductLabScreenshotPlan(message, normalized = normalizeMessa
   });
 }
 
-async function maybeRouteProductLabScreenshotCapture(message, normalized = normalizeMessage(message), options = {}) {
+async function maybeRouteProductLabScreenshotWorkflow(normalized = '', options = {}) {
+  if (!isProductLabWorkflowScreenshotCommand(normalized)) {
+    return null;
+  }
+  const dispatch = await requestProductLabScreenshot({
+    triggeredBy: 'whatsapp',
+    fetchImpl: options.fetchImpl || fetch
+  }, options.env || process.env);
+  if (dispatch.status !== 'QUEUED') {
+    return {
+      command: 'product_lab_screenshot_workflow_config_required',
+      details: { agent: 'cto', intent: 'product_lab_screenshot_workflow_config_required', dispatch },
+      matchedRoute: 'product_lab_screenshot_workflow',
+      response: [
+        'CTO: Product Lab screenshot workflow was not queued.',
+        `Reason: ${dispatch.message}`,
+        'Needed on Render: GITHUB_ACTIONS_TOKEN and GITHUB_REPOSITORY.',
+        'Keep Twilio pointed at the Render webhook, not ngrok, when the PC may be off.'
+      ].join('\n')
+    };
+  }
+
+  return {
+    command: 'product_lab_screenshot_workflow',
+    details: { agent: 'cto', intent: 'product_lab_screenshot_workflow', dispatch },
+    matchedRoute: 'product_lab_screenshot_workflow',
+    response: [
+      'CTO: Product Lab screenshot workflow queued on GitHub.',
+      `Workflow: ${dispatch.workflow}`,
+      `Runs: ${dispatch.runsUrl}`,
+      `Artifact: ${dispatch.artifactName}`,
+      'Expected output: emulator screenshot plus Product Lab reports.',
+      'No product code mutation started.'
+    ].join('\n')
+  };
+}
+
+function isProductLabWorkflowScreenshotCommand(normalized = '') {
+  const text = String(normalized || '').trim().toLowerCase();
+  return /^(screenshot|capture screenshot|send screenshot|take screenshot|keyboard screenshot|product lab screenshot|run product lab screenshot|github product lab screenshot|cloud screenshot|capture screenshot in github|run screenshot lab)$/.test(text);
+}
+
+async function maybeRouteProductLabLocalScreenshotCapture(message, normalized = normalizeMessage(message), options = {}) {
   if (!isProductLabScreenshotCommand(normalized || message)) return null;
   try {
     const capture = captureProductLabScreenshot({

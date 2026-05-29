@@ -12,8 +12,9 @@ const { routeMessage, routeMessageWithAi } = require('../whatsapp/command-router
 const { twiml } = require('../whatsapp-server');
 
 (async () => {
-  assert.strictEqual(isProductLabScreenshotCommand('screenshot'), true);
-  assert.strictEqual(isProductLabScreenshotCommand('capture screenshot'), true);
+  assert.strictEqual(isProductLabScreenshotCommand('screenshot'), false);
+  assert.strictEqual(isProductLabScreenshotCommand('local screenshot'), true);
+  assert.strictEqual(isProductLabScreenshotCommand('capture local screenshot'), true);
   assert.strictEqual(isProductLabScreenshotCommand('what about screenshot evidence?'), false);
 
   assert.strictEqual(
@@ -36,7 +37,7 @@ const { twiml } = require('../whatsapp-server');
     assert(fs.existsSync(capture.filePath));
     assert.strictEqual(capture.mediaUrls.length, 1);
 
-    const routed = await routeMessageWithAi('screenshot', {}, {}, {
+    const routed = await routeMessageWithAi('local screenshot', {}, {}, {
       root: tempRoot,
       publicBaseUrl: 'https://example.ngrok-free.app',
       screenshotCapture: {
@@ -50,8 +51,12 @@ const { twiml } = require('../whatsapp-server');
     assert(routed.response.includes('Image attached'));
 
     const syncPlan = routeMessage('screenshot', {}, {});
-    assert.strictEqual(syncPlan.command, 'product_lab_screenshot_captured');
-    assert(syncPlan.response.includes('capture pending'));
+    assert.strictEqual(syncPlan.command, 'product_lab_screenshot_workflow_plan');
+    assert(syncPlan.response.includes('GitHub Actions'));
+
+    const localSyncPlan = routeMessage('local screenshot', {}, {});
+    assert.strictEqual(localSyncPlan.command, 'product_lab_screenshot_captured');
+    assert(localSyncPlan.response.includes('capture pending'));
 
     const xml = twiml('Founder screenshot ready', routed.mediaUrls);
     assert(xml.includes('<Media>https://example.ngrok-free.app/product-lab/screenshots/whatsapp-shot.png</Media>'));

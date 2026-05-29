@@ -4,7 +4,7 @@ const { execFileSync } = require('child_process');
 
 function isProductLabScreenshotCommand(message = '') {
   const text = String(message || '').trim().toLowerCase();
-  return /^(screenshot|capture screenshot|send screenshot|take screenshot|keyboard screenshot|product lab screenshot)$/.test(text);
+  return /^(local screenshot|capture local screenshot|send local screenshot|take local screenshot|local keyboard screenshot|local product lab screenshot)$/.test(text);
 }
 
 function captureProductLabScreenshot({
