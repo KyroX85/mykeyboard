@@ -88,7 +88,7 @@ class ChangeIsolationGuardrailsTest {
         val methodsWithDirectCommit = methodNamesContaining(source, ".commitText(")
 
         assertTrue(methodsWithDirectCommit == setOf("commitTextSafely"))
-        assertTrue(methodBody(source, "handleTouch").contains("cleanupInputViewState()"))
+        assertTrue(methodBody(source, "handleTouch").contains("cancelActiveTouchState(button)"))
         assertTrue(methodBody(source, "onStartInput").contains("cleanupInputViewState()"))
         assertTrue(methodBody(source, "onStartInputView").contains("cleanupInputViewState()"))
         assertTrue(methodBody(source, "onFinishInput").contains("cleanupInputViewState()"))

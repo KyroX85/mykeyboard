@@ -6,6 +6,7 @@ object KeyboardSymbols {
     const val BACKSPACE = "\u232B"
     const val ENTER = "\u23CE"
     const val EMOJI = "\u263A"
+    const val MIC = "\uD83C\uDFA4"
     const val SPACE = "space"
 
     const val RUPEE = "\u20B9"
@@ -179,6 +180,7 @@ object KeyboardSymbols {
         BACKSPACE -> "Backspace"
         ENTER -> enterLabel.ifBlank { "Enter" }
         EMOJI -> "Emoji keyboard"
+        MIC -> "Voice typing"
         SPACE -> "Space"
         "123" -> "Numbers and symbols"
         "ABC" -> "Letters"

@@ -1,6 +1,8 @@
 package com.example.mykeyboard
 
 import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.pm.ApplicationInfo
 import android.content.res.Configuration
 import android.graphics.Color
@@ -10,6 +12,7 @@ import android.graphics.drawable.ColorDrawable
 import android.inputmethodservice.InputMethodService
 import android.media.AudioManager
 import android.os.Build
+import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
@@ -25,6 +28,9 @@ import android.view.View
 import android.view.WindowInsets
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
+import android.speech.RecognitionListener
+import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
 import android.widget.BaseAdapter
 import android.widget.Button
 import android.widget.FrameLayout
@@ -32,8 +38,10 @@ import android.widget.GridView
 import android.widget.LinearLayout
 import android.widget.PopupWindow
 import android.widget.TextView
+import android.widget.Toast
 import android.view.ViewGroup
 import android.widget.AbsListView
+import java.util.Locale
 import com.example.mykeyboard.haptics.HapticKind
 import com.example.mykeyboard.haptics.HapticProfile
 import com.example.mykeyboard.haptics.HapticTapGate
@@ -169,6 +177,8 @@ class KeyboardService : InputMethodService() {
     }
     private var suggestionLookupFuture: Future<*>? = null
     private var autocorrectPrefetchFuture: Future<*>? = null
+    private var speechRecognizer: SpeechRecognizer? = null
+    private var isVoiceTypingActive = false
     private var autocorrectGeneration = 0
     private var autocorrectPrefetchWord: String? = null
     private var autocorrectPrefetchPreviousWord: String? = null
@@ -187,6 +197,7 @@ class KeyboardService : InputMethodService() {
         const val KEY_BACKSPACE = KeyboardSymbols.BACKSPACE
         const val KEY_ENTER = KeyboardSymbols.ENTER
         const val KEY_EMOJI = KeyboardSymbols.EMOJI
+        const val KEY_MIC = KeyboardSymbols.MIC
         const val KEY_SPACE = KeyboardSymbols.SPACE
         const val DOUBLE_TAP_TIMEOUT = 300L
         const val TOUCH_SLOP_HORIZONTAL_DP = 20
@@ -742,6 +753,7 @@ class KeyboardService : InputMethodService() {
 
         updateActionKeyUI()
         updateShiftUI()
+        updateVoiceKeyUI()
         keyboardPanel.post {
             refreshCachedKeyBounds()
             syncSwipeTrailToMeasuredPanel()
@@ -783,20 +795,20 @@ class KeyboardService : InputMethodService() {
             listOf("q", "w", "e", "r", "t", "y", "u", "i", "o", "p"),
             listOf("a", "s", "d", "f", "g", "h", "j", "k", "l"),
             listOf(KEY_SHIFT, "z", "x", "c", "v", "b", "n", "m", KEY_BACKSPACE),
-            listOf(KEY_EMOJI, "123", KEY_SPACE, KEY_ENTER)
+            listOf(KEY_EMOJI, "123", KEY_MIC, KEY_SPACE, KEY_ENTER)
         )
         Mode.NUMBERS -> listOf(
             listOf("+", "\u00D7", KeyboardSymbols.DIVIDE, "=", "/", "_", "<", ">", "[", "]"),
             listOf("!", "@", "#", KeyboardSymbols.RUPEE, "%", "^", "&", "*", "(", ")"),
             listOf("1/2", "-", "'", "\"", ":", ";", ",", "?", KEY_BACKSPACE),
-            listOf("ABC", ",", KEY_SPACE, ".", KEY_ENTER)
+            listOf("ABC", KEY_MIC, KEY_SPACE, ".", KEY_ENTER)
         )
         Mode.SYMBOLS -> listOf(
             listOf("`", "~", "\\", "|", "{", "}", KeyboardSymbols.EURO, KeyboardSymbols.POUND, KeyboardSymbols.YEN, "$"),
             listOf("\u00B0", KeyboardSymbols.BULLET, "\u25CB", "\u25CF", "\u25A1", "\u25A0", "\u2664", "\u2662", "\u2667"),
             listOf("\u00A7", "\u00B6", "\u00A9", "\u00AE", "\u2122", "\u00B1", "\u2248", "\u2260", "\u2264", "\u2265"),
             listOf("2/2", "\u2606", "\u25AA", "\u00A4", "\u00AB", "\u00BB", "\u00A1", "\u00BF", KEY_BACKSPACE),
-            listOf("ABC", ",", KEY_SPACE, ".", KEY_ENTER)
+            listOf("ABC", KEY_MIC, KEY_SPACE, ".", KEY_ENTER)
         )
     }
 
@@ -910,6 +922,7 @@ class KeyboardService : InputMethodService() {
             setPadding(0, 0, 0, 0)
             textSize = when (key) {
                 KEY_SHIFT, KEY_BACKSPACE -> 17.5f
+                KEY_MIC -> 16f
                 KEY_ENTER -> if (currentImeAction == ImeAction.Enter) 19f else 13f
                 KEY_SPACE -> 11f
                 else -> 18f
@@ -942,7 +955,7 @@ class KeyboardService : InputMethodService() {
         KEY_SPACE -> 5.05f
         KEY_SHIFT, KEY_BACKSPACE -> 1.28f
         KEY_ENTER -> 1.42f
-        "123", "ABC", "#+=", KEY_EMOJI -> 1.16f
+        "123", "ABC", "#+=", KEY_EMOJI, KEY_MIC -> 1.16f
         else -> 1f
     }
 
@@ -956,7 +969,7 @@ class KeyboardService : InputMethodService() {
         key == "q" || key == "a" || key == "z" || key == "1" -> KeyConfidenceZone.LEFT_EDGE
         key == "p" || key == "l" || key == "m" || key == "0" || key == KEY_BACKSPACE ->
             KeyConfidenceZone.RIGHT_EDGE
-        key == KEY_SPACE || key == KEY_EMOJI || key == "123" || key == "ABC" ||
+        key == KEY_SPACE || key == KEY_EMOJI || key == KEY_MIC || key == "123" || key == "ABC" ||
             key == "#+=" || key == KEY_SHIFT -> KeyConfidenceZone.BOTTOM_MODIFIER
         key == KEY_ENTER -> KeyConfidenceZone.ACTION_EDGE
         key.length == 1 && (key[0] in 'a'..'z' || key[0] in '2'..'9') -> KeyConfidenceZone.CENTER_ALPHA
@@ -977,7 +990,7 @@ class KeyboardService : InputMethodService() {
     }
 
     private fun isModifierKey(key: String): Boolean = when (key) {
-        KEY_EMOJI, "123", "ABC", "#+=", KEY_ENTER, KEY_SHIFT, KEY_BACKSPACE -> true
+        KEY_EMOJI, KEY_MIC, "123", "ABC", "#+=", KEY_ENTER, KEY_SHIFT, KEY_BACKSPACE -> true
         else -> false
     }
 
@@ -1263,6 +1276,8 @@ class KeyboardService : InputMethodService() {
                 commitSpace()
             }
 
+            KEY_MIC -> Unit
+
             else -> {
                 if (LongPressSymbolMap.symbolFor(key) != null) {
                     scheduleLongPress(SYMBOL_LONG_PRESS_DELAY_MS) {
@@ -1478,6 +1493,7 @@ class KeyboardService : InputMethodService() {
                 mainContainer.visibility = View.GONE
                 emojiContainer.visibility = View.VISIBLE
             }
+            KEY_MIC -> toggleVoiceTyping()
             else -> commitTextKey(key)
         }
     }
@@ -1520,6 +1536,121 @@ class KeyboardService : InputMethodService() {
         contextWords.clear()
         updateSuggestions()
         maybeFlushMetrics()
+    }
+
+    private fun toggleVoiceTyping() {
+        if (isVoiceTypingActive) {
+            stopVoiceTyping(cancel = false)
+        } else {
+            startVoiceTyping()
+        }
+    }
+
+    private fun startVoiceTyping() {
+        if (!hasRecordAudioPermission()) {
+            showVoiceTypingUnavailable("Enable microphone permission for Aritenis AI")
+            return
+        }
+        if (!SpeechRecognizer.isRecognitionAvailable(this)) {
+            showVoiceTypingUnavailable("Voice typing is not available on this phone")
+            return
+        }
+
+        val recognizer = speechRecognizer ?: SpeechRecognizer.createSpeechRecognizer(this).also {
+            it.setRecognitionListener(createSpeechRecognitionListener())
+            speechRecognizer = it
+        }
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
+            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false)
+            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+        }
+
+        try {
+            isVoiceTypingActive = true
+            updateVoiceKeyUI()
+            recognizer.startListening(intent)
+        } catch (e: RuntimeException) {
+            isVoiceTypingActive = false
+            updateVoiceKeyUI()
+            showVoiceTypingUnavailable("Could not start voice typing")
+        }
+    }
+
+    private fun createSpeechRecognitionListener(): RecognitionListener = object : RecognitionListener {
+        override fun onReadyForSpeech(params: Bundle?) = Unit
+        override fun onBeginningOfSpeech() = Unit
+        override fun onRmsChanged(rmsdB: Float) = Unit
+        override fun onBufferReceived(buffer: ByteArray?) = Unit
+        override fun onEndOfSpeech() {
+            isVoiceTypingActive = false
+            updateVoiceKeyUI()
+        }
+        override fun onError(error: Int) {
+            isVoiceTypingActive = false
+            updateVoiceKeyUI()
+        }
+        override fun onResults(results: Bundle?) {
+            isVoiceTypingActive = false
+            updateVoiceKeyUI()
+            val spokenText = results
+                ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                ?.firstOrNull()
+                .orEmpty()
+            commitVoiceResult(spokenText)
+        }
+        override fun onPartialResults(partialResults: Bundle?) = Unit
+        override fun onEvent(eventType: Int, params: Bundle?) = Unit
+    }
+
+    private fun commitVoiceResult(spokenText: String) {
+        val clean = spokenText.trim()
+        if (clean.isEmpty()) return
+        val ic = currentInputConnection ?: return
+        val textToCommit = if (clean.last().isWhitespace()) clean else "$clean "
+        if (commitTextSafely(ic, textToCommit, "voice")) {
+            currentWord.clear()
+            contextWords.clear()
+            updateSuggestions()
+            maybeFlushMetrics()
+        }
+    }
+
+    private fun stopVoiceTyping(cancel: Boolean) {
+        val recognizer = speechRecognizer ?: return
+        try {
+            if (cancel) {
+                recognizer.cancel()
+            } else {
+                recognizer.stopListening()
+            }
+        } catch (_: RuntimeException) {
+            // SpeechRecognizer implementations can throw when stopped during teardown.
+        } finally {
+            isVoiceTypingActive = false
+            updateVoiceKeyUI()
+        }
+    }
+
+    private fun destroySpeechRecognizer() {
+        stopVoiceTyping(cancel = true)
+        try {
+            speechRecognizer?.destroy()
+        } catch (_: RuntimeException) {
+            // Ignore teardown failures from OEM recognizer services.
+        } finally {
+            speechRecognizer = null
+            isVoiceTypingActive = false
+        }
+    }
+
+    private fun hasRecordAudioPermission(): Boolean =
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
+            checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+
+    private fun showVoiceTypingUnavailable(message: String) {
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     }
 
     private fun handleImeActionKey() {
@@ -1856,6 +1987,7 @@ class KeyboardService : InputMethodService() {
 
     private fun cleanupInputViewState() {
         swipeResolveGeneration += 1
+        stopVoiceTyping(cancel = true)
         cancelLongPress()
         stopRepeatingDelete()
         stopRepeatingSpace()
@@ -2018,6 +2150,17 @@ class KeyboardService : InputMethodService() {
             if (button.tag == KEY_ENTER) {
                 button.text = currentImeAction.label
                 button.textSize = if (currentImeAction == ImeAction.Enter) 19f else 13f
+            }
+        }
+    }
+
+    private fun updateVoiceKeyUI() {
+        keyButtons.forEach { button ->
+            if (button.tag == KEY_MIC) {
+                button.alpha = if (isVoiceTypingActive) 1f else 0.88f
+                button.setTextColor(
+                    if (isVoiceTypingActive) Color.parseColor("#8AB4F8") else textColorForKey(KEY_MIC)
+                )
             }
         }
     }
@@ -2352,6 +2495,7 @@ class KeyboardService : InputMethodService() {
         }
         maybeFlushMetrics(force = true)
         metrics.endSession()
+        destroySpeechRecognizer()
         suggestionLookupFuture?.cancel(true)
         autocorrectPrefetchFuture?.cancel(true)
         suggestionExecutor.shutdownNow()
