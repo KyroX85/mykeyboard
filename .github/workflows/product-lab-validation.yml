@@ -26,6 +26,9 @@ jobs:
         with:
           node-version: "24"
 
+      - name: Prepare Gradle wrapper
+        run: chmod +x gradlew
+
       - name: Build debug APK
         run: ./gradlew :app:assembleDebug
 
