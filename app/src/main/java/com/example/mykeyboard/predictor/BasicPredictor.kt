@@ -69,6 +69,8 @@ class BasicPredictor internal constructor(
         private const val EXTERNAL_DICTIONARY_PREFIX_MIN_LENGTH = 4
         private const val EXTERNAL_DICTIONARY_LIMIT = 6
         private const val EXTERNAL_DICTIONARY_COUNT = 6
+        private const val EXTERNAL_SWIPE_LIMIT = 96
+        private const val EXTERNAL_SWIPE_COUNT = 18
         private const val MIN_LEARN_WORD_LENGTH = 2
         private const val MAX_LEARN_WORD_LENGTH = 24
         private const val MANUAL_LEARN_WEIGHT = 1
@@ -453,12 +455,14 @@ class BasicPredictor internal constructor(
         if (cleanSequences.isEmpty()) {
             return SwipeSuggestionDiagnostics.EMPTY
         }
+        val externalSwipeCandidates = findExternalDictionarySwipeCandidates(cleanSequences)
         val candidates = LinkedHashMap<String, SwipeCandidateAccumulator>(MAX_SWIPE_SCAN)
         synchronized(modelLock) {
             if (prev.isNotEmpty()) {
                 collectSwipeCandidates(nextWordCounts[prev], candidates, contextual = true, learned = true)
                 collectSwipeCandidates(sessionPairCounts[prev], candidates, contextual = true, learned = true)
             }
+            collectExternalSwipeCandidates(externalSwipeCandidates, candidates)
             collectSwipeCandidates(BUILT_IN_WORD_COUNTS, candidates, contextual = false, learned = false)
             collectSwipeCandidates(unigramCounts, candidates, contextual = false, learned = true)
             collectSwipeCandidates(sessionWordCounts, candidates, contextual = false, learned = true)
@@ -512,6 +516,45 @@ class BasicPredictor internal constructor(
             .distinct()
             .take(MAX_SWIPE_SEQUENCE_VARIANTS)
             .toList()
+
+    private fun findExternalDictionarySwipeCandidates(sequences: List<String>): List<String> {
+        if (sequences.isEmpty()) return emptyList()
+        val output = LinkedHashSet<String>(EXTERNAL_SWIPE_LIMIT)
+        for (sequence in sequences) {
+            if (sequence.length < 4) continue
+            val first = sequence.first()
+            val last = sequence.last()
+            if (first !in 'a'..'z' || last !in 'a'..'z') continue
+            val minMiddle = maxOf(0, sequence.length - 4)
+            val maxMiddle = minOf(MAX_LEARN_WORD_LENGTH - 2, sequence.length + 6)
+            val orderedPattern = Pattern.compile("^${sequence.map { Pattern.quote(it.toString()) }.joinToString("[a-z]*")}$")
+            addExternalSwipeMatches(orderedPattern, output)
+            if (output.size >= EXTERNAL_SWIPE_LIMIT) return output.toList()
+
+            val endpointPattern = Pattern.compile("^${Pattern.quote(first.toString())}[a-z]{$minMiddle,$maxMiddle}${Pattern.quote(last.toString())}$")
+            addExternalSwipeMatches(endpointPattern, output)
+            if (output.size >= EXTERNAL_SWIPE_LIMIT) return output.toList()
+        }
+        return output.toList()
+    }
+
+    private fun addExternalSwipeMatches(pattern: Pattern, output: MutableSet<String>) {
+        val options = mapOf(
+            "limit" to EXTERNAL_SWIPE_LIMIT,
+            "shuffle" to false
+        )
+        val words = try {
+            RiTa.search(pattern, options)
+        } catch (e: RuntimeException) {
+            emptyArray<String>()
+        }
+        for (rawWord in words) {
+            val word = normalizeWordForLearning(rawWord) ?: continue
+            if (word.length !in 3..MAX_LEARN_WORD_LENGTH) continue
+            output.add(word)
+            if (output.size >= EXTERNAL_SWIPE_LIMIT) return
+        }
+    }
 
     fun learnWord(word: String, previousWord: String? = null) {
         val cleanWord = normalizeWordForLearning(word) ?: return
@@ -790,6 +833,17 @@ class BasicPredictor internal constructor(
             if (learned) {
                 accumulator.learnedFrequency += count
             }
+        }
+    }
+
+    private fun collectExternalSwipeCandidates(
+        words: List<String>,
+        output: LinkedHashMap<String, SwipeCandidateAccumulator>
+    ) {
+        for (word in words) {
+            if (output.size >= MAX_SWIPE_SCAN && !output.containsKey(word)) break
+            val accumulator = output.getOrPut(word) { SwipeCandidateAccumulator(word) }
+            accumulator.frequency += EXTERNAL_SWIPE_COUNT
         }
     }
 

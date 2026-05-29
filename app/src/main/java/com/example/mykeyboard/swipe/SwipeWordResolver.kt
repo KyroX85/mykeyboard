@@ -26,6 +26,9 @@ class SwipeWordResolver {
             bestPathCandidate(cleanSequences, candidate)?.let { scored ->
                 keepBestCandidate(scoredCandidates, scored)
             }
+            bestShapeCandidate(cleanSequences, candidate)?.let { scored ->
+                keepBestCandidate(scoredCandidates, scored)
+            }
             bestFallbackCandidate(cleanSequences, candidate)?.let { scored ->
                 keepBestCandidate(scoredCandidates, scored)
             }
@@ -106,6 +109,31 @@ class SwipeWordResolver {
                 penaltyScore = 0,
                 source = "fallback",
                 reason = "safe-common"
+            )
+            if (best == null || compareCandidate(scored, best!!) < 0) {
+                best = scored
+            }
+        }
+        return best
+    }
+
+    private fun bestShapeCandidate(sequences: List<String>, candidate: SwipeWordCandidate): SwipeResolvedCandidate? {
+        var best: SwipeResolvedCandidate? = null
+        val word = normalizeSequence(candidate.word)
+        if (word.length < SHAPE_MIN_WORD_LENGTH) return null
+        for (sequence in sequences) {
+            val shapeScore = keyboardShapeFallbackScore(sequence, word, candidate) ?: continue
+            val scored = SwipeResolvedCandidate(
+                word = candidate.word,
+                tier = STRONG_WEIGHTED_PATH_TIER,
+                score = shapeScore,
+                frequency = candidate.frequency,
+                pathScore = shapeScore,
+                trustScore = cappedTrustScore(candidate),
+                bonusScore = 0,
+                penaltyScore = 0,
+                source = "shape",
+                reason = "geometry"
             )
             if (best == null || compareCandidate(scored, best!!) < 0) {
                 best = scored
@@ -204,8 +232,12 @@ class SwipeWordResolver {
         }
         if (cleanWord.startsWith(sequence)) {
             return SwipeMatchScore(
-                92,
-                if (candidate.isTrustedLearned()) TRUSTED_LEARNED_TIER else WEAK_RECOVERY_TIER,
+                if (frequency >= COMMON_WORD_FREQUENCY || candidate.isTrustedLearned()) 122 else 92,
+                when {
+                    candidate.isTrustedLearned() -> TRUSTED_LEARNED_TIER
+                    frequency >= COMMON_WORD_FREQUENCY -> STRONG_WEIGHTED_PATH_TIER
+                    else -> WEAK_RECOVERY_TIER
+                },
                 "path",
                 "prefix"
             )
@@ -219,7 +251,12 @@ class SwipeWordResolver {
         if (firstPenalty == null || lastPenalty == null) return null
 
         val pathScore = greedyPathScore(sequence, cleanWord, candidate) ?: return null
-        val adjusted = pathScore - firstPenalty - lastPenalty
+        val geometryScore = if (cleanWord.length >= SHAPE_MIN_WORD_LENGTH) {
+            geometryShapeScore(sequence, cleanWord)
+        } else {
+            0
+        }
+        val adjusted = pathScore + geometryScore - firstPenalty - lastPenalty
         val hasExactFinalIntent = cleanWord.last() in sequence
         val shortCloseCommonPath = frequency >= COMMON_SHORT_FREQUENCY &&
             cleanWord.length <= SHORT_WORD_MAX_LENGTH &&
@@ -418,6 +455,49 @@ class SwipeWordResolver {
         return pathScore + trustScore + shortBoost
     }
 
+    private fun keyboardShapeFallbackScore(sequence: String, word: String, candidate: SwipeWordCandidate): Int? {
+        if (sequence.length < SHAPE_MIN_SEQUENCE_LENGTH) return null
+        if (kotlin.math.abs(word.length - sequence.length) > SHAPE_MAX_LENGTH_DELTA) return null
+        endpointPenalty(sequence.first(), word.first()) ?: return null
+        endpointPenalty(sequence.last(), word.last()) ?: return null
+
+        val distance = normalizedKeyboardPathDistance(sequence, word)
+        if (distance > SHAPE_MAX_NORMALIZED_DISTANCE) return null
+
+        var sequenceIndex = 0
+        var exactMatches = 0
+        var adjacentMatches = 0
+        for (wordKey in word) {
+            if (sequenceIndex >= sequence.length) break
+            val pathKey = sequence[sequenceIndex]
+            when {
+                pathKey == wordKey -> {
+                    exactMatches++
+                    sequenceIndex++
+                }
+                areAdjacent(wordKey, pathKey) -> {
+                    adjacentMatches++
+                    sequenceIndex++
+                }
+            }
+        }
+
+        val matched = exactMatches + adjacentMatches
+        if (matched < minOf(sequence.length, SHAPE_MIN_MATCHES)) return null
+        val skippedPathKeys = sequence.length - matched
+        if (skippedPathKeys > SHAPE_MAX_SKIPPED_PATH_KEYS) return null
+        val missingWordKeys = word.length - matched
+        val trustScore = cappedTrustScore(candidate)
+        val distancePenalty = (distance * SHAPE_DISTANCE_PENALTY_SCALE).toInt()
+        return 84 +
+            exactMatches * 26 +
+            adjacentMatches * 12 +
+            trustScore -
+            missingWordKeys * 5 -
+            skippedPathKeys * 12 -
+            distancePenalty
+    }
+
     private fun findSafeFallbackMatch(sequence: String, startIndex: Int, target: Char): Int {
         var index = startIndex
         while (index < sequence.length && index - startIndex <= MAX_SAFE_FALLBACK_GAP) {
@@ -471,6 +551,44 @@ class SwipeWordResolver {
     private fun areAdjacent(expected: Char, actual: Char): Boolean =
         KEY_NEIGHBORS[expected]?.contains(actual) == true
 
+    private fun geometryShapeScore(sequence: String, word: String): Int {
+        if (sequence.length < MIN_SEQUENCE_LENGTH || word.length < MIN_WORD_LENGTH) return 0
+        val distance = normalizedKeyboardPathDistance(sequence, word)
+        return ((GEOMETRY_GOOD_DISTANCE - distance) * GEOMETRY_SCORE_SCALE)
+            .toInt()
+            .coerceIn(-GEOMETRY_MAX_PENALTY, GEOMETRY_MAX_BONUS)
+    }
+
+    private fun normalizedKeyboardPathDistance(sequence: String, word: String): Float {
+        val rows = sequence.length + 1
+        val columns = word.length + 1
+        val cost = FloatArray(rows * columns) { Float.POSITIVE_INFINITY }
+        cost[0] = 0f
+
+        for (row in 1..sequence.length) {
+            for (column in 1..word.length) {
+                val local = keyboardDistance(sequence[row - 1], word[column - 1])
+                val previous = minOf(
+                    cost[(row - 1) * columns + column],
+                    cost[row * columns + column - 1],
+                    cost[(row - 1) * columns + column - 1]
+                )
+                cost[row * columns + column] = local + previous
+            }
+        }
+
+        return cost[sequence.length * columns + word.length] / maxOf(sequence.length, word.length)
+    }
+
+    private fun keyboardDistance(first: Char, second: Char): Float {
+        if (first == second) return 0f
+        val firstPoint = KEY_CENTERS[first] ?: return FAR_KEY_DISTANCE
+        val secondPoint = KEY_CENTERS[second] ?: return FAR_KEY_DISTANCE
+        val dx = firstPoint.x - secondPoint.x
+        val dy = firstPoint.y - secondPoint.y
+        return kotlin.math.sqrt((dx * dx + dy * dy).toDouble()).toFloat()
+    }
+
     private fun SwipeWordCandidate.isTrustedLearned(): Boolean =
         trustedLearned || acceptedCount > 0 || contextualFrequency >= TRUSTED_CONTEXTUAL_FREQUENCY
 
@@ -508,6 +626,40 @@ class SwipeWordResolver {
         'b' to "vghn",
         'n' to "bhjm",
         'm' to "njk"
+    )
+
+    private val KEY_CENTERS = mapOf(
+        'q' to KeyPoint(0f, 0f),
+        'w' to KeyPoint(1f, 0f),
+        'e' to KeyPoint(2f, 0f),
+        'r' to KeyPoint(3f, 0f),
+        't' to KeyPoint(4f, 0f),
+        'y' to KeyPoint(5f, 0f),
+        'u' to KeyPoint(6f, 0f),
+        'i' to KeyPoint(7f, 0f),
+        'o' to KeyPoint(8f, 0f),
+        'p' to KeyPoint(9f, 0f),
+        'a' to KeyPoint(0.5f, 1f),
+        's' to KeyPoint(1.5f, 1f),
+        'd' to KeyPoint(2.5f, 1f),
+        'f' to KeyPoint(3.5f, 1f),
+        'g' to KeyPoint(4.5f, 1f),
+        'h' to KeyPoint(5.5f, 1f),
+        'j' to KeyPoint(6.5f, 1f),
+        'k' to KeyPoint(7.5f, 1f),
+        'l' to KeyPoint(8.5f, 1f),
+        'z' to KeyPoint(1.5f, 2f),
+        'x' to KeyPoint(2.5f, 2f),
+        'c' to KeyPoint(3.5f, 2f),
+        'v' to KeyPoint(4.5f, 2f),
+        'b' to KeyPoint(5.5f, 2f),
+        'n' to KeyPoint(6.5f, 2f),
+        'm' to KeyPoint(7.5f, 2f)
+    )
+
+    private data class KeyPoint(
+        val x: Float,
+        val y: Float
     )
 
     private data class SwipeResolvedCandidate(
@@ -573,6 +725,18 @@ class SwipeWordResolver {
         const val LONG_WORD_RELAXED_LENGTH = 10
         const val MIN_LONG_WORD_EXACT_MATCHES = 4
         const val MAX_LONG_WORD_ADJACENT = 4
+        const val GEOMETRY_GOOD_DISTANCE = 1.15f
+        const val GEOMETRY_SCORE_SCALE = 22f
+        const val GEOMETRY_MAX_BONUS = 34
+        const val GEOMETRY_MAX_PENALTY = 18
+        const val FAR_KEY_DISTANCE = 4f
+        const val SHAPE_MIN_WORD_LENGTH = 6
+        const val SHAPE_MIN_SEQUENCE_LENGTH = 4
+        const val SHAPE_MIN_MATCHES = 4
+        const val SHAPE_MAX_LENGTH_DELTA = 5
+        const val SHAPE_MAX_SKIPPED_PATH_KEYS = 2
+        const val SHAPE_MAX_NORMALIZED_DISTANCE = 1.45f
+        const val SHAPE_DISTANCE_PENALTY_SCALE = 18f
         const val NO_KEY = '\u0000'
         val SAFE_FALLBACK_WORDS = setOf(
             "the",

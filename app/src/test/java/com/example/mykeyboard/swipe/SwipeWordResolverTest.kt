@@ -265,6 +265,20 @@ class SwipeWordResolverTest {
     }
 
     @Test
+    fun geometryScoringKeepsLongerPathIntentAboveShorterLookalikes() {
+        val resolver = SwipeWordResolver()
+        val candidates = listOf(
+            SwipeWordCandidate("camper", frequency = 18),
+            SwipeWordCandidate("computer", frequency = 18)
+        )
+
+        val diagnostics = mutableListOf<String>()
+        val result = resolver.resolve(listOf("cmpter"), candidates, debugReporter = diagnostics::add)
+
+        assertEquals(diagnostics.joinToString("\n"), "computer", result.firstOrNull())
+    }
+
+    @Test
     fun keepsLongCommonWordsAvailableWithMultipleInteriorDrifts() {
         val resolver = SwipeWordResolver()
         val candidates = listOf(

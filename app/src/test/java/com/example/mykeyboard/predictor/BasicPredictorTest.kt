@@ -103,6 +103,15 @@ class BasicPredictorTest {
     }
 
     @Test
+    fun swipeUsesExternalDictionaryCandidatesForCommonWordsOutsideBuiltInPool() {
+        val predictor = newPredictor()
+
+        val suggestions = predictor.getSwipeSuggestions(listOf("cmpter", "computer"))
+
+        assertEquals("computer", suggestions.firstOrNull())
+    }
+
+    @Test
     fun builtInDictionarySupportsSwipeCandidates() {
         val predictor = newPredictor()
 
