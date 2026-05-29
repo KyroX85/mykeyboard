@@ -1618,19 +1618,25 @@ class KeyboardService : InputMethodService() {
         logSwipeFinishDiagnostics(gesture, trailDiagnostics, candidateCount = candidates.size, winner = suggestion)
         if (suggestion == null) {
             metrics.recordSwipeResolved(gesture.rawSequence.length, candidateCount = candidates.size, committed = false)
-            Log.w(SWIPE_DEBUG_TAG, "commit skipped: no candidates sequence=$sourceSequence previous=$previousWord")
+            Log.w(
+                SWIPE_DEBUG_TAG,
+                "commit skipped: no candidates sequenceLength=${sourceSequence.length} previousPresent=${previousWord != null}"
+            )
             return
         }
         val committedWord = suggestion.trim().lowercase()
         if (committedWord.length < 2) {
             metrics.recordSwipeResolved(gesture.rawSequence.length, candidateCount = candidates.size, committed = false)
-            Log.w(SWIPE_DEBUG_TAG, "commit skipped: invalid candidate=$suggestion sequence=$sourceSequence")
+            Log.w(
+                SWIPE_DEBUG_TAG,
+                "commit skipped: invalid candidateLength=${suggestion.length} sequenceLength=${sourceSequence.length}"
+            )
             return
         }
         val ic = currentInputConnection
         if (ic == null) {
             metrics.recordSwipeResolved(gesture.rawSequence.length, candidateCount = candidates.size, committed = false)
-            Log.w(SWIPE_DEBUG_TAG, "commit failed: InputConnection null sequence=$sourceSequence")
+            Log.w(SWIPE_DEBUG_TAG, "commit failed: InputConnection null sequenceLength=${sourceSequence.length}")
             return
         }
 
@@ -2130,7 +2136,7 @@ class KeyboardService : InputMethodService() {
                         val responseBody = response.body?.string().orEmpty()
                         Log.e(
                             LOG_TAG,
-                            "Supabase insert failed code=${response.code} action=$action endpoint=$endpoint payload=${payload.toString().take(220)} response=${responseBody.take(300)}"
+                            "Supabase insert failed code=${response.code} action=$action endpoint=$endpoint response=${responseBody.take(300)}"
                         )
                     } else if (requestIndex <= 2 || requestIndex % LOG_SUCCESS_SAMPLE_EVERY == 0) {
                         Log.i(

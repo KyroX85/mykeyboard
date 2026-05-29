@@ -323,6 +323,27 @@ class FoundationalDebtGuardrailsTest {
         }
     }
 
+    @Test
+    fun swipeFailureLogsDoNotExposeRawSequencesOrPreviousWords() {
+        val source = sourceFile("app/src/main/java/com/example/mykeyboard/KeyboardService.kt").readText(Charsets.UTF_8)
+        val commitSwipe = methodBody(source, "commitSwipeSequence")
+
+        assertFalse(commitSwipe.contains("sequence=${'$'}sourceSequence"))
+        assertFalse(commitSwipe.contains("previous=${'$'}previousWord"))
+        assertTrue(source.contains("sequenceLength=${'$'}{sourceSequence.length}"))
+        assertTrue(source.contains("previousPresent=${'$'}{previousWord != null}"))
+    }
+
+    @Test
+    fun supabaseFailureLogsDoNotEchoSerializedPayload() {
+        val source = sourceFile("app/src/main/java/com/example/mykeyboard/KeyboardService.kt").readText(Charsets.UTF_8)
+        val logEvent = methodBody(source, "logEvent")
+
+        assertFalse(logEvent.contains("payload=${'$'}{payload.toString()"))
+        assertFalse(logEvent.contains("payload=${'$'}payload"))
+        assertTrue(logEvent.contains("response=${'$'}{responseBody.take(300)}"))
+    }
+
     private val textExtensions = setOf("kt", "kts", "xml", "txt", "pro")
 
     private fun sourceRoots(): List<File> = listOf(

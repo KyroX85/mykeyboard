@@ -191,10 +191,11 @@ function fastGreetingReply() {
 }
 
 function logVisibleWebhook(stage, details = {}) {
+  const body = typeof details.body === 'string' ? details.body : '';
   const safe = {
     requestId: details.requestId || null,
     from: details.from ? maskPhoneForConsole(details.from) : null,
-    body: details.body ? String(details.body).replace(/\s+/g, ' ').slice(0, 120) : null,
+    bodyLength: body.length || null,
     command: details.command || null,
     status: details.status || null,
     reason: details.reason || null,

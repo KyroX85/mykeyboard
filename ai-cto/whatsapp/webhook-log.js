@@ -12,6 +12,10 @@ function safeText(value, limit = 160) {
     .slice(0, limit);
 }
 
+function bodyLength(value) {
+  return typeof value === 'string' ? value.length : 0;
+}
+
 function logWebhookEvent(event) {
   rotateLogIfNeeded();
   const entry = {
@@ -20,7 +24,7 @@ function logWebhookEvent(event) {
     requestId: event.requestId || null,
     from: event.from ? maskPhone(event.from) : null,
     command: event.command || null,
-    body: event.body ? safeText(event.body) : null,
+    bodyLength: bodyLength(event.body),
     status: event.status || null,
     durationMs: Number.isFinite(event.durationMs) ? event.durationMs : null,
     error: event.error ? safeText(event.error, 240) : null,

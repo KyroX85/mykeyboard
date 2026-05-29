@@ -380,6 +380,11 @@ assert.strictEqual(normalizePhone('whatsapp:+123 456'), '+123456');
 assert.deepStrictEqual(extractTwilioBody({ body: undefined }).body, '');
 assert.deepStrictEqual(extractTwilioBody({ body: { Body: 'hi', From: 'whatsapp:+1', MessageSid: 'SM1' } }).body, 'hi');
 
+const webhookLogSource = fs.readFileSync(path.join(__dirname, '..', 'whatsapp', 'webhook-log.js'), 'utf8');
+assert(webhookLogSource.includes('bodyLength: bodyLength(event.body)'));
+assert(!webhookLogSource.includes('body: event.body'));
+assert(!webhookLogSource.includes('safeText(event.body'));
+
 const spawnBackup = fs.existsSync(SPAWN_FILE) ? fs.readFileSync(SPAWN_FILE, 'utf8') : null;
 try {
   const beforeIds = new Set(readSpawnState().active.map((agent) => agent.id));
