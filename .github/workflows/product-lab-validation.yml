@@ -48,6 +48,8 @@ jobs:
             adb shell ime set com.example.mykeyboard/.KeyboardService || true
             mkdir -p artifacts/product-lab/screenshots
             adb exec-out screencap -p > artifacts/product-lab/screenshots/emulator-smoke.png
+            test -s artifacts/product-lab/screenshots/emulator-smoke.png
+            ls -lh artifacts/product-lab/screenshots
 
       - name: Generate product lab reports
         run: node ai-cto/scripts/run-scheduled-product-lab.js

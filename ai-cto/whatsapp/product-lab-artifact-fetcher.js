@@ -132,6 +132,9 @@ function githubHeaders(config) {
 }
 
 function extractFirstPng(zipBuffer) {
+  const centralDirectoryPng = extractFirstPngFromCentralDirectory(zipBuffer);
+  if (centralDirectoryPng) return centralDirectoryPng;
+
   let offset = 0;
   while (offset + 30 <= zipBuffer.length) {
     const signature = zipBuffer.readUInt32LE(offset);
@@ -160,6 +163,66 @@ function extractFirstPng(zipBuffer) {
     offset = dataEnd;
   }
   return null;
+}
+
+function extractFirstPngFromCentralDirectory(zipBuffer) {
+  const endOffset = findEndOfCentralDirectory(zipBuffer);
+  if (endOffset < 0) return null;
+
+  const centralDirectorySize = zipBuffer.readUInt32LE(endOffset + 12);
+  const centralDirectoryOffset = zipBuffer.readUInt32LE(endOffset + 16);
+  let offset = centralDirectoryOffset;
+  const end = centralDirectoryOffset + centralDirectorySize;
+
+  while (offset + 46 <= end && offset + 46 <= zipBuffer.length) {
+    const signature = zipBuffer.readUInt32LE(offset);
+    if (signature !== 0x02014b50) break;
+
+    const method = zipBuffer.readUInt16LE(offset + 10);
+    const compressedSize = zipBuffer.readUInt32LE(offset + 20);
+    const fileNameLength = zipBuffer.readUInt16LE(offset + 28);
+    const extraLength = zipBuffer.readUInt16LE(offset + 30);
+    const commentLength = zipBuffer.readUInt16LE(offset + 32);
+    const localHeaderOffset = zipBuffer.readUInt32LE(offset + 42);
+    const nameStart = offset + 46;
+    const nameEnd = nameStart + fileNameLength;
+    const name = zipBuffer.slice(nameStart, nameEnd).toString('utf8');
+
+    if (name.toLowerCase().endsWith('.png')) {
+      const bytes = readLocalFileBytes(zipBuffer, {
+        method,
+        compressedSize,
+        localHeaderOffset
+      });
+      if (bytes) return { name, bytes };
+    }
+
+    offset = nameEnd + extraLength + commentLength;
+  }
+
+  return null;
+}
+
+function readLocalFileBytes(zipBuffer, { method, compressedSize, localHeaderOffset }) {
+  if (localHeaderOffset + 30 > zipBuffer.length) return null;
+  if (zipBuffer.readUInt32LE(localHeaderOffset) !== 0x04034b50) return null;
+  const fileNameLength = zipBuffer.readUInt16LE(localHeaderOffset + 26);
+  const extraLength = zipBuffer.readUInt16LE(localHeaderOffset + 28);
+  const dataStart = localHeaderOffset + 30 + fileNameLength + extraLength;
+  const dataEnd = dataStart + compressedSize;
+  if (dataEnd > zipBuffer.length) return null;
+  const compressed = zipBuffer.slice(dataStart, dataEnd);
+  if (method === 0) return compressed;
+  if (method === 8) return zlib.inflateRawSync(compressed);
+  return null;
+}
+
+function findEndOfCentralDirectory(zipBuffer) {
+  const minOffset = Math.max(0, zipBuffer.length - 65557);
+  for (let offset = zipBuffer.length - 22; offset >= minOffset; offset -= 1) {
+    if (zipBuffer.readUInt32LE(offset) === 0x06054b50) return offset;
+  }
+  return -1;
 }
 
 module.exports = {
