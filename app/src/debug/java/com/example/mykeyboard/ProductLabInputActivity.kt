@@ -18,14 +18,14 @@ class ProductLabInputActivity : Activity() {
         val container = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
-            setBackgroundColor(Color.rgb(18, 24, 32))
+            setBackgroundColor(Color.WHITE)
             setPadding(32, 96, 32, 32)
         }
 
         val label = TextView(this).apply {
             text = "Aritenis Product Lab"
             textSize = 20f
-            setTextColor(Color.WHITE)
+            setTextColor(Color.BLACK)
             gravity = Gravity.CENTER
         }
 
@@ -35,9 +35,9 @@ class ProductLabInputActivity : Activity() {
             setSingleLine(false)
             minLines = 2
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
-            setTextColor(Color.WHITE)
-            setHintTextColor(Color.LTGRAY)
-            setBackgroundColor(Color.rgb(34, 43, 55))
+            setTextColor(Color.BLACK)
+            setHintTextColor(Color.DKGRAY)
+            setBackgroundColor(Color.rgb(230, 236, 244))
             setPadding(24, 18, 24, 18)
         }
 

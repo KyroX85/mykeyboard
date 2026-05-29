@@ -44,13 +44,21 @@ jobs:
           profile: pixel_3a
           script: |
             adb install -r app/build/outputs/apk/debug/app-debug.apk
+            adb shell input keyevent KEYCODE_WAKEUP || true
+            adb shell wm dismiss-keyguard || true
+            adb shell input keyevent 82 || true
+            adb shell settings put secure show_ime_with_hard_keyboard 1 || true
+            adb shell settings put system screen_off_timeout 600000 || true
             adb shell ime enable com.example.mykeyboard/.KeyboardService || true
             adb shell ime set com.example.mykeyboard/.KeyboardService || true
-            adb shell am start -n com.example.mykeyboard/.ProductLabInputActivity
-            sleep 5
+            adb shell am force-stop com.example.mykeyboard || true
+            adb shell am start -W -n com.example.mykeyboard/.ProductLabInputActivity
+            sleep 8
             adb shell input tap 540 260
-            sleep 2
+            sleep 5
             adb shell dumpsys input_method | grep -E "mInputShown|mCurMethod|com.example.mykeyboard" || true
+            adb shell uiautomator dump /sdcard/product-lab-window.xml || true
+            adb pull /sdcard/product-lab-window.xml artifacts/product-lab-window.xml || true
             mkdir -p artifacts/product-lab/screenshots
             adb exec-out screencap -p > artifacts/product-lab/screenshots/emulator-smoke.png
             test -s artifacts/product-lab/screenshots/emulator-smoke.png
