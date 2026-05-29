@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const path = require('path');
 const express = require('express');
 const { routeMessageWithAi } = require('./whatsapp/command-router');
 const { loadEngineeringState } = require('./whatsapp/state-reader');
@@ -55,15 +56,19 @@ function normalizePhone(value) {
   return String(value || '').replace(/^whatsapp:/i, '').replace(/\s+/g, '');
 }
 
-function twiml(message) {
-  return twimlMessages(chunkMessage(message));
+function twiml(message, mediaUrls = []) {
+  return twimlMessages(chunkMessage(message), mediaUrls);
 }
 
-function twimlMessages(messages) {
+function twimlMessages(messages, mediaUrls = []) {
+  const media = (Array.isArray(mediaUrls) ? mediaUrls : [mediaUrls]).filter(Boolean);
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',
     '<Response>',
-    ...messages.map((message) => `<Message>${escapeXml(message)}</Message>`),
+    ...messages.map((message, index) => {
+      const mediaXml = index === 0 ? media.map((url) => `<Media>${escapeXml(url)}</Media>`).join('') : '';
+      return `<Message><Body>${escapeXml(message)}</Body>${mediaXml}</Message>`;
+    }),
     '</Response>'
   ].join('');
 }
@@ -217,6 +222,7 @@ function createApp() {
   app.set('trust proxy', true);
   app.use(express.json({ limit: '32kb' }));
   app.use(express.urlencoded({ extended: false }));
+  app.use('/product-lab/screenshots', express.static(path.join(REPO_ROOT, 'artifacts', 'product-lab', 'screenshots')));
 
   app.get('/healthz', (req, res) => {
     const configError = assertProductionConfig();
@@ -397,7 +403,9 @@ function createApp() {
       const routed = await routeMessageWithAi(body, state, memory, {
         commit: process.env.CTO_AI_EXECUTION_COMMIT !== 'false',
         push: process.env.CTO_AI_EXECUTION_PUSH !== 'false',
-        deferLowRiskVisionExecution: true
+        deferLowRiskVisionExecution: true,
+        root: REPO_ROOT,
+        publicBaseUrl: PUBLIC_BASE_URL
       });
       logVisibleWebhook('routed', {
         requestId: id,
@@ -469,7 +477,7 @@ function createApp() {
         durationMs: Date.now() - startedAt
       });
       logVisibleWebhook('reply', { requestId: id, from, body, command: routed.command, status: 200 });
-      res.status(200).type('text/xml').send(twiml(routed.response));
+      res.status(200).type('text/xml').send(twiml(routed.response, routed.mediaUrls || []));
       if (routed.command === 'vision_command_execution_started') {
         runDeferredVisionExecution({
           requestId: id,

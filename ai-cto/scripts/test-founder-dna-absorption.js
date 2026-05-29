@@ -52,8 +52,8 @@ const whatsappExecution = routeMessage('create a file called founder_test.txt an
 assert.notStrictEqual(whatsappExecution.matchedRoute, 'founder_dna_product_judgment');
 
 const whatsappScreenshot = routeMessage('screenshot', {}, {});
-assert.strictEqual(whatsappScreenshot.matchedRoute, 'founder_dna_product_judgment');
-assert(whatsappScreenshot.response.includes('Product Lab evidence'));
+assert.strictEqual(whatsappScreenshot.matchedRoute, 'product_lab_screenshot_capture');
+assert(whatsappScreenshot.response.includes('capture pending'));
 assert(!whatsappScreenshot.response.includes('AMBIGUOUS INTENT DETECTED'));
 
 console.log('Founder DNA absorption checks passed');

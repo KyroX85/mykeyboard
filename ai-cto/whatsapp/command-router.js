@@ -19,6 +19,11 @@ const { runProductStewardAutonomy } = require('../scripts/product-steward-autono
 const { maybeGenerateAiWhatsAppResponse } = require('./ai-whatsapp-responder');
 const { detectLowInformation } = require('../uncertainty-filter');
 const { answerFounderAlignedProductQuestion } = require('../canonical-product-judgment-engine');
+const {
+  buildScreenshotCaptureResponse,
+  captureProductLabScreenshot,
+  isProductLabScreenshotCommand
+} = require('../product-lab/whatsapp-screenshot-capture');
 const { setMode, readState, enforceExecutionAllowed } = require('../../governance/governance');
 
 const ROOT = path.resolve(__dirname, '..', '..');
@@ -134,6 +139,8 @@ function routeMessage(message, state, memory = {}) {
   if (preservationDecision) return preservationDecision;
   const preservationBlock = maybeBlockPreservationMutation(normalized);
   if (preservationBlock) return preservationBlock;
+  const screenshotPlan = maybeRouteProductLabScreenshotPlan(message, normalized);
+  if (screenshotPlan) return screenshotPlan;
   const productStewardAnswer = maybeRouteProductStewardAnswer(message, normalized);
   if (productStewardAnswer) return productStewardAnswer;
   const founderDnaDialogue = maybeRouteFounderDnaDialogue(message, normalized);
@@ -306,6 +313,15 @@ async function routeMessageWithAi(message, state, memory = {}, options = {}) {
       ...preservationBlock,
       usedAi: false,
       aiReason: 'preservation_mode_guard'
+    };
+  }
+
+  const screenshotCapture = await maybeRouteProductLabScreenshotCapture(message, normalized, options);
+  if (screenshotCapture) {
+    return {
+      ...screenshotCapture,
+      usedAi: false,
+      aiReason: 'product_lab_screenshot_capture'
     };
   }
 
@@ -559,6 +575,33 @@ function maybeRouteFounderDnaDialogue(message, normalized = normalizeMessage(mes
     return null;
   }
   return answerFounderAlignedProductQuestion(message, readProductEvidenceSnapshot());
+}
+
+function maybeRouteProductLabScreenshotPlan(message, normalized = normalizeMessage(message)) {
+  if (!isProductLabScreenshotCommand(normalized || message)) return null;
+  return buildScreenshotCaptureResponse({
+    ok: true,
+    filePath: 'capture pending in WhatsApp server async path',
+    publicUrl: null,
+    mediaUrls: []
+  });
+}
+
+async function maybeRouteProductLabScreenshotCapture(message, normalized = normalizeMessage(message), options = {}) {
+  if (!isProductLabScreenshotCommand(normalized || message)) return null;
+  try {
+    const capture = captureProductLabScreenshot({
+      root: options.root || process.cwd(),
+      publicBaseUrl: options.publicBaseUrl || process.env.PUBLIC_BASE_URL || '',
+      ...(options.screenshotCapture || {})
+    });
+    return buildScreenshotCaptureResponse(capture);
+  } catch (error) {
+    return buildScreenshotCaptureResponse({
+      ok: false,
+      error: error.message
+    });
+  }
 }
 
 function stewardResponse(command, lines) {
