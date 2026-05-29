@@ -1,10 +1,11 @@
 const DEFAULT_WORKFLOW = 'build-and-distribute.yml';
 const PRODUCT_LAB_WORKFLOW = 'product-lab-validation.yml';
+const DEFAULT_REPOSITORY = 'KyroX85/mykeyboard';
 
 function buildDispatchConfig(env = process.env) {
   return {
     token: env.GITHUB_ACTIONS_TOKEN || env.GITHUB_TOKEN || '',
-    repository: env.GITHUB_REPOSITORY || '',
+    repository: env.GITHUB_REPOSITORY || DEFAULT_REPOSITORY,
     workflow: env.GITHUB_BUILD_WORKFLOW || DEFAULT_WORKFLOW,
     ref: env.GITHUB_BUILD_REF || 'main'
   };
@@ -55,10 +56,10 @@ async function requestWorkflowDispatch({
   fetchImpl = fetch
 } = {}, env = process.env) {
   const config = buildDispatchConfig(env);
-  if (!config.token || !config.repository) {
+  if (!config.token) {
     return {
       status: 'CONFIG_REQUIRED',
-      message: 'Set GITHUB_ACTIONS_TOKEN and GITHUB_REPOSITORY to enable WhatsApp workflow dispatch.'
+      message: 'Set GITHUB_ACTIONS_TOKEN on Render to enable WhatsApp workflow dispatch.'
     };
   }
 

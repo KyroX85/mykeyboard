@@ -629,7 +629,8 @@ async function maybeRouteProductLabScreenshotWorkflow(normalized = '', options =
       response: [
         'CTO: Product Lab screenshot workflow was not queued.',
         `Reason: ${dispatch.message}`,
-        'Needed on Render: GITHUB_ACTIONS_TOKEN and GITHUB_REPOSITORY.',
+        'Needed on Render: GITHUB_ACTIONS_TOKEN.',
+        'Optional override: GITHUB_REPOSITORY if the repo ever changes.',
         'Keep Twilio pointed at the Render webhook, not ngrok, when the PC may be off.'
       ].join('\n')
     };

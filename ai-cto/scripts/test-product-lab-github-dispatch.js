@@ -38,6 +38,16 @@ const { routeMessageWithAi } = require('../whatsapp/command-router');
   });
   assert.strictEqual(missingConfig.command, 'product_lab_screenshot_workflow_config_required');
   assert(missingConfig.response.includes('GITHUB_ACTIONS_TOKEN'));
+  assert(!missingConfig.response.includes('GITHUB_REPOSITORY and'));
+
+  const defaultRepoDispatch = await requestProductLabScreenshot({
+    triggeredBy: 'whatsapp',
+    fetchImpl
+  }, {
+    GITHUB_ACTIONS_TOKEN: 'test-token'
+  });
+  assert.strictEqual(defaultRepoDispatch.status, 'QUEUED');
+  assert(defaultRepoDispatch.runsUrl.includes('KyroX85/mykeyboard'));
 
   console.log('Product Lab GitHub dispatch checks passed');
 })();
