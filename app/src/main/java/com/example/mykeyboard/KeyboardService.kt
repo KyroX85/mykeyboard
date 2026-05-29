@@ -1,5 +1,7 @@
 package com.example.mykeyboard
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.content.res.Configuration
@@ -75,6 +77,7 @@ class KeyboardService : InputMethodService() {
     private lateinit var keyboardPanel: FrameLayout
     private lateinit var keyboardContent: LinearLayout
     private lateinit var suggestionBar: LinearLayout
+    private lateinit var agentActionRow: LinearLayout
     private lateinit var numberRow: LinearLayout
     private lateinit var keyboardLayout: LinearLayout
     private lateinit var swipeTrailView: SwipeTrailView
@@ -86,6 +89,7 @@ class KeyboardService : InputMethodService() {
 
     private val keyButtons = mutableListOf<Button>()
     private val suggestionButtons = mutableListOf<TextView>()
+    private val agentActionButtons = mutableListOf<TextView>()
     private val renderedSuggestionTexts = Array(3) { "" }
 
     private enum class Mode { LETTERS, NUMBERS, SYMBOLS }
@@ -158,6 +162,7 @@ class KeyboardService : InputMethodService() {
     private var pendingSuggestionImpression = false
     private var lastAcceptedSuggestion: String? = null
     private var lastAcceptedSuggestionPreviousWord: String? = null
+    private var latestAgenticWorkflow: AgenticWorkflowState? = null
     private var lastMetricsFlushAtMs = 0L
     private var currentImeAction = ImeAction.Enter
     private var lastSuggestionQueryPrefix = SUGGESTION_QUERY_UNSET
@@ -213,6 +218,11 @@ class KeyboardService : InputMethodService() {
         const val SWIPE_SAMPLE_DISTANCE_DP = 5
         const val SWIPE_RESOLVE_WARN_MS = 32L
         const val MAX_NAVIGATION_BOTTOM_PADDING_DP = 32
+        const val AGENTIC_MIN_CONTEXT_WORDS = 3
+        const val ACTION_COPY = "copy"
+        const val ACTION_EDIT = "edit"
+        const val ACTION_WHATSAPP = "whatsapp"
+        const val ACTION_EMAIL = "email"
         const val SHIFT_LONG_PRESS_DELAY_MS = 300L
         const val SYMBOL_LONG_PRESS_DELAY_MS = 230L
         const val SUGGESTION_QUERY_UNSET = "\u0000"
@@ -284,6 +294,7 @@ class KeyboardService : InputMethodService() {
         }
         keyboardContent = layout.findViewById(R.id.keyboardContent)
         suggestionBar = layout.findViewById(R.id.suggestionBar)
+        agentActionRow = layout.findViewById(R.id.actionOptionsBar)
         numberRow = layout.findViewById(R.id.numberRow)
         keyboardLayout = layout.findViewById(R.id.lettersLayout)
         swipeTrailView = SwipeTrailView(this).apply {
@@ -301,6 +312,7 @@ class KeyboardService : InputMethodService() {
         applyEmojiBottomInset()
 
         setupSuggestionBar()
+        setupAgentActionRow()
         setupEmojiPanelContent()
 
         buildKeyboard()
@@ -375,6 +387,43 @@ class KeyboardService : InputMethodService() {
             suggestionBar.addView(suggestionBtn)
             suggestionButtons.add(suggestionBtn)
         }
+        updateAgenticWorkflowOverlay()
+    }
+
+    private fun setupAgentActionRow() {
+        agentActionRow.removeAllViews()
+        agentActionButtons.clear()
+        val actions = listOf(
+            ACTION_COPY to "Copy",
+            ACTION_EDIT to "Edit",
+            ACTION_WHATSAPP to "WhatsApp",
+            ACTION_EMAIL to "Email"
+        )
+        actions.forEach { (id, label) ->
+            val button = TextView(this).apply {
+                text = label
+                tag = id
+                textSize = 12.5f
+                setTextColor(Color.rgb(218, 224, 232))
+                gravity = Gravity.CENTER
+                setIncludeFontPadding(false)
+                setSingleLine(true)
+                background = resources.getDrawable(R.drawable.key_bg_modifier, theme)
+                isClickable = true
+                isFocusable = true
+                layoutParams = LinearLayout.LayoutParams(
+                    0,
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    1f
+                ).apply {
+                    setMargins(dp(2), dp(4), dp(2), dp(4))
+                }
+                setOnClickListener { handleAgenticAction(id) }
+            }
+            agentActionRow.addView(button)
+            agentActionButtons.add(button)
+        }
+        agentActionRow.visibility = View.GONE
     }
 
     private fun setupNumberRow(sizing: KeyboardSizingProfile = currentKeyboardSizing()) {
@@ -474,6 +523,129 @@ class KeyboardService : InputMethodService() {
         updateSuggestions()
         maybeFlushMetrics()
     }
+
+    private fun updateAgenticWorkflowOverlay() {
+        if (!::agentActionRow.isInitialized) return
+        val workflow = buildAgenticWorkflowState()
+        latestAgenticWorkflow = workflow
+        if (workflow == null) {
+            agentActionRow.visibility = View.GONE
+            return
+        }
+        agentActionRow.visibility = View.VISIBLE
+        agentActionButtons.forEach { button ->
+            val actionId = button.tag as? String
+            button.alpha = if (workflow.actions.contains(actionId)) 1f else 0.42f
+            button.isEnabled = workflow.actions.contains(actionId)
+        }
+    }
+
+    private fun buildAgenticWorkflowState(): AgenticWorkflowState? {
+        val words = (contextWords + currentWord.toString())
+            .map { it.trim() }
+            .filter { it.length >= 2 }
+        if (words.size < AGENTIC_MIN_CONTEXT_WORDS) return null
+
+        val text = words.joinToString(" ")
+        val intent = detectAgenticIntent(text)
+        val refined = refineAgenticDraft(text, intent)
+        val actions = when (intent) {
+            AgenticIntent.EMAIL_DRAFT -> setOf(ACTION_COPY, ACTION_EDIT, ACTION_EMAIL)
+            AgenticIntent.WHATSAPP_REPLY, AgenticIntent.MESSAGE -> setOf(ACTION_COPY, ACTION_EDIT, ACTION_WHATSAPP)
+            AgenticIntent.TASK_PLANNING -> setOf(ACTION_COPY, ACTION_EDIT)
+            AgenticIntent.SEARCH_QUERY, AgenticIntent.GENERAL_TEXT -> setOf(ACTION_COPY, ACTION_EDIT)
+        }
+        return AgenticWorkflowState(intent = intent, sourceText = text, refinedDraft = refined, actions = actions)
+    }
+
+    private fun detectAgenticIntent(text: String): AgenticIntent {
+        val lower = text.lowercase()
+        return when {
+            Regex("\\b(email|mail|subject|dear|regards|sir|madam)\\b").containsMatchIn(lower) ->
+                AgenticIntent.EMAIL_DRAFT
+            Regex("\\b(whatsapp|reply|bro|da|machan|anna)\\b").containsMatchIn(lower) ->
+                AgenticIntent.WHATSAPP_REPLY
+            Regex("^(search|google|find|look up)\\b").containsMatchIn(lower) ||
+                Regex("\\b(best|near me|how to|what is)\\b").containsMatchIn(lower) ->
+                AgenticIntent.SEARCH_QUERY
+            Regex("\\b(plan|todo|task|steps|finish|schedule|deadline)\\b").containsMatchIn(lower) ->
+                AgenticIntent.TASK_PLANNING
+            wordsIn(text) >= AGENTIC_MIN_CONTEXT_WORDS -> AgenticIntent.MESSAGE
+            else -> AgenticIntent.GENERAL_TEXT
+        }
+    }
+
+    private fun refineAgenticDraft(text: String, intent: AgenticIntent): String = when (intent) {
+        AgenticIntent.EMAIL_DRAFT -> {
+            val body = sentenceCase(text.removePrefixIgnoreCase("email").trim())
+            "Subject: ${emailSubjectFrom(body)}\n\nHi,\n\n$body\n\nThanks,"
+        }
+        AgenticIntent.WHATSAPP_REPLY -> sentenceCase(preserveAgenticAcronyms(text))
+        AgenticIntent.TASK_PLANNING -> text.split(Regex("\\b(and|then)\\b|,"))
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .mapIndexed { index, step -> "${index + 1}. ${sentenceCase(step)}" }
+            .joinToString("\n")
+        AgenticIntent.SEARCH_QUERY -> text
+            .replace(Regex("^(search|google|find|look up)\\s+", RegexOption.IGNORE_CASE), "")
+            .trim()
+            .lowercase()
+        AgenticIntent.MESSAGE, AgenticIntent.GENERAL_TEXT -> sentenceCase(preserveAgenticAcronyms(text))
+    }
+
+    private fun handleAgenticAction(actionId: String) {
+        val workflow = latestAgenticWorkflow ?: return
+        if (!workflow.actions.contains(actionId)) return
+        when (actionId) {
+            ACTION_COPY -> copyAgenticDraftToClipboard(workflow.refinedDraft)
+            ACTION_EDIT -> commitAgenticDraft(workflow)
+            ACTION_WHATSAPP -> commitAgenticDraft(workflow.copy(refinedDraft = formatAgenticWhatsApp(workflow.refinedDraft)))
+            ACTION_EMAIL -> commitAgenticDraft(workflow.copy(refinedDraft = formatAgenticEmail(workflow.refinedDraft)))
+        }
+    }
+
+    private fun copyAgenticDraftToClipboard(text: String) {
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return
+        clipboard.setPrimaryClip(ClipData.newPlainText("Aritenis draft", text))
+    }
+
+    private fun commitAgenticDraft(workflow: AgenticWorkflowState) {
+        val ic = currentInputConnection ?: return
+        val replaceLength = workflow.sourceText.length.coerceAtLeast(currentWord.length)
+        if (!deleteSurroundingTextSafely(ic, replaceLength, 0, "agentic-replace")) return
+        if (commitTextSafely(ic, workflow.refinedDraft, "agentic-action")) {
+            contextWords.clear()
+            currentWord.clear()
+            updateSuggestions()
+        }
+    }
+
+    private fun formatAgenticWhatsApp(text: String): String =
+        sentenceCase(text).replace(Regex("\\s+"), " ").trim()
+
+    private fun formatAgenticEmail(text: String): String =
+        if (text.startsWith("Subject:", ignoreCase = true)) text else "Subject: ${emailSubjectFrom(text)}\n\n$text"
+
+    private fun emailSubjectFrom(text: String): String =
+        sentenceCase(text.split(Regex("\\s+")).take(7).joinToString(" ").ifBlank { "Update" })
+
+    private fun sentenceCase(text: String): String {
+        val clean = text.trim()
+        if (clean.isEmpty()) return clean
+        return clean.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+    }
+
+    private fun preserveAgenticAcronyms(text: String): String =
+        text.replace(Regex("\\bapk\\b", RegexOption.IGNORE_CASE), "APK")
+            .replace(Regex("\\bai\\b", RegexOption.IGNORE_CASE), "AI")
+            .replace(Regex("\\bui\\b", RegexOption.IGNORE_CASE), "UI")
+            .replace(Regex("\\bux\\b", RegexOption.IGNORE_CASE), "UX")
+            .replace(Regex("\\bwhatsapp\\b", RegexOption.IGNORE_CASE), "WhatsApp")
+
+    private fun String.removePrefixIgnoreCase(prefix: String): String =
+        replace(Regex("^${Regex.escape(prefix)}\\s+", RegexOption.IGNORE_CASE), "")
+
+    private fun wordsIn(text: String): Int = text.trim().split(Regex("\\s+")).count { it.isNotBlank() }
 
     private fun setupEmojiPanelContent() {
         if (recentEmojis.isEmpty()) {
@@ -1742,6 +1914,7 @@ class KeyboardService : InputMethodService() {
         val previousWord = contextWords.lastOrNull()
         val prefix = currentWord.toString()
         val stablePrevious = previousWord.orEmpty()
+        updateAgenticWorkflowOverlay()
         if (prefix == lastSuggestionQueryPrefix && stablePrevious == lastSuggestionQueryPreviousWord) {
             return
         }
@@ -1826,6 +1999,10 @@ class KeyboardService : InputMethodService() {
 
     private fun cleanupInputViewState() {
         swipeResolveGeneration += 1
+        latestAgenticWorkflow = null
+        if (::agentActionRow.isInitialized) {
+            agentActionRow.visibility = View.GONE
+        }
         cancelLongPress()
         stopRepeatingDelete()
         stopRepeatingSpace()
@@ -2281,6 +2458,22 @@ class KeyboardService : InputMethodService() {
         val bottom: Int,
         val centerX: Int,
         val centerY: Int
+    )
+
+    private enum class AgenticIntent {
+        MESSAGE,
+        EMAIL_DRAFT,
+        WHATSAPP_REPLY,
+        SEARCH_QUERY,
+        TASK_PLANNING,
+        GENERAL_TEXT
+    }
+
+    private data class AgenticWorkflowState(
+        val intent: AgenticIntent,
+        val sourceText: String,
+        val refinedDraft: String,
+        val actions: Set<String>
     )
 
     override fun onFinishInputView(finishingInput: Boolean) {
