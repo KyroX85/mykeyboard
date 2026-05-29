@@ -344,6 +344,19 @@ class FoundationalDebtGuardrailsTest {
         assertTrue(logEvent.contains("response=${'$'}{responseBody.take(300)}"))
     }
 
+    @Test
+    fun predictorPreferencesAreExcludedFromBackupAndTransfer() {
+        val backup = sourceFile("app/src/main/res/xml/backup_rules.xml").readText(Charsets.UTF_8)
+        val extraction = sourceFile("app/src/main/res/xml/data_extraction_rules.xml").readText(Charsets.UTF_8)
+
+        for (prefs in listOf("keyboard_predictions.xml", "keyboard_prefs.xml")) {
+            assertTrue("backup rules must exclude $prefs", backup.contains("path=\"$prefs\""))
+            assertTrue("data extraction rules must exclude $prefs", extraction.contains("path=\"$prefs\""))
+        }
+        assertTrue(extraction.contains("<cloud-backup>"))
+        assertTrue(extraction.contains("<device-transfer>"))
+    }
+
     private val textExtensions = setOf("kt", "kts", "xml", "txt", "pro")
 
     private fun sourceRoots(): List<File> = listOf(

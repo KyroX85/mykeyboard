@@ -18,6 +18,7 @@
     "cto:product-learning:test": "node ai-cto/scripts/test-product-learning.js",
     "cto:evidence:test": "node ai-cto/scripts/test-product-metrics-ingest.js && node ai-cto/scripts/test-product-signal-bridge-config.js && node ai-cto/scripts/test-whatsapp-metrics-and-media.js",
     "cto:whatsapp-provider:test": "node ai-cto/scripts/test-whatsapp-provider-fallback.js",
+    "cto:privacy-boundary:test": "node ai-cto/scripts/test-canonical-privacy-boundary.js",
     "cto:ux-lab:test": "node ai-cto/scripts/test-ux-verification-lab.js",
     "cto:product-lab:test": "node ai-cto/scripts/test-scheduled-product-lab.js",
     "cto:screenshot-judgment:test": "node ai-cto/scripts/test-screenshot-product-judgment.js",
