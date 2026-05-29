@@ -8,26 +8,31 @@ import java.io.File
 class AgenticWorkflowOverlayTest {
 
     @Test
-    fun actionOptionsBarIsOptionalAndBelowSuggestions() {
+    fun agenticEntryLivesInsideSuggestionBar() {
         val layout = sourceFile("app/src/main/res/layout/keyboard_container.xml").readText()
+        val source = sourceFile("app/src/main/java/com/example/mykeyboard/KeyboardService.kt").readText()
+        val setupSuggestions = methodBody(source, "setupSuggestionBar")
 
-        assertTrue(layout.contains("android:id=\"@+id/actionOptionsBar\""))
-        assertTrue(layout.indexOf("@+id/suggestionBar") < layout.indexOf("@+id/actionOptionsBar"))
-        assertTrue(layout.contains("android:visibility=\"gone\""))
+        assertFalse(layout.contains("android:id=\"@+id/actionOptionsBar\""))
+        assertTrue(layout.contains("android:id=\"@+id/suggestionBar\""))
+        assertTrue(setupSuggestions.contains("agentActionChip = TextView"))
+        assertTrue(setupSuggestions.contains("text = \"AI\""))
+        assertTrue(setupSuggestions.contains("suggestionBar.addView(agentActionChip)"))
     }
 
     @Test
-    fun actionOptionsBarStaysVisibleWithDisabledActionsUntilTextExists() {
+    fun agenticChipStaysDisabledUntilTextExists() {
         val source = sourceFile("app/src/main/java/com/example/mykeyboard/KeyboardService.kt").readText()
         val update = methodBody(source, "updateAgenticWorkflowOverlay")
-        val setup = methodBody(source, "setupAgentActionRow")
+        val setup = methodBody(source, "setupSuggestionBar")
         val cleanup = methodBody(source, "cleanupInputViewState")
 
         assertTrue(source.contains("const val AGENTIC_MIN_CONTEXT_WORDS = 1"))
-        assertTrue(update.contains("agentActionRow.visibility = View.VISIBLE"))
-        assertTrue(update.contains("button.isEnabled = false"))
+        assertTrue(update.contains("agentActionChip.isEnabled = enabled"))
+        assertTrue(update.contains("agentActionChip.alpha"))
         assertTrue(setup.contains("updateAgenticWorkflowOverlay()"))
-        assertFalse(setup.contains("agentActionRow.visibility = View.GONE"))
+        assertFalse(source.contains("setupAgentActionRow"))
+        assertFalse(source.contains("agentActionRow"))
         assertTrue(cleanup.contains("updateAgenticWorkflowOverlay()"))
     }
 
@@ -35,13 +40,13 @@ class AgenticWorkflowOverlayTest {
     fun workflowOverlayDoesNotUseNetworkLoggingOrPredictionWorkers() {
         val source = sourceFile("app/src/main/java/com/example/mykeyboard/KeyboardService.kt").readText()
         val update = methodBody(source, "updateAgenticWorkflowOverlay")
-        val actions = methodBody(source, "setupAgentActionRow")
+        val suggestions = methodBody(source, "setupSuggestionBar")
 
         assertTrue(update.contains("buildAgenticWorkflowState"))
-        assertTrue(update.contains("agentActionRow.visibility"))
+        assertTrue(update.contains("agentActionChip"))
         assertFalse(update.contains("logEvent("))
         assertFalse(update.contains("suggestionExecutor"))
-        assertFalse(actions.contains("logEvent("))
+        assertFalse(suggestions.contains("logEvent("))
     }
 
     @Test

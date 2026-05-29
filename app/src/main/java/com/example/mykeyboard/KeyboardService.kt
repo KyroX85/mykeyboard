@@ -77,7 +77,6 @@ class KeyboardService : InputMethodService() {
     private lateinit var keyboardPanel: FrameLayout
     private lateinit var keyboardContent: LinearLayout
     private lateinit var suggestionBar: LinearLayout
-    private lateinit var agentActionRow: LinearLayout
     private lateinit var numberRow: LinearLayout
     private lateinit var keyboardLayout: LinearLayout
     private lateinit var keyboardBottomSpacer: View
@@ -91,7 +90,7 @@ class KeyboardService : InputMethodService() {
 
     private val keyButtons = mutableListOf<Button>()
     private val suggestionButtons = mutableListOf<TextView>()
-    private val agentActionButtons = mutableListOf<TextView>()
+    private lateinit var agentActionChip: TextView
     private val renderedSuggestionTexts = Array(3) { "" }
 
     private enum class Mode { LETTERS, NUMBERS, SYMBOLS }
@@ -297,7 +296,6 @@ class KeyboardService : InputMethodService() {
         }
         keyboardContent = layout.findViewById(R.id.keyboardContent)
         suggestionBar = layout.findViewById(R.id.suggestionBar)
-        agentActionRow = layout.findViewById(R.id.actionOptionsBar)
         numberRow = layout.findViewById(R.id.numberRow)
         keyboardLayout = layout.findViewById(R.id.lettersLayout)
         keyboardBottomSpacer = layout.findViewById(R.id.keyboardBottomSpacer)
@@ -317,7 +315,6 @@ class KeyboardService : InputMethodService() {
         applyImeBottomSpacers()
 
         setupSuggestionBar()
-        setupAgentActionRow()
         setupEmojiPanelContent()
 
         buildKeyboard()
@@ -367,6 +364,7 @@ class KeyboardService : InputMethodService() {
 
     private fun setupSuggestionBar() {
         suggestionBar.removeAllViews()
+        suggestionButtons.clear()
         val sizing = currentKeyboardSizing()
         suggestionBar.setPadding(
             sizing.suggestionHorizontalPaddingPx,
@@ -374,6 +372,32 @@ class KeyboardService : InputMethodService() {
             sizing.suggestionHorizontalPaddingPx,
             0
         )
+        agentActionChip = TextView(this).apply {
+            text = "AI"
+            tag = ACTION_EDIT
+            textSize = 12f
+            setTextColor(Color.rgb(218, 224, 232))
+            gravity = Gravity.CENTER
+            setIncludeFontPadding(false)
+            setSingleLine(true)
+            background = resources.getDrawable(R.drawable.key_bg_modifier, theme)
+            isClickable = true
+            isFocusable = true
+            contentDescription = "Improve with AI"
+            layoutParams = LinearLayout.LayoutParams(
+                dp(42),
+                LinearLayout.LayoutParams.MATCH_PARENT
+            ).apply {
+                setMargins(
+                    sizing.suggestionChipHorizontalMarginPx,
+                    sizing.suggestionChipVerticalMarginPx,
+                    sizing.suggestionChipHorizontalMarginPx,
+                    sizing.suggestionChipVerticalMarginPx
+                )
+            }
+            setOnClickListener { handleAgenticAction(ACTION_EDIT) }
+        }
+        suggestionBar.addView(agentActionChip)
         repeat(3) {
             val suggestionBtn = TextView(this).apply {
                 layoutParams = LinearLayout.LayoutParams(
@@ -407,42 +431,6 @@ class KeyboardService : InputMethodService() {
 
             suggestionBar.addView(suggestionBtn)
             suggestionButtons.add(suggestionBtn)
-        }
-        updateAgenticWorkflowOverlay()
-    }
-
-    private fun setupAgentActionRow() {
-        agentActionRow.removeAllViews()
-        agentActionButtons.clear()
-        val actions = listOf(
-            ACTION_COPY to "Copy",
-            ACTION_EDIT to "Edit",
-            ACTION_WHATSAPP to "WhatsApp",
-            ACTION_EMAIL to "Email"
-        )
-        actions.forEach { (id, label) ->
-            val button = TextView(this).apply {
-                text = label
-                tag = id
-                textSize = 12.5f
-                setTextColor(Color.rgb(218, 224, 232))
-                gravity = Gravity.CENTER
-                setIncludeFontPadding(false)
-                setSingleLine(true)
-                background = resources.getDrawable(R.drawable.key_bg_modifier, theme)
-                isClickable = true
-                isFocusable = true
-                layoutParams = LinearLayout.LayoutParams(
-                    0,
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    1f
-                ).apply {
-                    setMargins(dp(2), dp(4), dp(2), dp(4))
-                }
-                setOnClickListener { handleAgenticAction(id) }
-            }
-            agentActionRow.addView(button)
-            agentActionButtons.add(button)
         }
         updateAgenticWorkflowOverlay()
     }
@@ -546,23 +534,12 @@ class KeyboardService : InputMethodService() {
     }
 
     private fun updateAgenticWorkflowOverlay() {
-        if (!::agentActionRow.isInitialized) return
+        if (!::agentActionChip.isInitialized) return
         val workflow = buildAgenticWorkflowState()
         latestAgenticWorkflow = workflow
-        if (workflow == null) {
-            agentActionRow.visibility = View.VISIBLE
-            agentActionButtons.forEach { button ->
-                button.alpha = 0.42f
-                button.isEnabled = false
-            }
-            return
-        }
-        agentActionRow.visibility = View.VISIBLE
-        agentActionButtons.forEach { button ->
-            val actionId = button.tag as? String
-            button.alpha = if (workflow.actions.contains(actionId)) 1f else 0.42f
-            button.isEnabled = workflow.actions.contains(actionId)
-        }
+        val enabled = workflow?.actions?.contains(ACTION_EDIT) == true
+        agentActionChip.alpha = if (enabled) 1f else 0.42f
+        agentActionChip.isEnabled = enabled
     }
 
     private fun buildAgenticWorkflowState(): AgenticWorkflowState? {
@@ -2033,7 +2010,7 @@ class KeyboardService : InputMethodService() {
     private fun cleanupInputViewState() {
         swipeResolveGeneration += 1
         latestAgenticWorkflow = null
-        if (::agentActionRow.isInitialized) {
+        if (::agentActionChip.isInitialized) {
             updateAgenticWorkflowOverlay()
         }
         cancelLongPress()
