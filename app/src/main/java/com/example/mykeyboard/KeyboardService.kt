@@ -22,6 +22,7 @@ import android.view.HapticFeedbackConstants
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
+import android.view.WindowInsets
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import android.widget.BaseAdapter
@@ -94,6 +95,7 @@ class KeyboardService : InputMethodService() {
     private val keyboardButtonsByMode = EnumMap<Mode, List<Button>>(Mode::class.java)
     private val numberRowButtons = mutableListOf<Button>()
     private var cachedKeyboardSizing: KeyboardSizingProfile? = null
+    private var navigationBottomInsetPx = 0
 
     private var mode = Mode.LETTERS
     private var shiftState = ShiftState.OFF
@@ -210,6 +212,7 @@ class KeyboardService : InputMethodService() {
         const val SWIPE_ACTIVATION_SLOP_DP = 18
         const val SWIPE_SAMPLE_DISTANCE_DP = 5
         const val SWIPE_RESOLVE_WARN_MS = 32L
+        const val MAX_NAVIGATION_BOTTOM_PADDING_DP = 32
         const val SHIFT_LONG_PRESS_DELAY_MS = 300L
         const val SYMBOL_LONG_PRESS_DELAY_MS = 230L
         const val SUGGESTION_QUERY_UNSET = "\u0000"
@@ -271,6 +274,7 @@ class KeyboardService : InputMethodService() {
 
         val layout = layoutInflater.inflate(R.layout.keyboard_container, null)
         root = layout as FrameLayout
+        setupSystemInsetHandling()
         
         mainContainer = layout.findViewById(R.id.mainContainer)
         keyboardPanel = layout.findViewById(R.id.keyboardPanel)
@@ -294,6 +298,7 @@ class KeyboardService : InputMethodService() {
         emojiGrid = layout.findViewById(R.id.emojiPanel)
         emojiCategoryBar = layout.findViewById(R.id.emojiCategoryBar)
         emojiBackButton = layout.findViewById(R.id.backToKeyboard)
+        applyEmojiBottomInset()
 
         setupSuggestionBar()
         setupEmojiPanelContent()
@@ -301,6 +306,31 @@ class KeyboardService : InputMethodService() {
         buildKeyboard()
         return root
     }
+
+    private fun setupSystemInsetHandling() {
+        root.setOnApplyWindowInsetsListener { _, insets ->
+            val bottomInset = navigationBottomInset(insets)
+            if (navigationBottomInsetPx != bottomInset) {
+                navigationBottomInsetPx = bottomInset
+                cachedKeyboardSizing = null
+                if (::keyboardLayout.isInitialized) {
+                    clearCachedKeyboardViews()
+                    buildKeyboard()
+                    setupSuggestionBar()
+                }
+                applyEmojiBottomInset()
+            }
+            insets
+        }
+    }
+
+    private fun navigationBottomInset(insets: WindowInsets): Int =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            insets.getInsets(WindowInsets.Type.navigationBars()).bottom
+        } else {
+            @Suppress("DEPRECATION")
+            insets.systemWindowInsetBottom
+        }
 
     private fun setupSuggestionBar() {
         suggestionBar.removeAllViews()
@@ -517,6 +547,11 @@ class KeyboardService : InputMethodService() {
             emojiContainer.visibility = View.GONE
             mainContainer.visibility = View.VISIBLE
         }
+    }
+
+    private fun applyEmojiBottomInset() {
+        if (!::emojiContainer.isInitialized) return
+        emojiContainer.setPadding(0, 0, 0, navigationBottomInsetPx.coerceAtMost(dp(MAX_NAVIGATION_BOTTOM_PADDING_DP)))
     }
 
     private inner class EmojiGridAdapter(
@@ -827,7 +862,8 @@ class KeyboardService : InputMethodService() {
             widthPx = widthPx,
             heightPx = heightPx,
             density = density,
-            smallestWidthDp = smallestWidthDp
+            smallestWidthDp = smallestWidthDp,
+            navigationBottomInsetPx = navigationBottomInsetPx
         )
     }
 

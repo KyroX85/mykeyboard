@@ -156,6 +156,22 @@ class RuntimeRealityHardeningTest {
         assertTrue(configurationRebuild.contains("setupSuggestionBar()"))
     }
 
+    @Test
+    fun keyboardViewTracksNavigationInsetsForBottomRowSafety() {
+        val source = sourceFile("app/src/main/java/com/example/mykeyboard/KeyboardService.kt").readText()
+        val onCreateInputView = methodBody(source, "onCreateInputView")
+        val setupInsets = methodBody(source, "setupSystemInsetHandling")
+        val currentSizing = methodBody(source, "currentKeyboardSizing")
+        val emojiInset = methodBody(source, "applyEmojiBottomInset")
+
+        assertTrue(onCreateInputView.contains("setupSystemInsetHandling()"))
+        assertTrue(setupInsets.contains("setOnApplyWindowInsetsListener"))
+        assertTrue(setupInsets.contains("navigationBottomInsetPx = bottomInset"))
+        assertTrue(setupInsets.contains("cachedKeyboardSizing = null"))
+        assertTrue(currentSizing.contains("navigationBottomInsetPx = navigationBottomInsetPx"))
+        assertTrue(emojiInset.contains("navigationBottomInsetPx.coerceAtMost"))
+    }
+
     private fun sourceFile(relativePath: String): File {
         val current = File("").absoluteFile
         val direct = File(current, relativePath)

@@ -218,4 +218,26 @@ class KeyboardSizingProfileTest {
         assertTrue(small.keyHeightPx >= 90)
         assertTrue(small.suggestionBarHeightPx < normal.suggestionBarHeightPx)
     }
+
+    @Test
+    fun navigationBarInsetIsReservedBelowBottomRowWithoutShrinkingTouchTargets() {
+        val noInset = KeyboardSizingProfile.fromDevice(
+            widthPx = 1080,
+            heightPx = 2400,
+            density = 3f,
+            smallestWidthDp = 360,
+            navigationBottomInsetPx = 0
+        )
+        val withInset = KeyboardSizingProfile.fromDevice(
+            widthPx = 1080,
+            heightPx = 2400,
+            density = 3f,
+            smallestWidthDp = 360,
+            navigationBottomInsetPx = 72
+        )
+
+        assertTrue(withInset.panelBottomPaddingPx >= noInset.panelBottomPaddingPx + 72)
+        assertTrue(withInset.keyHeightPx >= 144)
+        assertTrue(withInset.suggestionBarHeightPx >= 84)
+    }
 }

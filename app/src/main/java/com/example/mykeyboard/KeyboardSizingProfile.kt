@@ -25,11 +25,13 @@ data class KeyboardSizingProfile(
             widthPx: Int,
             heightPx: Int,
             density: Float,
-            smallestWidthDp: Int
+            smallestWidthDp: Int,
+            navigationBottomInsetPx: Int = 0
         ): KeyboardSizingProfile {
             val safeDensity = density.coerceAtLeast(1f)
+            val safeNavigationInsetPx = navigationBottomInsetPx.coerceAtLeast(0)
             val widthDp = widthPx / safeDensity
-            val heightDp = heightPx / safeDensity
+            val heightDp = (heightPx - safeNavigationInsetPx).coerceAtLeast(1) / safeDensity
             val isLandscape = widthDp > heightDp
             val aspectRatio = if (widthPx == 0) 1.8f else heightPx.toFloat() / widthPx
             val tallPhoneCompression = if (aspectRatio > 2.05f) 0.96f else 1f
@@ -61,6 +63,7 @@ data class KeyboardSizingProfile(
             val suggestionDp = (keyHeightDp * SUGGESTION_ROW_RATIO).coerceIn(if (isLandscape) 24f else 28f, 34f)
             val panelTopDp = if (isLandscape || aspectRatio > 2.05f) 0f else 1f
             val panelBottomDp = if (isLandscape || aspectRatio > 2.05f) 0f else 1f
+            val navigationBottomPaddingPx = safeNavigationInsetPx.coerceAtMost(MAX_NAVIGATION_BOTTOM_PADDING_DP.toPx(safeDensity))
             val panelHorizontalDp = when {
                 widthDp < COMPACT_WIDTH_DP -> 2.5f
                 widthDp >= WIDE_WIDTH_DP -> 4.5f
@@ -89,7 +92,7 @@ data class KeyboardSizingProfile(
                 keyVerticalMarginPx = verticalInsetDp.toPx(safeDensity),
                 panelHorizontalPaddingPx = panelHorizontalDp.toPx(safeDensity),
                 panelTopPaddingPx = panelTopDp.toPx(safeDensity),
-                panelBottomPaddingPx = panelBottomDp.toPx(safeDensity),
+                panelBottomPaddingPx = panelBottomDp.toPx(safeDensity) + navigationBottomPaddingPx,
                 suggestionHorizontalPaddingPx = panelHorizontalDp.toPx(safeDensity),
                 suggestionChipHorizontalMarginPx = suggestionChipMarginDp.toPx(safeDensity),
                 suggestionChipVerticalMarginPx = verticalInsetDp.toPx(safeDensity),
@@ -149,5 +152,6 @@ data class KeyboardSizingProfile(
         private const val PORTRAIT_HEIGHT_RATIO = 0.34f
         private const val TABLET_HEIGHT_RATIO = 0.30f
         private const val LANDSCAPE_HEIGHT_RATIO = 0.58f
+        private const val MAX_NAVIGATION_BOTTOM_PADDING_DP = 32f
     }
 }
