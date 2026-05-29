@@ -2,6 +2,15 @@ function classifyFounderIntent(input = '', context = {}) {
   const text = String(input || '').trim().toLowerCase();
   if (!text) return clarify('Empty request.');
 
+  if (isProductConversation(text)) {
+    return {
+      lowInformation: false,
+      intentClass: 'PRODUCT_CONVERSATION',
+      executionMode: 'CONVERSATION',
+      response: null
+    };
+  }
+
   const noise = [
     'quantum banana',
     'banana quantum potato',
@@ -47,7 +56,7 @@ function detectLowInformation(input = '', context = {}) {
   const classified = classifyFounderIntent(input, context);
   return {
     ...classified,
-    lowInformation: classified.executionMode !== 'EXECUTE_OR_PROPOSE'
+    lowInformation: !['EXECUTE_OR_PROPOSE', 'CONVERSATION'].includes(classified.executionMode)
   };
 }
 
@@ -106,6 +115,16 @@ function looksRandom(text) {
   const engineeringWords = /\b(keyboard|swipe|typing|latency|symbol|predictor|governance|report|test|file|module|build|commit|fix|improve|analyze)\b/;
   const actionWords = /\b(fix|update|test|validate|measure|reduce|stabilize|improve|analyze|report|block|protect|make|create|remove|delete)\b/;
   return !engineeringWords.test(text) && !actionWords.test(text);
+}
+
+function isProductConversation(text) {
+  if (/\b(fix|execute|implement|commit|push|modify|edit|write|delete|create file|apply patch|build now|ota build)\b/.test(text)) {
+    return false;
+  }
+  if (/\b(what|why|how|should|would|could|compare|screenshot|gboard|swiftkey|feel|feels|trust|typing|swipe|keyboard|friction|retention|symbol|layout|thumb|comfort|visual|visually|immature|mature|polished|annoy|fatigue|stable|stability|risk|privacy|roadmap|product|ux)\b/.test(text)) {
+    return true;
+  }
+  return false;
 }
 
 function isRepeatedNoise(text, context = {}) {

@@ -90,10 +90,16 @@ function containsFounderDoctrine(text = '') {
     'governance',
     'whatsapp',
     'agents',
-    'what should',
+    'improve',
+    'screenshot',
+    'screen',
+    'visual evidence',
+    'product lab',
     'what hurts',
     'what feels',
-    'should we'
+    'not change',
+    'avoid',
+    'product lab'
   ].some((term) => normalized.includes(term));
 }
 

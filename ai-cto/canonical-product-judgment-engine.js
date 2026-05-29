@@ -41,6 +41,14 @@ function answerFounderAlignedProductQuestion(message = '', context = {}) {
     ]);
   }
 
+  if (/screenshot|screen|visual evidence|product lab/.test(text)) {
+    return answer('screenshot_product_lab_discussion', [
+      'Screenshot is Product Lab evidence, not a mutation request.',
+      'Best use: compare current Aritenis layout against a stable baseline or Gboard/SwiftKey reference, then look for spacing, edge-key, contrast, thumb-target, and visual-density risks.',
+      'No code change should start from a screenshot word alone; the safe next step is capture or attach the screenshot and analyze it.'
+    ]);
+  }
+
   if (/privacy|leak|data|raw text|typed text/.test(text)) {
     return answer('privacy_trust_judgment', [
       'Privacy is a Phase 1 trust feature.',

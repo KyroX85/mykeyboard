@@ -552,6 +552,9 @@ function maybeRouteProductStewardAnswer(message, normalized = normalizeMessage(m
 }
 
 function maybeRouteFounderDnaDialogue(message, normalized = normalizeMessage(message)) {
+  if (/^(hey\s+)?(coder|reviewer|auditor|cto)\b/i.test(String(normalized || ''))) {
+    return null;
+  }
   if (/\b(fix|execute|implement|commit|push|modify|edit|write|delete|create file|apply patch|build now|ota build)\b/i.test(String(normalized || ''))) {
     return null;
   }

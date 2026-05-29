@@ -36,6 +36,10 @@ const whatsappProduct = routeMessage('what feels immature compared to Gboard?', 
 assert.strictEqual(whatsappProduct.matchedRoute, 'founder_dna_product_judgment');
 assert(whatsappProduct.response.includes('mature keyboards'));
 
+const whatsappTypingTrust = routeMessage('what hurts typing trust the most?', {}, {});
+assert.strictEqual(whatsappTypingTrust.matchedRoute, 'founder_dna_product_judgment');
+assert(!whatsappTypingTrust.response.includes('AMBIGUOUS INTENT DETECTED'));
+
 const whatsappArchitecture = routeMessage('should we do architecture cleanup or swipe trust?', {}, {});
 assert.strictEqual(whatsappArchitecture.matchedRoute, 'founder_dna_product_judgment');
 assert(whatsappArchitecture.response.includes('architecture cleanup'));
@@ -46,5 +50,10 @@ assert(!/NOISE|LOW INFORMATION|AMBIGUOUS|STRESS TEST|BLOCKED|governance/i.test(w
 
 const whatsappExecution = routeMessage('create a file called founder_test.txt and commit it', {}, {});
 assert.notStrictEqual(whatsappExecution.matchedRoute, 'founder_dna_product_judgment');
+
+const whatsappScreenshot = routeMessage('screenshot', {}, {});
+assert.strictEqual(whatsappScreenshot.matchedRoute, 'founder_dna_product_judgment');
+assert(whatsappScreenshot.response.includes('Product Lab evidence'));
+assert(!whatsappScreenshot.response.includes('AMBIGUOUS INTENT DETECTED'));
 
 console.log('Founder DNA absorption checks passed');
