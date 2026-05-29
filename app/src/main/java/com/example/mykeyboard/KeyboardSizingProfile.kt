@@ -65,7 +65,6 @@ data class KeyboardSizingProfile(
             val suggestionDp = (keyHeightDp * SUGGESTION_ROW_RATIO).coerceIn(if (isLandscape) 24f else 28f, 34f)
             val panelTopDp = if (isLandscape || aspectRatio > 2.05f) 0f else 1f
             val panelBottomDp = if (isLandscape || aspectRatio > 2.05f) 0f else 1f
-            val navigationBottomPaddingPx = safeNavigationInsetPx.coerceAtMost(MAX_NAVIGATION_BOTTOM_PADDING_DP.toPx(safeDensity))
             val panelHorizontalDp = when {
                 widthDp < COMPACT_WIDTH_DP -> 2.5f
                 widthDp >= WIDE_WIDTH_DP -> 4.5f
@@ -94,7 +93,7 @@ data class KeyboardSizingProfile(
                 keyVerticalMarginPx = verticalInsetDp.toPx(safeDensity),
                 panelHorizontalPaddingPx = panelHorizontalDp.toPx(safeDensity),
                 panelTopPaddingPx = panelTopDp.toPx(safeDensity),
-                panelBottomPaddingPx = panelBottomDp.toPx(safeDensity) + navigationBottomPaddingPx,
+                panelBottomPaddingPx = panelBottomDp.toPx(safeDensity),
                 suggestionHorizontalPaddingPx = panelHorizontalDp.toPx(safeDensity),
                 suggestionChipHorizontalMarginPx = suggestionChipMarginDp.toPx(safeDensity),
                 suggestionChipVerticalMarginPx = verticalInsetDp.toPx(safeDensity),

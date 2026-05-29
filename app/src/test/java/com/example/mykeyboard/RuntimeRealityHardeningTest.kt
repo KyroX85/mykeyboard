@@ -162,15 +162,30 @@ class RuntimeRealityHardeningTest {
         val onCreateInputView = methodBody(source, "onCreateInputView")
         val setupInsets = methodBody(source, "setupSystemInsetHandling")
         val currentSizing = methodBody(source, "currentKeyboardSizing")
-        val emojiInset = methodBody(source, "applyEmojiBottomInset")
+        val bottomSpacers = methodBody(source, "applyImeBottomSpacers")
 
         assertTrue(onCreateInputView.contains("setupSystemInsetHandling()"))
+        assertTrue(onCreateInputView.contains("keyboardBottomSpacer = layout.findViewById"))
+        assertTrue(onCreateInputView.contains("emojiBottomSpacer = layout.findViewById"))
         assertTrue(setupInsets.contains("setOnApplyWindowInsetsListener"))
+        assertTrue(setupInsets.contains("maxOf(navigationBottomInset(insets), fallbackNavigationBottomInsetPx())"))
         assertTrue(setupInsets.contains("navigationBottomInsetPx = bottomInset"))
+        assertTrue(setupInsets.contains("applyImeBottomSpacers()"))
         assertTrue(setupInsets.contains("cachedKeyboardSizing = null"))
         assertTrue(currentSizing.contains("fallbackNavigationBottomInsetPx = fallbackNavigationBottomInsetPx()"))
         assertTrue(currentSizing.contains("navigationBottomInsetPx = navigationBottomInsetPx"))
-        assertTrue(emojiInset.contains("navigationBottomInsetPx.coerceAtMost"))
+        assertTrue(bottomSpacers.contains("keyboardBottomSpacer.updateHeight(bottomInset)"))
+        assertTrue(bottomSpacers.contains("emojiBottomSpacer.updateHeight(bottomInset)"))
+    }
+
+    @Test
+    fun floatingKeyPreviewIsDisabledForImeWindowStability() {
+        val source = sourceFile("app/src/main/java/com/example/mykeyboard/KeyboardService.kt").readText()
+        val showPreview = methodBody(source, "showKeyPreview")
+        val shouldShowPreview = methodBody(source, "shouldShowKeyPreview")
+
+        assertTrue(showPreview.contains("shouldShowKeyPreview(key)"))
+        assertTrue(shouldShowPreview.contains("return false"))
     }
 
     private fun sourceFile(relativePath: String): File {

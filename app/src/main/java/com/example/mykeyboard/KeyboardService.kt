@@ -80,12 +80,14 @@ class KeyboardService : InputMethodService() {
     private lateinit var agentActionRow: LinearLayout
     private lateinit var numberRow: LinearLayout
     private lateinit var keyboardLayout: LinearLayout
+    private lateinit var keyboardBottomSpacer: View
     private lateinit var swipeTrailView: SwipeTrailView
 
     private lateinit var emojiContainer: LinearLayout
     private lateinit var emojiGrid: GridView
     private lateinit var emojiCategoryBar: LinearLayout
     private lateinit var emojiBackButton: Button
+    private lateinit var emojiBottomSpacer: View
 
     private val keyButtons = mutableListOf<Button>()
     private val suggestionButtons = mutableListOf<TextView>()
@@ -284,8 +286,8 @@ class KeyboardService : InputMethodService() {
 
         val layout = layoutInflater.inflate(R.layout.keyboard_container, null)
         root = layout as FrameLayout
-        setupSystemInsetHandling()
         navigationBottomInsetPx = fallbackNavigationBottomInsetPx()
+        setupSystemInsetHandling()
         
         mainContainer = layout.findViewById(R.id.mainContainer)
         keyboardPanel = layout.findViewById(R.id.keyboardPanel)
@@ -298,6 +300,7 @@ class KeyboardService : InputMethodService() {
         agentActionRow = layout.findViewById(R.id.actionOptionsBar)
         numberRow = layout.findViewById(R.id.numberRow)
         keyboardLayout = layout.findViewById(R.id.lettersLayout)
+        keyboardBottomSpacer = layout.findViewById(R.id.keyboardBottomSpacer)
         swipeTrailView = SwipeTrailView(this).apply {
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
@@ -310,7 +313,8 @@ class KeyboardService : InputMethodService() {
         emojiGrid = layout.findViewById(R.id.emojiPanel)
         emojiCategoryBar = layout.findViewById(R.id.emojiCategoryBar)
         emojiBackButton = layout.findViewById(R.id.backToKeyboard)
-        applyEmojiBottomInset()
+        emojiBottomSpacer = layout.findViewById(R.id.emojiBottomSpacer)
+        applyImeBottomSpacers()
 
         setupSuggestionBar()
         setupAgentActionRow()
@@ -322,7 +326,7 @@ class KeyboardService : InputMethodService() {
 
     private fun setupSystemInsetHandling() {
         root.setOnApplyWindowInsetsListener { _, insets ->
-            val bottomInset = navigationBottomInset(insets)
+            val bottomInset = maxOf(navigationBottomInset(insets), fallbackNavigationBottomInsetPx())
             if (navigationBottomInsetPx != bottomInset) {
                 navigationBottomInsetPx = bottomInset
                 cachedKeyboardSizing = null
@@ -331,7 +335,7 @@ class KeyboardService : InputMethodService() {
                     buildKeyboard()
                     setupSuggestionBar()
                 }
-                applyEmojiBottomInset()
+                applyImeBottomSpacers()
             }
             insets
         }
@@ -349,6 +353,16 @@ class KeyboardService : InputMethodService() {
         val resourceId = resources.getIdentifier("navigation_bar_height", "dimen", "android")
         if (resourceId <= 0) return 0
         return resources.getDimensionPixelSize(resourceId).coerceAtMost(dp(MAX_NAVIGATION_BOTTOM_PADDING_DP))
+    }
+
+    private fun applyImeBottomSpacers() {
+        val bottomInset = navigationBottomInsetPx.coerceAtMost(dp(MAX_NAVIGATION_BOTTOM_PADDING_DP))
+        if (::keyboardBottomSpacer.isInitialized) {
+            keyboardBottomSpacer.updateHeight(bottomInset)
+        }
+        if (::emojiBottomSpacer.isInitialized) {
+            emojiBottomSpacer.updateHeight(bottomInset)
+        }
     }
 
     private fun setupSuggestionBar() {
@@ -726,11 +740,6 @@ class KeyboardService : InputMethodService() {
             emojiContainer.visibility = View.GONE
             mainContainer.visibility = View.VISIBLE
         }
-    }
-
-    private fun applyEmojiBottomInset() {
-        if (!::emojiContainer.isInitialized) return
-        emojiContainer.setPadding(0, 0, 0, navigationBottomInsetPx.coerceAtMost(dp(MAX_NAVIGATION_BOTTOM_PADDING_DP)))
     }
 
     private inner class EmojiGridAdapter(
@@ -1397,8 +1406,9 @@ class KeyboardService : InputMethodService() {
         }
     }
 
-    private fun shouldShowKeyPreview(key: String): Boolean =
-        key.length == 1 || key == KEY_ENTER
+    private fun shouldShowKeyPreview(key: String): Boolean {
+        return false
+    }
 
     private fun displayTextForPreview(anchor: Button, key: String): String =
         if (key == KEY_ENTER) currentImeAction.label else anchor.text.toString()
@@ -2469,6 +2479,13 @@ class KeyboardService : InputMethodService() {
 
     private fun dp(value: Int): Int =
         (value * resources.displayMetrics.density).toInt()
+
+    private fun View.updateHeight(heightPx: Int) {
+        val params = layoutParams ?: return
+        if (params.height == heightPx) return
+        params.height = heightPx
+        layoutParams = params
+    }
 
     private data class CachedKeyBounds(
         val left: Int,

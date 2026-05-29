@@ -75,6 +75,12 @@
                     android:orientation="vertical" />
             </LinearLayout>
         </FrameLayout>
+
+        <View
+            android:id="@+id/keyboardBottomSpacer"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:background="#FF0E1117" />
     </LinearLayout>
 
     <LinearLayout
@@ -116,5 +122,11 @@
             android:background="#FF2A2F38"
             android:textColor="#FFFFFFFF"
             android:text="ABC" />
+
+        <View
+            android:id="@+id/emojiBottomSpacer"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:background="#FF0E1117" />
     </LinearLayout>
 </FrameLayout>
