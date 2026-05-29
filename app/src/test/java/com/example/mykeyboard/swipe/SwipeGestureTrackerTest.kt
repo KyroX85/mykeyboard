@@ -93,6 +93,21 @@ class SwipeGestureTrackerTest {
     }
 
     @Test
+    fun highPressureInteriorKeySurvivesFastSwipeTransit() {
+        val tracker = SwipeGestureTracker(activationSlopPx = 4f, minSampleDistancePx = 1f)
+
+        tracker.start(0f, 0f, 'g', eventTimeMs = 1L, pressure = 0.9f, touchMajor = 8f)
+        tracker.move(8f, 0f, 'g', eventTimeMs = 8L, pressure = 0.92f, touchMajor = 8f)
+        tracker.move(18f, 0f, 'i', eventTimeMs = 14L, pressure = 0.16f, touchMajor = 7f)
+        tracker.move(28f, 0f, 'p', eventTimeMs = 20L, pressure = 0.18f, touchMajor = 7f)
+        tracker.move(38f, 0f, 'o', eventTimeMs = 26L, pressure = 0.95f, touchMajor = 8f)
+        tracker.move(48f, 0f, 'd', eventTimeMs = 34L, pressure = 0.94f, touchMajor = 8f)
+
+        assertEquals("gipod", tracker.keySequence)
+        assertEquals("god", tracker.finish())
+    }
+
+    @Test
     fun longSequencesKeepAtLeastThreeIntentKeysForResolverStability() {
         val tracker = SwipeGestureTracker(activationSlopPx = 4f, minSampleDistancePx = 1f)
 

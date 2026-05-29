@@ -294,11 +294,11 @@ class SwipeGestureTracker(
         val pressureScore = (keyPressureTotals[index] / samples).coerceIn(0f, 1f)
         val touchScore = ((keyTouchMajorTotals[index] / samples) / STRONG_TOUCH_MAJOR_PX).coerceIn(0f, 1f)
         val slowdownScore = (keySlowdownTotals[index] / samples).coerceIn(0f, 1f)
-        return dwellScore * 0.36f +
-            sampleScore * 0.18f +
-            pressureScore * 0.24f +
-            touchScore * 0.12f +
-            slowdownScore * 0.10f
+        return dwellScore * 0.22f +
+            sampleScore * 0.10f +
+            pressureScore * 0.52f +
+            touchScore * 0.08f +
+            slowdownScore * 0.08f
     }
 
     private fun cleanKey(key: Char): Char =
