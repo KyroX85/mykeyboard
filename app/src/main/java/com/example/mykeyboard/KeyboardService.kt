@@ -285,6 +285,7 @@ class KeyboardService : InputMethodService() {
         val layout = layoutInflater.inflate(R.layout.keyboard_container, null)
         root = layout as FrameLayout
         setupSystemInsetHandling()
+        navigationBottomInsetPx = fallbackNavigationBottomInsetPx()
         
         mainContainer = layout.findViewById(R.id.mainContainer)
         keyboardPanel = layout.findViewById(R.id.keyboardPanel)
@@ -343,6 +344,12 @@ class KeyboardService : InputMethodService() {
             @Suppress("DEPRECATION")
             insets.systemWindowInsetBottom
         }
+
+    private fun fallbackNavigationBottomInsetPx(): Int {
+        val resourceId = resources.getIdentifier("navigation_bar_height", "dimen", "android")
+        if (resourceId <= 0) return 0
+        return resources.getDimensionPixelSize(resourceId).coerceAtMost(dp(MAX_NAVIGATION_BOTTOM_PADDING_DP))
+    }
 
     private fun setupSuggestionBar() {
         suggestionBar.removeAllViews()
@@ -1035,7 +1042,8 @@ class KeyboardService : InputMethodService() {
             heightPx = heightPx,
             density = density,
             smallestWidthDp = smallestWidthDp,
-            navigationBottomInsetPx = navigationBottomInsetPx
+            navigationBottomInsetPx = navigationBottomInsetPx,
+            fallbackNavigationBottomInsetPx = fallbackNavigationBottomInsetPx()
         )
     }
 
@@ -1182,7 +1190,7 @@ class KeyboardService : InputMethodService() {
 
             MotionEvent.ACTION_CANCEL -> {
                 lastKeyDownAtMs = 0L
-                cleanupInputViewState()
+                cancelActiveTouchState(button)
             }
         }
 
@@ -1295,6 +1303,17 @@ class KeyboardService : InputMethodService() {
                 clearRoutedTouchOwner()
             }
         }
+    }
+
+    private fun cancelActiveTouchState(button: Button) {
+        cancelLongPress()
+        stopRepeatingDelete()
+        stopRepeatingSpace()
+        dismissKeyPreviewSafely()
+        releaseKeyPressFeedback(button)
+        cancelSwipeGesture()
+        hapticTapGate.reset()
+        isLongPressActive = false
     }
 
     private fun findNearestKeyInRow(row: LinearLayout, x: Float): Button? {

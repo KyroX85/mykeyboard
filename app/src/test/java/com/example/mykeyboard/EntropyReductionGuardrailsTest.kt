@@ -8,16 +8,21 @@ import java.io.File
 class EntropyReductionGuardrailsTest {
 
     @Test
-    fun actionCancelConvergesOnLifecycleCleanupInsteadOfDuplicatingResetLogic() {
+    fun actionCancelUsesTouchCleanupInsteadOfFullLifecycleCleanup() {
         val source = sourceFile("app/src/main/java/com/example/mykeyboard/KeyboardService.kt").readText()
         val handleTouch = methodBody(source, "handleTouch")
         val cancelBranch = branchBody(handleTouch, "MotionEvent.ACTION_CANCEL")
+        val touchCleanup = methodBody(source, "cancelActiveTouchState")
 
-        assertTrue(cancelBranch.contains("cleanupInputViewState()"))
-        assertFalse(cancelBranch.contains("cancelSwipeGesture()"))
-        assertFalse(cancelBranch.contains("dismissKeyPreviewSafely()"))
-        assertFalse(cancelBranch.contains("stopRepeatingDelete()"))
-        assertFalse(cancelBranch.contains("stopRepeatingSpace()"))
+        assertTrue(cancelBranch.contains("cancelActiveTouchState(button)"))
+        assertFalse(cancelBranch.contains("cleanupInputViewState()"))
+        assertTrue(touchCleanup.contains("cancelLongPress()"))
+        assertTrue(touchCleanup.contains("stopRepeatingDelete()"))
+        assertTrue(touchCleanup.contains("stopRepeatingSpace()"))
+        assertTrue(touchCleanup.contains("dismissKeyPreviewSafely()"))
+        assertTrue(touchCleanup.contains("cancelSwipeGesture()"))
+        assertFalse(touchCleanup.contains("restoreMainKeyboardPanel()"))
+        assertFalse(touchCleanup.contains("disposeKeyPreviewReferences()"))
     }
 
     @Test

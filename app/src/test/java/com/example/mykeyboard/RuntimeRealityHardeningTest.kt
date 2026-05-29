@@ -168,6 +168,7 @@ class RuntimeRealityHardeningTest {
         assertTrue(setupInsets.contains("setOnApplyWindowInsetsListener"))
         assertTrue(setupInsets.contains("navigationBottomInsetPx = bottomInset"))
         assertTrue(setupInsets.contains("cachedKeyboardSizing = null"))
+        assertTrue(currentSizing.contains("fallbackNavigationBottomInsetPx = fallbackNavigationBottomInsetPx()"))
         assertTrue(currentSizing.contains("navigationBottomInsetPx = navigationBottomInsetPx"))
         assertTrue(emojiInset.contains("navigationBottomInsetPx.coerceAtMost"))
     }

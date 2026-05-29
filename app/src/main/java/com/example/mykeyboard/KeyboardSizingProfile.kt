@@ -26,10 +26,12 @@ data class KeyboardSizingProfile(
             heightPx: Int,
             density: Float,
             smallestWidthDp: Int,
-            navigationBottomInsetPx: Int = 0
+            navigationBottomInsetPx: Int = 0,
+            fallbackNavigationBottomInsetPx: Int = 0
         ): KeyboardSizingProfile {
             val safeDensity = density.coerceAtLeast(1f)
-            val safeNavigationInsetPx = navigationBottomInsetPx.coerceAtLeast(0)
+            val safeNavigationInsetPx = maxOf(navigationBottomInsetPx, fallbackNavigationBottomInsetPx)
+                .coerceAtLeast(0)
             val widthDp = widthPx / safeDensity
             val heightDp = (heightPx - safeNavigationInsetPx).coerceAtLeast(1) / safeDensity
             val isLandscape = widthDp > heightDp

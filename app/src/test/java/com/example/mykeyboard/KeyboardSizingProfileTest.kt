@@ -226,7 +226,8 @@ class KeyboardSizingProfileTest {
             heightPx = 2400,
             density = 3f,
             smallestWidthDp = 360,
-            navigationBottomInsetPx = 0
+            navigationBottomInsetPx = 0,
+            fallbackNavigationBottomInsetPx = 0
         )
         val withInset = KeyboardSizingProfile.fromDevice(
             widthPx = 1080,
@@ -239,5 +240,20 @@ class KeyboardSizingProfileTest {
         assertTrue(withInset.panelBottomPaddingPx >= noInset.panelBottomPaddingPx + 72)
         assertTrue(withInset.keyHeightPx >= 144)
         assertTrue(withInset.suggestionBarHeightPx >= 84)
+    }
+
+    @Test
+    fun fallbackNavigationInsetProtectsBottomRowWhenWindowInsetsAreMissing() {
+        val sizing = KeyboardSizingProfile.fromDevice(
+            widthPx = 1080,
+            heightPx = 2400,
+            density = 3f,
+            smallestWidthDp = 360,
+            navigationBottomInsetPx = 0,
+            fallbackNavigationBottomInsetPx = 72
+        )
+
+        assertTrue(sizing.panelBottomPaddingPx >= 72)
+        assertTrue(sizing.keyHeightPx >= 144)
     }
 }
