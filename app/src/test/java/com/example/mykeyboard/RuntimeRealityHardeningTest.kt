@@ -13,9 +13,25 @@ class RuntimeRealityHardeningTest {
         val source = sourceFile("app/src/main/java/com/example/mykeyboard/KeyboardService.kt").readText()
         val onStartInput = methodBody(source, "onStartInput")
         val onStartInputView = methodBody(source, "onStartInputView")
+        val cleanup = methodBody(source, "cleanupInputViewState")
+        val reset = methodBody(source, "resetInputSessionState")
 
         assertTrue(onStartInput.indexOf("cleanupInputViewState()") < onStartInput.indexOf("updateImeAction"))
         assertTrue(onStartInputView.indexOf("cleanupInputViewState()") < onStartInputView.indexOf("updateImeAction"))
+        assertTrue(cleanup.contains("swipeResolveGeneration += 1"))
+        assertTrue(reset.contains("swipeResolveGeneration += 1"))
+    }
+
+    @Test
+    fun asyncSwipeCommitsUseCurrentInputConnectionOnlyAfterGenerationCheck() {
+        val source = sourceFile("app/src/main/java/com/example/mykeyboard/KeyboardService.kt").readText()
+        val commitSwipe = methodBody(source, "commitSwipeSequence")
+        val applySwipe = methodBody(source, "applySwipeSuggestionResult")
+
+        assertFalse(commitSwipe.contains("val ic = currentInputConnection"))
+        assertTrue(commitSwipe.contains("if (generation != swipeResolveGeneration) return@post"))
+        assertTrue(applySwipe.contains("val ic = currentInputConnection"))
+        assertTrue(applySwipe.contains("commitTextSafely(ic"))
     }
 
     @Test

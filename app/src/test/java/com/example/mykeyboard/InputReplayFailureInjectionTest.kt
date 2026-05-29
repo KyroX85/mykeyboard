@@ -232,7 +232,8 @@ class InputReplayFailureInjectionTest {
         val trackerSource = sourceFile("app/src/main/java/com/example/mykeyboard/swipe/SwipeGestureTracker.kt").readText()
         val trailSource = sourceFile("app/src/main/java/com/example/mykeyboard/swipe/SwipeTrailView.kt").readText()
 
-        assertTrue(methodBody(keyboardSource, "commitSwipeSequence").contains("currentInputConnection"))
+        assertFalse(methodBody(keyboardSource, "commitSwipeSequence").contains("val ic = currentInputConnection"))
+        assertTrue(methodBody(keyboardSource, "applySwipeSuggestionResult").contains("val ic = currentInputConnection"))
         assertTrue(methodBody(keyboardSource, "commitSwipeSequence").contains("return"))
         assertTrue(methodBody(keyboardSource, "commitTextKey").contains("currentInputConnection ?: return"))
         assertTrue(methodBody(keyboardSource, "commitLongPressSymbol").contains("commitTextSafely"))

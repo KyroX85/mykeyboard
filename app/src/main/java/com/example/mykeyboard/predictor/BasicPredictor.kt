@@ -334,6 +334,7 @@ class BasicPredictor internal constructor(
         val prefix = currentWord.trim().lowercase()
         val prev = previousWord?.trim()?.lowercase().orEmpty()
         val ranked = mutableMapOf<String, CandidateScore>()
+        val externalPrefixMatches = findExternalDictionaryPrefixMatches(prefix)
 
         synchronized(modelLock) {
             if (prefix.isNotEmpty()) {
@@ -341,7 +342,7 @@ class BasicPredictor internal constructor(
                 collectPrefixMatches(prefix, prev, contextual, CandidateSource.CONTEXTUAL, ranked)
                 collectPrefixMatches(prefix, prev, sessionWordCounts, CandidateSource.SESSION, ranked)
                 collectPrefixMatches(prefix, prev, BUILT_IN_WORD_COUNTS, CandidateSource.UNIGRAM, ranked)
-                collectExternalDictionaryPrefixMatches(prefix, prev, ranked)
+                collectExternalDictionaryPrefixMatches(prefix, prev, externalPrefixMatches, ranked)
                 collectPrefixMatches(prefix, prev, unigramCounts, CandidateSource.UNIGRAM, ranked)
                 collectTypoMatches(prefix, prev, contextual, CandidateSource.CONTEXTUAL, ranked)
                 collectTypoMatches(prefix, prev, BUILT_IN_WORD_COUNTS, CandidateSource.UNIGRAM, ranked)
@@ -712,12 +713,8 @@ class BasicPredictor internal constructor(
         }
     }
 
-    private fun collectExternalDictionaryPrefixMatches(
-        prefix: String,
-        previousWord: String,
-        output: MutableMap<String, CandidateScore>
-    ) {
-        if (prefix.length < EXTERNAL_DICTIONARY_PREFIX_MIN_LENGTH) return
+    private fun findExternalDictionaryPrefixMatches(prefix: String): List<String> {
+        if (prefix.length < EXTERNAL_DICTIONARY_PREFIX_MIN_LENGTH) return emptyList()
 
         val options = mapOf(
             "limit" to EXTERNAL_DICTIONARY_LIMIT,
@@ -726,12 +723,19 @@ class BasicPredictor internal constructor(
             "shuffle" to false
         )
         val pattern = Pattern.compile("^${Pattern.quote(prefix)}[a-z]*$")
-        val words = try {
-            RiTa.search(pattern, options)
+        return try {
+            RiTa.search(pattern, options).toList()
         } catch (e: RuntimeException) {
-            emptyArray<String>()
+            emptyList()
         }
+    }
 
+    private fun collectExternalDictionaryPrefixMatches(
+        prefix: String,
+        previousWord: String,
+        words: List<String>,
+        output: MutableMap<String, CandidateScore>
+    ) {
         for (rawWord in words) {
             val word = normalizeWordForLearning(rawWord) ?: continue
             if (!word.startsWith(prefix) || isLoopingSuggestion(previousWord, word)) continue

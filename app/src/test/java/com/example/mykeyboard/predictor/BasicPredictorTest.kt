@@ -7,6 +7,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.File
 
 class BasicPredictorTest {
 
@@ -87,6 +88,18 @@ class BasicPredictorTest {
         }
 
         assertEquals("conjuring", predictor.getSuggestions("con").firstOrNull())
+    }
+
+    @Test
+    fun externalDictionaryLookupStaysOutsideModelLock() {
+        val source = sourceFile("app/src/main/java/com/example/mykeyboard/predictor/BasicPredictor.kt").readText()
+        val getSuggestions = methodBody(source, "getSuggestions")
+        val findExternal = methodBody(source, "findExternalDictionaryPrefixMatches")
+        val collectExternal = methodBody(source, "collectExternalDictionaryPrefixMatches")
+
+        assertTrue(getSuggestions.indexOf("findExternalDictionaryPrefixMatches(prefix)") < getSuggestions.indexOf("synchronized(modelLock)"))
+        assertTrue(findExternal.contains("RiTa.search"))
+        assertFalse(collectExternal.contains("RiTa.search"))
     }
 
     @Test
@@ -393,6 +406,32 @@ class BasicPredictorTest {
         val second = 'a' + ((index / 26) % 26)
         val third = 'a' + ((index / (26 * 26)) % 26)
         return "wa${first}${second}${third}"
+    }
+
+    private fun sourceFile(relativePath: String): File {
+        val current = File("").absoluteFile
+        val direct = File(current, relativePath)
+        if (direct.exists()) return direct
+        return File(current.parentFile, relativePath)
+    }
+
+    private fun methodBody(source: String, methodName: String): String {
+        val start = source.indexOf("fun $methodName")
+        require(start >= 0) { "Missing method $methodName" }
+        val openBrace = source.indexOf('{', start)
+        require(openBrace >= 0) { "Missing method body for $methodName" }
+
+        var depth = 0
+        for (index in openBrace until source.length) {
+            when (source[index]) {
+                '{' -> depth++
+                '}' -> {
+                    depth--
+                    if (depth == 0) return source.substring(openBrace + 1, index)
+                }
+            }
+        }
+        error("Unterminated method body for $methodName")
     }
 }
 

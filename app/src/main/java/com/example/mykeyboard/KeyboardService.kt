@@ -107,7 +107,6 @@ class KeyboardService : InputMethodService() {
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private var repeatingDelete: Runnable? = null
-    private var repeatingSpace: Runnable? = null
     private var longPressRunnable: Runnable? = null
     private var isLongPressActive = false
     private var activePopup: PopupWindow? = null
@@ -188,8 +187,6 @@ class KeyboardService : InputMethodService() {
         const val DOUBLE_TAP_TIMEOUT = 300L
         const val TOUCH_SLOP_HORIZONTAL_DP = 20
         const val TOUCH_SLOP_VERTICAL_DP = 22
-        const val SPACE_REPEAT_INITIAL_DELAY_MS = 300L
-        const val SPACE_REPEAT_INTERVAL_MS = 78L
         const val DELETE_REPEAT_INITIAL_DELAY_MS = 285L
         const val DELETE_REPEAT_START_INTERVAL_MS = 105L
         const val DELETE_REPEAT_MIN_INTERVAL_MS = 45L
@@ -1198,10 +1195,6 @@ class KeyboardService : InputMethodService() {
 
             KEY_SPACE -> {
                 commitSpace()
-                scheduleLongPress(SPACE_REPEAT_INITIAL_DELAY_MS) {
-                    isLongPressActive = true
-                    startRepeatingSpace()
-                }
             }
 
             else -> {
@@ -1356,22 +1349,7 @@ class KeyboardService : InputMethodService() {
         repeatingDelete = null
     }
 
-    private fun startRepeatingSpace() {
-        stopRepeatingSpace()
-        repeatingSpace = object : Runnable {
-            override fun run() {
-                commitSpace()
-                mainHandler.postDelayed(this, SPACE_REPEAT_INTERVAL_MS)
-            }
-        }.also {
-            mainHandler.postDelayed(it, SPACE_REPEAT_INTERVAL_MS)
-        }
-    }
-
-    private fun stopRepeatingSpace() {
-        repeatingSpace?.let(mainHandler::removeCallbacks)
-        repeatingSpace = null
-    }
+    private fun stopRepeatingSpace() = Unit
 
     private fun deleteOneCharacter() {
         val ic = currentInputConnection ?: return
@@ -1592,13 +1570,6 @@ class KeyboardService : InputMethodService() {
             Log.w(SWIPE_DEBUG_TAG, "commit skipped: no usable sequences")
             return
         }
-        val ic = currentInputConnection
-        if (ic == null) {
-            logSwipeFinishDiagnostics(gesture, trailDiagnostics, candidateCount = 0, winner = null)
-            metrics.recordSwipeResolved(gesture.rawSequence.length, candidateCount = 0, committed = false)
-            Log.w(SWIPE_DEBUG_TAG, "commit failed: InputConnection null sequence=${sequences.first()}")
-            return
-        }
         val previousWord = contextWords.lastOrNull()
         val debugReporter: ((String) -> Unit)? = if (isDebugLoggingEnabled()) {
             { report -> Log.d(SWIPE_DEBUG_TAG, report) }
@@ -1617,7 +1588,6 @@ class KeyboardService : InputMethodService() {
             mainHandler.post {
                 if (generation != swipeResolveGeneration) return@post
                 applySwipeSuggestionResult(
-                    ic = ic,
                     gesture = gesture,
                     trailDiagnostics = trailDiagnostics,
                     candidates = candidates,
@@ -1630,7 +1600,6 @@ class KeyboardService : InputMethodService() {
     }
 
     private fun applySwipeSuggestionResult(
-        ic: InputConnection,
         gesture: SwipeGestureResult,
         trailDiagnostics: SwipeTrailDiagnostics?,
         candidates: List<String>,
@@ -1656,6 +1625,12 @@ class KeyboardService : InputMethodService() {
         if (committedWord.length < 2) {
             metrics.recordSwipeResolved(gesture.rawSequence.length, candidateCount = candidates.size, committed = false)
             Log.w(SWIPE_DEBUG_TAG, "commit skipped: invalid candidate=$suggestion sequence=$sourceSequence")
+            return
+        }
+        val ic = currentInputConnection
+        if (ic == null) {
+            metrics.recordSwipeResolved(gesture.rawSequence.length, candidateCount = candidates.size, committed = false)
+            Log.w(SWIPE_DEBUG_TAG, "commit failed: InputConnection null sequence=$sourceSequence")
             return
         }
 
@@ -1729,13 +1704,26 @@ class KeyboardService : InputMethodService() {
             return
         }
 
-        prefetchAutocorrection(prefix, previousWord)
+        val requestGeneration = ++autocorrectGeneration
+        autocorrectPrefetchFuture?.cancel(true)
+        autocorrectPrefetchWord = null
+        autocorrectPrefetchPreviousWord = null
+        autocorrectPrefetchResult = null
         lastSuggestionQueryPrefix = prefix
         lastSuggestionQueryPreviousWord = stablePrevious
         suggestionLookupFuture?.cancel(true)
         suggestionLookupFuture = suggestionExecutor.submit {
             val suggestions = predictor.getSuggestions(prefix, previousWord)
+            val correction = if (prefix.isNotEmpty()) {
+                predictor.getAutocorrection(prefix, previousWord)
+            } else {
+                null
+            }
             mainHandler.post {
+                if (requestGeneration != autocorrectGeneration) return@post
+                autocorrectPrefetchWord = prefix
+                autocorrectPrefetchPreviousWord = previousWord
+                autocorrectPrefetchResult = correction
                 publishSuggestionsIfCurrent(prefix, stablePrevious, suggestions)
             }
         }
@@ -1795,6 +1783,7 @@ class KeyboardService : InputMethodService() {
     }
 
     private fun cleanupInputViewState() {
+        swipeResolveGeneration += 1
         cancelLongPress()
         stopRepeatingDelete()
         stopRepeatingSpace()
@@ -1849,6 +1838,7 @@ class KeyboardService : InputMethodService() {
         pendingSuggestionImpression = false
         lastAcceptedSuggestion = null
         lastAcceptedSuggestionPreviousWord = null
+        swipeResolveGeneration += 1
         autocorrectGeneration += 1
         autocorrectPrefetchFuture?.cancel(true)
         autocorrectPrefetchWord = null
@@ -1905,7 +1895,6 @@ class KeyboardService : InputMethodService() {
             currentWord.isNotEmpty() ||
             contextWords.isNotEmpty() ||
             repeatingDelete != null ||
-            repeatingSpace != null ||
             longPressRunnable != null ||
             activePopup != null
         ) {
