@@ -13,6 +13,7 @@ const {
 } = require('./specialist-agent-manager');
 const { runFreshScan, formatFreshScanResponse } = require('./live-scan-runner');
 const { requestOtaBuild, requestProductLabScreenshot } = require('./build-dispatcher');
+const { fetchLatestProductLabScreenshot } = require('./product-lab-artifact-fetcher');
 const { executeFirstFixableIssue } = require('../scripts/execution-engine');
 const { executeAiBridge } = require('../scripts/ai-execution-bridge');
 const { runProductStewardAutonomy } = require('../scripts/product-steward-autonomy');
@@ -316,6 +317,15 @@ async function routeMessageWithAi(message, state, memory = {}, options = {}) {
       ...preservationBlock,
       usedAi: false,
       aiReason: 'preservation_mode_guard'
+    };
+  }
+
+  const productLabResult = await maybeRouteProductLabScreenshotResult(normalized, options);
+  if (productLabResult) {
+    return {
+      ...productLabResult,
+      usedAi: false,
+      aiReason: 'github_product_lab_screenshot_result'
     };
   }
 
@@ -646,6 +656,8 @@ async function maybeRouteProductLabScreenshotWorkflow(normalized = '', options =
       `Runs: ${dispatch.runsUrl}`,
       `Artifact: ${dispatch.artifactName}`,
       'Expected output: emulator screenshot plus Product Lab reports.',
+      'I will try to send the screenshot automatically when the run finishes.',
+      'If it does not arrive, reply: latest screenshot',
       'No product code mutation started.'
     ].join('\n')
   };
@@ -654,6 +666,45 @@ async function maybeRouteProductLabScreenshotWorkflow(normalized = '', options =
 function isProductLabWorkflowScreenshotCommand(normalized = '') {
   const text = String(normalized || '').trim().toLowerCase();
   return /^(screenshot|capture screenshot|send screenshot|take screenshot|keyboard screenshot|product lab screenshot|run product lab screenshot|github product lab screenshot|cloud screenshot|capture screenshot in github|run screenshot lab)$/.test(text);
+}
+
+async function maybeRouteProductLabScreenshotResult(normalized = '', options = {}) {
+  if (!/^(latest screenshot|send latest screenshot|screenshot result|product lab screenshot result)$/.test(String(normalized || '').trim().toLowerCase())) {
+    return null;
+  }
+  const result = await fetchLatestProductLabScreenshot({
+    root: options.root || process.cwd(),
+    publicBaseUrl: options.publicBaseUrl || process.env.PUBLIC_BASE_URL || '',
+    env: options.env || process.env,
+    fetchImpl: options.fetchImpl || fetch
+  });
+  if (result.status === 'READY') {
+    return {
+      command: 'product_lab_screenshot_ready',
+      details: { agent: 'cto', intent: 'product_lab_screenshot_ready', result },
+      matchedRoute: 'product_lab_screenshot_result',
+      response: [
+        'CTO: Product Lab screenshot is ready.',
+        `Run: ${result.runUrl}`,
+        `Artifact: ${result.artifactName}`,
+        result.publicUrl ? 'Image attached for WhatsApp review.' : 'Screenshot downloaded, but PUBLIC_BASE_URL is missing so WhatsApp cannot attach it yet.',
+        'No product code mutation started.'
+      ].join('\n'),
+      mediaUrls: result.mediaUrls || []
+    };
+  }
+  return {
+    command: 'product_lab_screenshot_not_ready',
+    details: { agent: 'cto', intent: 'product_lab_screenshot_not_ready', result },
+    matchedRoute: 'product_lab_screenshot_result',
+    response: [
+      'CTO: Product Lab screenshot is not ready yet.',
+      `Status: ${result.status}`,
+      `Reason: ${result.message}`,
+      result.runUrl ? `Run: ${result.runUrl}` : '',
+      'No product code mutation started.'
+    ].filter(Boolean).join('\n')
+  };
 }
 
 async function maybeRouteProductLabLocalScreenshotCapture(message, normalized = normalizeMessage(message), options = {}) {

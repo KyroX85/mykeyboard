@@ -18,6 +18,7 @@ const {
   buildTwilioMessageParams,
   sendWhatsAppMessageWithFallback
 } = require('./whatsapp/whatsapp-provider');
+const { fetchLatestProductLabScreenshot } = require('./whatsapp/product-lab-artifact-fetcher');
 
 const PORT = Number(process.env.PORT || 3000);
 const REPO_ROOT = process.env.ARITENIS_REPO_ROOT || process.cwd();
@@ -400,12 +401,13 @@ function createApp() {
       const state = loadEngineeringState();
       state.workflowFreshness = workflowFreshness(state);
       const memory = readConversationMemory();
+      const requestBaseUrl = PUBLIC_BASE_URL || `${req.protocol}://${req.get('host')}`;
       const routed = await routeMessageWithAi(body, state, memory, {
         commit: process.env.CTO_AI_EXECUTION_COMMIT !== 'false',
         push: process.env.CTO_AI_EXECUTION_PUSH !== 'false',
         deferLowRiskVisionExecution: true,
         root: REPO_ROOT,
-        publicBaseUrl: PUBLIC_BASE_URL
+        publicBaseUrl: requestBaseUrl
       });
       logVisibleWebhook('routed', {
         requestId: id,
@@ -483,6 +485,13 @@ function createApp() {
           requestId: id,
           entry: routed.details && routed.details.visionCommand,
           incoming
+        });
+      }
+      if (routed.command === 'product_lab_screenshot_workflow') {
+        runDeferredProductLabScreenshotDelivery({
+          requestId: id,
+          incoming,
+          publicBaseUrl: requestBaseUrl
         });
       }
     } catch (error) {
@@ -563,6 +572,93 @@ function runDeferredVisionExecution({ requestId, entry, incoming }) {
       });
     }
   });
+}
+
+function runDeferredProductLabScreenshotDelivery({ requestId, incoming, publicBaseUrl }) {
+  setImmediate(async () => {
+    const maxAttempts = Number(process.env.PRODUCT_LAB_SCREENSHOT_POLL_ATTEMPTS || 40);
+    const intervalMs = Number(process.env.PRODUCT_LAB_SCREENSHOT_POLL_INTERVAL_MS || 30000);
+    try {
+      for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+        const result = await fetchLatestProductLabScreenshot({
+          root: REPO_ROOT,
+          publicBaseUrl,
+          env: process.env
+        });
+        if (result.status === 'READY') {
+          await sendWhatsAppMessageWithFallback({
+            body: [
+              'CTO: Product Lab screenshot is ready.',
+              `Run: ${result.runUrl}`,
+              'Image attached for product review.',
+              'No product code mutation started.'
+            ].join('\n'),
+            mediaUrls: result.mediaUrls || [],
+            twilio: {
+              accountSid: incoming.accountSid,
+              authToken: TWILIO_AUTH_TOKEN,
+              from: incoming.to,
+              to: `whatsapp:${incoming.from}`
+            },
+            meta: {
+              to: incoming.from
+            }
+          });
+          logVisibleWebhook('product_lab_screenshot_sent', {
+            requestId,
+            from: incoming.from,
+            body: 'product lab screenshot ready',
+            command: 'product_lab_screenshot_ready',
+            status: 200
+          });
+          return;
+        }
+        if (['FAILED', 'NO_ARTIFACT', 'NO_SCREENSHOT', 'CONFIG_REQUIRED'].includes(result.status)) {
+          await sendWhatsAppMessageWithFallback({
+            body: [
+              'CTO: Product Lab screenshot could not be sent.',
+              `Status: ${result.status}`,
+              `Reason: ${result.message}`,
+              result.runUrl ? `Run: ${result.runUrl}` : ''
+            ].filter(Boolean).join('\n'),
+            twilio: {
+              accountSid: incoming.accountSid,
+              authToken: TWILIO_AUTH_TOKEN,
+              from: incoming.to,
+              to: `whatsapp:${incoming.from}`
+            },
+            meta: {
+              to: incoming.from
+            }
+          });
+          return;
+        }
+        await sleep(intervalMs);
+      }
+      await sendWhatsAppMessageWithFallback({
+        body: [
+          'CTO: Product Lab screenshot is still not ready.',
+          'Reply: latest screenshot',
+          'No product code mutation started.'
+        ].join('\n'),
+        twilio: {
+          accountSid: incoming.accountSid,
+          authToken: TWILIO_AUTH_TOKEN,
+          from: incoming.to,
+          to: `whatsapp:${incoming.from}`
+        },
+        meta: {
+          to: incoming.from
+        }
+      });
+    } catch (error) {
+      console.log(`[whatsapp-cto] PRODUCT LAB SCREENSHOT DELIVERY ERROR requestId=${requestId} message=${error.message}`);
+    }
+  });
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 if (require.main === module) {
