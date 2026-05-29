@@ -18,6 +18,7 @@ const { executeAiBridge } = require('../scripts/ai-execution-bridge');
 const { runProductStewardAutonomy } = require('../scripts/product-steward-autonomy');
 const { maybeGenerateAiWhatsAppResponse } = require('./ai-whatsapp-responder');
 const { detectLowInformation } = require('../uncertainty-filter');
+const { answerFounderAlignedProductQuestion } = require('../canonical-product-judgment-engine');
 const { setMode, readState, enforceExecutionAllowed } = require('../../governance/governance');
 
 const ROOT = path.resolve(__dirname, '..', '..');
@@ -135,6 +136,8 @@ function routeMessage(message, state, memory = {}) {
   if (preservationBlock) return preservationBlock;
   const productStewardAnswer = maybeRouteProductStewardAnswer(message, normalized);
   if (productStewardAnswer) return productStewardAnswer;
+  const founderDnaDialogue = maybeRouteFounderDnaDialogue(message, normalized);
+  if (founderDnaDialogue) return founderDnaDialogue;
 
   if (isStandaloneGreeting(message)) {
     const greetingRoute = routeAgentMessage(message, state, memory);
@@ -312,6 +315,14 @@ async function routeMessageWithAi(message, state, memory = {}, options = {}) {
       ...productStewardAnswer,
       usedAi: false,
       aiReason: 'product_steward_intent'
+    };
+  }
+  const founderDnaDialogue = maybeRouteFounderDnaDialogue(message, normalized);
+  if (founderDnaDialogue) {
+    return {
+      ...founderDnaDialogue,
+      usedAi: false,
+      aiReason: 'canonical_founder_dna_product_judgment'
     };
   }
 
@@ -538,6 +549,13 @@ function maybeRouteProductStewardAnswer(message, normalized = normalizeMessage(m
   }
 
   return null;
+}
+
+function maybeRouteFounderDnaDialogue(message, normalized = normalizeMessage(message)) {
+  if (/\b(fix|execute|implement|commit|push|modify|edit|write|delete|create file|apply patch|build now|ota build)\b/i.test(String(normalized || ''))) {
+    return null;
+  }
+  return answerFounderAlignedProductQuestion(message, readProductEvidenceSnapshot());
 }
 
 function stewardResponse(command, lines) {

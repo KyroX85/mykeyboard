@@ -1,4 +1,9 @@
+const { answerFounderAlignedProductQuestion } = require('../canonical-product-judgment-engine');
+
 function answerCalmDialogue({ message = '', productContext = {} } = {}) {
+  const founderAnswer = answerFounderAlignedProductQuestion(message, productContext);
+  if (founderAnswer) return founderAnswer.response;
+
   const text = String(message || '').toLowerCase();
   if (text.includes('visually tense')) {
     return sentence(productContext.visualTension || 'Spacing near the edges still feels slightly dense compared to Gboard.');
