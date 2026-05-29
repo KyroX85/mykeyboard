@@ -3,9 +3,13 @@ const { executionActivationDecision } = require('./execution-activation-engine')
 const { shouldGenerateReport } = require('./report-optional-engine');
 const { answerLightweightConversation } = require('./lightweight-conversation-engine');
 const { preventOverexecution } = require('./anti-overexecution-engine');
+const { detectProductDiscussion } = require('./product-discussion-detector');
+const { answerCalmDialogue } = require('./calm-dialogue-engine');
+const { reduceParanoia } = require('./anti-paranoia-engine');
 
 function routeConversationFirst({ message = '', productContext = {}, governanceMode = 'ACTIVE' } = {}) {
   const dominance = decideIntentDominance(message);
+  const productDiscussion = detectProductDiscussion(message);
   const activation = executionActivationDecision(message);
   const report = shouldGenerateReport(message);
   const proposedMode = activation.executionRequested ? 'EXECUTION' : dominance.intent;
@@ -13,13 +17,17 @@ function routeConversationFirst({ message = '', productContext = {}, governanceM
   const mode = overexecution.mode;
 
   if (mode !== 'EXECUTION') {
+    const response = productDiscussion.isProductDiscussion
+      ? answerCalmDialogue({ message, productContext })
+      : answerLightweightConversation({ message, productContext });
     return {
       mode,
       mutationAllowed: false,
       reportGenerationAllowed: false,
-      response: answerLightweightConversation({ message, productContext }),
+      response: reduceParanoia({ response, productDiscussion: productDiscussion.isProductDiscussion }).response,
       dominance,
-      overexecution
+      overexecution,
+      productDiscussion
     };
   }
 

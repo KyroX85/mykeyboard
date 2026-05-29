@@ -1,4 +1,6 @@
-const PRODUCT_TERMS = /\b(trust|typing|swipe|keyboard|gboard|swiftkey|screenshot|friction|stable|stability|recurring|retention|symbol|layout|thumb|comfort|dark mode|responsiveness|latency|correction|roadmap|risk|safe|safer|product|ux|feel)\b/i;
+const { detectProductDiscussion } = require('./product-discussion-detector');
+
+const PRODUCT_TERMS = /\b(trust|typing|swipe|keyboard|gboard|swiftkey|screenshot|friction|stable|stability|recurring|retention|symbol|layout|thumb|comfort|dark mode|responsiveness|latency|correction|roadmap|risk|safe|safer|product|ux|feel|feels|visual|visually|tense|immature|worries|dislike|cramped|annoy|polished|constructed|natural|mature)\b/i;
 const EXECUTION_TERMS = /\b(edit|create|delete|commit|push|rewrite|patch|change file|modify|build apk|install apk)\b/i;
 const NONSENSE_PATTERNS = [
   /\bbanana quantum potato\b/i,
@@ -13,6 +15,13 @@ function classifyLowInformationV2(message = '') {
     return {
       classification: 'LOW_INFORMATION',
       reason: 'empty message'
+    };
+  }
+  const productDiscussion = detectProductDiscussion(text);
+  if (productDiscussion.isProductDiscussion || productDiscussion.confidence >= 70) {
+    return {
+      classification: 'VALID_PRODUCT_DISCUSSION',
+      reason: productDiscussion.reason
     };
   }
   if (NONSENSE_PATTERNS.some((pattern) => pattern.test(text))) {
