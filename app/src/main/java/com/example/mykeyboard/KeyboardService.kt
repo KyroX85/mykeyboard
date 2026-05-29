@@ -220,7 +220,7 @@ class KeyboardService : InputMethodService() {
         const val SWIPE_SAMPLE_DISTANCE_DP = 5
         const val SWIPE_RESOLVE_WARN_MS = 32L
         const val MAX_NAVIGATION_BOTTOM_PADDING_DP = 32
-        const val AGENTIC_MIN_CONTEXT_WORDS = 3
+        const val AGENTIC_MIN_CONTEXT_WORDS = 1
         const val ACTION_COPY = "copy"
         const val ACTION_EDIT = "edit"
         const val ACTION_WHATSAPP = "whatsapp"
@@ -444,7 +444,7 @@ class KeyboardService : InputMethodService() {
             agentActionRow.addView(button)
             agentActionButtons.add(button)
         }
-        agentActionRow.visibility = View.GONE
+        updateAgenticWorkflowOverlay()
     }
 
     private fun setupNumberRow(sizing: KeyboardSizingProfile = currentKeyboardSizing()) {
@@ -550,7 +550,11 @@ class KeyboardService : InputMethodService() {
         val workflow = buildAgenticWorkflowState()
         latestAgenticWorkflow = workflow
         if (workflow == null) {
-            agentActionRow.visibility = View.GONE
+            agentActionRow.visibility = View.VISIBLE
+            agentActionButtons.forEach { button ->
+                button.alpha = 0.42f
+                button.isEnabled = false
+            }
             return
         }
         agentActionRow.visibility = View.VISIBLE
@@ -2030,7 +2034,7 @@ class KeyboardService : InputMethodService() {
         swipeResolveGeneration += 1
         latestAgenticWorkflow = null
         if (::agentActionRow.isInitialized) {
-            agentActionRow.visibility = View.GONE
+            updateAgenticWorkflowOverlay()
         }
         cancelLongPress()
         stopRepeatingDelete()

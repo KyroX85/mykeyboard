@@ -17,6 +17,21 @@ class AgenticWorkflowOverlayTest {
     }
 
     @Test
+    fun actionOptionsBarStaysVisibleWithDisabledActionsUntilTextExists() {
+        val source = sourceFile("app/src/main/java/com/example/mykeyboard/KeyboardService.kt").readText()
+        val update = methodBody(source, "updateAgenticWorkflowOverlay")
+        val setup = methodBody(source, "setupAgentActionRow")
+        val cleanup = methodBody(source, "cleanupInputViewState")
+
+        assertTrue(source.contains("const val AGENTIC_MIN_CONTEXT_WORDS = 1"))
+        assertTrue(update.contains("agentActionRow.visibility = View.VISIBLE"))
+        assertTrue(update.contains("button.isEnabled = false"))
+        assertTrue(setup.contains("updateAgenticWorkflowOverlay()"))
+        assertFalse(setup.contains("agentActionRow.visibility = View.GONE"))
+        assertTrue(cleanup.contains("updateAgenticWorkflowOverlay()"))
+    }
+
+    @Test
     fun workflowOverlayDoesNotUseNetworkLoggingOrPredictionWorkers() {
         val source = sourceFile("app/src/main/java/com/example/mykeyboard/KeyboardService.kt").readText()
         val update = methodBody(source, "updateAgenticWorkflowOverlay")
