@@ -46,6 +46,11 @@ jobs:
             adb install -r app/build/outputs/apk/debug/app-debug.apk
             adb shell ime enable com.example.mykeyboard/.KeyboardService || true
             adb shell ime set com.example.mykeyboard/.KeyboardService || true
+            adb shell am start -n com.example.mykeyboard/.ProductLabInputActivity
+            sleep 5
+            adb shell input tap 540 260
+            sleep 2
+            adb shell dumpsys input_method | grep -E "mInputShown|mCurMethod|com.example.mykeyboard" || true
             mkdir -p artifacts/product-lab/screenshots
             adb exec-out screencap -p > artifacts/product-lab/screenshots/emulator-smoke.png
             test -s artifacts/product-lab/screenshots/emulator-smoke.png
