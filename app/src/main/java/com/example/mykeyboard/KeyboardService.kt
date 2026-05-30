@@ -1,8 +1,6 @@
 package com.example.mykeyboard
 
 import android.content.Context
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.ApplicationInfo
@@ -11,7 +9,6 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
-import android.graphics.drawable.GradientDrawable
 import android.inputmethodservice.InputMethodService
 import android.media.AudioManager
 import android.net.Uri
@@ -42,14 +39,11 @@ import android.widget.FrameLayout
 import android.widget.GridView
 import android.widget.LinearLayout
 import android.widget.PopupWindow
-import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import android.view.ViewGroup
 import android.widget.AbsListView
 import java.util.Locale
-import com.example.mykeyboard.execution.DeviceFileFinder
-import com.example.mykeyboard.execution.FileSearchResult
 import com.example.mykeyboard.haptics.HapticKind
 import com.example.mykeyboard.haptics.HapticProfile
 import com.example.mykeyboard.haptics.HapticTapGate
@@ -95,12 +89,6 @@ class KeyboardService : InputMethodService() {
     private lateinit var keyboardLayout: LinearLayout
     private lateinit var keyboardBottomSpacer: View
     private lateinit var swipeTrailView: SwipeTrailView
-    private lateinit var executionHandle: View
-    private lateinit var executionPanel: LinearLayout
-    private lateinit var executionSearchText: TextView
-    private lateinit var executionStatusText: TextView
-    private lateinit var executionResultsContainer: LinearLayout
-    private lateinit var executionActionsContainer: LinearLayout
 
     private lateinit var emojiContainer: LinearLayout
     private lateinit var emojiGrid: GridView
@@ -131,7 +119,6 @@ class KeyboardService : InputMethodService() {
     private val currentWord = StringBuilder()
     private val contextWords = mutableListOf<String>()
     private lateinit var predictor: BasicPredictor
-    private lateinit var deviceFileFinder: DeviceFileFinder
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private var repeatingDelete: Runnable? = null
@@ -198,17 +185,6 @@ class KeyboardService : InputMethodService() {
     private var spaceDownRawX = 0f
     private var spaceCursorModeActive = false
     private var lastSpaceCursorStep = 0
-    private var executionLayerOpen = false
-    private var executionHandleDownY = 0f
-    private var executionHandleActivated = false
-    private val executionQuery = StringBuilder()
-    private val executionResults = mutableListOf<FileSearchResult>()
-    private var selectedExecutionResult: FileSearchResult? = null
-    private var executionSearchFuture: Future<*>? = null
-    private var executionSearchRunnable: Runnable? = null
-    private val executionExecutor = Executors.newSingleThreadExecutor { runnable ->
-        Thread(runnable, "AritenisFileFinder").apply { isDaemon = true }
-    }
     private var autocorrectGeneration = 0
     private var autocorrectPrefetchWord: String? = null
     private var autocorrectPrefetchPreviousWord: String? = null
@@ -260,8 +236,6 @@ class KeyboardService : InputMethodService() {
         const val SYMBOL_LONG_PRESS_DELAY_MS = 230L
         const val SPACE_CURSOR_LONG_PRESS_DELAY_MS = 260L
         const val SPACE_CURSOR_STEP_DP = 18
-        const val EXECUTION_HANDLE_PULL_THRESHOLD_DP = 42
-        const val EXECUTION_SEARCH_DEBOUNCE_MS = 180L
         const val SUGGESTION_QUERY_UNSET = "\u0000"
         val NUMBER_ROW_KEYS = listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")
     }
@@ -269,7 +243,6 @@ class KeyboardService : InputMethodService() {
     override fun onCreate() {
         super.onCreate()
         predictor = BasicPredictor(this, scope, metrics)
-        deviceFileFinder = DeviceFileFinder(this)
         cachedAudioManager
         cachedVibrator
         normalVibrationEffect
@@ -355,7 +328,6 @@ class KeyboardService : InputMethodService() {
         setupEmojiPanelContent()
 
         buildKeyboard()
-        setupExecutionLayer()
         return root
     }
 
@@ -466,392 +438,6 @@ class KeyboardService : InputMethodService() {
         suggestionBar.addView(micButton)
         voiceSuggestionButton = micButton
         updateVoiceKeyUI()
-    }
-
-    private fun setupExecutionLayer() {
-        executionHandle = View(this).apply {
-            background = glassDrawable(Color.argb(150, 238, 244, 255), dp(12))
-            alpha = 0.72f
-            contentDescription = "Open Aritenis file finder"
-            setOnTouchListener { _, event -> handleExecutionHandleTouch(event) }
-        }
-        keyboardPanel.addView(
-            executionHandle,
-            FrameLayout.LayoutParams(dp(54), dp(8), Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply {
-                topMargin = dp(3)
-            }
-        )
-
-        executionPanel = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            visibility = View.GONE
-            setPadding(dp(14), dp(12), dp(14), dp(12))
-            background = glassDrawable(Color.argb(220, 22, 27, 34), dp(22), Color.argb(90, 255, 255, 255))
-        }
-
-        executionSearchText = TextView(this).apply {
-            textSize = 16f
-            setTextColor(Color.WHITE)
-            setHintTextColor(Color.rgb(172, 184, 198))
-            setSingleLine(true)
-            setIncludeFontPadding(false)
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(14), 0, dp(14), 0)
-            background = glassDrawable(Color.argb(130, 255, 255, 255), dp(14), Color.argb(70, 255, 255, 255))
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(42)
-            )
-        }
-        executionPanel.addView(executionSearchText)
-
-        val trustCopy = TextView(this).apply {
-            text = "Your files never leave your device."
-            textSize = 11f
-            setTextColor(Color.rgb(176, 188, 202))
-            setIncludeFontPadding(false)
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(22)
-            ).apply { topMargin = dp(6) }
-        }
-        executionPanel.addView(trustCopy)
-
-        executionPanel.addView(createExampleChipRow())
-
-        executionStatusText = TextView(this).apply {
-            textSize = 12f
-            setTextColor(Color.rgb(198, 209, 222))
-            setIncludeFontPadding(false)
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(24)
-            ).apply { topMargin = dp(6) }
-        }
-        executionPanel.addView(executionStatusText)
-
-        val scroll = ScrollView(this).apply {
-            isFillViewport = false
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                0,
-                1f
-            )
-        }
-        executionResultsContainer = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-        }
-        scroll.addView(executionResultsContainer)
-        executionPanel.addView(scroll)
-
-        executionActionsContainer = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(40)
-            ).apply { topMargin = dp(8) }
-        }
-        listOf(
-            "Open" to ::openSelectedExecutionResult,
-            "Share" to ::shareSelectedExecutionResult,
-            "Copy path" to ::copySelectedExecutionPath,
-            "Delete" to ::deleteSelectedExecutionResult,
-            "Cancel" to ::closeExecutionLayer
-        ).forEach { (label, action) ->
-            executionActionsContainer.addView(createExecutionActionButton(label, action))
-        }
-        executionPanel.addView(executionActionsContainer)
-
-        root.addView(
-            executionPanel,
-            FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                dp(286),
-                Gravity.BOTTOM
-            ).apply {
-                leftMargin = dp(6)
-                rightMargin = dp(6)
-                bottomMargin = dp(6)
-            }
-        )
-        renderExecutionLayer()
-    }
-
-    private fun createExampleChipRow(): LinearLayout =
-        LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(34)
-            )
-            listOf("Aadhaar PDF", "Annual portions", "Yesterday screenshot").forEach { label ->
-                addView(createExecutionChip(label) {
-                    executionQuery.clear()
-                    executionQuery.append("Find $label")
-                    renderExecutionLayer()
-                    scheduleExecutionSearch()
-                })
-            }
-        }
-
-    private fun createExecutionChip(label: String, action: () -> Unit): TextView =
-        TextView(this).apply {
-            text = label
-            textSize = 12f
-            setTextColor(Color.rgb(230, 236, 245))
-            gravity = Gravity.CENTER
-            setSingleLine(true)
-            setIncludeFontPadding(false)
-            background = glassDrawable(Color.argb(95, 255, 255, 255), dp(12), Color.argb(45, 255, 255, 255))
-            layoutParams = LinearLayout.LayoutParams(0, dp(28), 1f).apply {
-                setMargins(dp(2), dp(3), dp(2), dp(3))
-            }
-            setOnClickListener { action() }
-        }
-
-    private fun createExecutionActionButton(label: String, action: () -> Unit): TextView =
-        TextView(this).apply {
-            text = label
-            textSize = 12f
-            setTextColor(Color.WHITE)
-            gravity = Gravity.CENTER
-            setSingleLine(true)
-            setIncludeFontPadding(false)
-            background = glassDrawable(Color.argb(95, 255, 255, 255), dp(10), Color.argb(50, 255, 255, 255))
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f).apply {
-                setMargins(dp(2), 0, dp(2), 0)
-            }
-            setOnClickListener { action() }
-        }
-
-    private fun glassDrawable(color: Int, radiusPx: Int, strokeColor: Int? = null): GradientDrawable =
-        GradientDrawable().apply {
-            shape = GradientDrawable.RECTANGLE
-            cornerRadius = radiusPx.toFloat()
-            setColor(color)
-            strokeColor?.let { setStroke(dp(1), it) }
-        }
-
-    private fun handleExecutionHandleTouch(event: MotionEvent): Boolean {
-        when (event.actionMasked) {
-            MotionEvent.ACTION_DOWN -> {
-                executionHandleDownY = event.rawY
-                executionHandleActivated = false
-                executionHandle.alpha = 0.94f
-                return true
-            }
-            MotionEvent.ACTION_MOVE -> {
-                val pullDistance = event.rawY - executionHandleDownY
-                if (!executionHandleActivated && pullDistance >= dp(EXECUTION_HANDLE_PULL_THRESHOLD_DP)) {
-                    executionHandleActivated = true
-                    executionHandle.performHapticFeedback(
-                        HapticFeedbackConstants.CONFIRM,
-                        HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING
-                    )
-                    openExecutionLayer()
-                }
-                return true
-            }
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                executionHandle.alpha = 0.72f
-                executionHandleActivated = false
-                return true
-            }
-        }
-        return true
-    }
-
-    private fun openExecutionLayer() {
-        if (executionLayerOpen || !::executionPanel.isInitialized) return
-        executionLayerOpen = true
-        executionPanel.visibility = View.VISIBLE
-        renderExecutionLayer()
-    }
-
-    private fun closeExecutionLayer() {
-        executionLayerOpen = false
-        executionSearchFuture?.cancel(true)
-        executionSearchRunnable?.let(mainHandler::removeCallbacks)
-        executionSearchRunnable = null
-        selectedExecutionResult = null
-        if (::executionPanel.isInitialized) {
-            executionPanel.visibility = View.GONE
-        }
-    }
-
-    private fun renderExecutionLayer() {
-        if (!::executionSearchText.isInitialized) return
-        val query = executionQuery.toString()
-        executionSearchText.text = query.ifBlank { "What are you looking for?" }
-        executionSearchText.setTextColor(
-            if (query.isBlank()) Color.rgb(172, 184, 198) else Color.WHITE
-        )
-
-        executionResultsContainer.removeAllViews()
-        if (executionResults.isEmpty()) {
-            executionStatusText.text = if (query.isBlank()) {
-                "Try: Find my Aadhaar PDF"
-            } else {
-                "Searching local file names and folders..."
-            }
-            return
-        }
-
-        executionStatusText.text = "${executionResults.size} local result${if (executionResults.size == 1) "" else "s"}"
-        executionResults.forEach { result ->
-            executionResultsContainer.addView(createExecutionResultRow(result))
-        }
-    }
-
-    private fun createExecutionResultRow(result: FileSearchResult): TextView =
-        TextView(this).apply {
-            val candidate = result.candidate
-            text = "${candidate.displayName}\n${candidate.source} • ${DeviceFileFinder.displayPath(candidate)}"
-            textSize = 13f
-            setTextColor(Color.rgb(238, 243, 250))
-            setIncludeFontPadding(false)
-            setPadding(dp(10), dp(8), dp(10), dp(8))
-            background = glassDrawable(
-                if (selectedExecutionResult == result) {
-                    Color.argb(140, 138, 180, 248)
-                } else {
-                    Color.argb(72, 255, 255, 255)
-                },
-                dp(12),
-                Color.argb(45, 255, 255, 255)
-            )
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply {
-                setMargins(0, dp(3), 0, dp(3))
-            }
-            setOnClickListener {
-                selectedExecutionResult = result
-                renderExecutionLayer()
-            }
-        }
-
-    private fun appendExecutionQuery(value: String) {
-        executionQuery.append(value)
-        renderExecutionLayer()
-        scheduleExecutionSearch()
-    }
-
-    private fun deleteExecutionQueryCharacter() {
-        if (executionQuery.isNotEmpty()) {
-            executionQuery.deleteCharAt(executionQuery.length - 1)
-            executionResults.clear()
-            selectedExecutionResult = null
-            renderExecutionLayer()
-            scheduleExecutionSearch()
-        }
-    }
-
-    private fun scheduleExecutionSearch() {
-        executionSearchRunnable?.let(mainHandler::removeCallbacks)
-        executionSearchRunnable = Runnable {
-            submitExecutionSearch(executionQuery.toString())
-        }.also {
-            mainHandler.postDelayed(it, EXECUTION_SEARCH_DEBOUNCE_MS)
-        }
-    }
-
-    private fun submitExecutionSearch(query: String) {
-        val cleanQuery = query.trim()
-        executionSearchFuture?.cancel(true)
-        if (cleanQuery.length < 2) {
-            executionResults.clear()
-            selectedExecutionResult = null
-            renderExecutionLayer()
-            return
-        }
-
-        executionSearchFuture = executionExecutor.submit {
-            val results = try {
-                deviceFileFinder.search(cleanQuery)
-            } catch (e: SecurityException) {
-                mainHandler.post {
-                    if (cleanQuery != executionQuery.toString().trim()) return@post
-                    executionResults.clear()
-                    selectedExecutionResult = null
-                    executionStatusText.text = "Allow file/media permission to search device files."
-                    executionResultsContainer.removeAllViews()
-                }
-                return@submit
-            } catch (e: RuntimeException) {
-                mainHandler.post {
-                    if (cleanQuery != executionQuery.toString().trim()) return@post
-                    executionResults.clear()
-                    selectedExecutionResult = null
-                    executionStatusText.text = "File search failed. Try again."
-                    executionResultsContainer.removeAllViews()
-                }
-                return@submit
-            }
-            mainHandler.post {
-                if (cleanQuery != executionQuery.toString().trim()) return@post
-                executionResults.clear()
-                executionResults.addAll(results)
-                selectedExecutionResult = results.firstOrNull()
-                renderExecutionLayer()
-            }
-        }
-    }
-
-    private fun openSelectedExecutionResult() {
-        val candidate = selectedExecutionResult?.candidate ?: return
-        val intent = Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(DeviceFileFinder.uriFor(candidate), candidate.mimeType.ifBlank { "*/*" })
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        }
-        try {
-            startActivity(intent)
-        } catch (e: RuntimeException) {
-            showExecutionToast("No app can open this file")
-        }
-    }
-
-    private fun shareSelectedExecutionResult() {
-        val candidate = selectedExecutionResult?.candidate ?: return
-        val intent = Intent(Intent.ACTION_SEND).apply {
-            type = candidate.mimeType.ifBlank { "*/*" }
-            putExtra(Intent.EXTRA_STREAM, DeviceFileFinder.uriFor(candidate))
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        }
-        try {
-            startActivity(Intent.createChooser(intent, "Share file").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-        } catch (e: RuntimeException) {
-            showExecutionToast("Unable to share this file")
-        }
-    }
-
-    private fun copySelectedExecutionPath() {
-        val candidate = selectedExecutionResult?.candidate ?: return
-        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        clipboard.setPrimaryClip(
-            ClipData.newPlainText("Aritenis file path", DeviceFileFinder.displayPath(candidate))
-        )
-        showExecutionToast("Path copied")
-    }
-
-    private fun deleteSelectedExecutionResult() {
-        val candidate = selectedExecutionResult?.candidate ?: return
-        try {
-            contentResolver.delete(DeviceFileFinder.uriFor(candidate), null, null)
-            executionResults.remove(selectedExecutionResult)
-            selectedExecutionResult = executionResults.firstOrNull()
-            renderExecutionLayer()
-            showExecutionToast("Deleted")
-        } catch (e: RuntimeException) {
-            showExecutionToast("Delete needs file permission")
-        }
-    }
-
-    private fun showExecutionToast(message: String) {
-        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     }
 
     private fun setupNumberRow(sizing: KeyboardSizingProfile = currentKeyboardSizing()) {
@@ -1703,10 +1289,6 @@ class KeyboardService : InputMethodService() {
         if (key == KEY_ENTER) currentImeAction.label else anchor.text.toString()
 
     private fun handleKeyDown(key: String, event: MotionEvent) {
-        if (executionLayerOpen) {
-            handleExecutionKeyDown(key)
-            return
-        }
         when (key) {
             KEY_BACKSPACE -> {
                 deleteOneCharacter()
@@ -1831,11 +1413,6 @@ class KeyboardService : InputMethodService() {
         val wasLongPress = isLongPressActive
         cancelLongPress()
 
-        if (executionLayerOpen) {
-            handleExecutionKeyUp(key)
-            return
-        }
-
         when (key) {
             KEY_BACKSPACE -> stopRepeatingDelete()
             KEY_SHIFT -> {
@@ -1888,25 +1465,6 @@ class KeyboardService : InputMethodService() {
     }
 
     private fun stopRepeatingSpace() = Unit
-
-    private fun handleExecutionKeyDown(key: String) {
-        when (key) {
-            KEY_BACKSPACE -> deleteExecutionQueryCharacter()
-            KEY_SPACE -> appendExecutionQuery(" ")
-            KEY_ENTER -> submitExecutionSearch(executionQuery.toString())
-            KEY_SHIFT, KEY_EMOJI, "123", "ABC", "#+=" -> Unit
-            else -> Unit
-        }
-    }
-
-    private fun handleExecutionKeyUp(key: String) {
-        when {
-            key.length == 1 && key != "," && key != "." -> appendExecutionQuery(
-                if (shiftState == ShiftState.OFF) key.lowercase() else key.uppercase()
-            )
-            key == "," || key == "." -> appendExecutionQuery(key)
-        }
-    }
 
     private fun handleSpaceDown(rawX: Float) {
         spaceDownRawX = rawX
@@ -2517,7 +2075,6 @@ class KeyboardService : InputMethodService() {
 
     private fun cleanupInputViewState() {
         swipeResolveGeneration += 1
-        closeExecutionLayer()
         stopVoiceTyping(cancel = true)
         cancelLongPress()
         stopRepeatingDelete()
@@ -3035,9 +2592,7 @@ class KeyboardService : InputMethodService() {
         destroySpeechRecognizer()
         suggestionLookupFuture?.cancel(true)
         autocorrectPrefetchFuture?.cancel(true)
-        executionSearchFuture?.cancel(true)
         suggestionExecutor.shutdownNow()
-        executionExecutor.shutdownNow()
         scope.cancel()
         super.onDestroy()
     }
