@@ -62,6 +62,9 @@ COMPLETED FIXES:
 PENDING APPROVALS:
 - [MEDIUM] COMPLEXITY: File SwipeWordResolver.kt is too large (>500 lines) (app/src/main/java/com/example/mykeyboard/swipe/SwipeWordResolver.kt)
 
+CURRENT ROADMAP PRIORITY:
+- Phase 1 stabilization active. Top priority: Reduce file complexity by splitting large files (>500 lines) starting with natural-response-builder.js, KeyboardService.kt, and MainActivity.kt. All splits require founder approval before execution.
+
 SUGGESTED NEXT PRIORITY:
 - Plan a small, reversible split for File natural-response-builder.js is too large (>500 lines).
 
