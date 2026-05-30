@@ -17,6 +17,12 @@ const { readRoadmap } = require('../whatsapp/roadmap-reader');
   assert.strictEqual(phase2.matchedRoute, 'phase2_conversation_guard');
   assert(phase2.response.includes('Explain'));
 
+  const companyGoal = await routeMessageWithAi('what is our final goal of our company', {}, {}, {});
+  assert.strictEqual(companyGoal.matchedRoute, 'phase2_conversation_guard');
+  assert(companyGoal.response.includes('understand confusing content before they type'));
+  assert(!companyGoal.response.includes('quick CTO update'));
+  assert(!companyGoal.response.includes('Starting execution'));
+
   const pain = await routeMessageWithAi('what user pain does Explain solve?', {}, {}, {});
   assert.strictEqual(pain.matchedRoute, 'phase2_conversation_guard');
   assert(pain.response.includes('confusing'));

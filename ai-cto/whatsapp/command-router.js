@@ -538,7 +538,7 @@ function maybeRoutePhase2Dialogue(message, normalized = normalizeMessage(message
     ]);
   }
 
-  if (/\b(phase 2|phase two|roadmap|priority|priorities|gboard|choose|differentiator|next)\b/.test(text)) {
+  if (/\b(phase 2|phase two|roadmap|priority|priorities|gboard|choose|differentiator|next|final goal|company goal|company|north star|mission)\b/.test(text)) {
     return phase2Response('phase2_roadmap_priority', [
       'Current Foundation Health: Phase 1 is complete enough for transition and now protected.',
       'Phase 2 Opportunities: Build Explain, then the execution layer, then screenshot understanding, then draft/reply later.',
@@ -562,8 +562,10 @@ function isPhase2Conversation(text = '') {
   if (/\b(capture screenshot|latest screenshot|local screenshot|build now|fix now|approve-|commit|push|create file|delete file|modify file|edit file)\b/.test(value)) {
     return false;
   }
-  const phase2Terms = /\b(phase 2|phase two|explain|execution layer|glass handle|liquid glass|screenshot understanding|understand|understanding|gboard|differentiator|roadmap|current roadmap|priority|user pain|store screenshots?|privacy|draft reply|companion)\b/.test(value);
-  const conversationShape = /\b(what|why|how|should|would|could|can|design|about|solve|priority|priorities)\b/.test(value);
+  const phase2Terms = /\b(phase 2|phase two|explain|execution layer|glass handle|liquid glass|screenshot understanding|understand|understanding|gboard|differentiator|roadmap|current roadmap|priority|user pain|store screenshots?|privacy|draft reply|companion|final goal|company goal|north star|mission)\b/.test(value);
+  const companyGoalQuestion = /\b(company|aritenis|our)\b/.test(value) && /\b(final goal|goal|mission|north star|purpose|aim)\b/.test(value);
+  const conversationShape = /\b(what|why|how|should|would|could|can|design|about|solve|priority|priorities|goal|mission|purpose)\b/.test(value);
+  if (companyGoalQuestion) return true;
   return phase2Terms && conversationShape;
 }
 
