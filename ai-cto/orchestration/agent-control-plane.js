@@ -2,6 +2,7 @@ const { formatAgentBoard, getAgentRoster } = require('./agent-operating-model');
 const { formatRoadmapBrief, ROADMAP } = require('./phase2-roadmap-brain');
 const { formatJudgment, judgeProposal } = require('./advanced-product-judgment-engine');
 const { buildAgentCouncil, formatAgentCouncil } = require('./agent-council-engine');
+const { buildNvidiaCouncil, formatNvidiaCouncil } = require('./nvidia-council-engine');
 const { assessWeakWork, formatWeakWork } = require('./weak-work-filter');
 
 function buildControlPlaneSnapshot() {
@@ -98,6 +99,32 @@ function routeControlPlaneCommand(message = '') {
   return null;
 }
 
+async function routeControlPlaneCommandWithModels(message = '', options = {}) {
+  const text = String(message || '').trim();
+  const councilProposal = extractModelCouncilProposal(text);
+  if (!councilProposal) return routeControlPlaneCommand(message);
+  const weak = assessWeakWork(councilProposal);
+  if (weak.isWeak) {
+    return {
+      command: 'weak_work_review',
+      matchedRoute: 'agent_control_plane',
+      details: { weak },
+      response: formatWeakWork(weak)
+    };
+  }
+  const council = await buildNvidiaCouncil({
+    proposal: councilProposal,
+    root: options.root || process.cwd(),
+    client: options.nvidiaClient
+  });
+  return {
+    command: 'nvidia_agent_council',
+    matchedRoute: 'agent_control_plane',
+    details: { council },
+    response: formatNvidiaCouncil(council)
+  };
+}
+
 function extractProposal(text = '') {
   const match = String(text || '').match(/^(?:judge|evaluate|score|review)\s+(?:proposal|idea|task)?\s*:?\s*(.+)$/i);
   return match ? match[1].trim() : '';
@@ -108,8 +135,14 @@ function extractCouncilProposal(text = '') {
   return match ? match[1].trim() : '';
 }
 
+function extractModelCouncilProposal(text = '') {
+  const match = String(text || '').match(/^(?:model council|nvidia council|real council|api council)\s*:?\s*(.+)$/i);
+  return match ? match[1].trim() : '';
+}
+
 module.exports = {
   buildControlPlaneSnapshot,
   formatControlPlaneStatus,
-  routeControlPlaneCommand
+  routeControlPlaneCommand,
+  routeControlPlaneCommandWithModels
 };

@@ -18,7 +18,7 @@ const {
 const { runFreshScan, formatFreshScanResponse } = require('./live-scan-runner');
 const { requestOtaBuild, requestProductLabScreenshot } = require('./build-dispatcher');
 const { fetchLatestProductLabScreenshot } = require('./product-lab-artifact-fetcher');
-const { routeControlPlaneCommand } = require('../orchestration/agent-control-plane');
+const { routeControlPlaneCommand, routeControlPlaneCommandWithModels } = require('../orchestration/agent-control-plane');
 const { executeFirstFixableIssue } = require('../scripts/execution-engine');
 const { executeAiBridge } = require('../scripts/ai-execution-bridge');
 const { runProductStewardAutonomy } = require('../scripts/product-steward-autonomy');
@@ -392,6 +392,18 @@ async function routeMessageWithAi(message, state, memory = {}, options = {}) {
       ...screenshotCapture,
       usedAi: false,
       aiReason: 'local_product_lab_screenshot_capture'
+    };
+  }
+
+  const modelControlPlane = await routeControlPlaneCommandWithModels(message, options);
+  if (modelControlPlane) {
+    return {
+      ...modelControlPlane,
+      details: { agent: 'cto', intent: modelControlPlane.command, ...(modelControlPlane.details || {}) },
+      usedAi: modelControlPlane.command === 'nvidia_agent_council',
+      aiReason: modelControlPlane.command === 'nvidia_agent_council'
+        ? 'model_backed_agent_council'
+        : 'agent_control_plane'
     };
   }
 
