@@ -5,6 +5,10 @@ const { routeAgentMessage } = require('./agent-router');
 const { isStandaloneGreeting } = require('./natural-intent-parser');
 const { logRoutingDecision } = require('./routing-debug');
 const {
+  buildRecentProductImprovementAnswer,
+  isProductImprovementQuestion
+} = require('./recent-product-improvements');
+const {
   parseSpawnRequest,
   requestSpecialistSpawn,
   assignSpecialistAgent,
@@ -152,6 +156,8 @@ function routeMessage(message, state, memory = {}) {
   };
   const phase2Dialogue = maybeRoutePhase2Dialogue(message, normalized);
   if (phase2Dialogue) return phase2Dialogue;
+  const recentProductImprovements = maybeRouteRecentProductImprovements(message);
+  if (recentProductImprovements) return recentProductImprovements;
   const earlySpawnRequest = parseSpawnRequest(message);
   if (earlySpawnRequest) {
     if (earlySpawnRequest.autoApprove) {
@@ -402,6 +408,15 @@ async function routeMessageWithAi(message, state, memory = {}, options = {}) {
       ...phase2Dialogue,
       usedAi: false,
       aiReason: 'phase2_conversation_guard'
+    };
+  }
+
+  const recentProductImprovements = maybeRouteRecentProductImprovements(message, options);
+  if (recentProductImprovements) {
+    return {
+      ...recentProductImprovements,
+      usedAi: false,
+      aiReason: 'git_grounded_product_improvements'
     };
   }
 
@@ -1046,6 +1061,18 @@ function isExplicitFileCommand(message) {
   return /\b(create|add|make|remove|delete)\b/.test(normalized) &&
     /\b(test file|file)\b/.test(normalized) &&
     /\b[a-z][\w.-]*(?:\.kt|\.java|\.txt|kt|java|txt)\b/i.test(String(message || ''));
+}
+
+function maybeRouteRecentProductImprovements(message, options = {}) {
+  if (!isProductImprovementQuestion(message)) return null;
+  return {
+    command: 'recent_product_improvements',
+    details: { agent: 'cto', intent: 'recent_product_improvements' },
+    matchedRoute: 'git_grounded_product_improvements',
+    response: buildRecentProductImprovementAnswer({
+      root: options.root || ROOT
+    })
+  };
 }
 
 function isLatestProductLabScreenshotRequest(normalized = '') {

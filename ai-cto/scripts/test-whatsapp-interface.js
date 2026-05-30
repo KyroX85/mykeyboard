@@ -205,6 +205,13 @@ const operationalRiskSummary = routeMessage('summarize today’s operational ris
 assert.strictEqual(operationalRiskSummary.command, 'operational_risk_summary');
 assert(operationalRiskSummary.response.includes('routing integrity'));
 
+const productProgress = routeMessage('ok team what improvments u idid today any improvments toward the product?', sampleState);
+assert.strictEqual(productProgress.command, 'recent_product_improvements');
+assert.strictEqual(productProgress.matchedRoute, 'git_grounded_product_improvements');
+assert(productProgress.response.includes('Verified product-facing improvements today'));
+assert(productProgress.response.includes('Product impact:'));
+assert(!productProgress.response.includes('No fresh runtime fix recorded yet'));
+
 const contradictionAnswer = routeMessage('if governance blocks a request but coder still executes, what happens?', sampleState);
 assert.strictEqual(contradictionAnswer.command, 'governance_contradiction_answer');
 assert(contradictionAnswer.response.includes('governance contradiction'));
