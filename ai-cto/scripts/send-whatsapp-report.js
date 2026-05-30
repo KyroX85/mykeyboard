@@ -2,6 +2,7 @@ const { loadEngineeringState } = require('../whatsapp/state-reader');
 const { groupChatDailyUpdate, immediateAlerts } = require('../whatsapp/school-mode-policy');
 const { logAgentAction } = require('../whatsapp/agent-action-log');
 const { sendWhatsAppMessageWithFallback } = require('../whatsapp/whatsapp-provider');
+const { buildVisionStewardMessage } = require('../whatsapp/vision-steward');
 
 const accountSid = process.env.TWILIO_ACCOUNT_SID || '';
 const authToken = process.env.TWILIO_AUTH_TOKEN || '';
@@ -15,7 +16,9 @@ function buildMessage(state) {
     '',
     alerts.length
       ? `Immediate alerts: ${alerts.map((alert) => alert.risk).join(' | ')}`
-      : 'Immediate alerts: none.'
+      : 'Immediate alerts: none.',
+    '',
+    buildVisionStewardMessage({ engineeringState: state })
   ].join('\n').slice(0, 1500);
 }
 

@@ -23,6 +23,7 @@ const { executeFirstFixableIssue } = require('../scripts/execution-engine');
 const { executeAiBridge } = require('../scripts/ai-execution-bridge');
 const { runProductStewardAutonomy } = require('../scripts/product-steward-autonomy');
 const { maybeGenerateAiWhatsAppResponse } = require('./ai-whatsapp-responder');
+const { buildVisionStewardMessage } = require('./vision-steward');
 const { detectLowInformation } = require('../uncertainty-filter');
 const { answerFounderAlignedProductQuestion } = require('../canonical-product-judgment-engine');
 const {
@@ -154,6 +155,8 @@ function routeMessage(message, state, memory = {}) {
     ...controlPlane,
     details: { agent: 'cto', intent: controlPlane.command, ...(controlPlane.details || {}) }
   };
+  const visionSteward = maybeRouteVisionStewardCheck(normalized, state);
+  if (visionSteward) return visionSteward;
   const phase2Dialogue = maybeRoutePhase2Dialogue(message, normalized);
   if (phase2Dialogue) return phase2Dialogue;
   const recentProductImprovements = maybeRouteRecentProductImprovements(message);
@@ -598,6 +601,19 @@ function isPhase2Conversation(text = '') {
   const conversationShape = /\b(what|why|how|should|would|could|can|design|about|solve|priority|priorities|goal|mission|purpose)\b/.test(value);
   if (companyGoalQuestion) return true;
   return phase2Terms && conversationShape;
+}
+
+function maybeRouteVisionStewardCheck(normalized = '', state = {}) {
+  const text = String(normalized || '');
+  if (!/\b(vision check|vision steward|proactive suggestion|company vision check|how to reach vision)\b/.test(text)) {
+    return null;
+  }
+  return {
+    command: 'vision_steward_check',
+    details: { agent: 'cto', intent: 'vision_steward_check', classification: 'PROPOSAL_ONLY' },
+    matchedRoute: 'vision_steward_check',
+    response: buildVisionStewardMessage({ engineeringState: state })
+  };
 }
 
 function isConversationOnlyQuestion(message = '') {

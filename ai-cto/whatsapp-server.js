@@ -19,6 +19,12 @@ const {
   sendWhatsAppMessageWithFallback
 } = require('./whatsapp/whatsapp-provider');
 const { fetchLatestProductLabScreenshot } = require('./whatsapp/product-lab-artifact-fetcher');
+const {
+  buildVisionStewardMessage,
+  inferHighestVisionPressure,
+  recordProactiveVisionUpdate,
+  shouldSendProactiveVisionUpdate
+} = require('./whatsapp/vision-steward');
 
 const PORT = Number(process.env.PORT || 3000);
 const REPO_ROOT = process.env.ARITENIS_REPO_ROOT || process.cwd();
@@ -657,6 +663,65 @@ function runDeferredProductLabScreenshotDelivery({ requestId, incoming, publicBa
   });
 }
 
+function startProactiveVisionSteward({
+  root = REPO_ROOT,
+  intervalMs = Number(process.env.CTO_PROACTIVE_STEWARD_INTERVAL_MS || 60 * 60 * 1000),
+  minHoursBetween = Number(process.env.CTO_PROACTIVE_STEWARD_MIN_HOURS || 6),
+  maxPerDay = Number(process.env.CTO_PROACTIVE_STEWARD_MAX_PER_DAY || 2),
+  enabled = process.env.CTO_PROACTIVE_STEWARD_ENABLED !== 'false',
+  sendImpl = sendWhatsAppMessageWithFallback
+} = {}) {
+  if (!enabled) {
+    console.log('[whatsapp-cto] proactive vision steward disabled');
+    return null;
+  }
+  if (!FOUNDER_WHATSAPP_NUMBER) {
+    console.log('[whatsapp-cto] proactive vision steward skipped: FOUNDER_WHATSAPP_NUMBER missing');
+    return null;
+  }
+
+  const tick = async () => {
+    const now = new Date();
+    const decision = shouldSendProactiveVisionUpdate({
+      root,
+      now,
+      minHoursBetween,
+      maxPerDay,
+      enabled
+    });
+    if (!decision.allowed) return decision;
+
+    const engineeringState = loadEngineeringState();
+    const pressure = inferHighestVisionPressure(engineeringState);
+    const body = buildVisionStewardMessage({ engineeringState, now });
+    const result = await sendImpl({
+      body,
+      twilio: {
+        accountSid: process.env.TWILIO_ACCOUNT_SID || '',
+        authToken: TWILIO_AUTH_TOKEN,
+        from: process.env.TWILIO_WHATSAPP_FROM || '',
+        to: FOUNDER_WHATSAPP_NUMBER
+      },
+      meta: {
+        to: FOUNDER_WHATSAPP_NUMBER
+      }
+    });
+    recordProactiveVisionUpdate({ root, now, topic: pressure.topic });
+    console.log(`[whatsapp-cto] proactive vision steward sent via ${result.provider}`);
+    return { allowed: true, sent: true, provider: result.provider };
+  };
+
+  tick().catch((error) => {
+    console.log(`[whatsapp-cto] proactive vision steward skipped: ${error.message}`);
+  });
+  const timer = setInterval(() => {
+    tick().catch((error) => {
+      console.log(`[whatsapp-cto] proactive vision steward skipped: ${error.message}`);
+    });
+  }, Math.max(60_000, intervalMs));
+  return timer;
+}
+
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -672,6 +737,7 @@ if (require.main === module) {
   logStartupExecutionDiagnostics();
   createApp().listen(PORT, () => {
     console.log(`[whatsapp-cto] listening on port ${PORT}`);
+    startProactiveVisionSteward();
   });
 }
 
@@ -685,5 +751,6 @@ module.exports = {
   chunkMessage,
   normalizePhone,
   extractTwilioBody,
-  startupExecutionDiagnostics
+  startupExecutionDiagnostics,
+  startProactiveVisionSteward
 };

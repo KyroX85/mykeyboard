@@ -1,6 +1,13 @@
 const assert = require('assert');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
+
+const tempStateRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'school-mode-state-'));
+process.env.ARITENIS_ACTION_LOG_FILE = path.join(tempStateRoot, 'agent-action-log.json');
+process.env.ARITENIS_SPAWN_FILE = path.join(tempStateRoot, 'spawned-agents.json');
+process.env.ARITENIS_AGENT_BRAIN_DIR = path.join(tempStateRoot, 'agent-brains');
+
 const {
   classifyDecision,
   mergePolicy,
@@ -21,12 +28,9 @@ const workflow = fs.readFileSync(path.join(root, '.github', 'workflows', 'engine
 const manual = fs.readFileSync(path.join(root, 'ai-cto', 'GEMINI.md'), 'utf8');
 const roadmapText = fs.readFileSync(path.join(root, 'ai-cto', 'AGENT_ROADMAP.md'), 'utf8');
 const visionText = fs.readFileSync(path.join(root, 'ai-cto', 'VISION_NORTH_STAR.md'), 'utf8');
-const actionLogPath = path.join(root, 'ai-cto', 'agent-action-log.json');
-const spawnPath = path.join(root, 'ai-cto', 'spawned-agents.json');
 
 process.on('exit', () => {
-  fs.writeFileSync(actionLogPath, JSON.stringify({ version: '1.0', actions: [] }, null, 2));
-  fs.writeFileSync(spawnPath, JSON.stringify({ version: '1.0', pending: null, active: [] }, null, 2));
+  fs.rmSync(tempStateRoot, { recursive: true, force: true });
 });
 
 const state = {
@@ -92,7 +96,9 @@ const action = logAgentAction({
 });
 assert(action.timestamp);
 assert.strictEqual(action.agentName, 'TEST AGENT');
-assert(readActionLog().actions.length >= beforeLogCount + 1);
+const afterLog = readActionLog().actions;
+assert(afterLog.some((entry) => entry.timestamp === action.timestamp && entry.agentName === 'TEST AGENT'));
+assert(afterLog.length >= Math.min(beforeLogCount, 499));
 
 const proposal = requestSpecialistSpawn({
   name: 'Keyboard Ergonomics Specialist',
