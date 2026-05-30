@@ -102,7 +102,7 @@ class FoundationalDebtGuardrailsTest {
         assertTrue(keyButtonBody.contains("setSingleLine(true)"))
         assertTrue(weightBody.contains("KEY_SPACE -> 5.05f"))
         assertTrue(weightBody.contains("KEY_ENTER -> 1.42f"))
-        assertTrue(weightBody.contains("\"123\", \"ABC\", \"#+=\", KEY_EMOJI, KEY_MIC -> 1.16f"))
+        assertTrue(weightBody.contains("\"123\", \"ABC\", \"#+=\", KEY_EMOJI -> 0.96f"))
     }
 
     @Test

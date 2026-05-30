@@ -69,7 +69,7 @@
             android:id="@+id/keyboardBottomSpacer"
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:background="#FF0E1117" />
+            android:background="@android:color/transparent" />
     </LinearLayout>
 
     <LinearLayout
@@ -116,6 +116,6 @@
             android:id="@+id/emojiBottomSpacer"
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:background="#FF0E1117" />
+            android:background="@android:color/transparent" />
     </LinearLayout>
 </FrameLayout>

@@ -11,6 +11,7 @@ import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
 import android.inputmethodservice.InputMethodService
 import android.media.AudioManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -19,6 +20,7 @@ import android.os.SystemClock
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import android.provider.Settings
 import android.util.Log
 import android.view.Gravity
 import android.view.HapticFeedbackConstants
@@ -96,6 +98,7 @@ class KeyboardService : InputMethodService() {
 
     private val keyButtons = mutableListOf<Button>()
     private val suggestionButtons = mutableListOf<TextView>()
+    private var voiceSuggestionButton: TextView? = null
     private val renderedSuggestionTexts = Array(3) { "" }
 
     private enum class Mode { LETTERS, NUMBERS, SYMBOLS }
@@ -179,6 +182,9 @@ class KeyboardService : InputMethodService() {
     private var autocorrectPrefetchFuture: Future<*>? = null
     private var speechRecognizer: SpeechRecognizer? = null
     private var isVoiceTypingActive = false
+    private var spaceDownRawX = 0f
+    private var spaceCursorModeActive = false
+    private var lastSpaceCursorStep = 0
     private var autocorrectGeneration = 0
     private var autocorrectPrefetchWord: String? = null
     private var autocorrectPrefetchPreviousWord: String? = null
@@ -225,9 +231,11 @@ class KeyboardService : InputMethodService() {
         const val SWIPE_ACTIVATION_SLOP_DP = 18
         const val SWIPE_SAMPLE_DISTANCE_DP = 5
         const val SWIPE_RESOLVE_WARN_MS = 32L
-        const val MAX_NAVIGATION_BOTTOM_PADDING_DP = 32
+        const val MAX_NAVIGATION_BOTTOM_PADDING_DP = 8
         const val SHIFT_LONG_PRESS_DELAY_MS = 300L
         const val SYMBOL_LONG_PRESS_DELAY_MS = 230L
+        const val SPACE_CURSOR_LONG_PRESS_DELAY_MS = 260L
+        const val SPACE_CURSOR_STEP_DP = 18
         const val SUGGESTION_QUERY_UNSET = "\u0000"
         val NUMBER_ROW_KEYS = listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")
     }
@@ -287,7 +295,7 @@ class KeyboardService : InputMethodService() {
 
         val layout = layoutInflater.inflate(R.layout.keyboard_container, null)
         root = layout as FrameLayout
-        navigationBottomInsetPx = fallbackNavigationBottomInsetPx()
+        navigationBottomInsetPx = 0
         setupSystemInsetHandling()
         
         mainContainer = layout.findViewById(R.id.mainContainer)
@@ -325,7 +333,7 @@ class KeyboardService : InputMethodService() {
 
     private fun setupSystemInsetHandling() {
         root.setOnApplyWindowInsetsListener { _, insets ->
-            val bottomInset = maxOf(navigationBottomInset(insets), fallbackNavigationBottomInsetPx())
+            val bottomInset = navigationBottomInset(insets).coerceAtMost(dp(MAX_NAVIGATION_BOTTOM_PADDING_DP))
             if (navigationBottomInsetPx != bottomInset) {
                 navigationBottomInsetPx = bottomInset
                 cachedKeyboardSizing = null
@@ -348,12 +356,6 @@ class KeyboardService : InputMethodService() {
             insets.systemWindowInsetBottom
         }
 
-    private fun fallbackNavigationBottomInsetPx(): Int {
-        val resourceId = resources.getIdentifier("navigation_bar_height", "dimen", "android")
-        if (resourceId <= 0) return 0
-        return resources.getDimensionPixelSize(resourceId).coerceAtMost(dp(MAX_NAVIGATION_BOTTOM_PADDING_DP))
-    }
-
     private fun applyImeBottomSpacers() {
         val bottomInset = navigationBottomInsetPx.coerceAtMost(dp(MAX_NAVIGATION_BOTTOM_PADDING_DP))
         if (::keyboardBottomSpacer.isInitialized) {
@@ -367,6 +369,7 @@ class KeyboardService : InputMethodService() {
     private fun setupSuggestionBar() {
         suggestionBar.removeAllViews()
         suggestionButtons.clear()
+        voiceSuggestionButton = null
         val sizing = currentKeyboardSizing()
         suggestionBar.setPadding(
             sizing.suggestionHorizontalPaddingPx,
@@ -408,6 +411,33 @@ class KeyboardService : InputMethodService() {
             suggestionBar.addView(suggestionBtn)
             suggestionButtons.add(suggestionBtn)
         }
+        val micButton = TextView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                dp(42),
+                LinearLayout.LayoutParams.MATCH_PARENT
+            ).apply {
+                setMargins(
+                    sizing.suggestionChipHorizontalMarginPx,
+                    sizing.suggestionChipVerticalMarginPx,
+                    sizing.suggestionChipHorizontalMarginPx,
+                    sizing.suggestionChipVerticalMarginPx
+                )
+            }
+            text = KEY_MIC
+            textSize = 15f
+            setTextColor(textColorForKey(KEY_MIC))
+            gravity = Gravity.CENTER
+            setIncludeFontPadding(false)
+            setSingleLine(true)
+            background = ColorDrawable(Color.TRANSPARENT)
+            contentDescription = KeyboardSymbols.accessibilityLabelForKey(KEY_MIC, currentImeAction.label)
+            isClickable = true
+            isFocusable = true
+            setOnClickListener { toggleVoiceTyping() }
+        }
+        suggestionBar.addView(micButton)
+        voiceSuggestionButton = micButton
+        updateVoiceKeyUI()
     }
 
     private fun setupNumberRow(sizing: KeyboardSizingProfile = currentKeyboardSizing()) {
@@ -795,20 +825,20 @@ class KeyboardService : InputMethodService() {
             listOf("q", "w", "e", "r", "t", "y", "u", "i", "o", "p"),
             listOf("a", "s", "d", "f", "g", "h", "j", "k", "l"),
             listOf(KEY_SHIFT, "z", "x", "c", "v", "b", "n", "m", KEY_BACKSPACE),
-            listOf(KEY_EMOJI, "123", KEY_MIC, KEY_SPACE, KEY_ENTER)
+            listOf(KEY_EMOJI, "123", ",", KEY_SPACE, ".", KEY_ENTER)
         )
         Mode.NUMBERS -> listOf(
             listOf("+", "\u00D7", KeyboardSymbols.DIVIDE, "=", "/", "_", "<", ">", "[", "]"),
             listOf("!", "@", "#", KeyboardSymbols.RUPEE, "%", "^", "&", "*", "(", ")"),
             listOf("1/2", "-", "'", "\"", ":", ";", ",", "?", KEY_BACKSPACE),
-            listOf("ABC", KEY_MIC, KEY_SPACE, ".", KEY_ENTER)
+            listOf("ABC", ",", KEY_SPACE, ".", KEY_ENTER)
         )
         Mode.SYMBOLS -> listOf(
             listOf("`", "~", "\\", "|", "{", "}", KeyboardSymbols.EURO, KeyboardSymbols.POUND, KeyboardSymbols.YEN, "$"),
             listOf("\u00B0", KeyboardSymbols.BULLET, "\u25CB", "\u25CF", "\u25A1", "\u25A0", "\u2664", "\u2662", "\u2667"),
             listOf("\u00A7", "\u00B6", "\u00A9", "\u00AE", "\u2122", "\u00B1", "\u2248", "\u2260", "\u2264", "\u2265"),
             listOf("2/2", "\u2606", "\u25AA", "\u00A4", "\u00AB", "\u00BB", "\u00A1", "\u00BF", KEY_BACKSPACE),
-            listOf("ABC", KEY_MIC, KEY_SPACE, ".", KEY_ENTER)
+            listOf("ABC", ",", KEY_SPACE, ".", KEY_ENTER)
         )
     }
 
@@ -893,7 +923,7 @@ class KeyboardService : InputMethodService() {
             density = density,
             smallestWidthDp = smallestWidthDp,
             navigationBottomInsetPx = navigationBottomInsetPx,
-            fallbackNavigationBottomInsetPx = fallbackNavigationBottomInsetPx()
+            fallbackNavigationBottomInsetPx = 0
         )
     }
 
@@ -922,7 +952,6 @@ class KeyboardService : InputMethodService() {
             setPadding(0, 0, 0, 0)
             textSize = when (key) {
                 KEY_SHIFT, KEY_BACKSPACE -> 17.5f
-                KEY_MIC -> 16f
                 KEY_ENTER -> if (currentImeAction == ImeAction.Enter) 19f else 13f
                 KEY_SPACE -> 11f
                 else -> 18f
@@ -955,7 +984,7 @@ class KeyboardService : InputMethodService() {
         KEY_SPACE -> 5.05f
         KEY_SHIFT, KEY_BACKSPACE -> 1.28f
         KEY_ENTER -> 1.42f
-        "123", "ABC", "#+=", KEY_EMOJI, KEY_MIC -> 1.16f
+        "123", "ABC", "#+=", KEY_EMOJI -> 0.96f
         else -> 1f
     }
 
@@ -969,7 +998,7 @@ class KeyboardService : InputMethodService() {
         key == "q" || key == "a" || key == "z" || key == "1" -> KeyConfidenceZone.LEFT_EDGE
         key == "p" || key == "l" || key == "m" || key == "0" || key == KEY_BACKSPACE ->
             KeyConfidenceZone.RIGHT_EDGE
-        key == KEY_SPACE || key == KEY_EMOJI || key == KEY_MIC || key == "123" || key == "ABC" ||
+        key == KEY_SPACE || key == KEY_EMOJI || key == "123" || key == "ABC" ||
             key == "#+=" || key == KEY_SHIFT -> KeyConfidenceZone.BOTTOM_MODIFIER
         key == KEY_ENTER -> KeyConfidenceZone.ACTION_EDGE
         key.length == 1 && (key[0] in 'a'..'z' || key[0] in '2'..'9') -> KeyConfidenceZone.CENTER_ALPHA
@@ -990,7 +1019,7 @@ class KeyboardService : InputMethodService() {
     }
 
     private fun isModifierKey(key: String): Boolean = when (key) {
-        KEY_EMOJI, KEY_MIC, "123", "ABC", "#+=", KEY_ENTER, KEY_SHIFT, KEY_BACKSPACE -> true
+        KEY_EMOJI, "123", "ABC", "#+=", KEY_ENTER, KEY_SHIFT, KEY_BACKSPACE -> true
         else -> false
     }
 
@@ -1010,10 +1039,13 @@ class KeyboardService : InputMethodService() {
                 showKeyPreview(button, key)
                 startSwipeTrackingIfEligible(key, event)
                 isLongPressActive = false
-                handleKeyDown(key)
+                handleKeyDown(key, event)
             }
 
             MotionEvent.ACTION_MOVE -> {
+                if (key == KEY_SPACE && updateSpaceCursorDrag(event.rawX)) {
+                    return true
+                }
                 if (updateSwipeTracking(event)) {
                     return true
                 }
@@ -1160,6 +1192,7 @@ class KeyboardService : InputMethodService() {
         cancelLongPress()
         stopRepeatingDelete()
         stopRepeatingSpace()
+        resetSpaceCursorControl()
         dismissKeyPreviewSafely()
         releaseKeyPressFeedback(button)
         cancelSwipeGesture()
@@ -1255,7 +1288,7 @@ class KeyboardService : InputMethodService() {
     private fun displayTextForPreview(anchor: Button, key: String): String =
         if (key == KEY_ENTER) currentImeAction.label else anchor.text.toString()
 
-    private fun handleKeyDown(key: String) {
+    private fun handleKeyDown(key: String, event: MotionEvent) {
         when (key) {
             KEY_BACKSPACE -> {
                 deleteOneCharacter()
@@ -1273,7 +1306,7 @@ class KeyboardService : InputMethodService() {
             }
 
             KEY_SPACE -> {
-                commitSpace()
+                handleSpaceDown(event.rawX)
             }
 
             KEY_MIC -> Unit
@@ -1391,6 +1424,7 @@ class KeyboardService : InputMethodService() {
             }
             KEY_SPACE -> {
                 stopRepeatingSpace()
+                resetSpaceCursorControl()
             }
             else -> {
                 if (!wasLongPress) {
@@ -1431,6 +1465,47 @@ class KeyboardService : InputMethodService() {
     }
 
     private fun stopRepeatingSpace() = Unit
+
+    private fun handleSpaceDown(rawX: Float) {
+        spaceDownRawX = rawX
+        spaceCursorModeActive = false
+        lastSpaceCursorStep = 0
+        commitSpace()
+        scheduleLongPress(SPACE_CURSOR_LONG_PRESS_DELAY_MS) {
+            isLongPressActive = true
+            spaceCursorModeActive = true
+            lastSpaceCursorStep = 0
+        }
+    }
+
+    private fun updateSpaceCursorDrag(rawX: Float): Boolean {
+        if (!spaceCursorModeActive) return false
+        val step = ((rawX - spaceDownRawX) / dp(SPACE_CURSOR_STEP_DP)).toInt()
+        if (step == lastSpaceCursorStep) return true
+
+        val direction = if (step > lastSpaceCursorStep) {
+            KeyEvent.KEYCODE_DPAD_RIGHT
+        } else {
+            KeyEvent.KEYCODE_DPAD_LEFT
+        }
+        repeat(kotlin.math.abs(step - lastSpaceCursorStep).coerceAtMost(4)) {
+            sendCursorMove(direction)
+        }
+        lastSpaceCursorStep = step
+        return true
+    }
+
+    private fun sendCursorMove(keyCode: Int) {
+        val ic = currentInputConnection ?: return
+        sendKeyEventSafely(ic, KeyEvent(KeyEvent.ACTION_DOWN, keyCode), "space-cursor-down")
+        sendKeyEventSafely(ic, KeyEvent(KeyEvent.ACTION_UP, keyCode), "space-cursor-up")
+    }
+
+    private fun resetSpaceCursorControl() {
+        spaceCursorModeActive = false
+        spaceDownRawX = 0f
+        lastSpaceCursorStep = 0
+    }
 
     private fun deleteOneCharacter() {
         val ic = currentInputConnection ?: return
@@ -1549,6 +1624,7 @@ class KeyboardService : InputMethodService() {
     private fun startVoiceTyping() {
         if (!hasRecordAudioPermission()) {
             showVoiceTypingUnavailable("Enable microphone permission for Aritenis AI")
+            openMicrophonePermissionSettings()
             return
         }
         if (!SpeechRecognizer.isRecognitionAvailable(this)) {
@@ -1651,6 +1727,18 @@ class KeyboardService : InputMethodService() {
 
     private fun showVoiceTypingUnavailable(message: String) {
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun openMicrophonePermissionSettings() {
+        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+            data = Uri.fromParts("package", packageName, null)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        try {
+            startActivity(intent)
+        } catch (e: RuntimeException) {
+            Log.w(LOG_TAG, "Unable to open microphone permission settings", e)
+        }
     }
 
     private fun handleImeActionKey() {
@@ -2155,6 +2243,12 @@ class KeyboardService : InputMethodService() {
     }
 
     private fun updateVoiceKeyUI() {
+        voiceSuggestionButton?.let { button ->
+            button.alpha = if (isVoiceTypingActive) 1f else 0.9f
+            button.setTextColor(
+                if (isVoiceTypingActive) Color.parseColor("#8AB4F8") else textColorForKey(KEY_MIC)
+            )
+        }
         keyButtons.forEach { button ->
             if (button.tag == KEY_MIC) {
                 button.alpha = if (isVoiceTypingActive) 1f else 0.88f

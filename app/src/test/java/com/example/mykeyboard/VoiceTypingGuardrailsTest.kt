@@ -19,10 +19,13 @@ class VoiceTypingGuardrailsTest {
         val source = sourceFile("app/src/main/java/com/example/mykeyboard/KeyboardService.kt").readText()
         val startVoiceTyping = methodBody(source, "startVoiceTyping")
         val commitVoiceResult = methodBody(source, "commitVoiceResult")
+        val permissionSettings = methodBody(source, "openMicrophonePermissionSettings")
 
         assertTrue(source.contains("SpeechRecognizer"))
         assertTrue(startVoiceTyping.contains("SpeechRecognizer.createSpeechRecognizer(this)"))
         assertTrue(startVoiceTyping.contains("RecognizerIntent.ACTION_RECOGNIZE_SPEECH"))
+        assertTrue(startVoiceTyping.contains("openMicrophonePermissionSettings()"))
+        assertTrue(permissionSettings.contains("Settings.ACTION_APPLICATION_DETAILS_SETTINGS"))
         assertTrue(commitVoiceResult.contains("commitTextSafely(ic,"))
         assertFalse(commitVoiceResult.contains(".commitText("))
         assertFalse(startVoiceTyping.contains("logEvent("))
@@ -43,10 +46,25 @@ class VoiceTypingGuardrailsTest {
     fun micKeyUsesExistingKeyboardRoutingOnly() {
         val source = sourceFile("app/src/main/java/com/example/mykeyboard/KeyboardService.kt").readText()
         val keyRows = methodBody(source, "keyRowsForMode")
+        val suggestionBar = methodBody(source, "setupSuggestionBar")
 
         assertTrue(source.contains("const val KEY_MIC"))
-        assertTrue(keyRows.contains("KEY_MIC"))
+        assertFalse(keyRows.contains("KEY_MIC"))
+        assertTrue(suggestionBar.contains("text = KEY_MIC"))
         assertTrue(source.contains("KEY_MIC -> toggleVoiceTyping()"))
+    }
+
+    @Test
+    fun spacebarCursorControlIsLongPressAndDragOnly() {
+        val source = sourceFile("app/src/main/java/com/example/mykeyboard/KeyboardService.kt").readText()
+        val handleSpaceDown = methodBody(source, "handleSpaceDown")
+        val updateSpaceCursorDrag = methodBody(source, "updateSpaceCursorDrag")
+
+        assertTrue(source.contains("SPACE_CURSOR_LONG_PRESS_DELAY_MS"))
+        assertTrue(handleSpaceDown.contains("commitSpace()"))
+        assertTrue(handleSpaceDown.contains("spaceCursorModeActive = true"))
+        assertTrue(updateSpaceCursorDrag.contains("KeyEvent.KEYCODE_DPAD_RIGHT"))
+        assertTrue(updateSpaceCursorDrag.contains("KeyEvent.KEYCODE_DPAD_LEFT"))
     }
 
     private fun sourceFile(relativePath: String): File {
