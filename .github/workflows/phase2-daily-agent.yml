@@ -15,6 +15,10 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+    env:
+      NVIDIA_LLAMA_API_KEY: ${{ secrets.NVIDIA_LLAMA_API_KEY }}
+      NVIDIA_DEEPSEEK_API_KEY: ${{ secrets.NVIDIA_DEEPSEEK_API_KEY }}
+      NVIDIA_QWEN_CODER_API_KEY: ${{ secrets.NVIDIA_QWEN_CODER_API_KEY }}
 
     steps:
       - name: Checkout Repository

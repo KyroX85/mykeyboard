@@ -21,6 +21,7 @@ const {
 const { fetchLatestProductLabScreenshot } = require('./whatsapp/product-lab-artifact-fetcher');
 const {
   buildVisionStewardMessage,
+  buildVisionStewardMessageWithModelCouncil,
   inferHighestVisionPressure,
   recordProactiveVisionUpdate,
   shouldSendProactiveVisionUpdate
@@ -693,7 +694,9 @@ function startProactiveVisionSteward({
 
     const engineeringState = loadEngineeringState();
     const pressure = inferHighestVisionPressure(engineeringState);
-    const body = buildVisionStewardMessage({ engineeringState, now });
+    const body = process.env.CTO_PROACTIVE_MODEL_COUNCIL === 'false'
+      ? buildVisionStewardMessage({ engineeringState, now })
+      : await buildVisionStewardMessageWithModelCouncil({ engineeringState, now });
     const result = await sendImpl({
       body,
       twilio: {

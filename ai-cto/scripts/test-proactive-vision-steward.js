@@ -5,6 +5,7 @@ const path = require('path');
 
 const {
   buildVisionStewardMessage,
+  buildVisionStewardMessageWithModelCouncil,
   inferHighestVisionPressure,
   shouldSendProactiveVisionUpdate,
   recordProactiveVisionUpdate
@@ -34,6 +35,21 @@ assert(message.includes('Council dissent:'));
 assert(message.includes('proposal only'));
 assert(!message.includes('Starting execution'));
 assert(!message.includes('Commit:'));
+
+(async () => {
+  const modelMessage = await buildVisionStewardMessageWithModelCouncil({
+    engineeringState: state,
+    nvidiaClient: fakeCouncilClient()
+  });
+  assert(modelMessage.includes('Model council:'));
+  assert(modelMessage.includes('NVIDIA opinions'));
+  assert(modelMessage.includes('Council consensus:'));
+  assert(modelMessage.includes('proposal only'));
+  assert(!modelMessage.includes('Starting execution'));
+})().catch((error) => {
+  console.error(error.stack || error.message);
+  process.exitCode = 1;
+});
 
 const routed = routeMessage('vision check', state);
 assert.strictEqual(routed.command, 'vision_steward_check');
@@ -78,3 +94,16 @@ try {
 }
 
 console.log('Proactive vision steward checks passed');
+
+function fakeCouncilClient() {
+  return {
+    available: (kind) => ['llama', 'deepseek', 'qwenCoder'].includes(kind),
+    chat: async (kind) => ({
+      ok: true,
+      model: `${kind}-model`,
+      content: kind === 'qwenCoder'
+        ? 'Position: CAUTION\nEvidence: screenshots can mislead when System UI is failing.\nRisk: false product judgment.\nRecommendation: repair capture evidence first.'
+        : 'Position: SUPPORT\nEvidence: screenshot evidence is needed for Explain.\nRisk: low because no execution starts.\nRecommendation: send calm proposal only.'
+    })
+  };
+}

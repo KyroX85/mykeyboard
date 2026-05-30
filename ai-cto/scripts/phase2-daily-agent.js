@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
+const { buildNvidiaCouncil } = require('../orchestration/nvidia-council-engine');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const PLAN_FILE = path.join(ROOT, 'ai-cto', 'phase2-daily-agent-plan.json');
@@ -14,6 +15,26 @@ function runPhase2DailyAgent({ root = ROOT, now = new Date(), writeReport = true
   const report = formatDailyReport({ plan, roadmap, evidence, task, now });
   if (writeReport) fs.writeFileSync(path.join(root, 'PHASE2_DAILY_AGENT_REPORT.md'), report);
   return { plan, roadmap, evidence, task, report };
+}
+
+async function runPhase2DailyAgentWithCouncil({
+  root = ROOT,
+  now = new Date(),
+  writeReport = true,
+  nvidiaClient
+} = {}) {
+  const plan = readJson(path.join(root, 'ai-cto', 'phase2-daily-agent-plan.json'), {});
+  const roadmap = readJson(path.join(root, 'ai-cto', 'roadmap-lock.json'), {});
+  const evidence = collectDailyEvidence(root);
+  const task = selectDailyTask({ plan, roadmap, evidence });
+  const council = await buildNvidiaCouncil({
+    proposal: dailyCouncilProposal({ task, plan, roadmap, evidence }),
+    root,
+    client: nvidiaClient
+  });
+  const report = formatDailyReport({ plan, roadmap, evidence, task, now, council });
+  if (writeReport) fs.writeFileSync(path.join(root, 'PHASE2_DAILY_AGENT_REPORT.md'), report);
+  return { plan, roadmap, evidence, task, council, report };
 }
 
 function selectDailyTask({ plan = {}, roadmap = {}, evidence = {} } = {}) {
@@ -74,7 +95,7 @@ function collectDailyEvidence(root = ROOT) {
   };
 }
 
-function formatDailyReport({ plan, roadmap, evidence, task, now }) {
+function formatDailyReport({ plan, roadmap, evidence, task, now, council = null }) {
   return [
     '# PHASE2_DAILY_AGENT_REPORT',
     '',
@@ -109,6 +130,9 @@ function formatDailyReport({ plan, roadmap, evidence, task, now }) {
     `- Runtime hot-path changes visible: ${evidence.hasModifiedRuntimeFiles ? 'YES' : 'NO'}`,
     `- Product Lab files visible: ${evidence.productLabFileCount}`,
     '',
+    '## Model Council',
+    ...formatDailyCouncil(council),
+    '',
     '## Required End Of Day Proof',
     '- Files changed, if any.',
     '- Tests run.',
@@ -120,6 +144,37 @@ function formatDailyReport({ plan, roadmap, evidence, task, now }) {
     `- ${task.founderDecisionNeeded}`,
     ''
   ].join('\n');
+}
+
+function dailyCouncilProposal({ task, plan, roadmap, evidence }) {
+  return [
+    `Daily Phase 2 task: ${task.title}.`,
+    `Classification: ${task.classification}.`,
+    `Reason: ${task.reason}`,
+    `Current phase: ${roadmap.currentPhase || 'unknown'}.`,
+    `Killer feature locked: ${plan.activeKillerFeature ? 'yes' : 'no'}.`,
+    `Runtime hot-path changes visible: ${evidence.hasModifiedRuntimeFiles ? 'yes' : 'no'}.`,
+    `Product Lab file count: ${evidence.productLabFileCount}.`,
+    'Judge whether this is the safest useful daily mission. Do not approve execution without founder approval.'
+  ].join(' ');
+}
+
+function formatDailyCouncil(council) {
+  if (!council) {
+    return [
+      '- Status: not run in this mode.',
+      '- Reason: use the council-backed daily runner for model-backed review.'
+    ];
+  }
+  const summary = council.summary || {};
+  return [
+    `- Mode: ${council.mode}`,
+    `- Opinions: ${summary.modelCount || 0}`,
+    `- Consensus: ${summary.consensus}`,
+    `- Dissent: ${summary.dissent}`,
+    `- Recommendation: ${summary.recommendation}`,
+    `- Approval needed: ${summary.approvalNeeded || 'Founder approval required before execution.'}`
+  ];
 }
 
 function dailyTask(values) {
@@ -166,13 +221,20 @@ function relative(root, file) {
 }
 
 if (require.main === module) {
-  const result = runPhase2DailyAgent({ writeReport: !process.argv.includes('--dry-run') });
-  process.stdout.write(result.report);
+  runPhase2DailyAgentWithCouncil({ writeReport: !process.argv.includes('--dry-run') })
+    .then((result) => process.stdout.write(result.report))
+    .catch((error) => {
+      console.error(error.stack || error.message);
+      process.exitCode = 1;
+    });
 }
 
 module.exports = {
   collectDailyEvidence,
+  dailyCouncilProposal,
+  formatDailyCouncil,
   formatDailyReport,
   runPhase2DailyAgent,
+  runPhase2DailyAgentWithCouncil,
   selectDailyTask
 };

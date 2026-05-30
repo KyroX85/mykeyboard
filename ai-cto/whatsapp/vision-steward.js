@@ -3,6 +3,7 @@ const path = require('path');
 const { loadEngineeringState } = require('./state-reader');
 const { readRoadmap } = require('./roadmap-reader');
 const { buildAgentCouncil, summarizeCouncil } = require('../orchestration/agent-council-engine');
+const { buildNvidiaCouncil } = require('../orchestration/nvidia-council-engine');
 
 const DEFAULT_STATE = {
   version: '1.0',
@@ -27,6 +28,37 @@ function buildVisionStewardMessage({
     `Current pressure: ${pressure.summary}`,
     `Council consensus: ${council.consensus}`,
     `Council dissent: ${council.dissent}`,
+    `Suggested improvement: ${suggestion}`,
+    'Execution: no code change started. This is a proposal only; I need your approval before implementation.'
+  ].join('\n');
+}
+
+async function buildVisionStewardMessageWithModelCouncil({
+  engineeringState = loadEngineeringState(),
+  roadmap = readRoadmap(),
+  now = new Date(),
+  nvidiaClient
+} = {}) {
+  const pressure = inferHighestVisionPressure(engineeringState, roadmap);
+  const suggestion = buildSafeSuggestion(pressure);
+  const council = await buildNvidiaCouncil({
+    proposal: [
+      `Proactive Aritenis vision suggestion: ${suggestion}`,
+      `Company goal: ${roadmap.northStar || 'help users understand confusing content before they type.'}`,
+      `Current pressure: ${pressure.summary}`,
+      'Judge whether this should be sent to the founder as a calm proposal. Do not start execution.'
+    ].join(' '),
+    client: nvidiaClient
+  });
+  const summary = council.summary || {};
+  return [
+    'Founder, one vision check.',
+    '',
+    `Company goal: ${roadmap.northStar || 'help users understand confusing content before they type.'}`,
+    `Current pressure: ${pressure.summary}`,
+    `Model council: ${council.mode === 'NVIDIA_MODEL_COUNCIL' ? `${summary.modelCount || 0} NVIDIA opinions` : `fallback - ${summary.fallbackReason}`}`,
+    `Council consensus: ${summary.consensus}`,
+    `Council dissent: ${summary.dissent}`,
     `Suggested improvement: ${suggestion}`,
     'Execution: no code change started. This is a proposal only; I need your approval before implementation.'
   ].join('\n');
@@ -141,6 +173,7 @@ function array(value) {
 
 module.exports = {
   buildVisionStewardMessage,
+  buildVisionStewardMessageWithModelCouncil,
   inferHighestVisionPressure,
   shouldSendProactiveVisionUpdate,
   recordProactiveVisionUpdate,
