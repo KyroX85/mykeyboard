@@ -831,7 +831,7 @@ function isProductLabWorkflowScreenshotCommand(normalized = '') {
 }
 
 async function maybeRouteProductLabScreenshotResult(normalized = '', options = {}) {
-  if (!/^(latest screenshot|send latest screenshot|screenshot result|product lab screenshot result)$/.test(String(normalized || '').trim().toLowerCase())) {
+  if (!isLatestProductLabScreenshotRequest(normalized)) {
     return null;
   }
   const result = await fetchLatestProductLabScreenshot({
@@ -1035,6 +1035,14 @@ function isExplicitFileCommand(message) {
   return /\b(create|add|make|remove|delete)\b/.test(normalized) &&
     /\b(test file|file)\b/.test(normalized) &&
     /\b[a-z][\w.-]*(?:\.kt|\.java|\.txt|kt|java|txt)\b/i.test(String(message || ''));
+}
+
+function isLatestProductLabScreenshotRequest(normalized = '') {
+  const text = String(normalized || '').trim().toLowerCase();
+  return /^(latest screenshot|send latest screenshot|screenshot result|product lab screenshot result)$/.test(text) ||
+    /\b(send|show|get|fetch)\b/.test(text) &&
+    /\b(latest|current)\b/.test(text) &&
+    /\b(keyboard visual|keyboard screenshot|screenshot)\b/.test(text);
 }
 
 function isHardFoundationRewrite(normalized) {

@@ -84,6 +84,16 @@ function localZipEntry(name, bytes) {
     });
     assert.strictEqual(routed.command, 'product_lab_screenshot_ready');
     assert.strictEqual(routed.mediaUrls.length, 1);
+
+    const latestKeyboardVisual = await routeMessageWithAi('send the screenshot of the latest keyboard visual', {}, {}, {
+      root: tempRoot,
+      publicBaseUrl: 'https://render.example',
+      env: { GITHUB_ACTIONS_TOKEN: 'token' },
+      fetchImpl
+    });
+    assert.strictEqual(latestKeyboardVisual.command, 'product_lab_screenshot_ready');
+    assert.strictEqual(latestKeyboardVisual.mediaUrls.length, 1);
+    assert(!latestKeyboardVisual.response.includes('Product Lab evidence, not a mutation request'));
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }
