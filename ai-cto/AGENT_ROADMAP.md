@@ -1,60 +1,61 @@
-NORTH STAR: By May 2027 when founder returns,
-Aritenis must have keyboard stable to Gboard 
-level, basic on-device AI learning typing 
-patterns, and companion chat foundation ready.
+NORTH STAR:
+Aritenis must protect the mature keyboard foundation while building the first keyboard that helps users understand before they type.
 
-PHASE 1 — STABILIZATION (June 4 → Aug 2026)
-Goal: Keyboard so stable no user ever 
-uninstalls because of a bug.
-- Fix all issues in ENGINEERING_REPORT.md
-- Health score 25 → 85
-- Gboard level key feel
-- Fix all security issues
-- Zero crash tolerance
-- 500 typing samples collected
-- 10 users minimum
-- NO new features until phase complete
-- Founder approves phase transition
+ACTIVE PHASE - PHASE 2 PREPARATION / EXPLAIN WEDGE
+Mission: Create competitive differentiation without weakening the Phase 1 keyboard foundation.
 
-PHASE 2 — AI FOUNDATION (Sep → Nov 2026)
-Goal: Keyboard starts learning the user.
-- Basic LSTM training pipeline
-- Typing speed tracking per session
-- Time-of-day pattern detection
-- Backspace pattern on emotional words
-- Tamil/English language mixing detection
-- Behavioral fingerprint stored on-device only
-- 1000 typing samples
-- 25 users minimum
-- NO companion chat yet
-- NO data leaving device
+Foundation status:
+- Typing trust is protected.
+- Swipe trust is protected.
+- Prediction trust is protected.
+- Keyboard sizing, visual polish, emoji/symbols, and stability are protected.
+- Future changes touching prediction, swipe, sizing, layout, latency, or keyboard trust require evidence and strong justification.
 
-PHASE 3 — COMPANION FOUNDATION (Dec 2026 → Feb 2027)
-Goal: Companion starts talking.
-- Companion chat interface in keyboard toolbar
-- Connected to behavioral fingerprint
-- 5 onboarding questions for new users
-- Tanglish responses — real not robotic
-- Basic sentiment from typing behavior
-- 50 users minimum
-- First real user feedback collected
-- NO public launch yet
+Phase 2 priority order:
+1. Protect Phase 1 foundation.
+2. Build Explain.
+3. Build execution layer.
+4. Build screenshot understanding.
+5. Build draft/reply later.
 
-PHASE 4 — HANDOVER PREP (Mar → May 2027)
-Goal: Everything ready for founder takeover.
-- Full system audit and documentation
-- Privacy dashboard built
-- Open source core prepared
-- 100 users with real retention data
-- Companion feeling personal for 10 power users
-- Full handover ENGINEERING_REPORT.md
-- List of what's ready and what's next
+Explain wedge:
+- User sees something confusing.
+- User opens the execution layer.
+- User presses Explain.
+- Aritenis explains screenshots, messages, bills, notices, forms, errors, posts, or documents inside the typing flow.
+- Nothing is sent automatically.
 
-AGENT RULES — ALL PHASES:
-1. Vision document is north star always
-2. Never break what exists
-3. Never skip phases
-4. Founder approves all phase transitions
-5. When stuck — try once, ask with 3 options
-6. Full memory from June 4, never resets
-7. Daily report always
+Execution layer direction:
+- Activation: small glass handle above the suggestion bar.
+- Gesture: pull down.
+- Surface: liquid-glass action surface over the current app.
+- Goal: action and understanding, not chatbot theater.
+
+Feature classification:
+- FOUNDATION: protects existing keyboard trust.
+- EXECUTION: helps users complete actions.
+- COMPANION: future relationship/context layer after Explain proves value.
+- EXPERIMENT: bounded trial with rollback.
+- BLOAT: complexity without leverage.
+
+Reject:
+- Foundation churn without evidence.
+- Generic architecture cleanup as roadmap priority.
+- Better prediction/swipe/theme claims as Phase 2 differentiation.
+- Autonomous sending.
+- Screenshot retention forever.
+- Heavy AI infrastructure that slows or destabilizes typing.
+
+Roadmap answer format:
+Current Foundation Health
+Phase 2 Opportunities
+Highest Leverage Differentiator
+Trust Risk
+Recommended Next Step
+
+AGENT RULES - ALL PHASES:
+1. Phase 1 stability is protected before Phase 2 intelligence.
+2. Conversation is not execution.
+3. Product questions must not create files or commits.
+4. Execute only when founder explicitly says implement, execute, commit, patch, or build.
+5. Explain is the active Phase 2 wedge until founder changes direction.

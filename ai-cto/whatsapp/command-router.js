@@ -144,6 +144,8 @@ function routeMessage(message, state, memory = {}) {
   if (screenshotWorkflowPlan) return screenshotWorkflowPlan;
   const screenshotPlan = maybeRouteProductLabLocalScreenshotPlan(message, normalized);
   if (screenshotPlan) return screenshotPlan;
+  const phase2Dialogue = maybeRoutePhase2Dialogue(message, normalized);
+  if (phase2Dialogue) return phase2Dialogue;
   const productStewardAnswer = maybeRouteProductStewardAnswer(message, normalized);
   if (productStewardAnswer) return productStewardAnswer;
   const founderDnaDialogue = maybeRouteFounderDnaDialogue(message, normalized);
@@ -347,6 +349,15 @@ async function routeMessageWithAi(message, state, memory = {}, options = {}) {
     };
   }
 
+  const phase2Dialogue = maybeRoutePhase2Dialogue(message, normalized);
+  if (phase2Dialogue) {
+    return {
+      ...phase2Dialogue,
+      usedAi: false,
+      aiReason: 'phase2_conversation_guard'
+    };
+  }
+
   const productStewardAnswer = maybeRouteProductStewardAnswer(message, normalized);
   if (productStewardAnswer) {
     return {
@@ -411,6 +422,7 @@ async function routeMessageWithAi(message, state, memory = {}, options = {}) {
   if (routed.matchedRoute === 'agent_intent' ||
     routed.matchedRoute === 'safe_low_confidence_fallback' ||
     routed.matchedRoute === 'conversational_fallback') {
+    if (isConversationOnlyQuestion(message)) return routed;
     const productProposal = isExplicitFileCommand(message) ? null : createProductImprovementProposal(message);
     if (productProposal) return productProposal;
     const vision = await maybeCreateVisionCommand(message, state, memory, options);
@@ -431,6 +443,87 @@ async function routeMessageWithAi(message, state, memory = {}, options = {}) {
     usedAi: ai.usedAi,
     aiModel: ai.model || null,
     aiReason: ai.reason || null
+  };
+}
+
+function maybeRoutePhase2Dialogue(message, normalized = normalizeMessage(message)) {
+  const text = String(normalized || '');
+  if (!isPhase2Conversation(text)) return null;
+
+  if (/\b(store|save|retain|forever|privacy|private|screenshots?)\b/.test(text) && /\b(explain|screenshots?)\b/.test(text)) {
+    return phase2Response('phase2_explain_privacy', [
+      'Current Foundation Health: protected. Phase 1 typing, swipe, prediction, sizing, and stability should not be touched for this.',
+      'Phase 2 Opportunities: Explain can use screenshots only as explicit, user-triggered context.',
+      'Highest Leverage Differentiator: understand confusing content before typing.',
+      'Trust Risk: high if screenshots are stored by default or retained forever.',
+      'Recommended Next Step: Explain should use temporary screenshot context, no forever storage, no automatic reading, and no automatic sending.'
+    ]);
+  }
+
+  if (/\b(glass handle|activation|execution layer|pull down|liquid)\b/.test(text)) {
+    return phase2Response('phase2_execution_layer_design', [
+      'Current Foundation Health: protected. The handle must not interfere with typing, swipe, prediction, or latency.',
+      'Phase 2 Opportunities: glass handle above the suggestion bar opens the Explain/action surface.',
+      'Highest Leverage Differentiator: one-handed access to understanding and action without leaving the current app.',
+      'Trust Risk: accidental activation and visual clutter.',
+      'Recommended Next Step: design only. Small translucent centered pill, pull-down gesture, confirm/cancel surface, no auto-send.'
+    ]);
+  }
+
+  if (/\b(user pain|pain.*explain|explain.*solve|why.*explain)\b/.test(text)) {
+    return phase2Response('phase2_explain_user_pain', [
+      'Current Foundation Health: protected. Explain should not change core keyboard behavior.',
+      'Phase 2 Opportunities: Explain helps when users see confusing screenshots, messages, bills, notices, forms, errors, posts, or documents.',
+      'Highest Leverage Differentiator: users understand before they type instead of switching apps or asking someone else.',
+      'Trust Risk: wrong explanations or privacy fear.',
+      'Recommended Next Step: screenshot Explain first, then draft/reply later after trust is proven.'
+    ]);
+  }
+
+  if (/\b(phase 2|phase two|roadmap|priority|priorities|gboard|choose|differentiator|next)\b/.test(text)) {
+    return phase2Response('phase2_roadmap_priority', [
+      'Current Foundation Health: Phase 1 is complete enough for transition and now protected.',
+      'Phase 2 Opportunities: Build Explain, then the execution layer, then screenshot understanding, then draft/reply later.',
+      'Highest Leverage Differentiator: Aritenis helps users understand confusing content before they type.',
+      'Trust Risk: any Phase 2 work that hurts typing latency, swipe trust, prediction trust, or keyboard stability is rejected.',
+      'Recommended Next Step: focus agents on Explain conversations and screenshot understanding, not generic refactors or automatic reports.'
+    ]);
+  }
+
+  return phase2Response('phase2_general_conversation', [
+    'Current Foundation Health: protected.',
+    'Phase 2 Opportunities: Explain is the active wedge.',
+    'Highest Leverage Differentiator: understanding before typing.',
+    'Trust Risk: do not trade keyboard trust for features.',
+    'Recommended Next Step: keep this as product discussion unless you explicitly say implement, commit, or execute.'
+  ]);
+}
+
+function isPhase2Conversation(text = '') {
+  const value = String(text || '').toLowerCase();
+  if (/\b(capture screenshot|latest screenshot|local screenshot|build now|fix now|approve-|commit|push|create file|delete file|modify file|edit file)\b/.test(value)) {
+    return false;
+  }
+  const phase2Terms = /\b(phase 2|phase two|explain|execution layer|glass handle|liquid glass|screenshot understanding|understand|understanding|gboard|differentiator|roadmap|current roadmap|priority|user pain|store screenshots?|privacy|draft reply|companion)\b/.test(value);
+  const conversationShape = /\b(what|why|how|should|would|could|can|design|about|solve|priority|priorities)\b/.test(value);
+  return phase2Terms && conversationShape;
+}
+
+function isConversationOnlyQuestion(message = '') {
+  const text = normalizeMessage(message);
+  if (/\b(fix|execute|implement|commit|push|modify|edit|write|delete|create file|apply patch|build now|run product lab)\b/.test(text)) {
+    return false;
+  }
+  return /\?$/.test(String(message || '').trim()) ||
+    /\b(what|why|how|should|would|could|can|compare|explain|roadmap|phase 2|phase two|glass handle|user pain|privacy)\b/.test(text);
+}
+
+function phase2Response(command, lines) {
+  return {
+    command,
+    details: { agent: 'cto', intent: command, classification: 'PHASE2_CONVERSATION' },
+    matchedRoute: 'phase2_conversation_guard',
+    response: lines.join('\n')
   };
 }
 
@@ -578,11 +671,20 @@ function maybeRouteProductStewardAnswer(message, normalized = normalizeMessage(m
     ]);
   }
 
+  if (/\b(rewrite|make|improve)\b/.test(text) && /\b(prediction|predictor|smarter)\b/.test(text)) {
+    return stewardResponse('hot_path_prediction_rewrite_blocked', [
+      'CTO: I will not rewrite prediction from chat.',
+      'Classification: FOUNDATION/RISK.',
+      'Reason: prediction is a protected foundation system; changing it without evidence can damage typing trust.',
+      'Safe action: collect regression evidence first. Phase 2 priority remains Explain, not smarter prediction.'
+    ]);
+  }
+
   if (/\bmodern scalable\b|\bmulti-agent intelligence expansion\b|\bfuture-proof\b|\bbig rewrite\b/.test(text)) {
     return stewardResponse('anti_vanity_block', [
       'CTO: Blocked as architecture vanity / high-churn risk.',
       'Reason: it does not prove retention gain, typing trust improvement, or rollback safety.',
-      'Safe action: convert it into a bounded Phase 1 product task tied to typing feel, swipe trust, responsiveness, or correction burden.'
+      'Safe action: convert it into a bounded Phase 2 Explain task, or keep Phase 1 foundation untouched.'
     ]);
   }
 

@@ -13,8 +13,10 @@ function readRoadmap() {
     return {
       text,
       vision,
-      northStar: firstMatch(normalizedText, /^NORTH STAR:\s*([\s\S]*?)(?=\n\nPHASE 1)/m) || 'Aritenis north star not loaded.',
-      currentPhase: firstMatch(normalizedText, /PHASE 1[\s\S]*?(?=\n\nPHASE 2)/m) || 'Phase 1 stabilization not loaded.',
+      northStar: firstMatch(normalizedText, /^NORTH STAR:\s*([\s\S]*?)(?=\n\nACTIVE PHASE|\n\nPHASE 1)/m) || 'Aritenis north star not loaded.',
+      currentPhase: firstMatch(normalizedText, /ACTIVE PHASE[\s\S]*?(?=\n\nAGENT RULES|$)/) ||
+        firstMatch(normalizedText, /PHASE 1[\s\S]*?(?=\n\nPHASE 2)/m) ||
+        'Active roadmap phase not loaded.',
       rules: firstMatch(normalizedText, /AGENT RULES[\s\S]*$/m) || ''
     };
   } catch {
@@ -22,7 +24,7 @@ function readRoadmap() {
       text: '',
       vision: '',
       northStar: 'Aritenis north star not loaded.',
-      currentPhase: 'Phase 1 stabilization not loaded.',
+      currentPhase: 'Active roadmap phase not loaded.',
       rules: ''
     };
   }

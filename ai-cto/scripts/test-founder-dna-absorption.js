@@ -33,8 +33,8 @@ const executionAnswer = answerFounderAlignedProductQuestion('fix KeyboardService
 assert.strictEqual(executionAnswer, null);
 
 const whatsappProduct = routeMessage('what feels immature compared to Gboard?', {}, {});
-assert.strictEqual(whatsappProduct.matchedRoute, 'founder_dna_product_judgment');
-assert(whatsappProduct.response.includes('mature keyboards'));
+assert.strictEqual(whatsappProduct.matchedRoute, 'phase2_conversation_guard');
+assert(whatsappProduct.response.includes('Highest Leverage Differentiator'));
 
 const whatsappTypingTrust = routeMessage('what hurts typing trust the most?', {}, {});
 assert.strictEqual(whatsappTypingTrust.matchedRoute, 'founder_dna_product_judgment');
