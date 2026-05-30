@@ -14,6 +14,7 @@ const {
 const { runFreshScan, formatFreshScanResponse } = require('./live-scan-runner');
 const { requestOtaBuild, requestProductLabScreenshot } = require('./build-dispatcher');
 const { fetchLatestProductLabScreenshot } = require('./product-lab-artifact-fetcher');
+const { routeControlPlaneCommand } = require('../orchestration/agent-control-plane');
 const { executeFirstFixableIssue } = require('../scripts/execution-engine');
 const { executeAiBridge } = require('../scripts/ai-execution-bridge');
 const { runProductStewardAutonomy } = require('../scripts/product-steward-autonomy');
@@ -144,6 +145,11 @@ function routeMessage(message, state, memory = {}) {
   if (screenshotWorkflowPlan) return screenshotWorkflowPlan;
   const screenshotPlan = maybeRouteProductLabLocalScreenshotPlan(message, normalized);
   if (screenshotPlan) return screenshotPlan;
+  const controlPlane = routeControlPlaneCommand(message);
+  if (controlPlane) return {
+    ...controlPlane,
+    details: { agent: 'cto', intent: controlPlane.command, ...(controlPlane.details || {}) }
+  };
   const phase2Dialogue = maybeRoutePhase2Dialogue(message, normalized);
   if (phase2Dialogue) return phase2Dialogue;
   const productStewardAnswer = maybeRouteProductStewardAnswer(message, normalized);
@@ -346,6 +352,16 @@ async function routeMessageWithAi(message, state, memory = {}, options = {}) {
       ...screenshotCapture,
       usedAi: false,
       aiReason: 'local_product_lab_screenshot_capture'
+    };
+  }
+
+  const controlPlane = routeControlPlaneCommand(message);
+  if (controlPlane) {
+    return {
+      ...controlPlane,
+      details: { agent: 'cto', intent: controlPlane.command, ...(controlPlane.details || {}) },
+      usedAi: false,
+      aiReason: 'agent_control_plane'
     };
   }
 
