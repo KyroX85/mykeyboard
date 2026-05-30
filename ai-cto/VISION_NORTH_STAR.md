@@ -1,32 +1,37 @@
-Aritenis AI is an Android keyboard that runs 
-silently across every app, learning how the 
-user types — speed, rhythm, corrections, 
-backspace patterns, language mixing, 
-time-of-day shifts. This data never leaves 
-the device. It builds an emotional fingerprint 
-of the user before they ever ask for help.
+Aritenis is a trusted Android keyboard that protects the typing foundation while helping users understand before they type.
 
-When the user needs support, one tap opens 
-the companion chat directly from the keyboard 
-toolbar — no separate app, no visible launch. 
-The companion already knows the user before 
-they speak. It talks in their language — 
-Tanglish, Hinglish, real Indian slang — 
-not translated, not approximated. Real.
+The keyboard foundation is a protected asset:
+- typing trust
+- swipe trust
+- prediction trust
+- keyboard sizing
+- visual polish
+- symbol and emoji maturity
+- latency and stability
 
-Target users: Indian teenagers carrying pain 
-they never speak out loud.
-Target market: 345 million young Indians.
-Core moat: Passive behavioral data nobody 
-else is collecting.
-Cultural moat: Western companies cannot 
-build authentic Indian emotional intelligence.
+The Phase 2 wedge is Explain.
 
-The north star moment: A teenager in Chennai 
-opens Aritenis at midnight, types something 
-they have never told anyone, and for the 
-first time feels genuinely understood.
+The user sees something confusing:
+- a screenshot
+- a message
+- a bill
+- a notice
+- a form
+- an error
+- a post
+- a document
 
-Every agent builds toward that moment.
-Every line of code serves that teenager.
-Never forget why this was built.
+The user opens the execution layer and asks Aritenis to explain it inside the typing flow.
+
+Aritenis must not:
+- send automatically
+- read silently
+- store screenshots forever
+- collect raw typed text
+- create emotional simulation
+- weaken keyboard latency or trust
+
+The product moat is not chatbot personality.
+The moat is calm, privacy-safe understanding at the exact moment before the user types.
+
+Every agent should protect Phase 1 foundation first, then advance Explain through explicit approval, evidence, and bounded execution.

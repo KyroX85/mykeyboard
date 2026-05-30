@@ -76,12 +76,11 @@ assert(group.includes('REVIEWER:'));
 assert(group.includes('AUDITOR:'));
 
 const roadmap = readRoadmap();
-assert(roadmap.northStar.includes('By May 2027'));
-assert(roadmap.vision.includes('A teenager in Chennai'));
-assert(roadmap.currentPhase.includes('PHASE 1'));
-assert(roadmapText.includes('NORTH STAR: By May 2027 when founder returns,'));
-assert(roadmapText.includes('Full memory from June 4, never resets'));
-assert(visionText.includes('Every line of code serves that teenager.'));
+assert(roadmap.northStar.includes('understand before they type'));
+assert(roadmap.vision.includes('The Phase 2 wedge is Explain'));
+assert(roadmap.currentPhase.includes('PHASE 2 PREPARATION'));
+assert(roadmapText.includes('ACTIVE PHASE - PHASE 2 PREPARATION / EXPLAIN WEDGE'));
+assert(visionText.includes('protect Phase 1 foundation first'));
 
 const beforeLogCount = readActionLog().actions.length;
 const action = logAgentAction({
@@ -143,7 +142,6 @@ assert(whatsappDaily.includes('Immediate alerts:'));
 assert(manual.includes('School Mode Intelligence'));
 assert(manual.includes('Small things'));
 assert(manual.includes('Big things'));
-assert(manual.includes('Never resets'));
 
 assert(workflow.includes("cron: '30 1 * * *'"));
 assert(workflow.includes('Auto Merge Low-Risk PR'));

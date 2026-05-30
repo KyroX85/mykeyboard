@@ -152,9 +152,40 @@ function routeMessage(message, state, memory = {}) {
   };
   const phase2Dialogue = maybeRoutePhase2Dialogue(message, normalized);
   if (phase2Dialogue) return phase2Dialogue;
+  const earlySpawnRequest = parseSpawnRequest(message);
+  if (earlySpawnRequest) {
+    if (earlySpawnRequest.autoApprove) {
+      const assigned = assignSpecialistAgent({
+        ...earlySpawnRequest,
+        task: earlySpawnRequest.task || memory.unresolvedReference || memory.lastDiscussedTopic || 'Focused founder-requested work.'
+      });
+      return {
+        command: 'specialist_assigned',
+        details: { agent: 'cto', intent: 'specialist_assigned', specialist: assigned.agent },
+        matchedRoute: 'specialist_assignment',
+        response: [
+          `CTO: Created specialist ${assigned.agent.name}, Founder.`,
+          `Brain: ${assigned.agent.brainFile}`,
+          `Task: ${assigned.agent.task}`,
+          'Reports to CTO only. No autonomous risky execution.'
+        ].join('\n')
+      };
+    }
+    const proposal = requestSpecialistSpawn(earlySpawnRequest);
+    return {
+      command: 'spawn_request',
+      details: { agent: 'cto', intent: 'spawn_request' },
+      matchedRoute: 'spawn_request',
+      response: `CTO: Spawning: ${proposal.name} - Reason: ${proposal.reason} - Task: ${proposal.task} - Duration: ${proposal.duration}\nFounder, reply YES or NO.`
+    };
+  }
+  const productProposal = (isExplicitFileCommand(message) || isConversationOnlyQuestion(message) || isHardFoundationRewrite(normalized) || isProposalDiscussion(normalized))
+    ? null
+    : createProductImprovementProposal(message);
+  if (productProposal) return productProposal;
   const productStewardAnswer = maybeRouteProductStewardAnswer(message, normalized);
   if (productStewardAnswer) return productStewardAnswer;
-  const founderDnaDialogue = maybeRouteFounderDnaDialogue(message, normalized);
+  const founderDnaDialogue = isExplicitFileCommand(message) ? null : maybeRouteFounderDnaDialogue(message, normalized);
   if (founderDnaDialogue) return founderDnaDialogue;
 
   if (isStandaloneGreeting(message)) {
@@ -374,6 +405,17 @@ async function routeMessageWithAi(message, state, memory = {}, options = {}) {
     };
   }
 
+  const directProductProposal = (isExplicitFileCommand(message) || isConversationOnlyQuestion(message) || isHardFoundationRewrite(normalized) || isProposalDiscussion(normalized))
+    ? null
+    : createProductImprovementProposal(message);
+  if (directProductProposal) {
+    return {
+      ...directProductProposal,
+      usedAi: false,
+      aiReason: 'protected_product_review_path'
+    };
+  }
+
   const productStewardAnswer = maybeRouteProductStewardAnswer(message, normalized);
   if (productStewardAnswer) {
     return {
@@ -382,7 +424,7 @@ async function routeMessageWithAi(message, state, memory = {}, options = {}) {
       aiReason: 'product_steward_intent'
     };
   }
-  const founderDnaDialogue = maybeRouteFounderDnaDialogue(message, normalized);
+  const founderDnaDialogue = isExplicitFileCommand(message) ? null : maybeRouteFounderDnaDialogue(message, normalized);
   if (founderDnaDialogue) {
     return {
       ...founderDnaDialogue,
@@ -400,7 +442,7 @@ async function routeMessageWithAi(message, state, memory = {}, options = {}) {
   const acknowledgement = maybeRouteAcknowledgement(normalized);
   if (acknowledgement) return acknowledgement;
 
-  const visionDecision = await maybeRouteVisionDecision(normalized, options);
+  const visionDecision = await maybeRouteVisionDecision(message, options);
   if (visionDecision) return visionDecision;
 
   if (normalized === 'fix now') {
@@ -993,8 +1035,17 @@ function isExplicitFileCommand(message) {
     /\b[a-z][\w.-]*(?:\.kt|\.java|\.txt|kt|java|txt)\b/i.test(String(message || ''));
 }
 
-async function maybeRouteVisionDecision(normalized, options = {}) {
-  const token = approvalTokenFromMessage(normalized);
+function isHardFoundationRewrite(normalized) {
+  return /\brewrite\b/.test(String(normalized || '')) &&
+    /\b(prediction|predictor|keyboardservice|keyboard|swipe|typing)\b/.test(String(normalized || ''));
+}
+
+function isProposalDiscussion(normalized) {
+  return /\b(propose|proposal|experiment|micro-experiment|tiny experiment|should we)\b/.test(String(normalized || ''));
+}
+
+async function maybeRouteVisionDecision(message, options = {}) {
+  const token = approvalTokenFromMessage(message);
   if (!token) return null;
   const completed = await approveStatelessVisionCommand(token, {
     root: options.root,
@@ -1049,33 +1100,11 @@ async function maybeCreateVisionCommand(message, state, memory, options = {}) {
         usedAi: true
       };
     }
-    if (options.deferLowRiskVisionExecution) {
-      return {
-        command: 'vision_command_execution_started',
-        details: { agent: 'cto', intent: 'vision_command_execution_started', visionCommand: entry },
-        matchedRoute: 'vision_command_low_risk_deferred',
-        response: [
-          'CTO: Founder, low-risk task accepted. Starting execution now.',
-          `Task: ${entry.plan.task}`,
-          `Files: ${entry.plan.files.join(', ')}`,
-          'I will send the commit result separately when it finishes.'
-        ].join('\n'),
-        usedAi: true
-      };
-    }
-    const completed = await executeVisionCommandEntry(entry, {
-      root: options.root,
-      client: options.client,
-      commit: options.commit,
-      push: options.push,
-      commitMessage: options.commitMessage,
-      validationCommand: options.validationCommand
-    });
     return {
-      command: 'vision_command_auto_executed',
-      details: { agent: 'cto', intent: 'vision_command_auto_executed', visionCommand: completed },
-      matchedRoute: 'vision_command_low_risk_auto_execute',
-      response: formatVisionApprovalResult(completed),
+      command: 'vision_command_approval_required',
+      details: { agent: 'cto', intent: 'vision_command_plan', visionCommand: entry },
+      matchedRoute: 'vision_command_review_required',
+      response: formatVisionPlan(entry),
       usedAi: true
     };
   }

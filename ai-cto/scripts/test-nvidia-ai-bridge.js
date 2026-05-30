@@ -565,6 +565,24 @@ async function run() {
     execFileSync('git', ['config', 'user.name', 'CTO Test'], { cwd: tempRootForVision });
     execFileSync('git', ['add', '.'], { cwd: tempRootForVision });
     execFileSync('git', ['commit', '-m', 'fixture'], { cwd: tempRootForVision });
+    const approvePlan = async (planned, extraOptions = {}) => {
+      assert.strictEqual(planned.command, 'vision_command_approval_required');
+      assert(planned.response.includes('No execution started'));
+      const approval = planned.response.match(/APPROVE-[A-Za-z0-9_-]+/);
+      assert(approval, planned.response);
+      return routeMessageWithAi(approval[0], {
+        healthScore: 80,
+        momentum: 'MOVING',
+        sections: { risks: [], unresolved: [], approvals: [] },
+        summary: { topRisk: 'none' }
+      }, { recentMessages: [] }, {
+        client,
+        root: tempRootForVision,
+        commit: true,
+        push: false,
+        ...extraOptions
+      });
+    };
 
     const llamaVerifyCallsBeforeHello = calls.filter((request) =>
       request.model === MODEL_ASSIGNMENT.llama.model &&
@@ -587,8 +605,12 @@ async function run() {
       commitMessage: 'test: Hello.kt pipeline test',
       validationCommand: [process.execPath, '-e', "require('fs').existsSync('app/src/main/java/Hello.kt') || process.exit(1)"]
     });
-    assert.strictEqual(helloPlan.command, 'vision_command_auto_executed');
-    assert(helloPlan.response.includes('Commit:'));
+    const helloResult = await approvePlan(helloPlan, {
+      commitMessage: 'test: Hello.kt pipeline test',
+      validationCommand: [process.execPath, '-e', "require('fs').existsSync('app/src/main/java/Hello.kt') || process.exit(1)"]
+    });
+    assert.strictEqual(helloResult.command, 'vision_command_approved');
+    assert(helloResult.response.includes('Commit:'));
     const llamaVerifyCallsAfterHello = calls.filter((request) =>
       request.model === MODEL_ASSIGNMENT.llama.model &&
       request.messages.map((message) => message.content).join('\n').includes('Verify whether this fix makes logical sense')
@@ -622,8 +644,11 @@ async function run() {
       request.model === MODEL_ASSIGNMENT.deepseek.model ||
       request.model === MODEL_ASSIGNMENT.qwenCoder.model
     ).length;
-    assert.strictEqual(deleteHello.command, 'vision_command_auto_executed');
-    assert(deleteHello.response.includes('Commit:'));
+    const deleteHelloResult = await approvePlan(deleteHello, {
+      commitMessage: 'test: remove Hello.kt pipeline test'
+    });
+    assert.strictEqual(deleteHelloResult.command, 'vision_command_approved');
+    assert(deleteHelloResult.response.includes('Commit:'));
     assert.strictEqual(codeBrainCallsAfterDelete, codeBrainCallsBeforeDelete);
     assert(!fs.existsSync(path.join(tempRootForVision, 'app', 'src', 'main', 'java', 'Hello.kt')));
     assert(execFileSync('git', ['log', '--oneline', '-1'], { cwd: tempRootForVision, encoding: 'utf8' }).includes('test: remove Hello.kt pipeline test'));
@@ -640,9 +665,12 @@ async function run() {
       push: false,
       commitMessage: 'test: remove Hello.kt pipeline test'
     });
-    assert.strictEqual(deleteAbsentHello.command, 'vision_command_auto_executed');
-    assert(deleteAbsentHello.response.includes('already clean'));
-    assert(deleteAbsentHello.response.includes('Commit: not needed'));
+    const deleteAbsentHelloResult = await approvePlan(deleteAbsentHello, {
+      commitMessage: 'test: remove Hello.kt pipeline test'
+    });
+    assert.strictEqual(deleteAbsentHelloResult.command, 'vision_command_approved');
+    assert(deleteAbsentHelloResult.response.includes('already clean'));
+    assert(deleteAbsentHelloResult.response.includes('Commit: not needed'));
 
     fs.writeFileSync(path.join(tempRootForVision, 'app', 'src', 'main', 'java', 'Hello.kt'), '// Pipeline test file for CTO execution.\n');
     execFileSync('git', ['add', '.'], { cwd: tempRootForVision });
@@ -661,8 +689,11 @@ async function run() {
       commitMessage: 'test: remove Hello.kt pipeline test'
     });
     const llamaCallsAfterLooseDelete = calls.filter((request) => request.model === MODEL_ASSIGNMENT.llama.model).length;
-    assert.strictEqual(looseDelete.command, 'vision_command_auto_executed');
-    assert(looseDelete.response.includes('Commit:'));
+    const looseDeleteResult = await approvePlan(looseDelete, {
+      commitMessage: 'test: remove Hello.kt pipeline test'
+    });
+    assert.strictEqual(looseDeleteResult.command, 'vision_command_approved');
+    assert(looseDeleteResult.response.includes('Commit:'));
     assert.strictEqual(llamaCallsAfterLooseDelete, llamaCallsBeforeLooseDelete);
     assert(!fs.existsSync(path.join(tempRootForVision, 'app', 'src', 'main', 'java', 'Hello.kt')));
 
@@ -678,9 +709,9 @@ async function run() {
       push: false,
       deferLowRiskVisionExecution: true
     });
-    assert.strictEqual(deferredHello.command, 'vision_command_execution_started');
-    assert(deferredHello.response.includes('Starting execution now'));
-    assert(deferredHello.response.includes('send the commit result separately'));
+    assert.strictEqual(deferredHello.command, 'vision_command_approval_required');
+    assert(deferredHello.response.includes('No execution started'));
+    assert(deferredHello.response.includes('APPROVE-'));
 
     const swipeNotesPath = path.join(tempRootForVision, 'app', 'src', 'main', 'java', 'SwipeReliabilityNotes.kt');
     fs.mkdirSync(path.dirname(swipeNotesPath), { recursive: true });
@@ -698,9 +729,10 @@ async function run() {
       commit: true,
       push: false
     });
-    assert.strictEqual(duplicateCreate.command, 'vision_command_auto_executed');
-    assert(duplicateCreate.response.includes('already exists'));
-    assert(duplicateCreate.response.includes('Append notes'));
+    const duplicateCreateResult = await approvePlan(duplicateCreate);
+    assert.strictEqual(duplicateCreateResult.command, 'vision_command_approved');
+    assert(duplicateCreateResult.response.includes('already exists'));
+    assert(duplicateCreateResult.response.includes('Append notes'));
     assert(execFileSync('git', ['log', '--oneline', '-1'], { cwd: tempRootForVision, encoding: 'utf8' }).includes('test: existing swipe reliability notes'));
     const duplicateOption3 = await routeMessageWithAi('3', {
       healthScore: 80,

@@ -123,7 +123,7 @@ function createDeterministicVisionEntry(message) {
       estimatedLines: 1,
       roadmapConflict: false
     }, message),
-    approval: 'AUTO_ALLOWED',
+    approval: 'REQUIRED',
     outcome: 'PLANNED',
     commitHash: null
   };
@@ -270,7 +270,7 @@ async function createVisionPlan({ message, state, memory, client = createNvidiaC
     timestamp: new Date().toISOString(),
     command: message,
     plan,
-    approval: plan.risk === 'LOW' ? 'AUTO_ALLOWED' : 'REQUIRED',
+    approval: 'REQUIRED',
     outcome: 'PLANNED',
     commitHash: null
   };
@@ -289,7 +289,7 @@ async function executeVisionCommandEntry(entry, { root = process.cwd(), client =
   console.log('[whatsapp-cto] VISION EXECUTION: triggering execution');
   const approved = {
     ...entry,
-    approval: entry.plan.risk === 'LOW' ? 'AUTO_EXECUTED' : 'APPROVED_BY_TOKEN',
+    approval: 'APPROVED_BY_TOKEN',
     decidedAt: new Date().toISOString()
   };
   const duplicate = detectDuplicateCreateTarget(root, approved.plan);
@@ -456,10 +456,14 @@ function formatVisionPlan(entry) {
     ].join('\n');
   }
   return [
-    'CTO: Founder, low-risk task accepted. Executing now.',
+    'CTO: Founder, Execution Plan ready.',
     `Task: ${plan.task}`,
     `Files: ${plan.files.join(', ') || 'not identified'}`,
-    `Risk: ${plan.risk}`
+    `Risk: ${plan.risk}`,
+    'Scope: execute only this plan; no extra files, no broad rewrite.',
+    'Validation: run the configured validation command before reporting success.',
+    'No execution started.',
+    `Reply ${createApprovalCommand(entry)} to execute`
   ].join('\n');
 }
 
