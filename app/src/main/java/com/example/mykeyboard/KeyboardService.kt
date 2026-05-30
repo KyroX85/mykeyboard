@@ -455,8 +455,8 @@ class KeyboardService : InputMethodService() {
 
     private fun setupExecutionLayerShell() {
         executionHandle = View(this).apply {
-            alpha = 0.76f
-            background = lightBlueGlassDrawable(Color.argb(170, 230, 246, 255), dp(18))
+            alpha = 0.82f
+            background = lightBlueGlassDrawable(Color.argb(190, 152, 232, 255), dp(18))
             contentDescription = "Open Aritenis execution layer"
             setOnTouchListener { _, event -> handleExecutionHandleTouch(event) }
         }
@@ -470,19 +470,19 @@ class KeyboardService : InputMethodService() {
         executionLayer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             visibility = View.GONE
-            setPadding(dp(16), dp(18), dp(16), dp(14))
-            background = lightBlueGlassDrawable(Color.argb(216, 190, 228, 255), dp(24))
+            setPadding(dp(18), dp(20), dp(18), dp(16))
+            background = lightBlueGlassDrawable(Color.argb(224, 132, 224, 255), dp(26), Color.argb(155, 238, 252, 255))
         }
 
         val title = TextView(this).apply {
-            text = "Aritenis"
-            textSize = 15f
+            text = "Aritenis Execution"
+            textSize = 16f
             typeface = Typeface.DEFAULT_BOLD
-            setTextColor(Color.rgb(18, 45, 67))
+            setTextColor(Color.rgb(8, 38, 55))
             setIncludeFontPadding(false)
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(24)
+                dp(26)
             )
         }
         executionLayer.addView(title)
@@ -490,23 +490,24 @@ class KeyboardService : InputMethodService() {
         executionCommandText = TextView(this).apply {
             text = "What do you want done?"
             textSize = 18f
-            setTextColor(Color.rgb(72, 100, 122))
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(Color.rgb(52, 87, 108))
             gravity = Gravity.CENTER_VERTICAL
             setSingleLine(true)
             setIncludeFontPadding(false)
-            setPadding(dp(14), 0, dp(14), 0)
-            background = lightBlueGlassDrawable(Color.argb(205, 244, 251, 255), dp(18), Color.argb(120, 255, 255, 255))
+            setPadding(dp(16), 0, dp(16), 0)
+            background = lightBlueGlassDrawable(Color.argb(224, 238, 252, 255), dp(20), Color.argb(190, 255, 255, 255))
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(50)
-            ).apply { topMargin = dp(8) }
+                dp(54)
+            ).apply { topMargin = dp(10) }
         }
         executionLayer.addView(executionCommandText)
 
         executionStatusText = TextView(this).apply {
-            text = "Type with your keyboard. This layer is only a command surface."
+            text = "Type with your keyboard. Nothing is sent automatically."
             textSize = 12f
-            setTextColor(Color.rgb(50, 82, 108))
+            setTextColor(Color.rgb(24, 71, 96))
             setIncludeFontPadding(false)
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -531,7 +532,7 @@ class KeyboardService : InputMethodService() {
                 gravity = Gravity.CENTER
                 setSingleLine(true)
                 setIncludeFontPadding(false)
-                background = lightBlueGlassDrawable(Color.argb(120, 255, 255, 255), dp(14), Color.argb(110, 255, 255, 255))
+                background = lightBlueGlassDrawable(Color.argb(150, 246, 253, 255), dp(14), Color.argb(150, 255, 255, 255))
                 layoutParams = LinearLayout.LayoutParams(0, dp(34), 1f).apply {
                     setMargins(dp(3), 0, dp(3), 0)
                 }
@@ -545,7 +546,7 @@ class KeyboardService : InputMethodService() {
             setTextColor(Color.rgb(18, 45, 67))
             gravity = Gravity.CENTER
             setIncludeFontPadding(false)
-            background = lightBlueGlassDrawable(Color.argb(150, 255, 255, 255), dp(14), Color.argb(120, 255, 255, 255))
+            background = lightBlueGlassDrawable(Color.argb(170, 246, 253, 255), dp(14), Color.argb(145, 255, 255, 255))
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 dp(42)
@@ -596,7 +597,7 @@ class KeyboardService : InputMethodService() {
                 return true
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                executionHandle.alpha = 0.76f
+                executionHandle.alpha = 0.82f
                 executionHandleActivated = false
                 return true
             }
