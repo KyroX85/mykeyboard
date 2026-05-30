@@ -1,6 +1,8 @@
 const { formatAgentBoard, getAgentRoster } = require('./agent-operating-model');
 const { formatRoadmapBrief, ROADMAP } = require('./phase2-roadmap-brain');
 const { formatJudgment, judgeProposal } = require('./advanced-product-judgment-engine');
+const { buildAgentCouncil, formatAgentCouncil } = require('./agent-council-engine');
+const { assessWeakWork, formatWeakWork } = require('./weak-work-filter');
 
 function buildControlPlaneSnapshot() {
   return {
@@ -54,8 +56,37 @@ function routeControlPlaneCommand(message = '') {
     };
   }
 
+  const councilProposal = extractCouncilProposal(text);
+  if (councilProposal) {
+    const weak = assessWeakWork(councilProposal);
+    if (weak.isWeak) {
+      return {
+        command: 'weak_work_review',
+        matchedRoute: 'agent_control_plane',
+        details: { weak },
+        response: formatWeakWork(weak)
+      };
+    }
+    const council = buildAgentCouncil(councilProposal);
+    return {
+      command: 'agent_council',
+      matchedRoute: 'agent_control_plane',
+      details: { council },
+      response: formatAgentCouncil(council)
+    };
+  }
+
   const proposal = extractProposal(text);
   if (proposal) {
+    const weak = assessWeakWork(proposal);
+    if (weak.isWeak) {
+      return {
+        command: 'weak_work_review',
+        matchedRoute: 'agent_control_plane',
+        details: { weak },
+        response: formatWeakWork(weak)
+      };
+    }
     return {
       command: 'advanced_product_judgment',
       matchedRoute: 'agent_control_plane',
@@ -69,6 +100,11 @@ function routeControlPlaneCommand(message = '') {
 
 function extractProposal(text = '') {
   const match = String(text || '').match(/^(?:judge|evaluate|score|review)\s+(?:proposal|idea|task)?\s*:?\s*(.+)$/i);
+  return match ? match[1].trim() : '';
+}
+
+function extractCouncilProposal(text = '') {
+  const match = String(text || '').match(/^(?:agent council|council|deep judge|what should agents think about this)\s*:?\s*(.+)$/i);
   return match ? match[1].trim() : '';
 }
 
