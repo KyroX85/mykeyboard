@@ -9,6 +9,7 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.GradientDrawable
 import android.inputmethodservice.InputMethodService
 import android.media.AudioManager
 import android.net.Uri
@@ -89,6 +90,10 @@ class KeyboardService : InputMethodService() {
     private lateinit var keyboardLayout: LinearLayout
     private lateinit var keyboardBottomSpacer: View
     private lateinit var swipeTrailView: SwipeTrailView
+    private lateinit var executionHandle: View
+    private lateinit var executionLayer: LinearLayout
+    private lateinit var executionCommandText: TextView
+    private lateinit var executionStatusText: TextView
 
     private lateinit var emojiContainer: LinearLayout
     private lateinit var emojiGrid: GridView
@@ -182,9 +187,15 @@ class KeyboardService : InputMethodService() {
     private var autocorrectPrefetchFuture: Future<*>? = null
     private var speechRecognizer: SpeechRecognizer? = null
     private var isVoiceTypingActive = false
+    private var voiceRecordingPulse = false
+    private var lastVoicePartial = ""
     private var spaceDownRawX = 0f
     private var spaceCursorModeActive = false
     private var lastSpaceCursorStep = 0
+    private var executionLayerOpen = false
+    private var executionHandleDownY = 0f
+    private var executionHandleActivated = false
+    private val executionCommand = StringBuilder()
     private var autocorrectGeneration = 0
     private var autocorrectPrefetchWord: String? = null
     private var autocorrectPrefetchPreviousWord: String? = null
@@ -236,6 +247,7 @@ class KeyboardService : InputMethodService() {
         const val SYMBOL_LONG_PRESS_DELAY_MS = 230L
         const val SPACE_CURSOR_LONG_PRESS_DELAY_MS = 260L
         const val SPACE_CURSOR_STEP_DP = 18
+        const val EXECUTION_HANDLE_PULL_THRESHOLD_DP = 42
         const val SUGGESTION_QUERY_UNSET = "\u0000"
         val NUMBER_ROW_KEYS = listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")
     }
@@ -328,6 +340,7 @@ class KeyboardService : InputMethodService() {
         setupEmojiPanelContent()
 
         buildKeyboard()
+        setupExecutionLayerShell()
         return root
     }
 
@@ -438,6 +451,181 @@ class KeyboardService : InputMethodService() {
         suggestionBar.addView(micButton)
         voiceSuggestionButton = micButton
         updateVoiceKeyUI()
+    }
+
+    private fun setupExecutionLayerShell() {
+        executionHandle = View(this).apply {
+            alpha = 0.76f
+            background = lightBlueGlassDrawable(Color.argb(170, 230, 246, 255), dp(18))
+            contentDescription = "Open Aritenis execution layer"
+            setOnTouchListener { _, event -> handleExecutionHandleTouch(event) }
+        }
+        keyboardPanel.addView(
+            executionHandle,
+            FrameLayout.LayoutParams(dp(58), dp(8), Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply {
+                topMargin = dp(3)
+            }
+        )
+
+        executionLayer = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            visibility = View.GONE
+            setPadding(dp(16), dp(18), dp(16), dp(14))
+            background = lightBlueGlassDrawable(Color.argb(216, 190, 228, 255), dp(24))
+        }
+
+        val title = TextView(this).apply {
+            text = "Aritenis"
+            textSize = 15f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(Color.rgb(18, 45, 67))
+            setIncludeFontPadding(false)
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(24)
+            )
+        }
+        executionLayer.addView(title)
+
+        executionCommandText = TextView(this).apply {
+            text = "What do you want done?"
+            textSize = 18f
+            setTextColor(Color.rgb(72, 100, 122))
+            gravity = Gravity.CENTER_VERTICAL
+            setSingleLine(true)
+            setIncludeFontPadding(false)
+            setPadding(dp(14), 0, dp(14), 0)
+            background = lightBlueGlassDrawable(Color.argb(205, 244, 251, 255), dp(18), Color.argb(120, 255, 255, 255))
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(50)
+            ).apply { topMargin = dp(8) }
+        }
+        executionLayer.addView(executionCommandText)
+
+        executionStatusText = TextView(this).apply {
+            text = "Type with your keyboard. This layer is only a command surface."
+            textSize = 12f
+            setTextColor(Color.rgb(50, 82, 108))
+            setIncludeFontPadding(false)
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(34)
+            ).apply { topMargin = dp(10) }
+        }
+        executionLayer.addView(executionStatusText)
+
+        val hintRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(42)
+            ).apply { topMargin = dp(8) }
+        }
+        listOf("Find", "Check", "Send", "Make").forEach { label ->
+            hintRow.addView(TextView(this).apply {
+                text = label
+                textSize = 13f
+                setTextColor(Color.rgb(22, 65, 96))
+                gravity = Gravity.CENTER
+                setSingleLine(true)
+                setIncludeFontPadding(false)
+                background = lightBlueGlassDrawable(Color.argb(120, 255, 255, 255), dp(14), Color.argb(110, 255, 255, 255))
+                layoutParams = LinearLayout.LayoutParams(0, dp(34), 1f).apply {
+                    setMargins(dp(3), 0, dp(3), 0)
+                }
+            })
+        }
+        executionLayer.addView(hintRow)
+
+        val cancel = TextView(this).apply {
+            text = "Cancel"
+            textSize = 14f
+            setTextColor(Color.rgb(18, 45, 67))
+            gravity = Gravity.CENTER
+            setIncludeFontPadding(false)
+            background = lightBlueGlassDrawable(Color.argb(150, 255, 255, 255), dp(14), Color.argb(120, 255, 255, 255))
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(42)
+            ).apply { topMargin = dp(14) }
+            setOnClickListener { closeExecutionLayer() }
+        }
+        executionLayer.addView(cancel)
+
+        root.addView(
+            executionLayer,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                Gravity.BOTTOM
+            )
+        )
+    }
+
+    private fun lightBlueGlassDrawable(
+        color: Int,
+        radiusPx: Int,
+        strokeColor: Int = Color.argb(95, 255, 255, 255)
+    ): GradientDrawable = GradientDrawable().apply {
+        shape = GradientDrawable.RECTANGLE
+        cornerRadius = radiusPx.toFloat()
+        setColor(color)
+        setStroke(dp(1), strokeColor)
+    }
+
+    private fun handleExecutionHandleTouch(event: MotionEvent): Boolean {
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                executionHandleDownY = event.rawY
+                executionHandleActivated = false
+                executionHandle.alpha = 1f
+                return true
+            }
+            MotionEvent.ACTION_MOVE -> {
+                val pullDistance = event.rawY - executionHandleDownY
+                if (!executionHandleActivated && pullDistance >= dp(EXECUTION_HANDLE_PULL_THRESHOLD_DP)) {
+                    executionHandleActivated = true
+                    executionHandle.performHapticFeedback(
+                        HapticFeedbackConstants.CONFIRM,
+                        HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING
+                    )
+                    openExecutionLayer()
+                }
+                return true
+            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                executionHandle.alpha = 0.76f
+                executionHandleActivated = false
+                return true
+            }
+        }
+        return true
+    }
+
+    private fun openExecutionLayer() {
+        if (!::executionLayer.isInitialized) return
+        executionLayerOpen = true
+        executionLayer.visibility = View.VISIBLE
+        renderExecutionCommand()
+    }
+
+    private fun closeExecutionLayer() {
+        executionLayerOpen = false
+        executionCommand.clear()
+        if (::executionLayer.isInitialized) {
+            executionLayer.visibility = View.GONE
+        }
+    }
+
+    private fun renderExecutionCommand() {
+        if (!::executionCommandText.isInitialized) return
+        val command = executionCommand.toString()
+        executionCommandText.text = command.ifBlank { "What do you want done?" }
+        executionCommandText.setTextColor(
+            if (command.isBlank()) Color.rgb(72, 100, 122) else Color.rgb(9, 37, 58)
+        )
     }
 
     private fun setupNumberRow(sizing: KeyboardSizingProfile = currentKeyboardSizing()) {
@@ -1289,6 +1477,10 @@ class KeyboardService : InputMethodService() {
         if (key == KEY_ENTER) currentImeAction.label else anchor.text.toString()
 
     private fun handleKeyDown(key: String, event: MotionEvent) {
+        if (executionLayerOpen) {
+            handleExecutionCommandKeyDown(key)
+            return
+        }
         when (key) {
             KEY_BACKSPACE -> {
                 deleteOneCharacter()
@@ -1413,6 +1605,11 @@ class KeyboardService : InputMethodService() {
         val wasLongPress = isLongPressActive
         cancelLongPress()
 
+        if (executionLayerOpen) {
+            handleExecutionCommandKeyUp(key)
+            return
+        }
+
         when (key) {
             KEY_BACKSPACE -> stopRepeatingDelete()
             KEY_SHIFT -> {
@@ -1465,6 +1662,36 @@ class KeyboardService : InputMethodService() {
     }
 
     private fun stopRepeatingSpace() = Unit
+
+    private fun handleExecutionCommandKeyDown(key: String) {
+        when (key) {
+            KEY_BACKSPACE -> deleteExecutionCommandCharacter()
+            KEY_SPACE -> appendExecutionCommand(" ")
+            KEY_ENTER -> executionStatusText.text = "Command captured. Feature actions come next."
+            KEY_SHIFT, KEY_EMOJI, "123", "ABC", "#+=" -> Unit
+            else -> Unit
+        }
+    }
+
+    private fun handleExecutionCommandKeyUp(key: String) {
+        when {
+            key.length == 1 && key != "," && key != "." -> appendExecutionCommand(
+                if (shiftState == ShiftState.OFF) key.lowercase() else key.uppercase()
+            )
+            key == "," || key == "." -> appendExecutionCommand(key)
+        }
+    }
+
+    private fun appendExecutionCommand(text: String) {
+        executionCommand.append(text)
+        renderExecutionCommand()
+    }
+
+    private fun deleteExecutionCommandCharacter() {
+        if (executionCommand.isEmpty()) return
+        executionCommand.deleteCharAt(executionCommand.length - 1)
+        renderExecutionCommand()
+    }
 
     private fun handleSpaceDown(rawX: Float) {
         spaceDownRawX = rawX
@@ -1639,16 +1866,19 @@ class KeyboardService : InputMethodService() {
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
-            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false)
+            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
             putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
         }
 
         try {
             isVoiceTypingActive = true
+            voiceRecordingPulse = true
+            lastVoicePartial = ""
             updateVoiceKeyUI()
             recognizer.startListening(intent)
         } catch (e: RuntimeException) {
             isVoiceTypingActive = false
+            voiceRecordingPulse = false
             updateVoiceKeyUI()
             showVoiceTypingUnavailable("Could not start voice typing")
         }
@@ -1657,18 +1887,25 @@ class KeyboardService : InputMethodService() {
     private fun createSpeechRecognitionListener(): RecognitionListener = object : RecognitionListener {
         override fun onReadyForSpeech(params: Bundle?) = Unit
         override fun onBeginningOfSpeech() = Unit
-        override fun onRmsChanged(rmsdB: Float) = Unit
-        override fun onBufferReceived(buffer: ByteArray?) = Unit
-        override fun onEndOfSpeech() {
-            isVoiceTypingActive = false
-            updateVoiceKeyUI()
+        override fun onRmsChanged(rmsdB: Float) {
+            if (!isVoiceTypingActive) return
+            val nextPulse = rmsdB > 1.5f
+            if (voiceRecordingPulse != nextPulse) {
+                voiceRecordingPulse = nextPulse
+                updateVoiceKeyUI()
+            }
         }
+        override fun onBufferReceived(buffer: ByteArray?) = Unit
+        override fun onEndOfSpeech() = Unit
         override fun onError(error: Int) {
             isVoiceTypingActive = false
+            voiceRecordingPulse = false
+            lastVoicePartial = ""
             updateVoiceKeyUI()
         }
         override fun onResults(results: Bundle?) {
             isVoiceTypingActive = false
+            voiceRecordingPulse = false
             updateVoiceKeyUI()
             val spokenText = results
                 ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
@@ -1676,8 +1913,26 @@ class KeyboardService : InputMethodService() {
                 .orEmpty()
             commitVoiceResult(spokenText)
         }
-        override fun onPartialResults(partialResults: Bundle?) = Unit
+        override fun onPartialResults(partialResults: Bundle?) {
+            val partialText = partialResults
+                ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                ?.firstOrNull()
+                .orEmpty()
+            commitVoicePartial(partialText)
+        }
         override fun onEvent(eventType: Int, params: Bundle?) = Unit
+    }
+
+    private fun commitVoicePartial(spokenText: String) {
+        val clean = spokenText.trim()
+        if (clean.isEmpty() || clean == lastVoicePartial) return
+        val ic = currentInputConnection ?: return
+        try {
+            ic.setComposingText(clean, 1)
+            lastVoicePartial = clean
+        } catch (e: RuntimeException) {
+            Log.w(INPUT_CONNECTION_TAG, "voice partial failed", e)
+        }
     }
 
     private fun commitVoiceResult(spokenText: String) {
@@ -1688,6 +1943,7 @@ class KeyboardService : InputMethodService() {
         if (commitTextSafely(ic, textToCommit, "voice")) {
             currentWord.clear()
             contextWords.clear()
+            lastVoicePartial = ""
             updateSuggestions()
             maybeFlushMetrics()
         }
@@ -1704,7 +1960,16 @@ class KeyboardService : InputMethodService() {
         } catch (_: RuntimeException) {
             // SpeechRecognizer implementations can throw when stopped during teardown.
         } finally {
+            if (cancel) {
+                try {
+                    currentInputConnection?.finishComposingText()
+                    lastVoicePartial = ""
+                } catch (_: RuntimeException) {
+                    // Ignore composition cleanup failures during IME teardown.
+                }
+            }
             isVoiceTypingActive = false
+            voiceRecordingPulse = false
             updateVoiceKeyUI()
         }
     }
@@ -1718,6 +1983,8 @@ class KeyboardService : InputMethodService() {
         } finally {
             speechRecognizer = null
             isVoiceTypingActive = false
+            voiceRecordingPulse = false
+            lastVoicePartial = ""
         }
     }
 
@@ -2075,6 +2342,7 @@ class KeyboardService : InputMethodService() {
 
     private fun cleanupInputViewState() {
         swipeResolveGeneration += 1
+        closeExecutionLayer()
         stopVoiceTyping(cancel = true)
         cancelLongPress()
         stopRepeatingDelete()
@@ -2243,17 +2511,19 @@ class KeyboardService : InputMethodService() {
     }
 
     private fun updateVoiceKeyUI() {
+        val activeColor = if (voiceRecordingPulse) Color.parseColor("#35D07F") else Color.parseColor("#8AB4F8")
         voiceSuggestionButton?.let { button ->
             button.alpha = if (isVoiceTypingActive) 1f else 0.9f
             button.setTextColor(
-                if (isVoiceTypingActive) Color.parseColor("#8AB4F8") else textColorForKey(KEY_MIC)
+                if (isVoiceTypingActive) activeColor else textColorForKey(KEY_MIC)
             )
+            button.text = if (isVoiceTypingActive && voiceRecordingPulse) "$KEY_MIC)))" else KEY_MIC
         }
         keyButtons.forEach { button ->
             if (button.tag == KEY_MIC) {
                 button.alpha = if (isVoiceTypingActive) 1f else 0.88f
                 button.setTextColor(
-                    if (isVoiceTypingActive) Color.parseColor("#8AB4F8") else textColorForKey(KEY_MIC)
+                    if (isVoiceTypingActive) activeColor else textColorForKey(KEY_MIC)
                 )
             }
         }

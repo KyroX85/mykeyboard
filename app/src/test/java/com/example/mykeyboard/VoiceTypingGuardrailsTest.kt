@@ -24,6 +24,7 @@ class VoiceTypingGuardrailsTest {
         assertTrue(source.contains("SpeechRecognizer"))
         assertTrue(startVoiceTyping.contains("SpeechRecognizer.createSpeechRecognizer(this)"))
         assertTrue(startVoiceTyping.contains("RecognizerIntent.ACTION_RECOGNIZE_SPEECH"))
+        assertTrue(startVoiceTyping.contains("RecognizerIntent.EXTRA_PARTIAL_RESULTS, true"))
         assertTrue(startVoiceTyping.contains("openMicrophonePermissionSettings()"))
         assertTrue(permissionSettings.contains("Settings.ACTION_APPLICATION_DETAILS_SETTINGS"))
         assertTrue(commitVoiceResult.contains("commitTextSafely(ic,"))
@@ -40,6 +41,21 @@ class VoiceTypingGuardrailsTest {
         assertTrue(cleanup.contains("stopVoiceTyping(cancel = true)"))
         assertTrue(destroy.contains("speechRecognizer?.destroy()"))
         assertTrue(destroy.contains("speechRecognizer = null"))
+    }
+
+    @Test
+    fun voiceTypingShowsRecordingStateAndStreamsPartialText() {
+        val source = sourceFile("app/src/main/java/com/example/mykeyboard/KeyboardService.kt").readText()
+        val listener = methodBody(source, "createSpeechRecognitionListener")
+        val partial = methodBody(source, "commitVoicePartial")
+        val voiceUi = methodBody(source, "updateVoiceKeyUI")
+
+        assertTrue(listener.contains("override fun onPartialResults"))
+        assertTrue(listener.contains("commitVoicePartial"))
+        assertTrue(partial.contains("setComposingText"))
+        assertTrue(source.contains("voiceRecordingPulse"))
+        assertTrue(voiceUi.contains("voiceRecordingPulse"))
+        assertTrue(voiceUi.contains("#35D07F"))
     }
 
     @Test
