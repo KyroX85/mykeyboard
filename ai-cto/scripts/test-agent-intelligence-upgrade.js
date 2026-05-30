@@ -26,10 +26,15 @@ assert.strictEqual(weak.reason, 'No specific user pain, artifact, or success con
 
 const routedCouncil = routeControlPlaneCommand('agent council: explain this screenshot before I reply');
 assert.strictEqual(routedCouncil.command, 'agent_council');
-assert(routedCouncil.response.includes('Agent Council'));
+assert(routedCouncil.response.includes('agent council reviewed this'));
+assert(routedCouncil.response.includes('Consensus:'));
+assert(routedCouncil.response.includes('Dissent:'));
+assert(routedCouncil.response.includes('Recommendation:'));
+assert(routedCouncil.response.includes('Approval needed:'));
 assert(routedCouncil.response.includes('Evidence Seen'));
 assert(routedCouncil.response.includes('Missing Evidence'));
 assert(!routedCouncil.response.includes('Starting execution'));
+assert(!routedCouncil.response.includes('Roadmap Agent:'));
 
 const routedWeak = routeControlPlaneCommand('agent council: make agents smarter');
 assert.strictEqual(routedWeak.command, 'weak_work_review');

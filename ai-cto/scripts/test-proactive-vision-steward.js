@@ -29,6 +29,8 @@ const message = buildVisionStewardMessage({ engineeringState: state });
 assert(message.includes('Founder, one vision check.'));
 assert(message.includes('Company goal:'));
 assert(message.includes('Suggested improvement:'));
+assert(message.includes('Council consensus:'));
+assert(message.includes('Council dissent:'));
 assert(message.includes('proposal only'));
 assert(!message.includes('Starting execution'));
 assert(!message.includes('Commit:'));

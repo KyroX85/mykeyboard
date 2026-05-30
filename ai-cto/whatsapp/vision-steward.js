@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { loadEngineeringState } = require('./state-reader');
 const { readRoadmap } = require('./roadmap-reader');
+const { buildAgentCouncil, summarizeCouncil } = require('../orchestration/agent-council-engine');
 
 const DEFAULT_STATE = {
   version: '1.0',
@@ -18,11 +19,14 @@ function buildVisionStewardMessage({
 } = {}) {
   const pressure = inferHighestVisionPressure(engineeringState, roadmap);
   const suggestion = buildSafeSuggestion(pressure);
+  const council = summarizeCouncil(buildAgentCouncil(suggestion));
   return [
     'Founder, one vision check.',
     '',
     `Company goal: ${roadmap.northStar || 'help users understand confusing content before they type.'}`,
     `Current pressure: ${pressure.summary}`,
+    `Council consensus: ${council.consensus}`,
+    `Council dissent: ${council.dissent}`,
     `Suggested improvement: ${suggestion}`,
     'Execution: no code change started. This is a proposal only; I need your approval before implementation.'
   ].join('\n');

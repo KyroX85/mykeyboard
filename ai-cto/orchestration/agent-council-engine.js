@@ -127,25 +127,58 @@ function vote(agent, position, reason) {
 }
 
 function formatAgentCouncil(council) {
-  const votes = council.votes
-    .map((item) => `- ${item.agent}: ${item.position} - ${item.reason}`)
-    .join('\n');
+  const summary = summarizeCouncil(council);
   return [
-    'Agent Council',
+    'Founder, agent council reviewed this.',
+    '',
     `Proposal: ${council.proposal}`,
     `Classification: ${council.roadmap.classification}`,
     `Decision: ${council.decision}`,
     '',
+    `Consensus: ${summary.consensus}`,
+    `Dissent: ${summary.dissent}`,
+    `Recommendation: ${council.safeNextStep}`,
+    `Approval needed: ${summary.approvalNeeded}`,
+    '',
     formatEvidenceContext(council.evidence),
     '',
-    'Council Votes',
-    votes,
-    '',
-    `Safe Next Step: ${council.safeNextStep}`
+    'Internal review: council details compressed to avoid noisy roleplay. No execution started.'
   ].join('\n');
+}
+
+function summarizeCouncil(council) {
+  const blockers = council.votes.filter((item) => item.position === 'BLOCK');
+  const evidenceRequests = council.votes.filter((item) => item.position === 'REQUIRE_EVIDENCE' || item.position === 'REVIEW');
+  const supporters = council.votes.filter((item) => item.position === 'SUPPORT');
+
+  const consensus = blockers.length
+    ? `${blockers.length} agent(s) found trust or privacy risk; do not execute as written.`
+    : supporters.length >= evidenceRequests.length
+      ? 'The idea is directionally useful, but should stay bounded and evidence-led.'
+      : 'The idea needs stronger evidence before implementation.';
+
+  const dissent = blockers[0]
+    ? `${blockers[0].agent} blocks because ${lowerFirst(blockers[0].reason)}`
+    : evidenceRequests[0]
+      ? `${evidenceRequests[0].agent} cautions that ${lowerFirst(evidenceRequests[0].reason)}`
+      : 'No major dissent; execution still requires founder approval.';
+
+  return {
+    consensus,
+    dissent,
+    approvalNeeded: council.decision === 'APPROVE_DESIGN_ONLY'
+      ? 'Only for implementation. Discussion/design can continue.'
+      : 'Yes. Do not execute until founder approves the next step.'
+  };
+}
+
+function lowerFirst(value = '') {
+  const text = String(value || '').trim();
+  return text ? `${text.charAt(0).toLowerCase()}${text.slice(1)}` : 'no reason recorded.';
 }
 
 module.exports = {
   buildAgentCouncil,
-  formatAgentCouncil
+  formatAgentCouncil,
+  summarizeCouncil
 };
