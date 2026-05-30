@@ -538,6 +538,17 @@ function maybeRoutePhase2Dialogue(message, normalized = normalizeMessage(message
     ]);
   }
 
+  if (/\b(final goal|company goal|north star|mission)\b/.test(text) && /\b(not build|shouldn'?t build|avoid|sounds impressive|impressive)\b/.test(text)) {
+    return phase2Response('phase2_company_goal_boundary', [
+      'Current Foundation Health: protected. Keyboard trust remains the asset we cannot spend recklessly.',
+      'Phase 2 Opportunities: Build Explain, then the execution layer, then screenshot understanding, then draft/reply later.',
+      'Highest Leverage Differentiator: Aritenis helps users understand confusing content before they type.',
+      'Do not build: auto-send, silent screenshot reading, forever screenshot storage, prediction rewrites as differentiation, emotional simulation, agent theater, or architecture work that does not complete user actions.',
+      'Trust Risk: impressive systems become harmful if they slow typing, create privacy fear, or distract from Explain.',
+      'Recommended Next Step: keep Phase 2 narrow: explicit user trigger, Explain output, ready/confirm/cancel, no automatic sending.'
+    ]);
+  }
+
   if (/\b(phase 2|phase two|roadmap|priority|priorities|gboard|choose|differentiator|next|final goal|company goal|company|north star|mission)\b/.test(text)) {
     return phase2Response('phase2_roadmap_priority', [
       'Current Foundation Health: Phase 1 is complete enough for transition and now protected.',

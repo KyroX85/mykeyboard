@@ -23,6 +23,14 @@ const { readRoadmap } = require('../whatsapp/roadmap-reader');
   assert(!companyGoal.response.includes('quick CTO update'));
   assert(!companyGoal.response.includes('Starting execution'));
 
+  const impressiveBoundary = await routeMessageWithAi('what is the final goal of our company and what should we not build even if it sounds impressive?', {}, {}, {});
+  assert.strictEqual(impressiveBoundary.matchedRoute, 'phase2_conversation_guard');
+  assert(impressiveBoundary.response.includes('understand confusing content before they type'));
+  assert(impressiveBoundary.response.includes('Do not build'));
+  assert(impressiveBoundary.response.includes('auto-send'));
+  assert(impressiveBoundary.response.includes('agent theater'));
+  assert(!impressiveBoundary.response.includes('Starting execution'));
+
   const pain = await routeMessageWithAi('what user pain does Explain solve?', {}, {}, {});
   assert.strictEqual(pain.matchedRoute, 'phase2_conversation_guard');
   assert(pain.response.includes('confusing'));
