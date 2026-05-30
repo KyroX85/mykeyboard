@@ -1,0 +1,33 @@
+{
+  "version": "1.0",
+  "durationDays": 90,
+  "status": "WAITING_FOR_KILLER_FEATURE",
+  "mission": "Protect the Phase 1 keyboard foundation while preparing Phase 2 Explain execution.",
+  "activeKillerFeature": null,
+  "dailyContract": {
+    "oneDayOutcome": "Each run must produce one concrete, verified outcome: bug fix, failing-test reproduction, evidence report, or founder-ready proposal.",
+    "allowedBeforeKillerFeature": [
+      "fix verified bugs",
+      "repair broken tests",
+      "improve validation coverage",
+      "improve Product Lab evidence reliability",
+      "reduce WhatsApp routing confusion",
+      "prepare founder decision notes"
+    ],
+    "blockedBeforeKillerFeature": [
+      "invent Phase 2 feature scope",
+      "build speculative companion behavior",
+      "touch protected keyboard hot paths without evidence",
+      "add cloud dependence",
+      "auto-send user content",
+      "store screenshots forever"
+    ]
+  },
+  "requiredDailyOutput": [
+    "what was inspected",
+    "what was fixed or why no mutation was safer",
+    "validation run",
+    "remaining blocker",
+    "next founder decision needed"
+  ]
+}

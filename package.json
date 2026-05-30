@@ -34,7 +34,8 @@
     "cto:emulator:ensure": "node ai-cto/scripts/emulator-manager.js ensure",
     "cto:emulator:stop": "node ai-cto/scripts/emulator-manager.js stop",
     "cto:hardening:test": "node ai-cto/scripts/test-product-steward-hardening.js",
-    "cto:product-steward": "node ai-cto/scripts/product-steward-autonomy.js"
+    "cto:product-steward": "node ai-cto/scripts/product-steward-autonomy.js",
+    "cto:phase2-daily": "node ai-cto/scripts/phase2-daily-agent.js"
   },
   "keywords": [],
   "author": "",

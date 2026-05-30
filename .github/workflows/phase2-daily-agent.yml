@@ -1,0 +1,53 @@
+name: Phase 2 Daily Agent Mission
+
+on:
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: phase2-daily-agent-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  phase2-daily-agent:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Generate daily Phase 2 mission
+        run: node ai-cto/scripts/phase2-daily-agent.js
+
+      - name: Run daily mission checks
+        run: |
+          node ai-cto/scripts/test-phase2-daily-agent.js
+          node ai-cto/scripts/test-phase2-whatsapp-routing.js
+          node ai-cto/scripts/test-proactive-vision-steward.js
+
+      - name: Create daily mission PR
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: update Phase 2 daily agent mission"
+          title: "[DAILY] Phase 2 agent mission"
+          body: |
+            Daily Phase 2 agent mission generated from the current roadmap.
+
+            This is not a fixed 90-day feature plan because the killer feature is not locked yet.
+            Until founder approval, agents may repair bugs, improve validation, and prepare evidence only.
+          branch: cto/phase2-daily-agent
+          delete-branch: true
+          add-paths: |
+            PHASE2_DAILY_AGENT_REPORT.md
