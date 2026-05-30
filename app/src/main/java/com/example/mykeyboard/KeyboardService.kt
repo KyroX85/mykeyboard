@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.ApplicationInfo
 import android.content.res.Configuration
+import android.graphics.PixelFormat
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Typeface
@@ -29,6 +30,7 @@ import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowInsets
+import android.view.WindowManager
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import android.speech.RecognitionListener
@@ -94,6 +96,7 @@ class KeyboardService : InputMethodService() {
     private lateinit var executionLayer: LinearLayout
     private lateinit var executionCommandText: TextView
     private lateinit var executionStatusText: TextView
+    private var executionOverlayRoot: FrameLayout? = null
 
     private lateinit var emojiContainer: LinearLayout
     private lateinit var emojiGrid: GridView
@@ -607,6 +610,190 @@ class KeyboardService : InputMethodService() {
 
     private fun openExecutionLayer() {
         if (!::executionLayer.isInitialized) return
+        if (canDrawExecutionOverlay()) {
+            showFullScreenExecutionOverlay()
+            return
+        }
+        openExecutionOverlayPermissionSettings()
+        Toast.makeText(this, "Allow Display over other apps for full-screen execution", Toast.LENGTH_LONG).show()
+        showKeyboardBoundExecutionLayer()
+    }
+
+    private fun showFullScreenExecutionOverlay() {
+        if (executionOverlayRoot != null) {
+            executionLayerOpen = true
+            renderExecutionCommand()
+            return
+        }
+
+        val overlayRoot = FrameLayout(this).apply {
+            setPadding(dp(14), dp(44), dp(14), dp(18))
+            background = ColorDrawable(Color.argb(92, 26, 178, 226))
+        }
+
+        val overlaySurface = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(18), dp(20), dp(18), dp(16))
+            background = lightBlueGlassDrawable(Color.argb(214, 120, 225, 255), dp(30), Color.argb(180, 238, 252, 255))
+        }
+
+        val title = TextView(this).apply {
+            text = "Aritenis Execution"
+            textSize = 17f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(Color.rgb(7, 38, 55))
+            setIncludeFontPadding(false)
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(28)
+            )
+        }
+        overlaySurface.addView(title)
+
+        executionCommandText = TextView(this).apply {
+            text = "What do you want done?"
+            textSize = 19f
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER_VERTICAL
+            setSingleLine(true)
+            setIncludeFontPadding(false)
+            setTextColor(Color.rgb(52, 87, 108))
+            setPadding(dp(16), 0, dp(16), 0)
+            background = lightBlueGlassDrawable(Color.argb(232, 238, 252, 255), dp(22), Color.argb(210, 255, 255, 255))
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(58)
+            ).apply { topMargin = dp(14) }
+        }
+        overlaySurface.addView(executionCommandText)
+
+        executionStatusText = TextView(this).apply {
+            text = "Type with your keyboard. Nothing is sent automatically."
+            textSize = 12f
+            setTextColor(Color.rgb(20, 69, 96))
+            setIncludeFontPadding(false)
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(34)
+            ).apply { topMargin = dp(12) }
+        }
+        overlaySurface.addView(executionStatusText)
+
+        val chipRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(46)
+            ).apply { topMargin = dp(10) }
+        }
+        listOf("Find", "Check", "Send", "Make").forEach { label ->
+            chipRow.addView(TextView(this).apply {
+                text = label
+                textSize = 13f
+                gravity = Gravity.CENTER
+                setSingleLine(true)
+                setIncludeFontPadding(false)
+                setTextColor(Color.rgb(20, 65, 96))
+                background = lightBlueGlassDrawable(Color.argb(155, 246, 253, 255), dp(15), Color.argb(155, 255, 255, 255))
+                layoutParams = LinearLayout.LayoutParams(0, dp(36), 1f).apply {
+                    setMargins(dp(3), 0, dp(3), 0)
+                }
+            })
+        }
+        overlaySurface.addView(chipRow)
+
+        val spacer = View(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                0,
+                1f
+            )
+        }
+        overlaySurface.addView(spacer)
+
+        val cancel = TextView(this).apply {
+            text = "Cancel"
+            textSize = 14f
+            gravity = Gravity.CENTER
+            setTextColor(Color.rgb(18, 45, 67))
+            setIncludeFontPadding(false)
+            background = lightBlueGlassDrawable(Color.argb(180, 246, 253, 255), dp(16), Color.argb(160, 255, 255, 255))
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(44)
+            )
+            setOnClickListener { closeExecutionLayer() }
+        }
+        overlaySurface.addView(cancel)
+
+        overlayRoot.addView(
+            overlaySurface,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                Gravity.CENTER
+            )
+        )
+
+        val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+        } else {
+            @Suppress("DEPRECATION")
+            WindowManager.LayoutParams.TYPE_PHONE
+        }
+        val flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+            WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM
+        val params = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.MATCH_PARENT,
+            type,
+            flags,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            setTitle("AritenisExecutionLayer")
+        }
+
+        try {
+            val manager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+            manager.addView(overlayRoot, params)
+            executionOverlayRoot = overlayRoot
+            executionLayerOpen = true
+            if (::executionLayer.isInitialized) {
+                executionLayer.visibility = View.GONE
+            }
+            renderExecutionCommand()
+        } catch (e: SecurityException) {
+            executionOverlayRoot = null
+            Log.w(LOG_TAG, "Execution overlay permission missing", e)
+            openExecutionOverlayPermissionSettings()
+        } catch (e: RuntimeException) {
+            executionOverlayRoot = null
+            Log.w(LOG_TAG, "Unable to show execution overlay", e)
+        }
+    }
+
+    private fun canDrawExecutionOverlay(): Boolean =
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this)
+
+    private fun openExecutionOverlayPermissionSettings() {
+        val intent = Intent(
+            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+            Uri.parse("package:$packageName")
+        ).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        try {
+            startActivity(intent)
+        } catch (e: RuntimeException) {
+            Log.w(LOG_TAG, "Unable to open overlay permission settings", e)
+        }
+    }
+
+    private fun showKeyboardBoundExecutionLayer() {
         executionLayerOpen = true
         executionLayer.visibility = View.VISIBLE
         renderExecutionCommand()
@@ -615,6 +802,16 @@ class KeyboardService : InputMethodService() {
     private fun closeExecutionLayer() {
         executionLayerOpen = false
         executionCommand.clear()
+        executionOverlayRoot?.let { overlay ->
+            try {
+                val manager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+                manager.removeView(overlay)
+            } catch (e: RuntimeException) {
+                Log.w(LOG_TAG, "Unable to remove execution overlay", e)
+            } finally {
+                executionOverlayRoot = null
+            }
+        }
         if (::executionLayer.isInitialized) {
             executionLayer.visibility = View.GONE
         }

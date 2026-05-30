@@ -16,6 +16,7 @@ class ExecutionLayerShellGuardrailsTest {
         assertTrue(source.contains("EXECUTION_HANDLE_PULL_THRESHOLD_DP"))
         assertTrue(source.contains("What do you want done?"))
         assertTrue(source.contains("lightBlueGlassDrawable"))
+        assertTrue(manifest.contains("android.permission.SYSTEM_ALERT_WINDOW"))
         assertFalse(source.contains("DeviceFileFinder"))
         assertFalse(source.contains("FileSearchMatcher"))
         assertFalse(manifest.contains("READ_EXTERNAL_STORAGE"))
@@ -48,6 +49,26 @@ class ExecutionLayerShellGuardrailsTest {
         assertFalse(setup.contains("logEvent("))
         assertFalse(open.contains("predictor"))
         assertFalse(open.contains("logEvent("))
+    }
+
+    @Test
+    fun executionOverlayRequiresPermissionAndIsLifecycleCleaned() {
+        val source = sourceFile("app/src/main/java/com/example/mykeyboard/KeyboardService.kt").readText()
+        val open = methodBody(source, "openExecutionLayer")
+        val showOverlay = methodBody(source, "showFullScreenExecutionOverlay")
+        val close = methodBody(source, "closeExecutionLayer")
+        val cleanup = methodBody(source, "cleanupInputViewState")
+        val destroy = methodBody(source, "onDestroy")
+
+        assertTrue(source.contains("WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY"))
+        assertTrue(source.contains("Settings.ACTION_MANAGE_OVERLAY_PERMISSION"))
+        assertTrue(open.contains("canDrawExecutionOverlay()"))
+        assertTrue(open.contains("showFullScreenExecutionOverlay()"))
+        assertTrue(showOverlay.contains("WindowManager.LayoutParams.MATCH_PARENT"))
+        assertTrue(showOverlay.contains("WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE"))
+        assertTrue(close.contains("removeView"))
+        assertTrue(cleanup.contains("closeExecutionLayer()"))
+        assertTrue(destroy.contains("cleanupInputViewState()"))
     }
 
     private fun sourceFile(relativePath: String): File {
