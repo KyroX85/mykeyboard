@@ -6,6 +6,7 @@ const zlib = require('zlib');
 
 const {
   extractFirstPng,
+  findSystemDialogEvidence,
   fetchLatestProductLabScreenshot
 } = require('../whatsapp/product-lab-artifact-fetcher');
 const { routeMessageWithAi } = require('../whatsapp/command-router');
@@ -33,6 +34,15 @@ function localZipEntry(name, bytes) {
   const extracted = extractFirstPng(zip);
   assert.strictEqual(extracted.name, 'artifacts/product-lab/screenshots/emulator-smoke.png');
   assert.deepStrictEqual([...extracted.bytes], [...png]);
+
+  const anrXml = Buffer.from('<node text="System UI isn&apos;t responding" /><node text="Wait" />');
+  const unhealthyZip = Buffer.concat([
+    localZipEntry('artifacts/product-lab-window-after-screenshot.xml', anrXml),
+    localZipEntry('artifacts/product-lab/screenshots/emulator-smoke.png', png)
+  ]);
+  assert.deepStrictEqual(findSystemDialogEvidence(unhealthyZip), {
+    name: 'artifacts/product-lab-window-after-screenshot.xml'
+  });
 
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'product-lab-artifact-'));
   const calls = [];
@@ -94,6 +104,51 @@ function localZipEntry(name, bytes) {
     assert.strictEqual(latestKeyboardVisual.command, 'product_lab_screenshot_ready');
     assert.strictEqual(latestKeyboardVisual.mediaUrls.length, 1);
     assert(!latestKeyboardVisual.response.includes('Product Lab evidence, not a mutation request'));
+
+    const unhealthyFetchImpl = async (url) => {
+      if (String(url).includes('/actions/workflows/product-lab-validation.yml/runs')) {
+        return jsonResponse({
+          workflow_runs: [{
+            id: 456,
+            event: 'workflow_dispatch',
+            status: 'completed',
+            conclusion: 'success',
+            html_url: 'https://github.com/KyroX85/mykeyboard/actions/runs/456'
+          }]
+        });
+      }
+      if (String(url).includes('/actions/runs/456/artifacts')) {
+        return jsonResponse({
+          artifacts: [{
+            name: 'product-lab-validation',
+            expired: false,
+            archive_download_url: 'https://api.github.com/unhealthy-artifact.zip'
+          }]
+        });
+      }
+      if (String(url).includes('unhealthy-artifact.zip')) {
+        return binaryResponse(unhealthyZip);
+      }
+      throw new Error(`Unexpected URL: ${url}`);
+    };
+    const unhealthyResult = await fetchLatestProductLabScreenshot({
+      root: tempRoot,
+      publicBaseUrl: 'https://render.example',
+      env: { GITHUB_ACTIONS_TOKEN: 'token' },
+      fetchImpl: unhealthyFetchImpl
+    });
+    assert.strictEqual(unhealthyResult.status, 'UNHEALTHY_SCREENSHOT');
+    assert(!unhealthyResult.mediaUrls);
+
+    const unhealthyRouted = await routeMessageWithAi('latest screenshot', {}, {}, {
+      root: tempRoot,
+      publicBaseUrl: 'https://render.example',
+      env: { GITHUB_ACTIONS_TOKEN: 'token' },
+      fetchImpl: unhealthyFetchImpl
+    });
+    assert.strictEqual(unhealthyRouted.command, 'product_lab_screenshot_unhealthy');
+    assert(!unhealthyRouted.mediaUrls);
+    assert(unhealthyRouted.response.includes('screenshot was rejected'));
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }

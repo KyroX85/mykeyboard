@@ -6,6 +6,13 @@ const { buildPublicScreenshotUrl } = require('../product-lab/whatsapp-screenshot
 
 const PRODUCT_LAB_WORKFLOW = 'product-lab-validation.yml';
 const PRODUCT_LAB_ARTIFACT = 'product-lab-validation';
+const SYSTEM_DIALOG_PATTERNS = [
+  /isn(?:'|&apos;|&#39;|\u2019|â€™)t responding/i,
+  /is not responding/i,
+  /keeps stopping/i,
+  /close app/i,
+  /\bwait\b/i
+];
 
 async function fetchLatestProductLabScreenshot({
   root = process.cwd(),
@@ -58,6 +65,17 @@ async function fetchLatestProductLabScreenshot({
   }
 
   const zip = await fetchArtifactZip({ config, archiveDownloadUrl: artifact.archive_download_url, fetchImpl });
+  const dialogEvidence = findSystemDialogEvidence(zip);
+  if (dialogEvidence) {
+    return {
+      status: 'UNHEALTHY_SCREENSHOT',
+      message: `Product Lab artifact shows Android system dialog evidence in ${dialogEvidence.name}.`,
+      runUrl: latestRun.html_url,
+      runId: latestRun.id,
+      evidencePath: dialogEvidence.name
+    };
+  }
+
   const screenshot = extractFirstPng(zip);
   if (!screenshot) {
     return {
@@ -132,7 +150,7 @@ function githubHeaders(config) {
 }
 
 function extractFirstPng(zipBuffer) {
-  const centralDirectoryPng = extractFirstPngFromCentralDirectory(zipBuffer);
+  const centralDirectoryPng = extractFirstFileFromCentralDirectory(zipBuffer, (name) => name.toLowerCase().endsWith('.png'));
   if (centralDirectoryPng) return centralDirectoryPng;
 
   let offset = 0;
@@ -165,7 +183,16 @@ function extractFirstPng(zipBuffer) {
   return null;
 }
 
-function extractFirstPngFromCentralDirectory(zipBuffer) {
+function findSystemDialogEvidence(zipBuffer) {
+  const xml = extractFirstFileFromCentralDirectory(zipBuffer, (name) => name.toLowerCase().endsWith('.xml'))
+    || extractFirstFileFromLocalRecords(zipBuffer, (name) => name.toLowerCase().endsWith('.xml'));
+  if (!xml) return null;
+  const text = xml.bytes.toString('utf8');
+  const detected = SYSTEM_DIALOG_PATTERNS.some((pattern) => pattern.test(text));
+  return detected ? { name: xml.name } : null;
+}
+
+function extractFirstFileFromCentralDirectory(zipBuffer, predicate) {
   const endOffset = findEndOfCentralDirectory(zipBuffer);
   if (endOffset < 0) return null;
 
@@ -188,7 +215,7 @@ function extractFirstPngFromCentralDirectory(zipBuffer) {
     const nameEnd = nameStart + fileNameLength;
     const name = zipBuffer.slice(nameStart, nameEnd).toString('utf8');
 
-    if (name.toLowerCase().endsWith('.png')) {
+    if (predicate(name)) {
       const bytes = readLocalFileBytes(zipBuffer, {
         method,
         compressedSize,
@@ -200,6 +227,37 @@ function extractFirstPngFromCentralDirectory(zipBuffer) {
     offset = nameEnd + extraLength + commentLength;
   }
 
+  return null;
+}
+
+function extractFirstFileFromLocalRecords(zipBuffer, predicate) {
+  let offset = 0;
+  while (offset + 30 <= zipBuffer.length) {
+    const signature = zipBuffer.readUInt32LE(offset);
+    if (signature !== 0x04034b50) break;
+
+    const method = zipBuffer.readUInt16LE(offset + 8);
+    const compressedSize = zipBuffer.readUInt32LE(offset + 18);
+    const fileNameLength = zipBuffer.readUInt16LE(offset + 26);
+    const extraLength = zipBuffer.readUInt16LE(offset + 28);
+    const nameStart = offset + 30;
+    const nameEnd = nameStart + fileNameLength;
+    const dataStart = nameEnd + extraLength;
+    const dataEnd = dataStart + compressedSize;
+    const name = zipBuffer.slice(nameStart, nameEnd).toString('utf8');
+    const compressed = zipBuffer.slice(dataStart, dataEnd);
+
+    if (predicate(name)) {
+      const bytes = method === 0
+        ? compressed
+        : method === 8
+          ? zlib.inflateRawSync(compressed)
+          : null;
+      if (bytes) return { name, bytes };
+    }
+
+    offset = dataEnd;
+  }
   return null;
 }
 
@@ -229,5 +287,6 @@ module.exports = {
   PRODUCT_LAB_ARTIFACT,
   PRODUCT_LAB_WORKFLOW,
   extractFirstPng,
+  findSystemDialogEvidence,
   fetchLatestProductLabScreenshot
 };

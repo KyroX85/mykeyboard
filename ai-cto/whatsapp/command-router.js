@@ -881,6 +881,21 @@ async function maybeRouteProductLabScreenshotResult(normalized = '', options = {
       mediaUrls: result.mediaUrls || []
     };
   }
+  if (result.status === 'UNHEALTHY_SCREENSHOT') {
+    return {
+      command: 'product_lab_screenshot_unhealthy',
+      details: { agent: 'cto', intent: 'product_lab_screenshot_unhealthy', result },
+      matchedRoute: 'product_lab_screenshot_result',
+      response: [
+        'CTO: Product Lab screenshot was rejected.',
+        'Reason: emulator/system dialog evidence appeared in the Product Lab artifact.',
+        `Evidence: ${result.evidencePath}`,
+        result.runUrl ? `Run: ${result.runUrl}` : '',
+        'Action: no screenshot sent because it would be false product evidence.',
+        'No product code mutation started.'
+      ].filter(Boolean).join('\n')
+    };
+  }
   return {
     command: 'product_lab_screenshot_not_ready',
     details: { agent: 'cto', intent: 'product_lab_screenshot_not_ready', result },

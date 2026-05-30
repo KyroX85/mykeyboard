@@ -67,6 +67,9 @@ jobs:
             mkdir -p artifacts/product-lab/screenshots
             adb exec-out screencap -p > artifacts/product-lab/screenshots/emulator-smoke.png
             test -s artifacts/product-lab/screenshots/emulator-smoke.png
+            adb shell uiautomator dump /sdcard/product-lab-window-after-screenshot.xml || true
+            adb pull /sdcard/product-lab-window-after-screenshot.xml artifacts/product-lab-window-after-screenshot.xml || true
+            node ai-cto/product-lab/adb/system-dialog-guard.js
             ls -lh artifacts/product-lab/screenshots
 
       - name: Generate product lab reports
