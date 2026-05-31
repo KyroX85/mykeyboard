@@ -32,6 +32,7 @@ const {
 const { formatRealityReconstruction } = require('../reality-reconstruction-layer');
 const { routeFounderMemoryIntent } = require('./founder-intent-classifier');
 const { routeFounderIntentUnderstanding } = require('./founder-intent-understanding-layer');
+const { routeFounderObjective } = require('./founder-objective-engine');
 const { routeHumanInteraction } = require('./human-interaction-layer');
 const {
   buildScreenshotCaptureResponse,
@@ -155,10 +156,12 @@ function routeMessageInternal(message, state, memory = {}) {
   if (preservationDecision) return preservationDecision;
   const preservationBlock = maybeBlockPreservationMutation(normalized);
   if (preservationBlock) return preservationBlock;
-  const humanInteraction = routeHumanInteraction(message, state, memory);
-  if (humanInteraction) return humanInteraction;
   const antiVanityBlock = maybeRouteAntiVanityBlock(normalized);
   if (antiVanityBlock) return antiVanityBlock;
+  const founderObjective = routeFounderObjective(message, { root: ROOT, state, memory });
+  if (founderObjective) return founderObjective;
+  const humanInteraction = routeHumanInteraction(message, state, memory);
+  if (humanInteraction) return humanInteraction;
   const founderIntentUnderstanding = routeFounderIntentUnderstanding(message, { root: ROOT });
   if (founderIntentUnderstanding) return founderIntentUnderstanding;
   const founderMemoryIntent = routeFounderMemoryIntent(message, { root: ROOT });
@@ -417,21 +420,30 @@ async function routeMessageWithAiInternal(message, state, memory = {}, options =
     };
   }
 
-  const humanInteraction = routeHumanInteraction(message, state, memory);
-  if (humanInteraction) {
-    return {
-      ...humanInteraction,
-      usedAi: false,
-      aiReason: 'human_interaction_layer'
-    };
-  }
-
   const antiVanityBlock = maybeRouteAntiVanityBlock(normalized);
   if (antiVanityBlock) {
     return {
       ...antiVanityBlock,
       usedAi: false,
       aiReason: 'anti_vanity_guard'
+    };
+  }
+
+  const founderObjective = routeFounderObjective(message, { root: ROOT, state, memory });
+  if (founderObjective) {
+    return {
+      ...founderObjective,
+      usedAi: false,
+      aiReason: 'founder_objective_engine'
+    };
+  }
+
+  const humanInteraction = routeHumanInteraction(message, state, memory);
+  if (humanInteraction) {
+    return {
+      ...humanInteraction,
+      usedAi: false,
+      aiReason: 'human_interaction_layer'
     };
   }
 

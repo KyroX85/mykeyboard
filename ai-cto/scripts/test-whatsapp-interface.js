@@ -279,8 +279,8 @@ assert(statusQuestion.response.includes('Work'));
 assert(statusQuestion.response.includes('AUDITOR'));
 
 const casualWork = routeMessage('bro how work is going', sampleState);
-assert.strictEqual(casualWork.command, 'human_status_check');
-assert.strictEqual(casualWork.matchedRoute, 'human_interaction_layer');
+assert.strictEqual(casualWork.command, 'founder_objective_understanding');
+assert.strictEqual(casualWork.matchedRoute, 'founder_objective_engine');
 assert(casualWork.response.includes('Things are running'));
 assert(casualWork.response.includes('Health: 25/100'));
 assert(casualWork.response.includes('Source:'));

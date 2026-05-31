@@ -70,7 +70,7 @@ function body(route) {
 }
 
 const status = routeMessage('ok hows going on', sampleState, {});
-assert.strictEqual(status.matchedRoute, 'human_interaction_layer');
+assert.strictEqual(status.matchedRoute, 'founder_objective_engine');
 assert.match(body(status), /Things are running/i);
 assert.match(body(status), /Health: 30\/100/);
 assert.match(body(status), /Source: ai-cto\/\.brain_state\.json/);
@@ -79,7 +79,7 @@ assert.match(body(status), /Calculation: 100 - \(0\*25 \+ 0\*15 \+ 14\*5 \+ 0\*2
 assert.doesNotMatch(body(status), /NOISE|AMBIGUOUS|type:/);
 
 const monitoring = routeMessage('what are u monitoring', sampleState, {});
-assert.strictEqual(monitoring.matchedRoute, 'human_interaction_layer');
+assert.strictEqual(monitoring.matchedRoute, 'founder_objective_engine');
 assert.match(body(monitoring), /brain scan freshness/i);
 assert.match(body(monitoring), /WhatsApp routing/i);
 assert.match(body(monitoring), /Source:/);

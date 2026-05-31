@@ -8,41 +8,41 @@ const { readRoadmap } = require('../whatsapp/roadmap-reader');
   assert(roadmap.currentPhase.includes('Build Explain'));
 
   const priority = await routeMessageWithAi('what is the current roadmap priority?', {}, {}, {});
-  assert.strictEqual(priority.matchedRoute, 'founder_intent_understanding');
-  assert(priority.response.includes('Phase 1 is a protected foundation'));
+  assert.strictEqual(priority.matchedRoute, 'founder_objective_engine');
+  assert(priority.response.includes('Phase 1 foundation is protected'));
   assert(!priority.response.includes('ENGINEERING_REPORT.md'));
   assert(!priority.response.includes('Starting execution'));
 
   const phase2 = await routeMessageWithAi('what is Phase 2 about?', {}, {}, {});
-  assert.strictEqual(phase2.matchedRoute, 'founder_intent_understanding');
+  assert.strictEqual(phase2.matchedRoute, 'founder_objective_engine');
   assert(phase2.response.includes('Explain'));
-  assert(phase2.response.includes('Founder objective I inferred:'));
+  assert(phase2.response.includes('Founder objective:'));
 
   const companyGoal = await routeMessageWithAi('what is our final goal of our company', {}, {}, {});
-  assert.strictEqual(companyGoal.matchedRoute, 'founder_intent_understanding');
+  assert.strictEqual(companyGoal.matchedRoute, 'founder_objective_engine');
   assert(companyGoal.response.includes('understand confusing content before they type'));
-  assert(companyGoal.response.includes('Why I believe this:'));
-  assert(companyGoal.response.includes('Evidence sources used:'));
+  assert(companyGoal.response.includes('Objective reconstruction:'));
+  assert(companyGoal.response.includes('Evidence used:'));
   assert(!companyGoal.response.includes('Current Foundation Health'));
   assert(!companyGoal.response.includes('Recommended Next Step'));
   assert(!companyGoal.response.includes('quick CTO update'));
   assert(!companyGoal.response.includes('Starting execution'));
 
   const companyGoalWithQuestionMark = await routeMessageWithAi('what is the final goal of our company ?', {}, {}, {});
-  assert.strictEqual(companyGoalWithQuestionMark.command, 'founder_intent_understanding');
-  assert(companyGoalWithQuestionMark.response.includes('Why I believe this:'));
+  assert.strictEqual(companyGoalWithQuestionMark.command, 'founder_objective_understanding');
+  assert(companyGoalWithQuestionMark.response.includes('Objective reconstruction:'));
   assert(!companyGoalWithQuestionMark.response.includes('Current Foundation Health'));
 
   const impressiveBoundary = await routeMessageWithAi('what is the final goal of our company and what should we not build even if it sounds impressive?', {}, {}, {});
-  assert.strictEqual(impressiveBoundary.matchedRoute, 'founder_intent_understanding');
+  assert.strictEqual(impressiveBoundary.matchedRoute, 'founder_objective_engine');
   assert(impressiveBoundary.response.includes('understand confusing content before they type'));
   assert(impressiveBoundary.response.includes('auto-send'));
-  assert(impressiveBoundary.response.includes('Missing information / uncertainty:'));
+  assert(impressiveBoundary.response.includes('Uncertainty / missing information:'));
   assert(!impressiveBoundary.response.includes('Current Foundation Health'));
   assert(!impressiveBoundary.response.includes('Starting execution'));
 
   const pain = await routeMessageWithAi('what user pain does Explain solve?', {}, {}, {});
-  assert.strictEqual(pain.matchedRoute, 'founder_intent_understanding');
+  assert.strictEqual(pain.matchedRoute, 'founder_objective_engine');
   assert(pain.response.includes('confusing'));
 
   const handle = await routeMessageWithAi('design the glass handle activation', {}, {}, {});
@@ -51,7 +51,7 @@ const { readRoadmap } = require('../whatsapp/roadmap-reader');
   assert(!handle.response.includes('Founder approval is required'));
 
   const privacy = await routeMessageWithAi('can Explain store screenshots forever?', {}, {}, {});
-  assert.strictEqual(privacy.matchedRoute, 'founder_intent_understanding');
+  assert.strictEqual(privacy.matchedRoute, 'founder_objective_engine');
   assert(privacy.response.includes('not store screenshots forever'));
   assert(!privacy.response.includes('Product Lab evidence'));
 
