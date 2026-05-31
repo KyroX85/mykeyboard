@@ -47,6 +47,11 @@ class BasicPredictor internal constructor(
     @Volatile
     private var topUnigramCache = listOf<String>()
     private var lastSuggestionSnapshot = SuggestionSnapshot()
+    private val externalPrefixCacheLock = Any()
+    private val externalPrefixCache = object : LinkedHashMap<String, List<String>>(EXTERNAL_PREFIX_CACHE_LIMIT, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, List<String>>): Boolean =
+            size > EXTERNAL_PREFIX_CACHE_LIMIT
+    }
     private val externalSwipeCacheLock = Any()
     private val externalSwipeCache = object : LinkedHashMap<String, List<String>>(EXTERNAL_SWIPE_CACHE_LIMIT, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, List<String>>): Boolean =
@@ -74,6 +79,7 @@ class BasicPredictor internal constructor(
         private const val EXTERNAL_DICTIONARY_PREFIX_MIN_LENGTH = 4
         private const val EXTERNAL_DICTIONARY_LIMIT = 6
         private const val EXTERNAL_DICTIONARY_COUNT = 6
+        private const val EXTERNAL_PREFIX_CACHE_LIMIT = 96
         private const val EXTERNAL_SWIPE_LIMIT = 48
         private const val EXTERNAL_SWIPE_COUNT = 18
         private const val EXTERNAL_SWIPE_SEQUENCE_LIMIT = 3
@@ -790,6 +796,7 @@ class BasicPredictor internal constructor(
 
     private fun findExternalDictionaryPrefixMatches(prefix: String): List<String> {
         if (prefix.length < EXTERNAL_DICTIONARY_PREFIX_MIN_LENGTH) return emptyList()
+        readExternalPrefixCache(prefix)?.let { return it }
 
         val options = mapOf(
             "limit" to EXTERNAL_DICTIONARY_LIMIT,
@@ -802,6 +809,15 @@ class BasicPredictor internal constructor(
             RiTa.search(pattern, options).toList()
         } catch (e: RuntimeException) {
             emptyList()
+        }.also { writeExternalPrefixCache(prefix, it) }
+    }
+
+    private fun readExternalPrefixCache(prefix: String): List<String>? =
+        synchronized(externalPrefixCacheLock) { externalPrefixCache[prefix] }
+
+    private fun writeExternalPrefixCache(prefix: String, words: List<String>) {
+        synchronized(externalPrefixCacheLock) {
+            externalPrefixCache[prefix] = words
         }
     }
 

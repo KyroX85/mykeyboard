@@ -191,9 +191,14 @@ class SystemHardeningGuardrailsTest {
     @Test
     fun externalSwipeDictionaryLookupIsCachedAndBounded() {
         val source = sourceFile("app/src/main/java/com/example/mykeyboard/predictor/BasicPredictor.kt").readText()
+        val prefixLookup = methodBody(source, "findExternalDictionaryPrefixMatches")
         val swipeLookup = methodBody(source, "findExternalDictionarySwipeCandidates")
         val addMatches = methodBody(source, "addExternalSwipeMatches")
 
+        assertTrue(source.contains("EXTERNAL_PREFIX_CACHE_LIMIT"))
+        assertTrue(source.contains("externalPrefixCache"))
+        assertTrue(prefixLookup.contains("readExternalPrefixCache"))
+        assertTrue(prefixLookup.contains("writeExternalPrefixCache"))
         assertTrue(source.contains("EXTERNAL_SWIPE_CACHE_LIMIT"))
         assertTrue(source.contains("EXTERNAL_SWIPE_TIME_BUDGET_MS"))
         assertTrue(source.contains("externalSwipeCache"))

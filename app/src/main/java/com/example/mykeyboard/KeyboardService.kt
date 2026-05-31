@@ -130,6 +130,7 @@ class KeyboardService : InputMethodService() {
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private var repeatingDelete: Runnable? = null
+    private var repeatingSpace: Runnable? = null
     private var longPressRunnable: Runnable? = null
     private var isLongPressActive = false
     private var activePopup: PopupWindow? = null
@@ -195,9 +196,6 @@ class KeyboardService : InputMethodService() {
     private var isVoiceTypingActive = false
     private var voiceRecordingPulse = false
     private var lastVoicePartial = ""
-    private var spaceDownRawX = 0f
-    private var spaceCursorModeActive = false
-    private var lastSpaceCursorStep = 0
     private var pendingSpaceCommit = false
     private var executionLayerOpen = false
     private var executionHandleDownY = 0f
@@ -252,8 +250,8 @@ class KeyboardService : InputMethodService() {
         const val MAX_NAVIGATION_BOTTOM_PADDING_DP = 8
         const val SHIFT_LONG_PRESS_DELAY_MS = 300L
         const val SYMBOL_LONG_PRESS_DELAY_MS = 230L
-        const val SPACE_CURSOR_LONG_PRESS_DELAY_MS = 260L
-        const val SPACE_CURSOR_STEP_DP = 18
+        const val SPACE_REPEAT_INITIAL_DELAY_MS = 260L
+        const val SPACE_REPEAT_INTERVAL_MS = 88L
         const val EXECUTION_HANDLE_PULL_THRESHOLD_DP = 42
         const val SUGGESTION_QUERY_UNSET = "\u0000"
         val NUMBER_ROW_KEYS = listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")
@@ -1433,10 +1431,7 @@ class KeyboardService : InputMethodService() {
             }
 
             MotionEvent.ACTION_MOVE -> {
-                if (key == KEY_SPACE && updateSpaceCursorDrag(event.rawX)) {
-                    return true
-                }
-                if (updateSwipeTracking(event)) {
+                if (key != KEY_SPACE && updateSwipeTracking(event)) {
                     return true
                 }
                 val inside = isInsideExpandedTouchTarget(button, localX, localY)
@@ -1582,7 +1577,7 @@ class KeyboardService : InputMethodService() {
         cancelLongPress()
         stopRepeatingDelete()
         stopRepeatingSpace()
-        resetSpaceCursorControl()
+        resetSpaceHoldState()
         dismissKeyPreviewSafely()
         releaseKeyPressFeedback(button)
         cancelSwipeGesture()
@@ -1700,7 +1695,7 @@ class KeyboardService : InputMethodService() {
             }
 
             KEY_SPACE -> {
-                handleSpaceDown(event.rawX)
+                handleSpaceDown()
             }
 
             KEY_MIC -> Unit
@@ -1824,7 +1819,7 @@ class KeyboardService : InputMethodService() {
             KEY_SPACE -> {
                 stopRepeatingSpace()
                 handleSpaceUp(wasLongPress)
-                resetSpaceCursorControl()
+                resetSpaceHoldState()
             }
             else -> {
                 if (!wasLongPress) {
@@ -1864,7 +1859,22 @@ class KeyboardService : InputMethodService() {
         repeatingDelete = null
     }
 
-    private fun stopRepeatingSpace() = Unit
+    private fun startRepeatingSpace() {
+        if (repeatingSpace != null) return
+        repeatingSpace = object : Runnable {
+            override fun run() {
+                commitSpace()
+                mainHandler.postDelayed(this, SPACE_REPEAT_INTERVAL_MS)
+            }
+        }.also {
+            it.run()
+        }
+    }
+
+    private fun stopRepeatingSpace() {
+        repeatingSpace?.let(mainHandler::removeCallbacks)
+        repeatingSpace = null
+    }
 
     private fun handleExecutionCommandKeyDown(key: String) {
         when (key) {
@@ -1896,53 +1906,23 @@ class KeyboardService : InputMethodService() {
         renderExecutionCommand()
     }
 
-    private fun handleSpaceDown(rawX: Float) {
-        spaceDownRawX = rawX
-        spaceCursorModeActive = false
-        lastSpaceCursorStep = 0
+    private fun handleSpaceDown() {
         pendingSpaceCommit = true
-        scheduleLongPress(SPACE_CURSOR_LONG_PRESS_DELAY_MS) {
+        scheduleLongPress(SPACE_REPEAT_INITIAL_DELAY_MS) {
             isLongPressActive = true
-            spaceCursorModeActive = true
             pendingSpaceCommit = false
-            lastSpaceCursorStep = 0
+            startRepeatingSpace()
         }
     }
 
     private fun handleSpaceUp(wasLongPress: Boolean) {
-        if (pendingSpaceCommit && !wasLongPress && !spaceCursorModeActive) {
+        if (pendingSpaceCommit && !wasLongPress) {
             commitSpace()
         }
         pendingSpaceCommit = false
     }
 
-    private fun updateSpaceCursorDrag(rawX: Float): Boolean {
-        if (!spaceCursorModeActive) return false
-        val step = ((rawX - spaceDownRawX) / dp(SPACE_CURSOR_STEP_DP)).toInt()
-        if (step == lastSpaceCursorStep) return true
-
-        val direction = if (step > lastSpaceCursorStep) {
-            KeyEvent.KEYCODE_DPAD_RIGHT
-        } else {
-            KeyEvent.KEYCODE_DPAD_LEFT
-        }
-        repeat(kotlin.math.abs(step - lastSpaceCursorStep).coerceAtMost(4)) {
-            sendCursorMove(direction)
-        }
-        lastSpaceCursorStep = step
-        return true
-    }
-
-    private fun sendCursorMove(keyCode: Int) {
-        val ic = currentInputConnection ?: return
-        sendKeyEventSafely(ic, KeyEvent(KeyEvent.ACTION_DOWN, keyCode), "space-cursor-down")
-        sendKeyEventSafely(ic, KeyEvent(KeyEvent.ACTION_UP, keyCode), "space-cursor-up")
-    }
-
-    private fun resetSpaceCursorControl() {
-        spaceCursorModeActive = false
-        spaceDownRawX = 0f
-        lastSpaceCursorStep = 0
+    private fun resetSpaceHoldState() {
         pendingSpaceCommit = false
     }
 
