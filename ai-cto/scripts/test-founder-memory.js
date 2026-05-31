@@ -31,7 +31,8 @@ try {
 
   const initial = writeFounderMemory(readFounderMemory(tempRoot), tempRoot);
   assert.strictEqual(initial.founder_preferences.tone, 'professional English only');
-  assert.strictEqual(initial.product_context.name, 'Aritenis AI');
+  assert.strictEqual(initial.product_context.name, 'Aritenis');
+  assert(initial.product_context.vision.includes('Explain-first'));
 
   rememberFounderInteraction({
     root: tempRoot,
@@ -118,7 +119,11 @@ try {
   if (actionLogBackup == null) {
     if (fs.existsSync(ACTION_LOG_FILE)) fs.unlinkSync(ACTION_LOG_FILE);
   } else {
-    fs.writeFileSync(ACTION_LOG_FILE, actionLogBackup);
+    try {
+      fs.writeFileSync(ACTION_LOG_FILE, actionLogBackup);
+    } catch (error) {
+      if (error.code !== 'EPERM') throw error;
+    }
   }
   if (githubTokenBackup == null) delete process.env.GITHUB_TOKEN;
   else process.env.GITHUB_TOKEN = githubTokenBackup;

@@ -2,6 +2,7 @@ const { createNvidiaClient, MODEL_ASSIGNMENT } = require('./nvidia-nim-client');
 const { readActionLog } = require('./agent-action-log');
 const { readRoadmap } = require('./roadmap-reader');
 const { readFounderMemory, buildFounderMemoryContext } = require('./founder-memory');
+const { buildFounderMemorySystemContext, loadFounderMemoryLayer } = require('../founder-memory-layer');
 
 const MAX_LLAMA_CALLS_PER_DAY = 100;
 const LLAMA_RESPONSE_TIMEOUT_MS = Number(process.env.LLAMA_RESPONSE_TIMEOUT_MS || 8000);
@@ -17,10 +18,13 @@ function buildAiWhatsAppPrompt({ founderMessage, agent = 'cto', state = {}, memo
   const recentActions = readRecentActions();
   const recentMessages = Array.isArray(memory.recentMessages) ? memory.recentMessages.slice(-10) : [];
   const founderMemory = buildFounderMemoryContext(readFounderMemory());
+  const founderMemoryLayer = memory.founderMemoryLayer || loadFounderMemoryLayer();
   const sections = state.sections || {};
   const system = [
+    buildFounderMemorySystemContext(founderMemoryLayer),
+    '',
     'You are using Llama 3.3 70B as the Conversation Brain for Aritenis AI.',
-    'You are the CTO of Aritenis AI, an emotional AI keyboard for Indian teenagers.',
+    'You are the CTO of Aritenis, an Android keyboard with a protected typing foundation and an emerging Explain-first understanding layer.',
     'You report to the founder who built this product.',
     'You lead a team of 3 agents: Coder, Reviewer, Auditor.',
     'You are professional and respectful. You are warm, direct, and honest.',

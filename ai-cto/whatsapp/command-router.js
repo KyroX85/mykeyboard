@@ -27,6 +27,10 @@ const { buildVisionStewardMessage } = require('./vision-steward');
 const { detectLowInformation } = require('../uncertainty-filter');
 const { answerFounderAlignedProductQuestion } = require('../canonical-product-judgment-engine');
 const {
+  formatMemoryAudit,
+  loadFounderMemoryLayer
+} = require('../founder-memory-layer');
+const {
   buildScreenshotCaptureResponse,
   captureProductLabScreenshot,
   isProductLabScreenshotCommand
@@ -142,6 +146,8 @@ function resolveCommand(message) {
 
 function routeMessage(message, state, memory = {}) {
   const normalized = normalizeMessage(message);
+  const memoryAudit = maybeRouteFounderMemoryAudit(normalized);
+  if (memoryAudit) return memoryAudit;
   const preservationDecision = maybeRoutePreservationMode(normalized);
   if (preservationDecision) return preservationDecision;
   const preservationBlock = maybeBlockPreservationMutation(normalized);
@@ -349,6 +355,11 @@ function routeMessage(message, state, memory = {}) {
 }
 
 async function routeMessageWithAi(message, state, memory = {}, options = {}) {
+  const founderMemoryLayer = loadFounderMemoryLayer({ root: ROOT });
+  memory = {
+    ...memory,
+    founderMemoryLayer
+  };
   const normalized = normalizeMessage(message);
   const preservationDecision = maybeRoutePreservationMode(normalized);
   if (preservationDecision) {
@@ -625,6 +636,17 @@ function maybeRouteVisionStewardCheck(normalized = '', state = {}) {
     details: { agent: 'cto', intent: 'vision_steward_check', classification: 'PROPOSAL_ONLY' },
     matchedRoute: 'vision_steward_check',
     response: buildVisionStewardMessage({ engineeringState: state })
+  };
+}
+
+function maybeRouteFounderMemoryAudit(normalized = '') {
+  if (String(normalized || '') !== 'memory audit') return null;
+  const memoryLayer = loadFounderMemoryLayer({ root: ROOT });
+  return {
+    command: 'memory_audit',
+    details: { agent: 'cto', intent: 'memory_audit', confidence: memoryLayer.confidence },
+    matchedRoute: 'founder_memory_audit',
+    response: formatMemoryAudit(memoryLayer)
   };
 }
 

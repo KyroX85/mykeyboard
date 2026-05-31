@@ -1,6 +1,7 @@
 const { createNvidiaClient } = require('../whatsapp/nvidia-nim-client');
 const { buildAgentCouncil, summarizeCouncil } = require('./agent-council-engine');
 const { buildEvidenceContext, formatEvidenceContext } = require('./evidence-context-engine');
+const { buildFounderMemorySystemContext, loadFounderMemoryLayer } = require('../founder-memory-layer');
 
 const COUNCIL_ROLES = [
   {
@@ -34,6 +35,7 @@ async function buildNvidiaCouncil({
   root = process.cwd(),
   client = createNvidiaClient(),
   evidence = buildEvidenceContext(proposal),
+  founderMemoryLayer = loadFounderMemoryLayer({ root }),
   fallbackCouncil = buildAgentCouncil(proposal)
 } = {}) {
   const availableRoles = COUNCIL_ROLES.filter((role) => client.available(role.modelKind));
@@ -43,13 +45,13 @@ async function buildNvidiaCouncil({
 
   const roundOne = [];
   for (const role of availableRoles) {
-    const result = await callCouncilRole({ client, role, proposal, evidence, priorOpinions: [] });
+    const result = await callCouncilRole({ client, role, proposal, evidence, founderMemoryLayer, priorOpinions: [] });
     roundOne.push(result);
   }
 
   const roundTwo = [];
   for (const role of availableRoles) {
-    const result = await callCouncilRole({ client, role, proposal, evidence, priorOpinions: roundOne, challengeRound: true });
+    const result = await callCouncilRole({ client, role, proposal, evidence, founderMemoryLayer, priorOpinions: roundOne, challengeRound: true });
     roundTwo.push(result);
   }
 
@@ -62,6 +64,7 @@ async function buildNvidiaCouncil({
     mode: 'NVIDIA_MODEL_COUNCIL',
     proposal: String(proposal || '').trim(),
     evidence,
+    founderMemoryConfidence: founderMemoryLayer.confidence,
     roundOne,
     roundTwo,
     deterministic: fallbackCouncil,
@@ -69,8 +72,8 @@ async function buildNvidiaCouncil({
   };
 }
 
-async function callCouncilRole({ client, role, proposal, evidence, priorOpinions = [], challengeRound = false }) {
-  const prompt = buildRolePrompt({ role, proposal, evidence, priorOpinions, challengeRound });
+async function callCouncilRole({ client, role, proposal, evidence, founderMemoryLayer, priorOpinions = [], challengeRound = false }) {
+  const prompt = buildRolePrompt({ role, proposal, evidence, founderMemoryLayer, priorOpinions, challengeRound });
   const result = await client.chat(role.modelKind, [{ role: 'user', content: prompt }], {
     reason: challengeRound ? 'NVIDIA council challenge round' : 'NVIDIA council independent round',
     riskLevel: 'LOW',
@@ -88,8 +91,10 @@ async function callCouncilRole({ client, role, proposal, evidence, priorOpinions
   };
 }
 
-function buildRolePrompt({ role, proposal, evidence, priorOpinions = [], challengeRound = false }) {
+function buildRolePrompt({ role, proposal, evidence, founderMemoryLayer, priorOpinions = [], challengeRound = false }) {
   return [
+    buildFounderMemorySystemContext(founderMemoryLayer),
+    '',
     role.prompt,
     '',
     'Rules:',

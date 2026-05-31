@@ -1,6 +1,6 @@
 const { logAgentAction } = require('./agent-action-log');
 
-const STRICT_GUARDRAIL_PROMPT = `You are working on Aritenis AI — an Android keyboard with emotional AI for Indian teenagers.
+const STRICT_GUARDRAIL_PROMPT = `You are working on Aritenis AI - an Android keyboard with a protected typing foundation and an Explain-first understanding layer.
 Your ONLY job is to fix or implement exactly what the founder describes.
 Do NOT suggest new features outside the task.
 Do NOT refactor working code unnecessarily.

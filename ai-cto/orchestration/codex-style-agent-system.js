@@ -2,6 +2,11 @@ const fs = require('fs');
 const path = require('path');
 
 const DEFAULT_MEMORY_FILES = [
+  'FOUNDER_VISION.md',
+  'PROJECT_STATE.md',
+  'CURRENT_STAGE.md',
+  'REJECTED_DIRECTIONS.md',
+  'ACTIVE_HYPOTHESES.md',
   'ai-cto/roadmap-lock.json',
   'ai-cto/phase2-daily-agent-plan.json',
   'ai-cto/product-operational-memory.json',

@@ -3,6 +3,7 @@ const path = require('path');
 const { createNvidiaClient } = require('./nvidia-nim-client');
 const { readRoadmap } = require('./roadmap-reader');
 const { executeAiBridge } = require('../scripts/ai-execution-bridge');
+const { buildFounderMemorySystemContext, loadFounderMemoryLayer } = require('../founder-memory-layer');
 const {
   readFounderMemory,
   buildFounderMemoryContext,
@@ -211,10 +212,13 @@ function formatProductImprovementProposal({ topic, files }) {
 async function classifyVisionMessage({ message, state, memory, client = createNvidiaClient() }) {
   if (!client.available('llama')) return { type: 'NOT_VISION', reason: 'Llama unavailable.' };
   const founderMemory = buildFounderMemoryContext(readFounderMemory());
+  const founderMemoryLayer = loadFounderMemoryLayer({ root: ROOT });
   const result = await client.chat('llama', [
     {
       role: 'user',
       content: [
+        buildFounderMemorySystemContext(founderMemoryLayer),
+        '',
         'Classify this founder WhatsApp message as VISION_COMMAND, CASUAL_CONVERSATION, or STANDARD_COMMAND.',
         'Vision command means founder describes something they want changed, improved, fixed, or built.',
         `Message: ${message}`,
@@ -239,10 +243,13 @@ async function classifyVisionMessage({ message, state, memory, client = createNv
 async function createVisionPlan({ message, state, memory, client = createNvidiaClient() }) {
   const roadmap = readRoadmap();
   const founderMemory = buildFounderMemoryContext(readFounderMemory());
+  const founderMemoryLayer = loadFounderMemoryLayer({ root: ROOT });
   const result = await client.chat('llama', [
     {
       role: 'user',
       content: [
+        buildFounderMemorySystemContext(founderMemoryLayer),
+        '',
         'Break this founder vision command into a safe technical plan.',
         'Return JSON only with keys: task, files, changes, risk, estimatedLines, roadmapConflict, conflictMessage.',
         'Risk must be LOW only for simple deterministic file/documentation/test-file changes.',

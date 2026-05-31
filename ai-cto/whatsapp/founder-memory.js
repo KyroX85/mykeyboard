@@ -23,12 +23,12 @@ const DEFAULT_FOUNDER_MEMORY = {
     language: 'English only, no Tamil slang'
   },
   product_context: {
-    name: 'Aritenis AI',
-    vision: 'emotional AI keyboard for Indian teenagers',
-    current_phase: 'Phase 1 - Stabilization',
-    phase_start: '2026-06-04',
-    target_users: 'Indian teenagers',
-    core_moat: 'passive behavioral keyboard data'
+    name: 'Aritenis',
+    vision: 'trusted Android keyboard with an Explain-first understanding layer',
+    current_phase: 'Phase 2 preparation / early Phase 2',
+    phase_start: '2026-05-30',
+    target_users: 'Android keyboard users who need help understanding before typing',
+    core_moat: 'keyboard trust plus in-flow understanding and confirmation-gated actions'
   },
   decision_history: [],
   vision_commands_history: [],
