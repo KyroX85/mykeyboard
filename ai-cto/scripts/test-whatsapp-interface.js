@@ -59,6 +59,10 @@ const sampleState = {
   }
 };
 
+function withoutMemoryHeader(value) {
+  return String(value || '').replace(/^Memory Sources Used:[^\n]*\n/, '');
+}
+
 const initialBrainBackup = fs.existsSync(AGENT_BRAIN_DIR)
   ? new Map(fs.readdirSync(AGENT_BRAIN_DIR).map((file) => [file, fs.readFileSync(path.join(AGENT_BRAIN_DIR, file), 'utf8')]))
   : new Map();
@@ -232,7 +236,8 @@ assert(hello.response.includes('AUDITOR'));
 
 const hi = routeMessage('hi', sampleState);
 assert.strictEqual(hi.matchedRoute, 'greeting_first');
-assert.strictEqual(hi.response, [
+assert(hi.response.startsWith('Memory Sources Used:'));
+assert.strictEqual(withoutMemoryHeader(hi.response), [
   '\uD83C\uDFAF CTO: Founder, team is ready. What would you like to prioritize today?',
   '\uD83D\uDD27 CODER: Ready.',
   '\u2696\uFE0F REVIEWER: Standing by.',
@@ -295,7 +300,7 @@ assert.strictEqual(auditorCrossCheck.agent, 'auditor');
 assert.strictEqual(auditorCrossCheck.intent, 'cross_agent_audit');
 assert(auditorCrossCheck.response.includes('AUDITOR'));
 assert(auditorCrossCheck.response.includes('Coder missed'));
-assert(!auditorCrossCheck.response.startsWith('🎯 CTO'));
+assert(!withoutMemoryHeader(auditorCrossCheck.response).startsWith('🎯 CTO'));
 
 const praise = routeMessage('good job team', sampleState);
 assert.strictEqual(praise.command, 'agent');
@@ -315,47 +320,47 @@ assert.strictEqual(recentFix.command, 'agent');
 assert(recentFix.response.includes('README.md whitespace'));
 
 const coder = routeMessage('hey coder what are you doing', sampleState).response;
-assert(coder.startsWith('🔧 CODER'));
+assert(withoutMemoryHeader(coder).startsWith('🔧 CODER'));
 assert(coder.includes('Attempted:'));
-assert(coder.split('\n').length <= 5);
+assert(withoutMemoryHeader(coder).split('\n').length <= 5);
 assert(!coder.includes('I finished keyboard cleanup'));
 
 const reviewer = routeMessage('reviewer any risks', sampleState).response;
-assert(reviewer.startsWith('⚖️ REVIEWER'));
+assert(withoutMemoryHeader(reviewer).startsWith('⚖️ REVIEWER'));
 assert(reviewer.includes('Risk:'));
 
 const auditor = routeMessage('auditor any dangerous issues', sampleState).response;
-assert(auditor.startsWith('🚨 AUDITOR'));
+assert(withoutMemoryHeader(auditor).startsWith('🚨 AUDITOR'));
 assert(auditor.includes('Risk:'));
 
-assert(routeMessage('cto update me', sampleState).response.startsWith('🎯 CTO'));
-assert(routeMessage('cto active tasks', sampleState).response.startsWith('🎯 CTO'));
-assert(routeMessage('hey auditor', sampleState).response.startsWith('🚨 AUDITOR'));
-assert(routeMessage('hey auditer', sampleState).response.startsWith('🚨 AUDITOR'));
-assert(routeMessage('audit status', sampleState).response.startsWith('🚨 AUDITOR'));
-assert(routeMessage('reviewer update', sampleState).response.startsWith('⚖️ REVIEWER'));
+assert(withoutMemoryHeader(routeMessage('cto update me', sampleState).response).startsWith('🎯 CTO'));
+assert(withoutMemoryHeader(routeMessage('cto active tasks', sampleState).response).startsWith('🎯 CTO'));
+assert(withoutMemoryHeader(routeMessage('hey auditor', sampleState).response).startsWith('🚨 AUDITOR'));
+assert(withoutMemoryHeader(routeMessage('hey auditer', sampleState).response).startsWith('🚨 AUDITOR'));
+assert(withoutMemoryHeader(routeMessage('audit status', sampleState).response).startsWith('🚨 AUDITOR'));
+assert(withoutMemoryHeader(routeMessage('reviewer update', sampleState).response).startsWith('⚖️ REVIEWER'));
 assert(routeMessage('cto active tasks', sampleState).response.includes('Next:'));
 assert(routeMessage('coder what are you working on', sampleState).response.includes('Attempted:'));
 assert(routeMessage('reviewer blocked items', sampleState).response.includes('Blocked:'));
 assert(routeMessage('auditor critical risks', sampleState).response.includes('danger'));
-assert(routeMessage('cto maintenance status', sampleState).response.startsWith('🎯 CTO'));
+assert(withoutMemoryHeader(routeMessage('cto maintenance status', sampleState).response).startsWith('🎯 CTO'));
 assert(routeMessage('coder what was cleaned', sampleState).response.includes('No major typing improvement yet'));
 assert(routeMessage('reviewer maintenance risks', sampleState).response.includes('Risk:'));
 assert(routeMessage('auditor dangerous maintenance actions', sampleState).response.includes('danger'));
 assert.strictEqual(parseNaturalIntent('cto execution status').intent, 'execution');
-assert(routeMessage('cto execution status', sampleState).response.startsWith('🎯 CTO'));
-assert(routeMessage('coder execution update', sampleState).response.startsWith('🔧 CODER'));
-assert(routeMessage('reviewer blocked execution', sampleState).response.startsWith('⚖️ REVIEWER'));
+assert(withoutMemoryHeader(routeMessage('cto execution status', sampleState).response).startsWith('🎯 CTO'));
+assert(withoutMemoryHeader(routeMessage('coder execution update', sampleState).response).startsWith('🔧 CODER'));
+assert(withoutMemoryHeader(routeMessage('reviewer blocked execution', sampleState).response).startsWith('⚖️ REVIEWER'));
 assert(routeMessage('auditor dangerous execution attempts', sampleState).response.includes('danger'));
 assert.strictEqual(parseNaturalIntent('cto full report').detailMode, true);
 const detailed = routeMessage('cto detailed update', sampleState).response;
 assert(detailed.includes('REALITY CHECK'));
-assert(detailed.split('\n').length > 5);
+assert(withoutMemoryHeader(detailed).split('\n').length > 5);
 
 const casual = routeMessage('dei what doing', sampleState).response;
 assert(casual.includes('CTO'));
 assert(casual.includes('Founder'));
-assert(casual.split('\n').length <= 5);
+assert(withoutMemoryHeader(casual).split('\n').length <= 5);
 
 const dangerous = routeMessage('reviewer anything dangerous', sampleState).response;
 assert(dangerous.includes('REVIEWER'));
@@ -377,7 +382,7 @@ const operational = routeMessage('cto operational assistance', sampleState).resp
 assert(operational.includes('CTO'));
 assert(operational.includes('product signals'));
 assert(operational.includes('LOW OPERATIONAL IMPACT'));
-assert(operational.split('\n').length <= 5);
+assert(withoutMemoryHeader(operational).split('\n').length <= 5);
 
 const xml = twiml('Founder, 5 < 6 & safe');
 assert(xml.includes('&lt;'));

@@ -26,6 +26,7 @@ const {
   recordProactiveVisionUpdate,
   shouldSendProactiveVisionUpdate
 } = require('./whatsapp/vision-steward');
+const { enforceMemoryPolicyOnResponse } = require('./memory-policy-enforcer');
 
 const PORT = Number(process.env.PORT || 3000);
 const REPO_ROOT = process.env.ARITENIS_REPO_ROOT || process.cwd();
@@ -195,12 +196,14 @@ function isFastGreeting(body) {
 }
 
 function fastGreetingReply() {
-  return [
+  return enforceMemoryPolicyOnResponse([
     'CTO: Founder, team is online.',
     'CODER: Ready.',
     'REVIEWER: Standing by.',
     'AUDITOR: Monitoring active.'
-  ].join('\n');
+  ].join('\n'), {
+    message: 'fast greeting'
+  });
 }
 
 function logVisibleWebhook(stage, details = {}) {

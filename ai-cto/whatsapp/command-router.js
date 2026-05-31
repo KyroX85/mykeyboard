@@ -36,6 +36,7 @@ const {
   captureProductLabScreenshot,
   isProductLabScreenshotCommand
 } = require('../product-lab/whatsapp-screenshot-capture');
+const { enforceMemoryPolicyOnRoute } = require('../memory-policy-enforcer');
 const { setMode, readState, enforceExecutionAllowed } = require('../../governance/governance');
 
 const ROOT = path.resolve(__dirname, '..', '..');
@@ -145,7 +146,7 @@ function resolveCommand(message) {
   return 'unknown';
 }
 
-function routeMessage(message, state, memory = {}) {
+function routeMessageInternal(message, state, memory = {}) {
   const normalized = normalizeMessage(message);
   const preservationDecision = maybeRoutePreservationMode(normalized);
   if (preservationDecision) return preservationDecision;
@@ -355,7 +356,7 @@ function routeMessage(message, state, memory = {}) {
   };
 }
 
-async function routeMessageWithAi(message, state, memory = {}, options = {}) {
+async function routeMessageWithAiInternal(message, state, memory = {}, options = {}) {
   const founderMemoryLayer = loadFounderMemoryLayer({ root: ROOT });
   memory = {
     ...memory,
@@ -1394,3 +1395,28 @@ module.exports = {
   normalizeMessage,
   shouldUseGeneralFallback
 };
+
+function routeMessage(message, state, memory = {}) {
+  const founderMemoryLayer = loadFounderMemoryLayer({ root: ROOT });
+  return enforceMemoryPolicyOnRoute(routeMessageInternal(message, state, {
+    ...memory,
+    founderMemoryLayer
+  }), {
+    message,
+    memory,
+    founderMemoryLayer
+  });
+}
+
+async function routeMessageWithAi(message, state, memory = {}, options = {}) {
+  const founderMemoryLayer = loadFounderMemoryLayer({ root: ROOT });
+  const route = await routeMessageWithAiInternal(message, state, {
+    ...memory,
+    founderMemoryLayer
+  }, options);
+  return enforceMemoryPolicyOnRoute(route, {
+    message,
+    memory,
+    founderMemoryLayer
+  });
+}
