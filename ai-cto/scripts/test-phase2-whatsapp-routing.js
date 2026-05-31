@@ -16,10 +16,13 @@ const { readRoadmap } = require('../whatsapp/roadmap-reader');
   const phase2 = await routeMessageWithAi('what is Phase 2 about?', {}, {}, {});
   assert.strictEqual(phase2.matchedRoute, 'founder_memory_intent');
   assert(phase2.response.includes('Explain'));
+  assert(phase2.response.includes('Reality reconstruction'));
 
   const companyGoal = await routeMessageWithAi('what is our final goal of our company', {}, {}, {});
   assert.strictEqual(companyGoal.matchedRoute, 'founder_memory_intent');
   assert(companyGoal.response.includes('understand confusing content before they type'));
+  assert(companyGoal.response.includes('Why I believe this:'));
+  assert(companyGoal.response.includes('Evidence sources used:'));
   assert(!companyGoal.response.includes('Current Foundation Health'));
   assert(!companyGoal.response.includes('Recommended Next Step'));
   assert(!companyGoal.response.includes('quick CTO update'));
@@ -27,13 +30,14 @@ const { readRoadmap } = require('../whatsapp/roadmap-reader');
 
   const companyGoalWithQuestionMark = await routeMessageWithAi('what is the final goal of our company ?', {}, {}, {});
   assert.strictEqual(companyGoalWithQuestionMark.command, 'founder_memory_question');
-  assert(companyGoalWithQuestionMark.response.includes('Why are we building it?'));
+  assert(companyGoalWithQuestionMark.response.includes('Why I believe this:'));
   assert(!companyGoalWithQuestionMark.response.includes('Current Foundation Health'));
 
   const impressiveBoundary = await routeMessageWithAi('what is the final goal of our company and what should we not build even if it sounds impressive?', {}, {}, {});
   assert.strictEqual(impressiveBoundary.matchedRoute, 'founder_memory_intent');
   assert(impressiveBoundary.response.includes('understand confusing content before they type'));
   assert(impressiveBoundary.response.includes('auto-send'));
+  assert(impressiveBoundary.response.includes('Missing information / uncertainty:'));
   assert(!impressiveBoundary.response.includes('Current Foundation Health'));
   assert(!impressiveBoundary.response.includes('Starting execution'));
 

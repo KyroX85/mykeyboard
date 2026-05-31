@@ -27,9 +27,9 @@ const { buildVisionStewardMessage } = require('./vision-steward');
 const { detectLowInformation } = require('../uncertainty-filter');
 const { answerFounderAlignedProductQuestion } = require('../canonical-product-judgment-engine');
 const {
-  formatMemoryAudit,
   loadFounderMemoryLayer
 } = require('../founder-memory-layer');
+const { formatRealityReconstruction } = require('../reality-reconstruction-layer');
 const { routeFounderMemoryIntent } = require('./founder-intent-classifier');
 const {
   buildScreenshotCaptureResponse,
@@ -661,7 +661,11 @@ function maybeRouteFounderMemoryAudit(normalized = '') {
     command: 'memory_audit',
     details: { agent: 'cto', intent: 'memory_audit', confidence: memoryLayer.confidence },
     matchedRoute: 'founder_memory_audit',
-    response: formatMemoryAudit(memoryLayer)
+    response: formatRealityReconstruction({
+      question: normalized,
+      root: ROOT,
+      memoryLayer
+    })
   };
 }
 

@@ -37,7 +37,8 @@
     "cto:product-steward": "node ai-cto/scripts/product-steward-autonomy.js",
     "cto:phase2-daily": "node ai-cto/scripts/phase2-daily-agent.js",
     "cto:codex-agents:test": "node ai-cto/scripts/test-codex-style-agent-system.js",
-    "cto:founder-memory:test": "node ai-cto/scripts/test-founder-memory-layer.js"
+    "cto:founder-memory:test": "node ai-cto/scripts/test-founder-memory-layer.js",
+    "cto:reality-reconstruction:test": "node ai-cto/scripts/test-reality-reconstruction-layer.js"
   },
   "keywords": [],
   "author": "",

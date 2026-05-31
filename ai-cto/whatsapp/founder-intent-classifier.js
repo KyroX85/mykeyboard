@@ -1,4 +1,5 @@
-const { formatMemoryAudit, loadFounderMemoryLayer } = require('../founder-memory-layer');
+const { loadFounderMemoryLayer } = require('../founder-memory-layer');
+const { formatRealityReconstruction } = require('../reality-reconstruction-layer');
 
 function classifyFounderIntent(message = '') {
   const text = normalize(message);
@@ -22,53 +23,19 @@ function routeFounderMemoryIntent(message = '', { root } = {}) {
       intentConfidence: classification.confidence
     },
     matchedRoute: 'founder_memory_intent',
-    response: classification.intent === 'FOUNDER_MEMORY_AUDIT'
-      ? formatMemoryAudit(memoryLayer)
-      : formatFounderMemoryQuestion(message, memoryLayer)
+    response: formatRealityReconstruction({
+      question: message,
+      root,
+      memoryLayer
+    })
   };
 }
 
 function formatFounderMemoryQuestion(message = '', memoryLayer = loadFounderMemoryLayer()) {
-  const text = normalize(message);
-  const audit = memoryLayer.audit;
-  const lines = ['Founder memory answer', ''];
-  if (memoryLayer.confidence < 90) lines.push('I do not have enough founder context.');
-  else lines.push(`Founder context confidence: ${memoryLayer.confidence}%`);
-  lines.push('');
-
-  const sections = [];
-  if (asksProduct(text)) sections.push(['What product are we building?', audit.product]);
-  if (asksWhy(text)) sections.push(['Why are we building it?', audit.why]);
-  if (asksStage(text)) {
-    sections.push(['Current stage', audit.currentStage]);
-    if (/\bphase\s*2|phase two\b/.test(text)) {
-      sections.push(['Current active hypothesis / wedge', audit.activeHypothesis]);
-    }
-  }
-  if (asksBlocker(text)) sections.push(['Current blocker', audit.currentBlocker]);
-  if (asksHypothesisOrWedge(text)) sections.push(['Current active hypothesis / wedge', audit.activeHypothesis]);
-  if (asksRejected(text)) sections.push(['Rejected directions', audit.rejectedDirections.join('; ')]);
-  if (asksDoNotBuild(text)) sections.push(['What should not be built right now', audit.rejectedDirections.join('; ')]);
-  if (asksThirtyDays(text)) {
-    sections.push([
-      'If founder disappeared for 30 days',
-      'Continue founder-memory consistency, Product Lab evidence reliability, Explain validation, and Phase 1 protection. Do not implement a new wedge without founder approval.'
-    ]);
-  }
-  if (asksNext(text)) sections.push(['Next objective', audit.nextObjective]);
-
-  const selected = sections.length ? sections : [
-    ['What product are we building?', audit.product],
-    ['Current stage', audit.currentStage],
-    ['Current active hypothesis / wedge', audit.activeHypothesis],
-    ['Rejected directions', audit.rejectedDirections.join('; ')]
-  ];
-
-  for (const [label, value] of selected) {
-    lines.push(`${label}: ${value}`);
-  }
-  lines.push('', 'Rule: founder memory overrides conversation history. No execution started.');
-  return lines.join('\n');
+  return formatRealityReconstruction({
+    question: message,
+    memoryLayer
+  });
 }
 
 function isFounderMemoryAudit(text) {
