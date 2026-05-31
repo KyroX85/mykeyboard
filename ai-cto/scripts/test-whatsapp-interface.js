@@ -10,6 +10,7 @@ process.env.ARITENIS_SPAWN_FILE = path.join(os.tmpdir(), 'aritenis-whatsapp-spaw
 process.env.ARITENIS_GOVERNANCE_STATE_FILE = path.join(os.tmpdir(), 'aritenis-whatsapp-governance-state.json');
 
 const { resolveCommand, routeMessage, shouldUseGeneralFallback } = require('../whatsapp/command-router');
+const { buildMetricProvenance } = require('../whatsapp/state-reader');
 const { setMode } = require('../../governance/governance');
 const { parseNaturalIntent, isStandaloneGreeting } = require('../whatsapp/natural-intent-parser');
 const { twiml, normalizePhone, extractTwilioBody } = require('../whatsapp-server');
@@ -58,6 +59,23 @@ const sampleState = {
     lastAnalysis: '2026-05-20T05:54:15.010Z'
   }
 };
+sampleState.metricProvenance = buildMetricProvenance({
+  state: sampleState,
+  brain: {
+    lastAnalysis: sampleState.generatedAt,
+    healthScore: sampleState.healthScore,
+    momentum: sampleState.momentum,
+    unresolvedIssues: [
+      { impact: 'CRITICAL', file: 'chaos_test.js' },
+      { impact: 'HIGH', file: 'chaos_test.js' },
+      { impact: 'HIGH', file: 'BasicPredictor.kt' },
+      { impact: 'HIGH', file: 'SwipeWordResolver.kt' },
+      { impact: 'MEDIUM', file: 'KeyboardService.kt' }
+    ]
+  },
+  report: '',
+  validation: {}
+});
 
 function withoutMemoryHeader(value) {
   return String(value || '')
@@ -156,7 +174,8 @@ assert(executionHistory.response.includes('Recent execution history'));
 
 const risks = routeMessage('risks', sampleState).response;
 assert(risks.includes('Hardcoded Secret'));
-assert(risks.includes('Fix available'));
+assert(risks.includes('Fix candidate risk'));
+assert(risks.includes('Source: ai-cto/scripts/execution-engine.js classifyRisk'));
 assert(risks.includes('Reply FIX'));
 
 const skip = routeMessage('SKIP', sampleState);
@@ -260,17 +279,16 @@ assert(statusQuestion.response.includes('Work'));
 assert(statusQuestion.response.includes('AUDITOR'));
 
 const casualWork = routeMessage('bro how work is going', sampleState);
-assert.strictEqual(casualWork.command, 'agent');
-assert.strictEqual(casualWork.intent, 'status_question');
-assert(casualWork.response.includes('Work'));
-assert(casualWork.response.includes('not calling everything clear'));
-assert(casualWork.response.includes('CODER'));
-assert(!casualWork.response.includes('Health:'));
+assert.strictEqual(casualWork.command, 'human_status_check');
+assert.strictEqual(casualWork.matchedRoute, 'human_interaction_layer');
+assert(casualWork.response.includes('Things are running'));
+assert(casualWork.response.includes('Health: 25/100'));
+assert(casualWork.response.includes('Source:'));
 
 const tanglishWork = routeMessage('work epdi poguthu', sampleState);
-assert.strictEqual(tanglishWork.command, 'agent');
-assert(tanglishWork.response.includes('Work'));
-assert(!tanglishWork.response.includes('Health:'));
+assert.strictEqual(tanglishWork.command, 'human_status_check');
+assert(tanglishWork.response.includes('Things are running'));
+assert(tanglishWork.response.includes('Source:'));
 
 const coderDirective = routeMessage('hey cto tell the coder to check for new issues', sampleState);
 assert.strictEqual(coderDirective.command, 'agent');
@@ -293,10 +311,10 @@ const followUpFix = routeMessage('fix it', sampleState, {
   unresolvedReference: 'new issues',
   lastAgentInteraction: 'cto'
 });
-assert.strictEqual(followUpFix.command, 'agent');
-assert(followUpFix.response.includes('Continuing'));
+assert.strictEqual(followUpFix.command, 'human_fix_continuity');
+assert.strictEqual(followUpFix.matchedRoute, 'human_interaction_layer');
 assert(followUpFix.response.includes('new issues'));
-assert(followUpFix.response.includes('CODER'));
+assert(followUpFix.response.includes('No execution started'));
 assert(!followUpFix.response.includes('context not fully verified'));
 
 const auditorCrossCheck = routeMessage('hey auditor check what coder missed', sampleState);
@@ -376,8 +394,8 @@ assert(progress.includes('CTO'));
 assert(progress.includes('No major typing improvement yet'));
 
 const stuck = routeMessage('cto are we stuck', sampleState).response;
-assert(stuck.includes('CTO'));
-assert(stuck.includes('Blocked:'));
+assert(stuck.includes('Current blocker:'));
+assert(stuck.includes('status question'));
 
 const swipe = routeMessage('coder swipe issue fixed ah', sampleState).response;
 assert(swipe.includes('CODER'));

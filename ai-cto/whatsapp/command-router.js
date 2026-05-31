@@ -32,6 +32,7 @@ const {
 const { formatRealityReconstruction } = require('../reality-reconstruction-layer');
 const { routeFounderMemoryIntent } = require('./founder-intent-classifier');
 const { routeFounderIntentUnderstanding } = require('./founder-intent-understanding-layer');
+const { routeHumanInteraction } = require('./human-interaction-layer');
 const {
   buildScreenshotCaptureResponse,
   captureProductLabScreenshot,
@@ -154,6 +155,10 @@ function routeMessageInternal(message, state, memory = {}) {
   if (preservationDecision) return preservationDecision;
   const preservationBlock = maybeBlockPreservationMutation(normalized);
   if (preservationBlock) return preservationBlock;
+  const humanInteraction = routeHumanInteraction(message, state, memory);
+  if (humanInteraction) return humanInteraction;
+  const antiVanityBlock = maybeRouteAntiVanityBlock(normalized);
+  if (antiVanityBlock) return antiVanityBlock;
   const founderIntentUnderstanding = routeFounderIntentUnderstanding(message, { root: ROOT });
   if (founderIntentUnderstanding) return founderIntentUnderstanding;
   const founderMemoryIntent = routeFounderMemoryIntent(message, { root: ROOT });
@@ -409,6 +414,24 @@ async function routeMessageWithAiInternal(message, state, memory = {}, options =
       ...screenshotCapture,
       usedAi: false,
       aiReason: 'local_product_lab_screenshot_capture'
+    };
+  }
+
+  const humanInteraction = routeHumanInteraction(message, state, memory);
+  if (humanInteraction) {
+    return {
+      ...humanInteraction,
+      usedAi: false,
+      aiReason: 'human_interaction_layer'
+    };
+  }
+
+  const antiVanityBlock = maybeRouteAntiVanityBlock(normalized);
+  if (antiVanityBlock) {
+    return {
+      ...antiVanityBlock,
+      usedAi: false,
+      aiReason: 'anti_vanity_guard'
     };
   }
 
@@ -782,6 +805,18 @@ function maybeRoutePreservationMode(normalized) {
       '4. Auto execution'
     ].join('\n')
   };
+}
+
+function maybeRouteAntiVanityBlock(normalized = '') {
+  const text = String(normalized || '');
+  if (!/\bmodern scalable\b|\bmulti-agent intelligence expansion\b|\bfuture-proof\b|\bbig rewrite\b/.test(text)) {
+    return null;
+  }
+  return stewardResponse('anti_vanity_block', [
+    'CTO: Blocked as architecture vanity / high-churn risk.',
+    'Reason: it does not prove retention gain, typing trust improvement, or rollback safety.',
+    'Safe action: convert it into a bounded Phase 2 Explain task, or keep Phase 1 foundation untouched.'
+  ]);
 }
 
 function maybeRouteProductStewardAnswer(message, normalized = normalizeMessage(message)) {
@@ -1437,6 +1472,7 @@ async function routeMessageWithAi(message, state, memory = {}, options = {}) {
 }
 
 function enforceDeterministicResponse(route, message) {
+  if (route && route.details && route.details.skipExecutionSchema) return route;
   return enforceExecutionSchemaOnRoute(route, {
     message,
     memorySources: memorySourcesFromResponse(route && route.response)

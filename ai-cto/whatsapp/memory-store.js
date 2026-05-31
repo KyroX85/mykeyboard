@@ -8,7 +8,8 @@ const {
 } = require('./semantic-memory');
 
 const ROOT = path.resolve(__dirname, '..', '..');
-const MEMORY_FILE = path.join(ROOT, 'ai-cto', '.whatsapp_memory.json');
+const MEMORY_FILE = process.env.ARITENIS_WHATSAPP_MEMORY_FILE ||
+  path.join(ROOT, 'ai-cto', '.whatsapp_memory.json');
 const MEMORY_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 const DEFAULT_MEMORY = {
@@ -56,6 +57,9 @@ const DEFAULT_MEMORY = {
   fakeProgressPatterns: [],
   nextContinuationAction: null,
   recentMessages: [],
+  previousFounderQuestion: null,
+  previousAgentAnswer: null,
+  pendingAction: null,
   lastCommand: null,
   lastUpdatedAt: null
 };
@@ -126,6 +130,13 @@ function updateMemory(command, state, details = {}) {
     first(sections.risks) ||
     memory.latestUnresolvedIssue ||
     null;
+  const pendingAction =
+    details.pendingAction ||
+    first(sections.nextPriority) ||
+    first(sections.safestOpportunity) ||
+    first(sections.approvals) ||
+    memory.pendingAction ||
+    null;
 
   return writeMemory({
     ...memory,
@@ -133,12 +144,19 @@ function updateMemory(command, state, details = {}) {
     recentMessages: rememberMessage(memory.recentMessages, {
       role: 'agent',
       intent: command,
+      founderMessage: details.founderMessage || null,
+      agentAnswer: details.agentAnswer ? String(details.agentAnswer).slice(0, 1200) : null,
+      pendingAction,
       summary: `Command handled: ${command}`
     }),
     lastRequestedFocusArea: details.focusTopic || memory.lastRequestedFocusArea,
     latestUnresolvedIssue,
     lastHealthScore: state.healthScore == null ? memory.lastHealthScore : state.healthScore,
-    latestMomentumState: state.momentum || memory.latestMomentumState
+    latestMomentumState: state.momentum || memory.latestMomentumState,
+    previousFounderQuestion: details.founderMessage || memory.previousFounderQuestion || null,
+    previousAgentAnswer: details.agentAnswer ? String(details.agentAnswer).slice(0, 1200) : memory.previousAgentAnswer || null,
+    pendingAction,
+    lastDiscussedTopic: details.topic || details.intent || memory.lastDiscussedTopic || null
   });
 }
 
@@ -185,11 +203,16 @@ function readConversationMemory() {
     fakeProgressPatterns: Array.isArray(memory.fakeProgressPatterns) ? memory.fakeProgressPatterns : [],
     nextContinuationAction: memory.nextContinuationAction || null,
     recentMessages: Array.isArray(memory.recentMessages) ? memory.recentMessages.slice(0, 10) : []
+    ,
+    previousFounderQuestion: memory.previousFounderQuestion || null,
+    previousAgentAnswer: memory.previousAgentAnswer || null,
+    pendingAction: memory.pendingAction || memory.nextContinuationAction || null
   };
 }
 
 function updateConversationMemory(route, state) {
   const memory = readConversationMemory();
+  const details = route || {};
   const sections = state.sections || {};
   const changed = state.changed || {};
   const continuity = route.continuity || {};
@@ -216,6 +239,9 @@ function updateConversationMemory(route, state) {
     latestUnresolvedIssue: first(sections.unresolved) || first(sections.risks) || memory.latestUnresolvedIssue || null,
     lastHealthScore: state.healthScore == null ? memory.lastHealthScore : state.healthScore,
     latestMomentumState: state.momentum || memory.latestMomentumState,
+    previousFounderQuestion: details.founderMessage || memory.previousFounderQuestion || null,
+    previousAgentAnswer: details.agentAnswer ? String(details.agentAnswer).slice(0, 1200) : memory.previousAgentAnswer || null,
+    pendingAction: details.pendingAction || first(sections.nextPriority) || first(sections.approvals) || memory.pendingAction || null,
     activeTasks,
     currentSprintFocus: route.focusTopic || first(sections.nextPriority) || memory.currentSprintFocus || null,
     lastDiscussedTopic: route.focusTopic || route.intent || memory.lastDiscussedTopic || null,

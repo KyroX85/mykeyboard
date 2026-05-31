@@ -454,10 +454,16 @@ function createApp() {
         res.status(429).type('text/xml').send(twiml('Founder, command cooldown is active. Try again in a few seconds.'));
         return;
       }
+      const memoryDetails = {
+        ...(routed.details || {}),
+        founderMessage: body,
+        agentAnswer: routed.response,
+        pendingAction: routed.details && routed.details.pendingAction
+      };
       if (routed.command === 'agent') {
-        updateConversationMemory(routed.details, state);
+        updateConversationMemory(memoryDetails, state);
       } else {
-        updateMemory(routed.command, state, routed.details);
+        updateMemory(routed.command, state, memoryDetails);
       }
       rememberFounderInteraction({
         founderMessage: body,

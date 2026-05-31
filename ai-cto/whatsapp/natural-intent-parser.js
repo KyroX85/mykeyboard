@@ -25,6 +25,10 @@ const INTENT_PATTERNS = [
   { intent: 'status_question', words: [
     'whats going on',
     'what is going on',
+    'hows going on',
+    'how is it going',
+    'how is going',
+    'hows it going',
     'how are we doing',
     'how work is going',
     'how is work going',
@@ -221,7 +225,7 @@ function detectIntent(normalized) {
 }
 
 function detectCasualStatusIntent(normalized) {
-  if (/\b(bro|da|dei|dai|machan)?\s*(how\s+(is\s+)?work\s+(is\s+)?going|work\s+(epdi|eppadi)\s+poguthu|epdi\s+poguthu|eppadi\s+poguthu|everything\s+okay(\s+ah)?|all\s+going\s+fine(\s+ah)?|status\s+enna|enna\s+panreenga|enna\s+panringa)\b/.test(normalized)) {
+  if (/\b(bro|da|dei|dai|machan)?\s*(hows\s+(it\s+)?going|how\s+(is\s+)?(it\s+)?going|how\s+(is\s+)?work\s+(is\s+)?going|work\s+(epdi|eppadi)\s+poguthu|epdi\s+poguthu|eppadi\s+poguthu|everything\s+okay(\s+ah)?|all\s+going\s+fine(\s+ah)?|status\s+enna|enna\s+panreenga|enna\s+panringa)\b/.test(normalized)) {
     return 'status_question';
   }
   return null;

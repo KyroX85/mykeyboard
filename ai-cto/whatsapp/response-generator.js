@@ -58,8 +58,29 @@ function fixOffer(state) {
   const risk = classifyRisk(issue);
   return [
     '',
-    `Fix available — risk level: ${risk.riskLevel}`,
+    `Fix candidate risk: ${risk.riskLevel}`,
+    `Source: ai-cto/scripts/execution-engine.js classifyRisk for ${issue.file || 'current unresolved issue'}.`,
+    `Reason: ${risk.reason || 'Risk is derived from issue type, file path, and execution blast radius.'}`,
+    'Calculation: deterministic risk classifier output; no model-generated score.',
     'Reply FIX to execute or SKIP to ignore'
+  ];
+}
+
+function metricProvenanceLines(state, key, label) {
+  const metric = state.metricProvenance && state.metricProvenance[key];
+  if (!metric || !metric.value || metric.source === 'unknown') {
+    return [
+      `${label}: unknown`,
+      'Source: unknown',
+      'Reason: no verified metric source was loaded.',
+      'Calculation: unknown'
+    ];
+  }
+  return [
+    `${label}: ${metric.value}`,
+    `Source: ${metric.source}`,
+    `Reason: ${metric.reason}`,
+    `Calculation: ${metric.calculation}`
   ];
 }
 
@@ -126,8 +147,9 @@ function generateResponse(command, state, memory = {}, details = {}) {
       return [
         'Founder, CTO status',
         ...heartbeat,
-        `${healthIcon} Health: ${health}`,
-        `${momentumIcon} Momentum: ${momentum}`,
+        ...metricProvenanceLines(state, 'health', `${healthIcon} Health`),
+        '',
+        ...metricProvenanceLines(state, 'momentum', `${momentumIcon} Momentum`),
         `\ud83d\udd52 Last scan: ${generatedAt}`,
         '',
         'Android validation',
@@ -139,8 +161,9 @@ function generateResponse(command, state, memory = {}, details = {}) {
     case 'health':
       return [
         'Founder, engineering health',
-        `${healthIcon} Score: ${health}`,
-        `${momentumIcon} Momentum: ${momentum}`,
+        ...metricProvenanceLines(state, 'health', `${healthIcon} Score`),
+        '',
+        ...metricProvenanceLines(state, 'momentum', `${momentumIcon} Momentum`),
         '',
         'Pressure points',
         ...linesOrFallback(state.sections.risks, 'No critical risk listed in the latest report.')
@@ -156,8 +179,9 @@ function generateResponse(command, state, memory = {}, details = {}) {
     case 'momentum':
       return [
         'Founder, momentum',
-        `${momentumIcon} State: ${momentum}`,
-        `${healthIcon} Health: ${health}`,
+        ...metricProvenanceLines(state, 'momentum', `${momentumIcon} State`),
+        '',
+        ...metricProvenanceLines(state, 'health', `${healthIcon} Health`),
         '',
         'Repeated failures',
         ...linesOrFallback(state.sections.repeatedFailures, 'No recurring failure pattern detected yet.')
@@ -208,8 +232,9 @@ function generateResponse(command, state, memory = {}, details = {}) {
     case 'keyboard_health':
       return [
         'Founder, keyboard health',
-        `${healthIcon} Repo health: ${health}`,
-        `${momentumIcon} Momentum: ${momentum}`,
+        ...metricProvenanceLines(state, 'health', `${healthIcon} Repo health`),
+        '',
+        ...metricProvenanceLines(state, 'momentum', `${momentumIcon} Momentum`),
         '',
         'Keyboard risk focus',
         ...linesOrFallback(
@@ -223,8 +248,9 @@ function generateResponse(command, state, memory = {}, details = {}) {
     case 'weekly_summary':
       return [
         'Founder, CTO summary',
-        `${healthIcon} Health: ${health}`,
-        `${momentumIcon} Momentum: ${momentum}`,
+        ...metricProvenanceLines(state, 'health', `${healthIcon} Health`),
+        '',
+        ...metricProvenanceLines(state, 'momentum', `${momentumIcon} Momentum`),
         `\ud83e\udde0 Last focus: ${memory.lastRequestedFocusArea || 'none'}`,
         `\ud83c\udfaf Next: ${state.summary.nextPriority}`,
         '',
@@ -289,8 +315,9 @@ function generateResponse(command, state, memory = {}, details = {}) {
     case 'focus':
       return [
         `Founder, focus set: ${details.focusTopic}`,
-        `${healthIcon} Health: ${health}`,
-        `${momentumIcon} Momentum: ${momentum}`,
+        ...metricProvenanceLines(state, 'health', `${healthIcon} Health`),
+        '',
+        ...metricProvenanceLines(state, 'momentum', `${momentumIcon} Momentum`),
         '',
         'Most relevant current issue',
         `\u2022 ${compactIssue(findFocusedIssue(state, details.focusTopic) || state.sections.unresolved[0])}`
@@ -300,8 +327,9 @@ function generateResponse(command, state, memory = {}, details = {}) {
     case 'conversational_fallback':
       return [
         'Founder, quick CTO update',
-        `${healthIcon} Health: ${health}`,
-        `${momentumIcon} Momentum: ${momentum}`,
+        ...metricProvenanceLines(state, 'health', `${healthIcon} Health`),
+        '',
+        ...metricProvenanceLines(state, 'momentum', `${momentumIcon} Momentum`),
         '',
         'Active risks',
         ...linesOrFallback(state.sections.risks.length ? state.sections.risks : state.sections.unresolved, 'No active risk recorded right now.'),
@@ -313,8 +341,9 @@ function generateResponse(command, state, memory = {}, details = {}) {
     case 'unknown':
       return [
         'Founder, quick CTO update',
-        `${healthIcon} Health: ${health}`,
-        `${momentumIcon} Momentum: ${momentum}`,
+        ...metricProvenanceLines(state, 'health', `${healthIcon} Health`),
+        '',
+        ...metricProvenanceLines(state, 'momentum', `${momentumIcon} Momentum`),
         '',
         'Active risks',
         ...linesOrFallback(state.sections.risks.length ? state.sections.risks : state.sections.unresolved, 'No active risk recorded right now.'),

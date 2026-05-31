@@ -121,7 +121,7 @@ function isProductConversation(text) {
   if (/\b(fix|execute|implement|commit|push|modify|edit|write|delete|create file|apply patch|build now|ota build)\b/.test(text)) {
     return false;
   }
-  if (/\b(what|why|how|should|would|could|compare|screenshot|gboard|swiftkey|feel|feels|trust|typing|swipe|keyboard|friction|retention|symbol|layout|thumb|comfort|visual|visually|immature|mature|polished|annoy|fatigue|stable|stability|risk|privacy|roadmap|product|ux)\b/.test(text)) {
+  if (/\b(what|why|how|should|would|could|compare|screenshot|gboard|swiftkey|feel|feels|trust|typing|swipe|keyboard|friction|retention|symbol|layout|thumb|comfort|visual|visually|immature|mature|polished|annoy|fatigue|stable|stability|risk|privacy|roadmap|product|ux|monitoring|working|changed|blocker|progress|going)\b/.test(text)) {
     return true;
   }
   return false;

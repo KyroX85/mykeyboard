@@ -87,8 +87,68 @@ function loadEngineeringState() {
     },
     changed: summarizeChanges(report, brain)
   };
+  state.metricProvenance = buildMetricProvenance({ report, brain, validation, state });
   state.summary = compressReportSummary(state);
   return state;
+}
+
+function buildMetricProvenance({ report = '', brain = {}, validation = {}, state = {} } = {}) {
+  const unresolved = Array.isArray(brain.unresolvedIssues) ? brain.unresolvedIssues : [];
+  const counts = unresolved.reduce((accumulator, issue) => {
+    const impact = String(issue && issue.impact || 'UNKNOWN').toUpperCase();
+    accumulator[impact] = (accumulator[impact] || 0) + 1;
+    return accumulator;
+  }, {});
+  const penalties = {
+    critical: (counts.CRITICAL || 0) * 25,
+    high: (counts.HIGH || 0) * 15,
+    medium: (counts.MEDIUM || 0) * 5,
+    low: (counts.LOW || 0) * 2
+  };
+  const totalPenalty = penalties.critical + penalties.high + penalties.medium + penalties.low;
+  const calculatedHealth = Math.max(0, 100 - totalPenalty);
+  const hasBrainHealth = Number.isFinite(brain.healthScore);
+  const hasReportHealth = /HEALTH SCORE:\s*\d+\/100/i.test(report);
+  const brainSource = brain.lastAnalysis
+    ? `ai-cto/.brain_state.json (${brain.lastAnalysis})`
+    : 'ai-cto/.brain_state.json';
+  return {
+    health: {
+      value: state.healthScore == null ? null : `${state.healthScore}/100`,
+      source: hasBrainHealth
+        ? brainSource
+        : hasReportHealth
+          ? 'ENGINEERING_REPORT.md'
+          : 'unknown',
+      reason: hasBrainHealth || hasReportHealth
+        ? `${unresolved.length} unresolved scan findings (${counts.CRITICAL || 0} critical, ${counts.HIGH || 0} high, ${counts.MEDIUM || 0} medium, ${counts.LOW || 0} low).`
+        : 'No readable brain/report health source was available.',
+      calculation: hasBrainHealth || hasReportHealth
+        ? `100 - (${counts.CRITICAL || 0}*25 + ${counts.HIGH || 0}*15 + ${counts.MEDIUM || 0}*5 + ${counts.LOW || 0}*2) = ${calculatedHealth}.`
+        : 'unknown'
+    },
+    momentum: {
+      value: state.momentum || null,
+      source: brain.momentum ? brainSource : extractMomentum(report) !== 'UNKNOWN' ? 'ENGINEERING_REPORT.md' : 'unknown',
+      reason: state.healthScore == null
+        ? 'Health score unavailable, so momentum cannot be proven.'
+        : `Derived from health score ${state.healthScore}/100.`,
+      calculation: state.healthScore == null
+        ? 'unknown'
+        : `${state.healthScore} < 70 => STALLED; 70-89 => RECOVERING; >=90 => CLIMBING.`
+    },
+    risks: {
+      value: unresolved.length ? `${unresolved.length} unresolved issue(s)` : 'unknown',
+      source: unresolved.length ? brainSource : 'unknown',
+      reason: unresolved.length ? 'Risk count comes from unresolved brain scan findings.' : 'No unresolved issue list was loaded.',
+      calculation: unresolved.length ? `count(ai-cto/.brain_state.json.unresolvedIssues) = ${unresolved.length}` : 'unknown'
+    },
+    validation: {
+      source: Array.isArray(validation.validation) ? 'ai-cto/validation-results.json' : 'unknown',
+      reason: Array.isArray(validation.validation) ? `${validation.validation.length} validation records loaded.` : 'No validation records loaded.',
+      calculation: 'reported directly from validation-results.json when present.'
+    }
+  };
 }
 
 function compressReportSummary(state) {
@@ -130,5 +190,6 @@ module.exports = {
   loadEngineeringState,
   firstListItems,
   readJsonWithRecovery,
-  compressReportSummary
+  compressReportSummary,
+  buildMetricProvenance
 };
