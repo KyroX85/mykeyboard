@@ -640,7 +640,12 @@ function maybeRouteVisionStewardCheck(normalized = '', state = {}) {
 }
 
 function maybeRouteFounderMemoryAudit(normalized = '') {
-  if (String(normalized || '') !== 'memory audit') return null;
+  const text = String(normalized || '');
+  const isAuditCommand = text === 'memory audit' ||
+    /\b(project|founder|company|vision)\s+audit\b/.test(text) ||
+    /\banswer only from memory\b/.test(text) ||
+    /\bonly reconstruct project state\b/.test(text);
+  if (!isAuditCommand) return null;
   const memoryLayer = loadFounderMemoryLayer({ root: ROOT });
   return {
     command: 'memory_audit',

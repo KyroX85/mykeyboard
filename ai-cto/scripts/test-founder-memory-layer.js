@@ -38,6 +38,31 @@ assert.strictEqual(routed.matchedRoute, 'founder_memory_audit');
 assert(routed.response.includes('Founder memory audit'));
 assert(routed.response.includes('What are we building?'));
 
+const projectAudit = routeMessage([
+  'Project audit.',
+  '',
+  'Answer only from memory.',
+  '',
+  '1. What product are we building?',
+  '2. What phase are we in?',
+  '3. What is the active wedge?',
+  '4. What has been rejected?',
+  '5. What should not be built right now?',
+  '6. If Kaamesh disappeared for 30 days, what would you continue working on?',
+  '',
+  'Do not propose features.',
+  'Do not execute tasks.',
+  'Do not create plans.',
+  '',
+  'Only reconstruct project state.'
+].join('\n'), {}, {});
+assert.strictEqual(projectAudit.command, 'memory_audit');
+assert.strictEqual(projectAudit.matchedRoute, 'founder_memory_audit');
+assert(projectAudit.response.includes('Current stage:'));
+assert(projectAudit.response.includes('Rejected directions:'));
+assert(!projectAudit.response.includes('natural-response-builder'));
+assert(!projectAudit.response.includes('AUDITOR'));
+
 (async () => {
   const routedAi = await routeMessageWithAi('memory audit', {}, {});
   assert.strictEqual(routedAi.command, 'memory_audit');
