@@ -14,11 +14,11 @@ const { readRoadmap } = require('../whatsapp/roadmap-reader');
   assert(!priority.response.includes('Starting execution'));
 
   const phase2 = await routeMessageWithAi('what is Phase 2 about?', {}, {}, {});
-  assert.strictEqual(phase2.matchedRoute, 'phase2_conversation_guard');
+  assert.strictEqual(phase2.matchedRoute, 'founder_memory_intent');
   assert(phase2.response.includes('Explain'));
 
   const companyGoal = await routeMessageWithAi('what is our final goal of our company', {}, {}, {});
-  assert.strictEqual(companyGoal.matchedRoute, 'phase2_conversation_guard');
+  assert.strictEqual(companyGoal.matchedRoute, 'founder_memory_intent');
   assert(companyGoal.response.includes('understand confusing content before they type'));
   assert(!companyGoal.response.includes('Current Foundation Health'));
   assert(!companyGoal.response.includes('Recommended Next Step'));
@@ -26,16 +26,14 @@ const { readRoadmap } = require('../whatsapp/roadmap-reader');
   assert(!companyGoal.response.includes('Starting execution'));
 
   const companyGoalWithQuestionMark = await routeMessageWithAi('what is the final goal of our company ?', {}, {}, {});
-  assert.strictEqual(companyGoalWithQuestionMark.command, 'phase2_company_goal_direct');
-  assert(companyGoalWithQuestionMark.response.includes('Our final goal is simple'));
+  assert.strictEqual(companyGoalWithQuestionMark.command, 'founder_memory_question');
+  assert(companyGoalWithQuestionMark.response.includes('Why are we building it?'));
   assert(!companyGoalWithQuestionMark.response.includes('Current Foundation Health'));
 
   const impressiveBoundary = await routeMessageWithAi('what is the final goal of our company and what should we not build even if it sounds impressive?', {}, {}, {});
-  assert.strictEqual(impressiveBoundary.matchedRoute, 'phase2_conversation_guard');
+  assert.strictEqual(impressiveBoundary.matchedRoute, 'founder_memory_intent');
   assert(impressiveBoundary.response.includes('understand confusing content before they type'));
-  assert(impressiveBoundary.response.includes('Do not build'));
   assert(impressiveBoundary.response.includes('auto-send'));
-  assert(impressiveBoundary.response.includes('agent theater'));
   assert(!impressiveBoundary.response.includes('Current Foundation Health'));
   assert(!impressiveBoundary.response.includes('Starting execution'));
 

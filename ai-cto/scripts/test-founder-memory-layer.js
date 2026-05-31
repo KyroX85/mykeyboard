@@ -11,6 +11,7 @@ const {
 } = require('../founder-memory-layer');
 const { routeMessage, routeMessageWithAi } = require('../whatsapp/command-router');
 const { buildNvidiaCouncil } = require('../orchestration/nvidia-council-engine');
+const { classifyFounderIntent } = require('../whatsapp/founder-intent-classifier');
 
 const root = path.resolve(__dirname, '..', '..');
 const memoryLayer = loadFounderMemoryLayer({ root });
@@ -34,7 +35,7 @@ assert(!audit.includes('Current Foundation Health: protected.'));
 
 const routed = routeMessage('memory audit', {}, {});
 assert.strictEqual(routed.command, 'memory_audit');
-assert.strictEqual(routed.matchedRoute, 'founder_memory_audit');
+assert.strictEqual(routed.matchedRoute, 'founder_memory_intent');
 assert(routed.response.includes('Founder memory audit'));
 assert(routed.response.includes('What are we building?'));
 
@@ -57,11 +58,29 @@ const projectAudit = routeMessage([
   'Only reconstruct project state.'
 ].join('\n'), {}, {});
 assert.strictEqual(projectAudit.command, 'memory_audit');
-assert.strictEqual(projectAudit.matchedRoute, 'founder_memory_audit');
+assert.strictEqual(projectAudit.matchedRoute, 'founder_memory_intent');
 assert(projectAudit.response.includes('Current stage:'));
 assert(projectAudit.response.includes('Rejected directions:'));
 assert(!projectAudit.response.includes('natural-response-builder'));
 assert(!projectAudit.response.includes('AUDITOR'));
+
+const productQuestion = routeMessage('what product are we building?', {}, {});
+assert.strictEqual(productQuestion.command, 'founder_memory_question');
+assert.strictEqual(productQuestion.matchedRoute, 'founder_memory_intent');
+assert(productQuestion.response.includes('Aritenis is an Android keyboard'));
+assert(!productQuestion.response.includes('Current Foundation Health: protected.'));
+
+const finalGoal = routeMessage('what is the final goal of our company?', {}, {});
+assert.strictEqual(finalGoal.command, 'founder_memory_question');
+assert(finalGoal.response.includes('Why are we building it?'));
+assert(!finalGoal.response.includes('Recommended Next Step:'));
+
+const doNotBuild = routeMessage('what should not be built right now?', {}, {});
+assert.strictEqual(doNotBuild.command, 'founder_memory_question');
+assert(doNotBuild.response.includes('auto-send'));
+
+assert.strictEqual(classifyFounderIntent('what phase are we in?').intent, 'FOUNDER_MEMORY_QUESTION');
+assert.strictEqual(classifyFounderIntent('implement memory audit').intent, 'EXECUTION_REQUEST');
 
 (async () => {
   const routedAi = await routeMessageWithAi('memory audit', {}, {});

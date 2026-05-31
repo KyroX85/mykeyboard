@@ -30,6 +30,7 @@ const {
   formatMemoryAudit,
   loadFounderMemoryLayer
 } = require('../founder-memory-layer');
+const { routeFounderMemoryIntent } = require('./founder-intent-classifier');
 const {
   buildScreenshotCaptureResponse,
   captureProductLabScreenshot,
@@ -146,12 +147,12 @@ function resolveCommand(message) {
 
 function routeMessage(message, state, memory = {}) {
   const normalized = normalizeMessage(message);
-  const memoryAudit = maybeRouteFounderMemoryAudit(normalized);
-  if (memoryAudit) return memoryAudit;
   const preservationDecision = maybeRoutePreservationMode(normalized);
   if (preservationDecision) return preservationDecision;
   const preservationBlock = maybeBlockPreservationMutation(normalized);
   if (preservationBlock) return preservationBlock;
+  const founderMemoryIntent = routeFounderMemoryIntent(message, { root: ROOT });
+  if (founderMemoryIntent) return founderMemoryIntent;
   const screenshotWorkflowPlan = maybeRouteProductLabScreenshotWorkflowPlan(normalized);
   if (screenshotWorkflowPlan) return screenshotWorkflowPlan;
   const screenshotPlan = maybeRouteProductLabLocalScreenshotPlan(message, normalized);
@@ -403,6 +404,15 @@ async function routeMessageWithAi(message, state, memory = {}, options = {}) {
       ...screenshotCapture,
       usedAi: false,
       aiReason: 'local_product_lab_screenshot_capture'
+    };
+  }
+
+  const founderMemoryIntent = routeFounderMemoryIntent(message, { root: ROOT });
+  if (founderMemoryIntent) {
+    return {
+      ...founderMemoryIntent,
+      usedAi: false,
+      aiReason: 'founder_memory_intent'
     };
   }
 
