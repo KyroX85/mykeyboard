@@ -82,8 +82,8 @@ assert(group.includes('AUDITOR:'));
 const roadmap = readRoadmap();
 assert(roadmap.northStar.includes('understand before they type'));
 assert(roadmap.vision.includes('The Phase 2 wedge is Explain'));
-assert(roadmap.currentPhase.includes('PHASE 2 PREPARATION'));
-assert(roadmapText.includes('ACTIVE PHASE - PHASE 2 PREPARATION / EXPLAIN WEDGE'));
+assert(roadmap.currentPhase.includes('PHASE 1 PROTECTED FOUNDATION + PHASE 2 EXPLAIN ACTIVE'));
+assert(roadmapText.includes('ACTIVE STATE - PHASE 1 PROTECTED FOUNDATION + PHASE 2 EXPLAIN ACTIVE'));
 assert(visionText.includes('protect Phase 1 foundation first'));
 
 const beforeLogCount = readActionLog().actions.length;

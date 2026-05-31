@@ -14,7 +14,7 @@ const FOUNDER_MEMORY_FILES = [
 const MEMORY_AUDIT = {
   product: 'Aritenis is an Android keyboard with a protected typing foundation and a Phase 2 understanding/execution layer.',
   why: 'To help users understand confusing content before they type while preserving keyboard trust, privacy, and stability.',
-  currentStage: 'Phase 2 preparation / early Phase 2. Phase 1 keyboard foundation is protected.',
+  currentStage: 'Phase 1 protected foundation + Phase 2 Explain active. Phase 1 keyboard trust is protected; Explain is active for design, proposals, and Product Lab evidence.',
   currentBlocker: 'The exact Phase 2 killer feature and first magical demo are not fully locked; Explain is the leading hypothesis.',
   activeHypothesis: 'Explain: user sees confusing content, opens Aritenis, gets a clear explanation, and only then confirms any reply/action.',
   rejectedDirections: [

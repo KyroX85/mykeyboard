@@ -232,8 +232,8 @@ function evaluateRoadmapAlignment({ root = path.dirname(__dirname), proposal = '
   if (matchedAntiGoals.length) conflicts.push(`anti-goal: ${matchedAntiGoals[0]}`);
   if (matchedRejected.length) conflicts.push(`rejected direction: ${matchedRejected[0]}`);
   if (matchedNeverAgain.length) conflicts.push(`never-do-again: ${matchedNeverAgain[0]}`);
-  if (/\b(companion|lstm|cloud ai|emotional fingerprint|public launch|telemetry expansion)\b/.test(text)) {
-    conflicts.push('conflicts with Phase 1 stabilization');
+  if (/\b(companion personality|lstm|cloud ai in live typing|emotional fingerprint|public launch|telemetry expansion)\b/.test(text)) {
+    conflicts.push('conflicts with protected foundation and Phase 2 Explain focus');
   }
   if (/\b(rewrite|redesign|architecture|framework|dependency upgrade)\b/.test(text) && !hasUxGain(expectedUxGain)) {
     conflicts.push('architecture or redesign without measurable UX gain');
@@ -581,10 +581,10 @@ function missingEvidenceFor(categories) {
 
 function roadmapAlignmentFor(categories, text) {
   if (categories.has('SAFE_MAINTENANCE')) return 'Supports stability only if it reduces future operational friction.';
-  if (categories.has('SWIPE_RISK')) return 'Relevant to Phase 1 only through swipe trust and typing confidence.';
-  if (categories.has('PREDICTION_RISK')) return 'Relevant to Phase 1 only if correction rate or typing confidence improves.';
+  if (categories.has('SWIPE_RISK')) return 'Foundation-protected area: relevant only when evidence shows swipe trust or typing confidence improves.';
+  if (categories.has('PREDICTION_RISK')) return 'Foundation-protected area: relevant only when correction rate or typing confidence evidence improves.';
   if (/\bcompanion|lstm|emotional|fingerprint|cloud|ai learning\b/.test(text)) {
-    return 'Conflicts with Phase 1 stabilization; schedule later unless founder explicitly approves.';
+    return 'Conflicts with protected foundation and Phase 2 Explain focus unless founder explicitly approves.';
   }
   return 'Must prove stability, typing confidence, or UX consistency before implementation.';
 }
@@ -642,50 +642,47 @@ function defaultRegressionMemory() {
 
 function defaultRoadmapLock() {
   return {
-    version: '1.0',
-    founderVision: 'Aritenis AI must become a trustworthy Android keyboard before adding advanced AI or companion behavior.',
-    currentPhase: 'Phase 1 - Stabilization',
+    version: '2.0',
+    founderVision: 'Aritenis must protect the mature keyboard foundation while building Explain as the Phase 2 differentiator.',
+    currentPhase: 'Phase 1 Protected Foundation + Phase 2 Explain Active',
     productPhilosophy: [
-      'typing confidence > feature count',
-      'runtime trust > cosmetic complexity',
-      'stable geometry > flashy UI',
-      'evidence before product claims',
-      'small reversible changes only'
+      'Phase 1 foundation is protected',
+      'Phase 2 Explain is active for design, proposals, and Product Lab evidence',
+      'typing trust, swipe trust, prediction trust, and stability must not degrade',
+      'implementation touching hot paths requires founder approval',
+      'understanding before typing'
     ],
     uxPriorities: [
-      'visual hierarchy maturity',
-      'stable keyboard geometry',
-      'symbol accessibility',
-      'spacebar visibility and clarity',
-      'swipe reliability',
-      'responsiveness',
-      'touch confidence',
-      'rhythm stability',
-      'runtime smoothness',
-      'ergonomic consistency'
+      'Explain confusing screenshots',
+      'Explain messages, bills, notices, forms, errors, posts, and documents',
+      'Glass handle execution-layer access',
+      'Ready / Confirm / Cancel action safety',
+      'Screenshot understanding before draft/reply',
+      'Foundation regression monitoring'
     ],
     antiGoals: [
       'AI theater',
       'architecture expansion without UX gain',
-      'feature count over typing confidence',
-      'cosmetic churn',
-      'cloud AI in live typing',
-      'new telemetry expansion',
-      'dependency mutation',
-      'workflow mutation'
+      'feature count over completed actions',
+      'foundation churn without evidence',
+      'silent screenshot reading',
+      'screenshot retention forever',
+      'autonomous sending',
+      'cloud AI in live typing hot path'
     ],
     rejectedDirections: [
       'uncontrolled swipe rewrites',
       'predictor rewrites without correction evidence',
-      'companion features before keyboard stabilization',
-      'theme engines before trust fixes',
+      'companion personality before Explain reliability',
+      'theme engines as Phase 2 differentiation',
       'internet-learning loops'
     ],
     neverDoAgainPatterns: [
       'treat reports as product progress',
       'directly edit protected keyboard hot paths from chat',
       'claim improvement without real-device evidence',
-      'increase autonomy while founder feedback is stale'
+      'increase autonomy while founder feedback is stale',
+      'route product questions into ENGINEERING_REPORT commits'
     ]
   };
 }

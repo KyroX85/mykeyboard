@@ -101,7 +101,7 @@ Roadmap conflicts block proposals when they introduce:
 - cloud AI in live typing
 - dependency or workflow mutation
 - architecture expansion without UX gain
-- companion behavior before Phase 1 stabilization
+- companion behavior outside the Phase 2 Explain wedge or before foundation trust is protected
 - uncontrolled swipe or predictor rewrites
 - report generation presented as product progress
 

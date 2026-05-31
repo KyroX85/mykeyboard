@@ -4,12 +4,72 @@
     {
       "type": "COMPLEXITY",
       "impact": "MEDIUM",
+      "message": "File product-governance.js is too large (>500 lines)",
+      "file": "ai-cto/product-governance.js",
+      "task": null,
+      "source": "DEEP_SCAN",
+      "classification": "REVIEW_REQUIRED",
+      "detectedAt": "2026-05-31T15:00:01.005Z"
+    },
+    {
+      "type": "COMPLEXITY",
+      "impact": "MEDIUM",
+      "message": "File ai-execution-bridge.js is too large (>500 lines)",
+      "file": "ai-cto/scripts/ai-execution-bridge.js",
+      "task": null,
+      "source": "DEEP_SCAN",
+      "classification": "REVIEW_REQUIRED",
+      "detectedAt": "2026-05-31T15:00:01.005Z"
+    },
+    {
+      "type": "COMPLEXITY",
+      "impact": "MEDIUM",
+      "message": "File test-nvidia-ai-bridge.js is too large (>500 lines)",
+      "file": "ai-cto/scripts/test-nvidia-ai-bridge.js",
+      "task": null,
+      "source": "DEEP_SCAN",
+      "classification": "REVIEW_REQUIRED",
+      "detectedAt": "2026-05-31T15:00:01.005Z"
+    },
+    {
+      "type": "COMPLEXITY",
+      "impact": "MEDIUM",
+      "message": "File whatsapp-server.js is too large (>500 lines)",
+      "file": "ai-cto/whatsapp-server.js",
+      "task": null,
+      "source": "DEEP_SCAN",
+      "classification": "REVIEW_REQUIRED",
+      "detectedAt": "2026-05-31T15:00:01.005Z"
+    },
+    {
+      "type": "COMPLEXITY",
+      "impact": "MEDIUM",
+      "message": "File command-router.js is too large (>500 lines)",
+      "file": "ai-cto/whatsapp/command-router.js",
+      "task": null,
+      "source": "DEEP_SCAN",
+      "classification": "REVIEW_REQUIRED",
+      "detectedAt": "2026-05-31T15:00:01.005Z"
+    },
+    {
+      "type": "COMPLEXITY",
+      "impact": "MEDIUM",
       "message": "File natural-response-builder.js is too large (>500 lines)",
       "file": "ai-cto/whatsapp/natural-response-builder.js",
       "task": null,
       "source": "DEEP_SCAN",
       "classification": "REVIEW_REQUIRED",
-      "detectedAt": "2026-05-22T08:33:50.027Z"
+      "detectedAt": "2026-05-31T15:00:01.005Z"
+    },
+    {
+      "type": "COMPLEXITY",
+      "impact": "MEDIUM",
+      "message": "File vision-command-manager.js is too large (>500 lines)",
+      "file": "ai-cto/whatsapp/vision-command-manager.js",
+      "task": null,
+      "source": "DEEP_SCAN",
+      "classification": "REVIEW_REQUIRED",
+      "detectedAt": "2026-05-31T15:00:01.005Z"
     },
     {
       "type": "COMPLEXITY",
@@ -19,7 +79,7 @@
       "task": null,
       "source": "DEEP_SCAN",
       "classification": "REVIEW_REQUIRED",
-      "detectedAt": "2026-05-22T08:33:50.027Z"
+      "detectedAt": "2026-05-31T15:00:01.005Z"
     },
     {
       "type": "COMPLEXITY",
@@ -29,7 +89,7 @@
       "task": null,
       "source": "DEEP_SCAN",
       "classification": "REVIEW_REQUIRED",
-      "detectedAt": "2026-05-22T08:33:50.027Z"
+      "detectedAt": "2026-05-31T15:00:01.005Z"
     },
     {
       "type": "COMPLEXITY",
@@ -39,7 +99,7 @@
       "task": null,
       "source": "DEEP_SCAN",
       "classification": "REVIEW_REQUIRED",
-      "detectedAt": "2026-05-22T08:33:50.027Z"
+      "detectedAt": "2026-05-31T15:00:01.005Z"
     },
     {
       "type": "COMPLEXITY",
@@ -49,7 +109,7 @@
       "task": null,
       "source": "DEEP_SCAN",
       "classification": "REVIEW_REQUIRED",
-      "detectedAt": "2026-05-22T08:33:50.027Z"
+      "detectedAt": "2026-05-31T15:00:01.005Z"
     },
     {
       "type": "COMPLEXITY",
@@ -59,7 +119,7 @@
       "task": null,
       "source": "DEEP_SCAN",
       "classification": "REVIEW_REQUIRED",
-      "detectedAt": "2026-05-22T08:33:50.027Z"
+      "detectedAt": "2026-05-31T15:00:01.005Z"
     },
     {
       "type": "COMPLEXITY",
@@ -69,11 +129,21 @@
       "task": null,
       "source": "DEEP_SCAN",
       "classification": "REVIEW_REQUIRED",
-      "detectedAt": "2026-05-22T08:33:50.027Z"
+      "detectedAt": "2026-05-31T15:00:01.005Z"
+    },
+    {
+      "type": "COMPLEXITY",
+      "impact": "MEDIUM",
+      "message": "File BasicPredictorTest.kt is too large (>500 lines)",
+      "file": "app/src/test/java/com/example/mykeyboard/predictor/BasicPredictorTest.kt",
+      "task": null,
+      "source": "DEEP_SCAN",
+      "classification": "REVIEW_REQUIRED",
+      "detectedAt": "2026-05-31T15:00:01.005Z"
     }
   ],
-  "lastAnalysis": "2026-05-22T08:33:50.027Z",
-  "healthScore": 65,
+  "lastAnalysis": "2026-05-31T15:00:01.005Z",
+  "healthScore": 30,
   "momentum": "STALLED",
   "trendHistory": [
     {
@@ -139,16 +209,71 @@
         "app/src/main/java/com/example/mykeyboard/swipe/SwipeWordResolver.kt",
         "app/src/test/java/com/example/mykeyboard/InputReplayFailureInjectionTest.kt"
       ]
+    },
+    {
+      "timestamp": "2026-05-31T14:49:05.324Z",
+      "healthScore": 30,
+      "momentum": "STALLED",
+      "issueCount": 14,
+      "criticalCount": 0,
+      "highCount": 0,
+      "files": [
+        "ai-cto/product-governance.js",
+        "ai-cto/scripts/ai-execution-bridge.js",
+        "ai-cto/scripts/test-nvidia-ai-bridge.js",
+        "ai-cto/whatsapp-server.js",
+        "ai-cto/whatsapp/command-router.js",
+        "ai-cto/whatsapp/natural-response-builder.js",
+        "ai-cto/whatsapp/vision-command-manager.js",
+        "app/src/main/java/com/example/mykeyboard/KeyboardService.kt",
+        "app/src/main/java/com/example/mykeyboard/MainActivity.kt",
+        "app/src/main/java/com/example/mykeyboard/metrics/KeyboardMetrics.kt",
+        "app/src/main/java/com/example/mykeyboard/predictor/BasicPredictor.kt",
+        "app/src/main/java/com/example/mykeyboard/swipe/SwipeWordResolver.kt",
+        "app/src/test/java/com/example/mykeyboard/InputReplayFailureInjectionTest.kt",
+        "app/src/test/java/com/example/mykeyboard/predictor/BasicPredictorTest.kt"
+      ]
+    },
+    {
+      "timestamp": "2026-05-31T15:00:01.005Z",
+      "healthScore": 30,
+      "momentum": "STALLED",
+      "issueCount": 14,
+      "criticalCount": 0,
+      "highCount": 0,
+      "files": [
+        "ai-cto/product-governance.js",
+        "ai-cto/scripts/ai-execution-bridge.js",
+        "ai-cto/scripts/test-nvidia-ai-bridge.js",
+        "ai-cto/whatsapp-server.js",
+        "ai-cto/whatsapp/command-router.js",
+        "ai-cto/whatsapp/natural-response-builder.js",
+        "ai-cto/whatsapp/vision-command-manager.js",
+        "app/src/main/java/com/example/mykeyboard/KeyboardService.kt",
+        "app/src/main/java/com/example/mykeyboard/MainActivity.kt",
+        "app/src/main/java/com/example/mykeyboard/metrics/KeyboardMetrics.kt",
+        "app/src/main/java/com/example/mykeyboard/predictor/BasicPredictor.kt",
+        "app/src/main/java/com/example/mykeyboard/swipe/SwipeWordResolver.kt",
+        "app/src/test/java/com/example/mykeyboard/InputReplayFailureInjectionTest.kt",
+        "app/src/test/java/com/example/mykeyboard/predictor/BasicPredictorTest.kt"
+      ]
     }
   ],
   "recurringFailures": {
+    "COMPLEXITY|ai-cto/product-governance.js|File product-governance.js is too large (>500 lines)": 1,
+    "COMPLEXITY|ai-cto/scripts/ai-execution-bridge.js|File ai-execution-bridge.js is too large (>500 lines)": 1,
+    "COMPLEXITY|ai-cto/scripts/test-nvidia-ai-bridge.js|File test-nvidia-ai-bridge.js is too large (>500 lines)": 1,
+    "COMPLEXITY|ai-cto/whatsapp-server.js|File whatsapp-server.js is too large (>500 lines)": 1,
+    "COMPLEXITY|ai-cto/whatsapp/command-router.js|File command-router.js is too large (>500 lines)": 1,
     "COMPLEXITY|ai-cto/whatsapp/natural-response-builder.js|File natural-response-builder.js is too large (>500 lines)": 1,
+    "COMPLEXITY|ai-cto/whatsapp/vision-command-manager.js|File vision-command-manager.js is too large (>500 lines)": 1,
     "COMPLEXITY|app/src/main/java/com/example/mykeyboard/KeyboardService.kt|File KeyboardService.kt is too large (>500 lines)": 1,
     "COMPLEXITY|app/src/main/java/com/example/mykeyboard/MainActivity.kt|File MainActivity.kt is too large (>500 lines)": 1,
     "COMPLEXITY|app/src/main/java/com/example/mykeyboard/metrics/KeyboardMetrics.kt|File KeyboardMetrics.kt is too large (>500 lines)": 1,
     "COMPLEXITY|app/src/main/java/com/example/mykeyboard/predictor/BasicPredictor.kt|File BasicPredictor.kt is too large (>500 lines)": 1,
     "COMPLEXITY|app/src/main/java/com/example/mykeyboard/swipe/SwipeWordResolver.kt|File SwipeWordResolver.kt is too large (>500 lines)": 1,
-    "COMPLEXITY|app/src/test/java/com/example/mykeyboard/InputReplayFailureInjectionTest.kt|File InputReplayFailureInjectionTest.kt is too large (>500 lines)": 1
+    "COMPLEXITY|app/src/test/java/com/example/mykeyboard/InputReplayFailureInjectionTest.kt|File InputReplayFailureInjectionTest.kt is too large (>500 lines)": 1,
+    "COMPLEXITY|app/src/test/java/com/example/mykeyboard/predictor/BasicPredictorTest.kt|File BasicPredictorTest.kt is too large (>500 lines)": 1
   },
   "fileInstability": {
     "ai-cto/scripts/test-live-scan-grounding.js": 3,
@@ -157,13 +282,20 @@
     "ai-cto/scripts/test-safe-maintenance-engine.js": 2,
     "ai-cto/scripts/test-task-pipeline.js": 2,
     "chaos_test.js": 2,
-    "ai-cto/whatsapp/natural-response-builder.js": 3,
-    "app/src/main/java/com/example/mykeyboard/KeyboardService.kt": 3,
-    "app/src/main/java/com/example/mykeyboard/MainActivity.kt": 3,
-    "app/src/main/java/com/example/mykeyboard/metrics/KeyboardMetrics.kt": 3,
-    "app/src/main/java/com/example/mykeyboard/predictor/BasicPredictor.kt": 3,
-    "app/src/main/java/com/example/mykeyboard/swipe/SwipeWordResolver.kt": 3,
-    "app/src/test/java/com/example/mykeyboard/InputReplayFailureInjectionTest.kt": 3
+    "ai-cto/whatsapp/natural-response-builder.js": 5,
+    "app/src/main/java/com/example/mykeyboard/KeyboardService.kt": 5,
+    "app/src/main/java/com/example/mykeyboard/MainActivity.kt": 5,
+    "app/src/main/java/com/example/mykeyboard/metrics/KeyboardMetrics.kt": 5,
+    "app/src/main/java/com/example/mykeyboard/predictor/BasicPredictor.kt": 5,
+    "app/src/main/java/com/example/mykeyboard/swipe/SwipeWordResolver.kt": 5,
+    "app/src/test/java/com/example/mykeyboard/InputReplayFailureInjectionTest.kt": 5,
+    "ai-cto/product-governance.js": 2,
+    "ai-cto/scripts/ai-execution-bridge.js": 2,
+    "ai-cto/scripts/test-nvidia-ai-bridge.js": 2,
+    "ai-cto/whatsapp-server.js": 2,
+    "ai-cto/whatsapp/command-router.js": 2,
+    "ai-cto/whatsapp/vision-command-manager.js": 2,
+    "app/src/test/java/com/example/mykeyboard/predictor/BasicPredictorTest.kt": 2
   },
   "memoryPolicy": {
     "fullMemoryFrom": "2026-06-04",
@@ -173,9 +305,9 @@
   "schoolModeMemory": [],
   "scanMode": "LIVE_REPO_SCAN",
   "liveScan": {
-    "scannedAt": "2026-05-22T08:33:50.027Z",
+    "scannedAt": "2026-05-31T15:00:01.005Z",
     "source": "actual_repo_files",
-    "issueCount": 7,
+    "issueCount": 14,
     "hardcodedSecretCount": 0
   }
 }

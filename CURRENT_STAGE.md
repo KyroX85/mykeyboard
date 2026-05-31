@@ -2,7 +2,7 @@
 
 ## Company Stage
 
-Phase 2 preparation / early Phase 2.
+Phase 1 protected foundation + Phase 2 Explain active.
 
 Phase 1 foundation is protected.
 
@@ -18,11 +18,11 @@ The user sees something confusing, opens Aritenis from the keyboard flow, and re
 
 The exact Phase 2 killer feature and first magical demo are not fully locked.
 
-The leading hypothesis is Explain, especially screenshot-powered understanding, but the system must not invent a 90-day feature plan until the founder approves the wedge.
+Explain, especially screenshot-powered understanding, is active for design, proposals, and Product Lab evidence. The system must not invent a 90-day implementation plan until the founder approves the wedge details.
 
 ## Current Engineering Priority
 
-Improve founder memory consistency and agent understanding before adding more features.
+Keep founder memory and agent understanding aligned before adding more Phase 2 implementation work.
 
 ## Current Product Priority
 

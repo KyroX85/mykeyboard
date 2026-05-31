@@ -1,8 +1,8 @@
 NORTH STAR:
 Aritenis must protect the mature keyboard foundation while building the first keyboard that helps users understand before they type.
 
-ACTIVE PHASE - PHASE 2 PREPARATION / EXPLAIN WEDGE
-Mission: Create competitive differentiation without weakening the Phase 1 keyboard foundation.
+ACTIVE STATE - PHASE 1 PROTECTED FOUNDATION + PHASE 2 EXPLAIN ACTIVE
+Mission: Protect the mature keyboard foundation while building Explain as the active Phase 2 differentiator.
 
 Foundation status:
 - Typing trust is protected.
@@ -11,12 +11,17 @@ Foundation status:
 - Keyboard sizing, visual polish, emoji/symbols, and stability are protected.
 - Future changes touching prediction, swipe, sizing, layout, latency, or keyboard trust require evidence and strong justification.
 
-Phase 2 priority order:
+Current priority order:
 1. Protect Phase 1 foundation.
 2. Build Explain.
 3. Build execution layer.
 4. Build screenshot understanding.
 5. Build draft/reply later.
+
+Phase boundary:
+- Phase 1 is no longer the active exploration roadmap; it is a protected asset.
+- Phase 2 Explain is active for design, proposals, Product Lab evidence, and founder-approved implementation.
+- Any Phase 2 implementation must not touch prediction, swipe, sizing, layout, latency, or keyboard trust hot paths without founder approval.
 
 Explain wedge:
 - User sees something confusing.
@@ -54,7 +59,7 @@ Trust Risk
 Recommended Next Step
 
 AGENT RULES - ALL PHASES:
-1. Phase 1 stability is protected before Phase 2 intelligence.
+1. Phase 1 foundation is protected before Phase 2 intelligence.
 2. Conversation is not execution.
 3. Product questions must not create files or commits.
 4. Execute only when founder explicitly says implement, execute, commit, patch, or build.

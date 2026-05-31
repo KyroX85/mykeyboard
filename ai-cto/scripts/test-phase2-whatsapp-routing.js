@@ -4,7 +4,7 @@ const { readRoadmap } = require('../whatsapp/roadmap-reader');
 
 (async () => {
   const roadmap = readRoadmap();
-  assert(roadmap.currentPhase.includes('PHASE 2 PREPARATION'));
+  assert(roadmap.currentPhase.includes('PHASE 1 PROTECTED FOUNDATION + PHASE 2 EXPLAIN ACTIVE'));
   assert(roadmap.currentPhase.includes('Build Explain'));
 
   const priority = await routeMessageWithAi('what is the current roadmap priority?', {}, {}, {});

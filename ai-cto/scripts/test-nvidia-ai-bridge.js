@@ -216,7 +216,7 @@ async function run() {
         founderMessage: index === 10 ? 'create a test file called Hello.kt' : null
       }))
     },
-    roadmap: { currentPhase: 'PHASE 1 - STABILIZATION' }
+    roadmap: { currentPhase: 'PHASE 1 PROTECTED FOUNDATION + PHASE 2 EXPLAIN ACTIVE' }
   });
   assert(prompt.system.includes('Llama 3.3 70B'));
   assert(prompt.system.includes('English only'));

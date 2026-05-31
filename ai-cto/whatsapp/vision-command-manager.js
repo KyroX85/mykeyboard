@@ -253,7 +253,7 @@ async function createVisionPlan({ message, state, memory, client = createNvidiaC
         'Break this founder vision command into a safe technical plan.',
         'Return JSON only with keys: task, files, changes, risk, estimatedLines, roadmapConflict, conflictMessage.',
         'Risk must be LOW only for simple deterministic file/documentation/test-file changes.',
-        'Respect Phase 1 stabilization. No Phase 2 AI learning/companion work during Phase 1 unless founder approves.',
+        'Respect current roadmap: Phase 1 foundation is protected; Phase 2 Explain is active for design, proposals, Product Lab evidence, and founder-approved implementation. Do not touch keyboard hot paths without founder approval.',
         `Founder command: ${message}`,
         `Current roadmap phase: ${roadmap.currentPhase || 'unknown'}`,
         `Current health: ${state && state.healthScore}`,
@@ -435,10 +435,10 @@ function formatVisionPlan(entry) {
   if (plan.roadmapConflict) {
     return [
       'CTO: Founder, this improvement may conflict with the current roadmap phase.',
-      plan.conflictMessage || 'We are in Phase 1 stabilization.',
+      plan.conflictMessage || 'Current state is Phase 1 protected foundation plus Phase 2 Explain active.',
       'Options:',
-      '1. Schedule it for Phase 2',
-      '2. Ask for a safer Phase 1 version',
+      '1. Convert it into a bounded Phase 2 Explain proposal',
+      '2. Ask for a safer foundation-protecting version',
       '3. Cancel'
     ].join('\n');
   }

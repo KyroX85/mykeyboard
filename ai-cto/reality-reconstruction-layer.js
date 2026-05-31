@@ -26,8 +26,8 @@ function buildRealityReconstruction({ question = '', root = ROOT, memoryLayer = 
       'The active aim is a local-first intelligence layer inside the keyboard flow that helps users understand confusing content before they type or reply.'
     ].join(' '),
     stage: [
-      'The company is in Phase 2 preparation / early Phase 2.',
-      'Phase 1 keyboard trust is treated as a protected foundation, not the main area for endless optimization.'
+      'The company is in Phase 1 protected foundation + Phase 2 Explain active.',
+      'Phase 1 keyboard trust is protected; Phase 2 Explain is active for design, proposals, Product Lab evidence, and founder-approved implementation.'
     ].join(' '),
     bottleneck: [
       'The biggest bottleneck is not prediction or swipe quality right now.',
@@ -100,7 +100,7 @@ function buildEvidenceList(sourceMap) {
   const items = [];
   addEvidence(items, sourceMap['FOUNDER_VISION.md'], 'FOUNDER_VISION.md: defines Aritenis as a local-first keyboard intelligence layer and names “understand before typing” as the north star.');
   addEvidence(items, sourceMap['PROJECT_STATE.md'], 'PROJECT_STATE.md: states Phase 1 is protected, Phase 2 is differentiation, and agents still need better project-state understanding.');
-  addEvidence(items, sourceMap['CURRENT_STAGE.md'], 'CURRENT_STAGE.md: identifies Phase 2 preparation / early Phase 2 and Explain as the active direction.');
+  addEvidence(items, sourceMap['CURRENT_STAGE.md'], 'CURRENT_STAGE.md: identifies Phase 1 protected foundation + Phase 2 Explain active as the current state.');
   addEvidence(items, sourceMap['REJECTED_DIRECTIONS.md'], 'REJECTED_DIRECTIONS.md: lists rejected differentiators and unsafe execution/product patterns.');
   addEvidence(items, sourceMap['ACTIVE_HYPOTHESES.md'], 'ACTIVE_HYPOTHESES.md: lists Explain, screenshot understanding, glass handle activation, Product Lab reliability, and founder-memory consistency as active hypotheses.');
   addEvidence(items, sourceMap['ai-cto/roadmap-lock.json'], 'ai-cto/roadmap-lock.json: provides machine-readable roadmap lock evidence when present.');

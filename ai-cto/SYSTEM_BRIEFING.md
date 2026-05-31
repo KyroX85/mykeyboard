@@ -383,11 +383,11 @@ Group chat simulation:
 
 ## 8. Roadmap Awareness
 
-Current roadmap state in code and memory is mixed but converging:
+Current roadmap state in code and memory is aligned:
 
-- Founder memory says: `Phase 2 preparation / early Phase 2`.
-- Runtime roadmap lock fallback still contains `Phase 1 - Stabilization` language in `product-governance.js` defaults.
-- The active company direction from founder memory is: Phase 1 foundation is protected; Phase 2 Explain is the active wedge.
+- Phase 1 foundation is protected, not the active exploration roadmap.
+- Phase 2 Explain is active for design, proposals, Product Lab evidence, and founder-approved implementation.
+- Runtime roadmap defaults now treat protected foundation plus Phase 2 Explain as the current authority.
 
 Practical interpretation:
 
@@ -422,10 +422,10 @@ Not allowed without strong evidence/approval:
 Known limitations from code and recent runtime behavior:
 
 - Product Lab screenshots can capture Android system dialogs such as `System UI isn't responding`; artifact fetcher now rejects screenshots when UI XML shows those dialog patterns, but workflow reliability still needs improvement.
-- `ai-cto/.brain_state.json` is stale relative to current founder roadmap; latest `lastAnalysis` in the inspected file is `2026-05-22T08:33:50.027Z`.
+- `ai-cto/.brain_state.json` was refreshed on `2026-05-31T14:49:05.324Z`; current health is `30/100`.
 - `validation-results.json` was missing during inspection, so validation state may be unavailable to WhatsApp state reader.
 - `natural-response-builder.js` is large (>500 lines) and is repeatedly flagged as complexity risk.
-- Some roadmap sources still mention Phase 1 stabilization while founder memory says Phase 2 is active. This can create response inconsistency if a route uses old roadmap fallback instead of founder memory.
+- Historical logs still contain old Phase 1 stabilization language as audit history; active roadmap authority is now Phase 1 protected foundation plus Phase 2 Explain active.
 - The system has many hardening/transplant/convergence engines. Many are small reasoning/report modules, but the large number of files increases cognitive load and split-brain risk.
 - WhatsApp conversation can still feel schema/template-heavy because `memory-policy-enforcer` and `execution-schema-enforcer` prepend deterministic fields to all route outputs.
 - Render disk is not a reliable long-term store unless state is committed or pushed to GitHub.
@@ -447,7 +447,7 @@ Needs founder attention:
 - Confirm final Phase 2 killer feature and first demo.
 - Decide how much schema text is acceptable in WhatsApp replies.
 - Resolve Product Lab emulator/System UI stability.
-- Review whether Phase 1 roadmap-lock files should be updated to Phase 2 foundation-protected wording.
+- Keep roadmap authority aligned to Phase 1 protected foundation plus Phase 2 Explain active.
 - Decide whether to keep or retire donor standalone `C:\Users\ADMIN\ai-cto` after verified founder-DNA absorption.
 
 ## 10. Current Health

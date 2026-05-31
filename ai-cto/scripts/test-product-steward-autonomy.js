@@ -14,7 +14,7 @@ const { routeMessage } = require('../whatsapp/command-router');
 const root = path.resolve(__dirname, '..', '..');
 
 const evidence = collectEvidence(root);
-assert(evidence.phase.includes('Phase 1') || evidence.phase.includes('Stabilization'));
+assert(evidence.phase.includes('Phase 1') || evidence.phase.includes('Explain'));
 assert(evidence.guardrailTestCount > 0);
 for (const hotPath of HOT_PATHS) {
   assert(evidence.hotPathFilesPresent.includes(hotPath), `missing hot path evidence: ${hotPath}`);
@@ -35,7 +35,7 @@ try {
   fs.mkdirSync(path.join(tempRoot, 'app', 'src', 'main', 'java', 'com', 'example', 'mykeyboard', 'swipe'), { recursive: true });
   fs.mkdirSync(path.join(tempRoot, 'app', 'src', 'main', 'java', 'com', 'example', 'mykeyboard', 'predictor'), { recursive: true });
   fs.mkdirSync(path.join(tempRoot, 'app', 'src', 'test', 'java'), { recursive: true });
-  fs.writeFileSync(path.join(tempRoot, 'ai-cto', 'roadmap-lock.json'), JSON.stringify({ currentPhase: 'Phase 1 - Stabilization' }));
+  fs.writeFileSync(path.join(tempRoot, 'ai-cto', 'roadmap-lock.json'), JSON.stringify({ currentPhase: 'Phase 1 Protected Foundation + Phase 2 Explain Active' }));
   fs.writeFileSync(path.join(tempRoot, 'ai-cto', 'product-evidence-archive.json'), JSON.stringify({ entries: [], trends: {} }));
   fs.writeFileSync(path.join(tempRoot, 'PRODUCT_PRESSURE_REPORT.md'), [
     '1. Highest current pressure: swipe trust and correction burden.',

@@ -13,8 +13,8 @@ function readRoadmap() {
     return {
       text,
       vision,
-      northStar: firstMatch(normalizedText, /^NORTH STAR:\s*([\s\S]*?)(?=\n\nACTIVE PHASE|\n\nPHASE 1)/m) || 'Aritenis north star not loaded.',
-      currentPhase: firstMatch(normalizedText, /ACTIVE PHASE[\s\S]*?(?=\n\nAGENT RULES|$)/) ||
+      northStar: firstMatch(normalizedText, /^NORTH STAR:\s*([\s\S]*?)(?=\n\nACTIVE (?:PHASE|STATE)|\n\nPHASE 1)/m) || 'Aritenis north star not loaded.',
+      currentPhase: firstMatch(normalizedText, /ACTIVE (?:PHASE|STATE)[\s\S]*?(?=\n\nAGENT RULES|\n\nRoadmap answer format|$)/) ||
         firstMatch(normalizedText, /PHASE 1[\s\S]*?(?=\n\nPHASE 2)/m) ||
         'Active roadmap phase not loaded.',
       rules: firstMatch(normalizedText, /AGENT RULES[\s\S]*$/m) || ''
