@@ -60,12 +60,17 @@ const sampleState = {
 };
 
 function withoutMemoryHeader(value) {
-  return String(value || '').replace(/^Memory Sources Used:[^\n]*\n/, '');
+  return String(value || '')
+    .replace(/^Memory Sources Used:[^\n]*\n/, '')
+    .replace(/^type:\s*(AUDIT_REPORT|TASK_PLAN|EXECUTION_RESULT|CLARIFICATION_REQUEST)\s*\n/, '')
+    .replace(/^intent:\s*[a-z_]+\s*\n/, '');
 }
 
 const initialBrainBackup = fs.existsSync(AGENT_BRAIN_DIR)
   ? new Map(fs.readdirSync(AGENT_BRAIN_DIR).map((file) => [file, fs.readFileSync(path.join(AGENT_BRAIN_DIR, file), 'utf8')]))
   : new Map();
+
+setMode('ACTIVE', 'test setup');
 
 assert.strictEqual(resolveCommand('status'), 'status');
 assert.strictEqual(resolveCommand('what are the risks?'), 'risks');

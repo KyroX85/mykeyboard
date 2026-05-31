@@ -36,7 +36,8 @@ const {
   captureProductLabScreenshot,
   isProductLabScreenshotCommand
 } = require('../product-lab/whatsapp-screenshot-capture');
-const { enforceMemoryPolicyOnRoute } = require('../memory-policy-enforcer');
+const { enforceMemoryPolicyOnRoute, memorySourcesFromResponse } = require('../memory-policy-enforcer');
+const { enforceExecutionSchemaOnRoute } = require('../execution-schema-enforcer');
 const { setMode, readState, enforceExecutionAllowed } = require('../../governance/governance');
 
 const ROOT = path.resolve(__dirname, '..', '..');
@@ -1398,14 +1399,14 @@ module.exports = {
 
 function routeMessage(message, state, memory = {}) {
   const founderMemoryLayer = loadFounderMemoryLayer({ root: ROOT });
-  return enforceMemoryPolicyOnRoute(routeMessageInternal(message, state, {
+  return enforceDeterministicResponse(enforceMemoryPolicyOnRoute(routeMessageInternal(message, state, {
     ...memory,
     founderMemoryLayer
   }), {
     message,
     memory,
     founderMemoryLayer
-  });
+  }), message);
 }
 
 async function routeMessageWithAi(message, state, memory = {}, options = {}) {
@@ -1414,9 +1415,16 @@ async function routeMessageWithAi(message, state, memory = {}, options = {}) {
     ...memory,
     founderMemoryLayer
   }, options);
-  return enforceMemoryPolicyOnRoute(route, {
+  return enforceDeterministicResponse(enforceMemoryPolicyOnRoute(route, {
     message,
     memory,
     founderMemoryLayer
+  }), message);
+}
+
+function enforceDeterministicResponse(route, message) {
+  return enforceExecutionSchemaOnRoute(route, {
+    message,
+    memorySources: memorySourcesFromResponse(route && route.response)
   });
 }

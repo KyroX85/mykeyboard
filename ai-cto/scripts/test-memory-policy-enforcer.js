@@ -34,7 +34,7 @@ const { routeMessage, routeMessageWithAi } = require('../whatsapp/command-router
 
   const greeting = routeMessage('hi', {}, {});
   assert(greeting.response.startsWith('Memory Sources Used:'));
-  assert(greeting.response.includes('CTO: Founder'));
+  assert(greeting.response.includes('type: TASK_PLAN'));
 
   const aiRoute = await routeMessageWithAi('what is the final goal of our company?', {}, {}, {});
   assert(aiRoute.response.startsWith('Memory Sources Used:'));

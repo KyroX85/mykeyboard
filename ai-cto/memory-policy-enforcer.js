@@ -55,6 +55,15 @@ function buildMemorySources({
   return Array.from(new Set(sources));
 }
 
+function memorySourcesFromResponse(response = '') {
+  const match = String(response || '').match(/^Memory Sources Used:\s*([^\n]+)/i);
+  if (!match) return [];
+  return match[1]
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 function hasMemorySourceDeclaration(value = '') {
   return /^Memory Sources Used:\s*/i.test(String(value || '').trim());
 }
@@ -109,5 +118,6 @@ module.exports = {
   buildMemorySources,
   enforceMemoryPolicyOnResponse,
   enforceMemoryPolicyOnRoute,
-  hasMemorySourceDeclaration
+  hasMemorySourceDeclaration,
+  memorySourcesFromResponse
 };

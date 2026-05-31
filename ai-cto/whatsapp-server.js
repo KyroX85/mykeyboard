@@ -27,6 +27,7 @@ const {
   shouldSendProactiveVisionUpdate
 } = require('./whatsapp/vision-steward');
 const { enforceMemoryPolicyOnResponse } = require('./memory-policy-enforcer');
+const { enforceExecutionSchemaOnRoute } = require('./execution-schema-enforcer');
 
 const PORT = Number(process.env.PORT || 3000);
 const REPO_ROOT = process.env.ARITENIS_REPO_ROOT || process.cwd();
@@ -196,7 +197,7 @@ function isFastGreeting(body) {
 }
 
 function fastGreetingReply() {
-  return enforceMemoryPolicyOnResponse([
+  const response = enforceMemoryPolicyOnResponse([
     'CTO: Founder, team is online.',
     'CODER: Ready.',
     'REVIEWER: Standing by.',
@@ -204,6 +205,14 @@ function fastGreetingReply() {
   ].join('\n'), {
     message: 'fast greeting'
   });
+  return enforceExecutionSchemaOnRoute({
+    command: 'fast_greeting',
+    matchedRoute: 'server_fast_greeting',
+    response
+  }, {
+    message: 'fast greeting',
+    memorySources: ['current message', 'session memory unavailable']
+  }).response;
 }
 
 function logVisibleWebhook(stage, details = {}) {
