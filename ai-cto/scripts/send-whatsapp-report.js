@@ -7,9 +7,12 @@ const { buildVisionStewardMessage } = require('../whatsapp/vision-steward');
 const accountSid = process.env.TWILIO_ACCOUNT_SID || '';
 const authToken = process.env.TWILIO_AUTH_TOKEN || '';
 const from = process.env.TWILIO_WHATSAPP_FROM || '';
-const to = process.env.FOUNDER_WHATSAPP_NUMBER || '';
+const to = process.env.FOUNDER_WHATSAPP_NUMBER || process.env.META_WHATSAPP_TO || '';
 
 function buildMessage(state) {
+  if (process.env.CTO_WHATSAPP_BODY) {
+    return String(process.env.CTO_WHATSAPP_BODY).slice(0, 1500);
+  }
   const alerts = immediateAlerts(state);
   return [
     groupChatDailyUpdate(state),
@@ -35,6 +38,9 @@ async function sendDailyWhatsAppMessage(body) {
       to
     },
     meta: {
+      accessToken: process.env.META_WHATSAPP_ACCESS_TOKEN || '',
+      phoneNumberId: process.env.META_WHATSAPP_PHONE_NUMBER_ID || '',
+      graphVersion: process.env.META_WHATSAPP_GRAPH_VERSION || 'v25.0',
       to
     }
   });

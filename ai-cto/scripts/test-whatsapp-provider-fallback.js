@@ -102,6 +102,30 @@ assert.strictEqual(metaPayload.text.body, 'Aritenis report');
   assert.strictEqual(metaOnlyResult.fallbackUsed, true);
   assert.strictEqual(calls.length, 1);
 
+  process.env.META_WHATSAPP_TO = '+18888888888';
+  process.env.META_WHATSAPP_ACCESS_TOKEN = TEST_META_ACCESS;
+  process.env.META_WHATSAPP_PHONE_NUMBER_ID = '123456789';
+  process.env.META_WHATSAPP_GRAPH_VERSION = 'v25.0';
+  process.env.CTO_WHATSAPP_BODY = 'Exact school mode confirmation';
+  const originalFetch = global.fetch;
+  global.fetch = async (url) => {
+    calls.push({ url });
+    return response(200, JSON.stringify({ messages: [{ id: 'wamid.scheduled.meta' }] }));
+  };
+  delete require.cache[require.resolve('./send-whatsapp-report')];
+  const { buildMessage, sendDailyWhatsAppMessage } = require('./send-whatsapp-report');
+  assert.strictEqual(buildMessage({}), 'Exact school mode confirmation');
+  calls.length = 0;
+  const reportResult = await sendDailyWhatsAppMessage('Meta-only scheduled report');
+  assert.strictEqual(reportResult.provider, 'meta');
+  assert.strictEqual(calls.length, 1);
+  global.fetch = originalFetch;
+  delete process.env.META_WHATSAPP_TO;
+  delete process.env.META_WHATSAPP_ACCESS_TOKEN;
+  delete process.env.META_WHATSAPP_PHONE_NUMBER_ID;
+  delete process.env.META_WHATSAPP_GRAPH_VERSION;
+  delete process.env.CTO_WHATSAPP_BODY;
+
   console.log('WhatsApp provider fallback checks passed');
 })().catch((error) => {
   console.error(error);

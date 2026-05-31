@@ -8,6 +8,11 @@ on:
     branches-ignore:
       - 'cto/**'
   workflow_dispatch: # Allow manual triggers
+    inputs:
+      whatsapp_message:
+        description: 'Optional exact WhatsApp message to send to the founder'
+        required: false
+        default: ''
 
 concurrency:
   group: engineering-maintenance-${{ github.ref }}
@@ -37,10 +42,12 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Verify Secrets
+      - name: Verify Notification Secrets
         run: |
-          if [ -z "${{ secrets.MAIL_USERNAME }}" ]; then echo "::error::MAIL_USERNAME is missing"; exit 1; fi
-          if [ -z "${{ secrets.REPORT_RECIPIENT_EMAIL }}" ]; then echo "::error::REPORT_RECIPIENT_EMAIL is missing"; exit 1; fi
+          if [ -z "${{ secrets.MAIL_USERNAME }}" ]; then echo "::warning::MAIL_USERNAME is missing; email may be skipped or fail."; fi
+          if [ -z "${{ secrets.REPORT_RECIPIENT_EMAIL }}" ]; then echo "::warning::REPORT_RECIPIENT_EMAIL is missing; email may be skipped or fail."; fi
+          if [ -z "${{ secrets.FOUNDER_WHATSAPP_NUMBER }}" ] && [ -z "${{ secrets.META_WHATSAPP_TO }}" ]; then echo "::warning::No founder WhatsApp recipient secret configured."; fi
+          if [ -z "${{ secrets.TWILIO_ACCOUNT_SID }}" ] && [ -z "${{ secrets.META_WHATSAPP_ACCESS_TOKEN }}" ]; then echo "::warning::No outbound WhatsApp provider secret configured."; fi
         shell: bash
 
       - name: Install Dependencies
@@ -112,6 +119,11 @@ jobs:
           TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
           TWILIO_WHATSAPP_FROM: ${{ secrets.TWILIO_WHATSAPP_FROM }}
           FOUNDER_WHATSAPP_NUMBER: ${{ secrets.FOUNDER_WHATSAPP_NUMBER }}
+          META_WHATSAPP_ACCESS_TOKEN: ${{ secrets.META_WHATSAPP_ACCESS_TOKEN }}
+          META_WHATSAPP_PHONE_NUMBER_ID: ${{ secrets.META_WHATSAPP_PHONE_NUMBER_ID }}
+          META_WHATSAPP_GRAPH_VERSION: ${{ secrets.META_WHATSAPP_GRAPH_VERSION }}
+          META_WHATSAPP_TO: ${{ secrets.META_WHATSAPP_TO }}
+          CTO_WHATSAPP_BODY: ${{ github.event.inputs.whatsapp_message }}
         shell: bash
 
       - name: Create Report and Memory PR
