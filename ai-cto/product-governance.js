@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { decideGovernanceAuthority } = require('./balanced-governance-framework');
 
 const PRODUCT_PROTECTED_FILES = [
   'app/src/main/java/com/example/mykeyboard/KeyboardService.kt',
@@ -150,20 +151,26 @@ function classifyProductChange({ files = [], task = '', changes = [], diff = nul
   };
 }
 
-function shouldBlockDirectProductExecution({ files = [], task = '', changes = [] } = {}) {
-  const classification = classifyProductChange({ files, task, changes });
-  const directBlockCategories = new Set([
-    'MEDIUM_PRODUCT_RISK',
-    'HIGH_PRODUCT_RISK',
-    'ARCHITECTURE_RISK',
-    'UX_RISK',
-    'SWIPE_RISK',
-    'PREDICTION_RISK',
-    'RUNTIME_RISK'
-  ]);
+function shouldBlockDirectProductExecution({ files = [], task = '', changes = [], diff = null, evidence = {}, validation = {}, action = 'file_modify', governanceMode = '' } = {}) {
+  const classification = classifyProductChange({ files, task, changes, diff });
+  const authority = decideGovernanceAuthority({
+    files,
+    task,
+    changes,
+    diff,
+    evidence,
+    validation,
+    action,
+    governanceMode,
+    riskLevel: classification.primaryCategory
+  });
   return {
-    blocked: classification.categories.some((category) => directBlockCategories.has(category)),
-    classification
+    blocked: authority.level <= 1,
+    classification,
+    authority,
+    decisionLevel: authority.level,
+    decisionName: authority.name,
+    requiresConfirmation: authority.requiresConfirmation
   };
 }
 
@@ -811,6 +818,7 @@ module.exports = {
   isProductProtectedFile,
   protectedFilesIn,
   shouldBlockDirectProductExecution,
+  decideGovernanceAuthority,
   buildRealityValidationGate,
   formatGovernanceBlock,
   readRoadmapLock,
