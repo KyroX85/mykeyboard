@@ -125,6 +125,16 @@ assert.strictEqual(metaPayload.text.body, 'Aritenis report');
   delete process.env.META_WHATSAPP_PHONE_NUMBER_ID;
   delete process.env.META_WHATSAPP_GRAPH_VERSION;
   delete process.env.CTO_WHATSAPP_BODY;
+  delete require.cache[require.resolve('./send-whatsapp-report')];
+  const strictSender = require('./send-whatsapp-report');
+  await assert.rejects(
+    () => strictSender.sendDailyWhatsAppMessage('must not silently skip'),
+    /FOUNDER_WHATSAPP_NUMBER or META_WHATSAPP_TO is required/
+  );
+  process.env.CTO_WHATSAPP_ALLOW_SKIP = 'true';
+  const skipped = await strictSender.sendDailyWhatsAppMessage('explicitly allowed skip');
+  assert.strictEqual(skipped.skipped, true);
+  delete process.env.CTO_WHATSAPP_ALLOW_SKIP;
 
   console.log('WhatsApp provider fallback checks passed');
 })().catch((error) => {

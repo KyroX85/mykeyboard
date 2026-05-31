@@ -27,7 +27,10 @@ function buildMessage(state) {
 
 async function sendDailyWhatsAppMessage(body) {
   if (!to) {
-    return { skipped: true, reason: 'FOUNDER_WHATSAPP_NUMBER is not configured.' };
+    if (process.env.CTO_WHATSAPP_ALLOW_SKIP === 'true') {
+      return { skipped: true, reason: 'FOUNDER_WHATSAPP_NUMBER or META_WHATSAPP_TO is not configured.' };
+    }
+    throw new Error('FOUNDER_WHATSAPP_NUMBER or META_WHATSAPP_TO is required for proactive WhatsApp reports.');
   }
   return sendWhatsAppMessageWithFallback({
     body,
