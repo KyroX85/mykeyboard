@@ -3,6 +3,7 @@ const { formatRoadmapBrief, ROADMAP } = require('./phase2-roadmap-brain');
 const { formatJudgment, judgeProposal } = require('./advanced-product-judgment-engine');
 const { buildAgentCouncil, formatAgentCouncil } = require('./agent-council-engine');
 const { buildNvidiaCouncil, formatNvidiaCouncil } = require('./nvidia-council-engine');
+const { formatCodexStyleAgentLoop, runCodexStyleAgentLoop } = require('./codex-style-agent-system');
 const { assessWeakWork, formatWeakWork } = require('./weak-work-filter');
 
 function buildControlPlaneSnapshot() {
@@ -96,6 +97,20 @@ function routeControlPlaneCommand(message = '') {
     };
   }
 
+  const codexGoal = extractCodexAgentGoal(text);
+  if (codexGoal) {
+    const loop = runCodexStyleAgentLoop({
+      goal: codexGoal,
+      root: process.cwd()
+    });
+    return {
+      command: 'codex_style_agent_loop',
+      matchedRoute: 'agent_control_plane',
+      details: { loop },
+      response: formatCodexStyleAgentLoop(loop)
+    };
+  }
+
   return null;
 }
 
@@ -137,6 +152,11 @@ function extractCouncilProposal(text = '') {
 
 function extractModelCouncilProposal(text = '') {
   const match = String(text || '').match(/^(?:model council|nvidia council|real council|api council)\s*:?\s*(.+)$/i);
+  return match ? match[1].trim() : '';
+}
+
+function extractCodexAgentGoal(text = '') {
+  const match = String(text || '').match(/^(?:codex agents|codex loop|long horizon agent|phone codex)\s*:?\s*(.+)$/i);
   return match ? match[1].trim() : '';
 }
 
