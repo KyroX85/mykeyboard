@@ -71,6 +71,39 @@ class ExecutionLayerShellGuardrailsTest {
         assertTrue(destroy.contains("cleanupInputViewState()"))
     }
 
+    @Test
+    fun founderExecutionLayerLaunchesAppsOnlyThroughLocalVoiceIntent() {
+        val source = sourceFile("app/src/main/java/com/example/mykeyboard/KeyboardService.kt").readText()
+        val manifest = sourceFile("app/src/main/AndroidManifest.xml").readText()
+        val voice = methodBody(source, "startExecutionVoiceCommand")
+        val detection = methodBody(source, "detectExecutionLaunchIntent")
+        val resolution = methodBody(source, "resolveLaunchableApp")
+        val launch = methodBody(source, "launchExecutionApp")
+
+        assertTrue(manifest.contains("android.intent.action.MAIN"))
+        assertTrue(manifest.contains("android.intent.category.LAUNCHER"))
+        assertTrue(source.contains("EXECUTION_APP_ALIASES"))
+        assertTrue(source.contains("com.instagram.android"))
+        assertTrue(source.contains("com.whatsapp"))
+        assertTrue(source.contains("com.android.chrome"))
+        assertTrue(source.contains("net.one97.paytm"))
+        assertTrue(source.contains("com.phonepe.app"))
+        assertTrue(voice.contains("RecognizerIntent.ACTION_RECOGNIZE_SPEECH"))
+        assertTrue(detection.contains("open "))
+        assertTrue(resolution.contains("packageManager.queryIntentActivities"))
+        assertTrue(launch.contains("startActivity"))
+        assertFalse(launch.contains("sendText"))
+        assertFalse(voice.contains("newCall("))
+        assertFalse(detection.contains("newCall("))
+        assertFalse(resolution.contains("newCall("))
+        assertFalse(launch.contains("newCall("))
+        assertFalse(voice.contains("Supabase"))
+        assertFalse(detection.contains("Supabase"))
+        assertFalse(resolution.contains("Supabase"))
+        assertFalse(launch.contains("Supabase"))
+        assertFalse(source.contains("AccessibilityService"))
+    }
+
     private fun sourceFile(relativePath: String): File {
         val current = File("").absoluteFile
         val direct = File(current, relativePath)

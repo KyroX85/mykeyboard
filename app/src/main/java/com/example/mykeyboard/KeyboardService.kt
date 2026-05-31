@@ -13,6 +13,7 @@ import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
 import android.inputmethodservice.InputMethodService
 import android.media.AudioManager
+import android.provider.MediaStore
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -96,6 +97,7 @@ class KeyboardService : InputMethodService() {
     private lateinit var executionLayer: LinearLayout
     private lateinit var executionCommandText: TextView
     private lateinit var executionStatusText: TextView
+    private var executionVoiceButton: TextView? = null
     private var executionOverlayRoot: FrameLayout? = null
 
     private lateinit var emojiContainer: LinearLayout
@@ -194,6 +196,7 @@ class KeyboardService : InputMethodService() {
     private var autocorrectPrefetchFuture: Future<*>? = null
     private var speechRecognizer: SpeechRecognizer? = null
     private var isVoiceTypingActive = false
+    private var isExecutionVoiceCommandActive = false
     private var voiceRecordingPulse = false
     private var lastVoicePartial = ""
     private var pendingSpaceCommit = false
@@ -255,6 +258,15 @@ class KeyboardService : InputMethodService() {
         const val EXECUTION_HANDLE_PULL_THRESHOLD_DP = 42
         const val SUGGESTION_QUERY_UNSET = "\u0000"
         val NUMBER_ROW_KEYS = listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")
+        val EXECUTION_APP_ALIASES = mapOf(
+            "instagram" to listOf("com.instagram.android"),
+            "whatsapp" to listOf("com.whatsapp", "com.whatsapp.w4b"),
+            "chrome" to listOf("com.android.chrome"),
+            "google chrome" to listOf("com.android.chrome"),
+            "phonepe" to listOf("com.phonepe.app"),
+            "phone pe" to listOf("com.phonepe.app"),
+            "paytm" to listOf("net.one97.paytm")
+        )
     }
 
     override fun onCreate() {
@@ -545,6 +557,22 @@ class KeyboardService : InputMethodService() {
         }
         executionLayer.addView(hintRow)
 
+        executionVoiceButton = TextView(this).apply {
+            text = "Speak: Open Instagram"
+            textSize = 14f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(Color.rgb(12, 54, 82))
+            gravity = Gravity.CENTER
+            setIncludeFontPadding(false)
+            background = lightBlueGlassDrawable(Color.argb(180, 246, 253, 255), dp(15), Color.argb(165, 255, 255, 255))
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(42)
+            ).apply { topMargin = dp(10) }
+            setOnClickListener { startExecutionVoiceCommand() }
+        }
+        executionLayer.addView(executionVoiceButton)
+
         val cancel = TextView(this).apply {
             text = "Cancel"
             textSize = 14f
@@ -629,6 +657,7 @@ class KeyboardService : InputMethodService() {
         }
 
         val overlayRoot = FrameLayout(this).apply {
+            alpha = 0f
             setPadding(dp(14), dp(44), dp(14), dp(18))
             background = ColorDrawable(Color.argb(92, 26, 178, 226))
         }
@@ -705,6 +734,22 @@ class KeyboardService : InputMethodService() {
         }
         overlaySurface.addView(chipRow)
 
+        executionVoiceButton = TextView(this).apply {
+            text = "Speak: Open Instagram"
+            textSize = 15f
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            setTextColor(Color.rgb(12, 54, 82))
+            setIncludeFontPadding(false)
+            background = lightBlueGlassDrawable(Color.argb(178, 246, 253, 255), dp(16), Color.argb(165, 255, 255, 255))
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(46)
+            ).apply { topMargin = dp(10) }
+            setOnClickListener { startExecutionVoiceCommand() }
+        }
+        overlaySurface.addView(executionVoiceButton)
+
         val spacer = View(this).apply {
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -767,6 +812,7 @@ class KeyboardService : InputMethodService() {
             if (::executionLayer.isInitialized) {
                 executionLayer.visibility = View.GONE
             }
+            overlayRoot.animate().alpha(1f).setDuration(160L).start()
             renderExecutionCommand()
         } catch (e: SecurityException) {
             executionOverlayRoot = null
@@ -802,6 +848,9 @@ class KeyboardService : InputMethodService() {
     }
 
     private fun closeExecutionLayer() {
+        if (isExecutionVoiceCommandActive) {
+            stopVoiceTyping(cancel = true)
+        }
         executionLayerOpen = false
         executionCommand.clear()
         executionOverlayRoot?.let { overlay ->
@@ -826,6 +875,21 @@ class KeyboardService : InputMethodService() {
         executionCommandText.setTextColor(
             if (command.isBlank()) Color.rgb(72, 100, 122) else Color.rgb(9, 37, 58)
         )
+    }
+
+    private fun renderExecutionStatus(message: String) {
+        if (::executionStatusText.isInitialized) {
+            executionStatusText.text = message
+        }
+    }
+
+    private fun renderExecutionVoiceButton() {
+        executionVoiceButton?.let { button ->
+            button.text = if (isExecutionVoiceCommandActive) "Listening..." else "Speak: Open Instagram"
+            button.setTextColor(
+                if (isExecutionVoiceCommandActive) Color.rgb(0, 120, 72) else Color.rgb(12, 54, 82)
+            )
+        }
     }
 
     private fun setupNumberRow(sizing: KeyboardSizingProfile = currentKeyboardSizing()) {
@@ -1880,7 +1944,7 @@ class KeyboardService : InputMethodService() {
         when (key) {
             KEY_BACKSPACE -> deleteExecutionCommandCharacter()
             KEY_SPACE -> appendExecutionCommand(" ")
-            KEY_ENTER -> executionStatusText.text = "Command captured. Feature actions come next."
+            KEY_ENTER -> executeExecutionCommand(executionCommand.toString())
             KEY_SHIFT, KEY_EMOJI, "123", "ABC", "#+=" -> Unit
             else -> Unit
         }
@@ -2076,6 +2140,49 @@ class KeyboardService : InputMethodService() {
         }
     }
 
+    private fun startExecutionVoiceCommand() {
+        if (!executionLayerOpen) return
+        if (!hasRecordAudioPermission()) {
+            renderExecutionStatus("Enable microphone permission, then try again.")
+            openMicrophonePermissionSettings()
+            return
+        }
+        if (!SpeechRecognizer.isRecognitionAvailable(this)) {
+            renderExecutionStatus("Voice command is not available on this phone.")
+            return
+        }
+
+        stopVoiceTyping(cancel = true)
+        val recognizer = speechRecognizer ?: SpeechRecognizer.createSpeechRecognizer(this).also {
+            it.setRecognitionListener(createSpeechRecognitionListener())
+            speechRecognizer = it
+        }
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
+            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+        }
+
+        try {
+            isExecutionVoiceCommandActive = true
+            isVoiceTypingActive = true
+            voiceRecordingPulse = true
+            lastVoicePartial = ""
+            executionCommand.clear()
+            renderExecutionCommand()
+            renderExecutionStatus("Listening for app launch command.")
+            renderExecutionVoiceButton()
+            recognizer.startListening(intent)
+        } catch (e: RuntimeException) {
+            isExecutionVoiceCommandActive = false
+            isVoiceTypingActive = false
+            voiceRecordingPulse = false
+            renderExecutionVoiceButton()
+            renderExecutionStatus("Could not start voice command.")
+        }
+    }
+
     private fun createSpeechRecognitionListener(): RecognitionListener = object : RecognitionListener {
         override fun onReadyForSpeech(params: Bundle?) = Unit
         override fun onBeginningOfSpeech() = Unit
@@ -2091,29 +2198,150 @@ class KeyboardService : InputMethodService() {
         override fun onEndOfSpeech() = Unit
         override fun onError(error: Int) {
             isVoiceTypingActive = false
+            isExecutionVoiceCommandActive = false
             voiceRecordingPulse = false
             lastVoicePartial = ""
             updateVoiceKeyUI()
+            renderExecutionVoiceButton()
         }
         override fun onResults(results: Bundle?) {
+            val commandMode = isExecutionVoiceCommandActive
             isVoiceTypingActive = false
+            isExecutionVoiceCommandActive = false
             voiceRecordingPulse = false
             updateVoiceKeyUI()
+            renderExecutionVoiceButton()
             val spokenText = results
                 ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                 ?.firstOrNull()
                 .orEmpty()
-            commitVoiceResult(spokenText)
+            if (commandMode) {
+                commitExecutionVoiceResult(spokenText)
+            } else {
+                commitVoiceResult(spokenText)
+            }
         }
         override fun onPartialResults(partialResults: Bundle?) {
             val partialText = partialResults
                 ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                 ?.firstOrNull()
                 .orEmpty()
-            commitVoicePartial(partialText)
+            if (isExecutionVoiceCommandActive) {
+                commitExecutionVoicePartial(partialText)
+            } else {
+                commitVoicePartial(partialText)
+            }
         }
         override fun onEvent(eventType: Int, params: Bundle?) = Unit
     }
+
+    private fun commitExecutionVoicePartial(spokenText: String) {
+        val clean = spokenText.trim()
+        if (clean.isEmpty() || clean == lastVoicePartial) return
+        executionCommand.clear()
+        executionCommand.append(clean)
+        lastVoicePartial = clean
+        renderExecutionCommand()
+        renderExecutionStatus("Heard: $clean")
+    }
+
+    private fun commitExecutionVoiceResult(spokenText: String) {
+        val clean = spokenText.trim()
+        if (clean.isEmpty()) {
+            renderExecutionStatus("No command heard.")
+            return
+        }
+        executionCommand.clear()
+        executionCommand.append(clean)
+        lastVoicePartial = ""
+        renderExecutionCommand()
+        executeExecutionCommand(clean)
+    }
+
+    private fun executeExecutionCommand(command: String) {
+        val launchName = detectExecutionLaunchIntent(command)
+        if (launchName == null) {
+            renderExecutionStatus("Try: Open Instagram, WhatsApp, Chrome, Camera, Settings, or any app name.")
+            return
+        }
+        launchExecutionApp(launchName)
+    }
+
+    private fun detectExecutionLaunchIntent(command: String): String? {
+        val normalized = normalizeExecutionCommand(command)
+        if (normalized.isBlank()) return null
+        val prefixes = listOf("open ", "launch ", "start ", "go to ")
+        for (prefix in prefixes) {
+            if (normalized.startsWith(prefix)) {
+                return normalized.removePrefix(prefix).trim().takeIf { it.isNotEmpty() }
+            }
+        }
+        return normalized.takeIf { EXECUTION_APP_ALIASES.containsKey(it) || it == "camera" || it == "settings" }
+    }
+
+    private fun launchExecutionApp(appName: String) {
+        val requestStartedAt = SystemClock.elapsedRealtime()
+        val target = resolveLaunchableApp(appName)
+        if (target == null) {
+            renderExecutionStatus("Could not find $appName on this phone.")
+            return
+        }
+        try {
+            target.intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(target.intent)
+            val elapsedMs = SystemClock.elapsedRealtime() - requestStartedAt
+            renderExecutionStatus("Opened ${target.label} in ${elapsedMs}ms.")
+            Toast.makeText(this, "Opened ${target.label}", Toast.LENGTH_SHORT).show()
+            mainHandler.postDelayed({ closeExecutionLayer() }, 450L)
+        } catch (e: RuntimeException) {
+            Log.w(LOG_TAG, "Unable to launch ${target.label}", e)
+            renderExecutionStatus("Could not open ${target.label}.")
+        }
+    }
+
+    private fun resolveLaunchableApp(appName: String): ExecutionLaunchTarget? {
+        val normalizedName = normalizeExecutionCommand(appName)
+        if (normalizedName == "settings") {
+            return ExecutionLaunchTarget("Settings", Intent(Settings.ACTION_SETTINGS))
+        }
+        if (normalizedName == "camera") {
+            return ExecutionLaunchTarget("Camera", Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA))
+        }
+
+        EXECUTION_APP_ALIASES[normalizedName]?.forEach { packageName ->
+            packageManager.getLaunchIntentForPackage(packageName)?.let { intent ->
+                return ExecutionLaunchTarget(appName.replaceFirstChar { it.uppercase() }, intent)
+            }
+        }
+
+        val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+        val launchableApps = packageManager.queryIntentActivities(launcherIntent, 0)
+        var containsMatch: ExecutionLaunchTarget? = null
+        for (resolveInfo in launchableApps) {
+            val label = resolveInfo.loadLabel(packageManager)?.toString().orEmpty()
+            val normalizedLabel = normalizeExecutionCommand(label)
+            if (normalizedLabel == normalizedName) {
+                val intent = packageManager.getLaunchIntentForPackage(resolveInfo.activityInfo.packageName) ?: continue
+                return ExecutionLaunchTarget(label, intent)
+            }
+            if (containsMatch == null && normalizedLabel.contains(normalizedName)) {
+                val intent = packageManager.getLaunchIntentForPackage(resolveInfo.activityInfo.packageName) ?: continue
+                containsMatch = ExecutionLaunchTarget(label, intent)
+            }
+        }
+        return containsMatch
+    }
+
+    private fun normalizeExecutionCommand(value: String): String =
+        value.lowercase(Locale.getDefault())
+            .replace(Regex("[^a-z0-9 ]"), " ")
+            .replace(Regex("\\s+"), " ")
+            .trim()
+
+    private data class ExecutionLaunchTarget(
+        val label: String,
+        val intent: Intent
+    )
 
     private fun commitVoicePartial(spokenText: String) {
         val clean = spokenText.trim()
@@ -2154,15 +2382,19 @@ class KeyboardService : InputMethodService() {
         } finally {
             if (cancel) {
                 try {
-                    currentInputConnection?.finishComposingText()
+                    if (!isExecutionVoiceCommandActive) {
+                        currentInputConnection?.finishComposingText()
+                    }
                     lastVoicePartial = ""
                 } catch (_: RuntimeException) {
                     // Ignore composition cleanup failures during IME teardown.
                 }
             }
             isVoiceTypingActive = false
+            isExecutionVoiceCommandActive = false
             voiceRecordingPulse = false
             updateVoiceKeyUI()
+            renderExecutionVoiceButton()
         }
     }
 
@@ -2175,8 +2407,10 @@ class KeyboardService : InputMethodService() {
         } finally {
             speechRecognizer = null
             isVoiceTypingActive = false
+            isExecutionVoiceCommandActive = false
             voiceRecordingPulse = false
             lastVoicePartial = ""
+            renderExecutionVoiceButton()
         }
     }
 
