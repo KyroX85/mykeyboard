@@ -77,13 +77,13 @@ assert(productQuestion.response.includes('Reality reconstruction'));
 assert(!productQuestion.response.includes('Current Foundation Health: protected.'));
 
 const finalGoal = routeMessage('what is the final goal of our company?', {}, {});
-assert.strictEqual(finalGoal.command, 'founder_memory_question');
+assert.strictEqual(finalGoal.command, 'founder_intent_understanding');
 assert(finalGoal.response.includes('Why I believe this:'));
 assert(finalGoal.response.includes('understand confusing content'));
 assert(!finalGoal.response.includes('Recommended Next Step:'));
 
 const doNotBuild = routeMessage('what should not be built right now?', {}, {});
-assert.strictEqual(doNotBuild.command, 'founder_memory_question');
+assert.strictEqual(doNotBuild.command, 'founder_intent_understanding');
 assert(doNotBuild.response.includes('auto-send'));
 assert(doNotBuild.response.includes('Confidence:'));
 assert(!doNotBuild.response.includes('100%'));

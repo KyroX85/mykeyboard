@@ -49,9 +49,9 @@ const { routeMessage, routeMessageWithAi } = require('../whatsapp/command-router
   assert(!memoryAudit.response.includes('Current Foundation Health'));
 
   const strategicQuestion = await routeMessageWithAi('what is the final goal of our company?', {}, {}, {});
-  assert.strictEqual(strategicQuestion.command, 'founder_memory_question');
-  assert.strictEqual(strategicQuestion.matchedRoute, 'founder_memory_intent');
-  assert(strategicQuestion.response.includes('Reality reconstruction'));
+  assert.strictEqual(strategicQuestion.command, 'founder_intent_understanding');
+  assert.strictEqual(strategicQuestion.matchedRoute, 'founder_intent_understanding');
+  assert(strategicQuestion.response.includes('Founder objective I inferred:'));
   assert(strategicQuestion.response.includes('understand confusing content'));
   assert(strategicQuestion.response.includes('Why I believe this:'));
   assert(!strategicQuestion.response.includes('Recommended Next Step'));

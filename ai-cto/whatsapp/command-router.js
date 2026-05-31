@@ -31,6 +31,7 @@ const {
 } = require('../founder-memory-layer');
 const { formatRealityReconstruction } = require('../reality-reconstruction-layer');
 const { routeFounderMemoryIntent } = require('./founder-intent-classifier');
+const { routeFounderIntentUnderstanding } = require('./founder-intent-understanding-layer');
 const {
   buildScreenshotCaptureResponse,
   captureProductLabScreenshot,
@@ -153,6 +154,8 @@ function routeMessageInternal(message, state, memory = {}) {
   if (preservationDecision) return preservationDecision;
   const preservationBlock = maybeBlockPreservationMutation(normalized);
   if (preservationBlock) return preservationBlock;
+  const founderIntentUnderstanding = routeFounderIntentUnderstanding(message, { root: ROOT });
+  if (founderIntentUnderstanding) return founderIntentUnderstanding;
   const founderMemoryIntent = routeFounderMemoryIntent(message, { root: ROOT });
   if (founderMemoryIntent) return founderMemoryIntent;
   const screenshotWorkflowPlan = maybeRouteProductLabScreenshotWorkflowPlan(normalized);
@@ -409,6 +412,14 @@ async function routeMessageWithAiInternal(message, state, memory = {}, options =
     };
   }
 
+  const founderIntentUnderstanding = routeFounderIntentUnderstanding(message, { root: ROOT });
+  if (founderIntentUnderstanding) {
+    return {
+      ...founderIntentUnderstanding,
+      usedAi: false,
+      aiReason: 'founder_intent_understanding'
+    };
+  }
   const founderMemoryIntent = routeFounderMemoryIntent(message, { root: ROOT });
   if (founderMemoryIntent) {
     return {
