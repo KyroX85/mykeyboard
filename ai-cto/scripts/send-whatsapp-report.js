@@ -3,6 +3,10 @@ const { groupChatDailyUpdate, immediateAlerts } = require('../whatsapp/school-mo
 const { logAgentAction } = require('../whatsapp/agent-action-log');
 const { sendWhatsAppMessageWithFallback } = require('../whatsapp/whatsapp-provider');
 const { buildVisionStewardMessage } = require('../whatsapp/vision-steward');
+const {
+  evaluateProactiveNotification,
+  recordNotificationDecision
+} = require('../whatsapp/notification-intelligence-layer');
 
 const accountSid = process.env.TWILIO_ACCOUNT_SID || '';
 const authToken = process.env.TWILIO_AUTH_TOKEN || '';
@@ -52,11 +56,30 @@ async function sendDailyWhatsAppMessage(body) {
 async function main() {
   const state = loadEngineeringState();
   const body = buildMessage(state);
+  const decision = evaluateProactiveNotification({
+    root: process.cwd(),
+    type: 'normal_status',
+    body,
+    state,
+    now: new Date()
+  });
+  if (!decision.allowed) {
+    logAgentAction({
+      agentName: 'CTO',
+      actionTaken: 'suppressed proactive WhatsApp report',
+      reason: `Notification intelligence blocked send: ${decision.reason}`,
+      riskLevel: 'LOW',
+      outcome: 'NOT_SENT'
+    });
+    console.log(`[whatsapp-report] suppressed: ${decision.reason}`);
+    return;
+  }
   const result = await sendDailyWhatsAppMessage(body);
+  recordNotificationDecision(process.cwd(), decision, { body, now: new Date(), sent: true });
   logAgentAction({
     agentName: 'CTO',
     actionTaken: 'sent daily WhatsApp school-mode report',
-    reason: 'Daily 7am report always, even if nothing changed.',
+    reason: `Notification intelligence allowed send: ${decision.priority} ${decision.priorityReason}`,
     riskLevel: 'LOW',
     outcome: result.skipped ? `SKIPPED: ${result.reason}` : `SENT via ${result.provider}${result.fallbackUsed ? ' fallback' : ''}`
   });
@@ -68,7 +91,7 @@ if (require.main === module) {
     logAgentAction({
       agentName: 'CTO',
       actionTaken: 'attempted daily WhatsApp school-mode report',
-      reason: 'Daily 7am report always.',
+      reason: 'Notification intelligence guarded daily report.',
       riskLevel: 'MEDIUM',
       outcome: `FAILED: ${error.message}`
     });

@@ -22,10 +22,11 @@ const { fetchLatestProductLabScreenshot } = require('./whatsapp/product-lab-arti
 const {
   buildVisionStewardMessage,
   buildVisionStewardMessageWithModelCouncil,
-  inferHighestVisionPressure,
-  recordProactiveVisionUpdate,
-  shouldSendProactiveVisionUpdate
 } = require('./whatsapp/vision-steward');
+const {
+  evaluateProactiveNotification,
+  recordNotificationDecision
+} = require('./whatsapp/notification-intelligence-layer');
 const { enforceMemoryPolicyOnResponse } = require('./memory-policy-enforcer');
 const { enforceExecutionSchemaOnRoute } = require('./execution-schema-enforcer');
 
@@ -693,8 +694,6 @@ function runDeferredProductLabScreenshotDelivery({ requestId, incoming, publicBa
 function startProactiveVisionSteward({
   root = REPO_ROOT,
   intervalMs = Number(process.env.CTO_PROACTIVE_STEWARD_INTERVAL_MS || 60 * 60 * 1000),
-  minHoursBetween = Number(process.env.CTO_PROACTIVE_STEWARD_MIN_HOURS || 6),
-  maxPerDay = Number(process.env.CTO_PROACTIVE_STEWARD_MAX_PER_DAY || 2),
   enabled = process.env.CTO_PROACTIVE_STEWARD_ENABLED !== 'false',
   sendImpl = sendWhatsAppMessageWithFallback
 } = {}) {
@@ -709,20 +708,21 @@ function startProactiveVisionSteward({
 
   const tick = async () => {
     const now = new Date();
-    const decision = shouldSendProactiveVisionUpdate({
-      root,
-      now,
-      minHoursBetween,
-      maxPerDay,
-      enabled
-    });
-    if (!decision.allowed) return decision;
-
     const engineeringState = loadEngineeringState();
-    const pressure = inferHighestVisionPressure(engineeringState);
     const body = process.env.CTO_PROACTIVE_MODEL_COUNCIL === 'false'
       ? buildVisionStewardMessage({ engineeringState, now })
       : await buildVisionStewardMessageWithModelCouncil({ engineeringState, now });
+    const decision = evaluateProactiveNotification({
+      root,
+      type: 'vision_check',
+      body,
+      state: engineeringState,
+      now
+    });
+    if (!decision.allowed) {
+      console.log(`[whatsapp-cto] proactive vision steward suppressed: ${decision.reason}`);
+      return decision;
+    }
     const result = await sendImpl({
       body,
       twilio: {
@@ -735,7 +735,7 @@ function startProactiveVisionSteward({
         to: FOUNDER_WHATSAPP_NUMBER
       }
     });
-    recordProactiveVisionUpdate({ root, now, topic: pressure.topic });
+    recordNotificationDecision(root, decision, { body, now, sent: true });
     console.log(`[whatsapp-cto] proactive vision steward sent via ${result.provider}`);
     return { allowed: true, sent: true, provider: result.provider };
   };

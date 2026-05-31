@@ -63,8 +63,8 @@ function immediateAlerts(state = {}) {
 }
 
 function schoolModeDigest(state = {}) {
-  const health = state.healthScore == null ? 'unknown' : `${state.healthScore}/100`;
-  const momentum = state.momentum || 'UNKNOWN';
+  const health = metricValue(state, 'health');
+  const momentum = metricValue(state, 'momentum');
   const risks = topThreeRisks(state);
   return [
     'Founder, 7am school mode CTO update.',
@@ -78,8 +78,8 @@ function schoolModeDigest(state = {}) {
 
 function groupChatDailyUpdate(state = {}) {
   const risks = topThreeRisks(state);
-  const health = state.healthScore == null ? 'unknown' : `${state.healthScore}/100`;
-  const momentum = state.momentum || 'UNKNOWN';
+  const health = metricValue(state, 'health');
+  const momentum = metricValue(state, 'momentum');
   const fixState = state.sections && state.sections.completedFixes && state.sections.completedFixes.length
     ? 'work recorded'
     : 'no runtime fix recorded yet';
@@ -91,6 +91,16 @@ function groupChatDailyUpdate(state = {}) {
     `AUDITOR: Immediate alert mode on - ${immediateAlerts(state).length} above-zero item(s).`,
     'CTO: No major move without approval. If needed, I will ask with 3 options.'
   ].join('\n');
+}
+
+function metricValue(state = {}, key) {
+  const metric = state.metricProvenance && state.metricProvenance[key];
+  if (!metric || !metric.value || metric.source === 'unknown') {
+    return key === 'health'
+      ? 'Insufficient evidence to score health'
+      : 'unknown without sourced calculation';
+  }
+  return `${metric.value} (Source: ${metric.source}; Reason: ${metric.reason}; Calculation: ${metric.calculation})`;
 }
 
 function normalizeOptions(options) {
@@ -118,5 +128,6 @@ module.exports = {
   topThreeRisks,
   immediateAlerts,
   schoolModeDigest,
-  groupChatDailyUpdate
+  groupChatDailyUpdate,
+  metricValue
 };
