@@ -186,6 +186,9 @@ class KeyboardService : InputMethodService() {
     private val suggestionExecutor = Executors.newSingleThreadExecutor { runnable ->
         Thread(runnable, "KeyboardSuggestions").apply { isDaemon = true }
     }
+    private val autocorrectExecutor = Executors.newSingleThreadExecutor { runnable ->
+        Thread(runnable, "KeyboardAutocorrect").apply { isDaemon = true }
+    }
     private var suggestionLookupFuture: Future<*>? = null
     private var autocorrectPrefetchFuture: Future<*>? = null
     private var speechRecognizer: SpeechRecognizer? = null
@@ -195,6 +198,7 @@ class KeyboardService : InputMethodService() {
     private var spaceDownRawX = 0f
     private var spaceCursorModeActive = false
     private var lastSpaceCursorStep = 0
+    private var pendingSpaceCommit = false
     private var executionLayerOpen = false
     private var executionHandleDownY = 0f
     private var executionHandleActivated = false
@@ -1819,6 +1823,7 @@ class KeyboardService : InputMethodService() {
             }
             KEY_SPACE -> {
                 stopRepeatingSpace()
+                handleSpaceUp(wasLongPress)
                 resetSpaceCursorControl()
             }
             else -> {
@@ -1895,12 +1900,20 @@ class KeyboardService : InputMethodService() {
         spaceDownRawX = rawX
         spaceCursorModeActive = false
         lastSpaceCursorStep = 0
-        commitSpace()
+        pendingSpaceCommit = true
         scheduleLongPress(SPACE_CURSOR_LONG_PRESS_DELAY_MS) {
             isLongPressActive = true
             spaceCursorModeActive = true
+            pendingSpaceCommit = false
             lastSpaceCursorStep = 0
         }
+    }
+
+    private fun handleSpaceUp(wasLongPress: Boolean) {
+        if (pendingSpaceCommit && !wasLongPress && !spaceCursorModeActive) {
+            commitSpace()
+        }
+        pendingSpaceCommit = false
     }
 
     private fun updateSpaceCursorDrag(rawX: Float): Boolean {
@@ -1930,6 +1943,7 @@ class KeyboardService : InputMethodService() {
         spaceCursorModeActive = false
         spaceDownRawX = 0f
         lastSpaceCursorStep = 0
+        pendingSpaceCommit = false
     }
 
     private fun deleteOneCharacter() {
@@ -2195,14 +2209,14 @@ class KeyboardService : InputMethodService() {
     }
 
     private fun openMicrophonePermissionSettings() {
-        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-            data = Uri.fromParts("package", packageName, null)
+        val intent = Intent(this, MainActivity::class.java).apply {
+            putExtra(MainActivity.EXTRA_REQUEST_MIC_PERMISSION, true)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         try {
             startActivity(intent)
         } catch (e: RuntimeException) {
-            Log.w(LOG_TAG, "Unable to open microphone permission settings", e)
+            Log.w(LOG_TAG, "Unable to open microphone permission flow", e)
         }
     }
 
@@ -2470,31 +2484,22 @@ class KeyboardService : InputMethodService() {
         suggestionLookupFuture?.cancel(true)
         suggestionLookupFuture = suggestionExecutor.submit {
             val suggestions = predictor.getSuggestions(prefix, previousWord)
-            val correction = if (prefix.isNotEmpty()) {
-                predictor.getAutocorrection(prefix, previousWord)
-            } else {
-                null
-            }
             mainHandler.post {
                 if (requestGeneration != autocorrectGeneration) return@post
-                autocorrectPrefetchWord = prefix
-                autocorrectPrefetchPreviousWord = previousWord
-                autocorrectPrefetchResult = correction
                 publishSuggestionsIfCurrent(prefix, stablePrevious, suggestions)
             }
         }
+        prefetchAutocorrection(prefix, previousWord, requestGeneration)
     }
 
-    private fun prefetchAutocorrection(prefix: String, previousWord: String?) {
-        autocorrectGeneration += 1
+    private fun prefetchAutocorrection(prefix: String, previousWord: String?, requestGeneration: Int) {
         autocorrectPrefetchFuture?.cancel(true)
         autocorrectPrefetchWord = null
         autocorrectPrefetchPreviousWord = null
         autocorrectPrefetchResult = null
-        if (prefix.isEmpty()) return
+        if (!isAutocorrectEligible(prefix)) return
 
-        val requestGeneration = autocorrectGeneration
-        autocorrectPrefetchFuture = suggestionExecutor.submit {
+        autocorrectPrefetchFuture = autocorrectExecutor.submit {
             val correction = predictor.getAutocorrection(prefix, previousWord)
             mainHandler.post {
                 if (requestGeneration != autocorrectGeneration) return@post
@@ -2504,6 +2509,9 @@ class KeyboardService : InputMethodService() {
             }
         }
     }
+
+    private fun isAutocorrectEligible(prefix: String): Boolean =
+        prefix.length >= 2 && prefix.all { it in 'a'..'z' }
 
     private fun consumePrefetchedAutocorrection(typedWord: String, previousWord: String?): String? {
         if (typedWord != autocorrectPrefetchWord) return null
@@ -2953,6 +2961,7 @@ class KeyboardService : InputMethodService() {
         )
 
         val profile = HapticProfile.forKey(key)
+        if (profile.kind == HapticKind.Normal) return
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             vibrationEffectFor(profile)?.let(cachedVibrator::vibrate)
         } else {
@@ -3061,6 +3070,7 @@ class KeyboardService : InputMethodService() {
         suggestionLookupFuture?.cancel(true)
         autocorrectPrefetchFuture?.cancel(true)
         suggestionExecutor.shutdownNow()
+        autocorrectExecutor.shutdownNow()
         scope.cancel()
         super.onDestroy()
     }

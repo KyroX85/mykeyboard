@@ -2,6 +2,8 @@ package com.example.mykeyboard
 
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.inputmethod.InputMethodManager
@@ -22,7 +24,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
@@ -61,9 +62,25 @@ private val TextMuted     = Color(0xFF4A5568)
 
 class MainActivity : ComponentActivity() {
 
+    companion object {
+        const val EXTRA_REQUEST_MIC_PERMISSION = "com.example.mykeyboard.REQUEST_MIC_PERMISSION"
+        private const val REQUEST_RECORD_AUDIO_PERMISSION = 4102
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent { AppScreen() }
+        if (intent.getBooleanExtra(EXTRA_REQUEST_MIC_PERMISSION, false)) {
+            requestMicrophonePermissionIfNeeded()
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (intent.getBooleanExtra(EXTRA_REQUEST_MIC_PERMISSION, false)) {
+            requestMicrophonePermissionIfNeeded()
+        }
     }
 
     override fun onResume() {
@@ -82,6 +99,12 @@ class MainActivity : ComponentActivity() {
     private fun isKeyboardSelected(): Boolean {
         val current = Settings.Secure.getString(contentResolver, Settings.Secure.DEFAULT_INPUT_METHOD)
         return current?.contains(packageName) == true
+    }
+
+    private fun requestMicrophonePermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
+        if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) return
+        requestPermissions(arrayOf(android.Manifest.permission.RECORD_AUDIO), REQUEST_RECORD_AUDIO_PERMISSION)
     }
 }
 
@@ -123,9 +146,9 @@ fun AppScreen() {
                     enter = fadeIn(tween(400, 350)) + slideInVertically(tween(400, 350)) { it / 2 }
                 ) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        FeatureCard("😊", "Emojis",   "24+ Emojis",   AccentPurple, Modifier.weight(1f))
-                        FeatureCard("🔢", "Numbers",  "Smart Layout", AccentBlue,   Modifier.weight(1f))
-                        FeatureCard("!@#","Symbols",  "Quick Access", AccentCyan,   Modifier.weight(1f))
+                        FeatureCard(":-)", "Emojis",   "24+ Emojis",   AccentPurple, Modifier.weight(1f))
+                        FeatureCard("123", "Numbers",  "Smart Layout", AccentBlue,   Modifier.weight(1f))
+                        FeatureCard("!@#", "Symbols",  "Quick Access", AccentCyan,   Modifier.weight(1f))
                     }
                 }
 
@@ -168,29 +191,10 @@ fun AppScreen() {
 
 @Composable
 fun HeroSection(show: Boolean) {
-    val inf = rememberInfiniteTransition(label = "hero")
-
-    val ringAngle by inf.animateFloat(
-        initialValue = 0f, targetValue = 360f,
-        animationSpec = infiniteRepeatable(tween(8000, easing = LinearEasing)),
-        label = "ring"
-    )
-    val glowAlpha by inf.animateFloat(
-        initialValue = 0.5f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(2000, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-        label = "glow"
-    )
-    // Gentle tilt — matches reference image
-    val logoTilt by inf.animateFloat(
-        initialValue = -7f, targetValue = 7f,
-        animationSpec = infiniteRepeatable(tween(3500, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-        label = "tilt"
-    )
-    val logoScale by inf.animateFloat(
-        initialValue = 0.96f, targetValue = 1.04f,
-        animationSpec = infiniteRepeatable(tween(2500, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-        label = "scale"
-    )
+    val ringAngle = 18f
+    val glowAlpha = 0.72f
+    val logoTilt = 0f
+    val logoScale = 1f
 
     Box(
         modifier = Modifier
@@ -198,13 +202,13 @@ fun HeroSection(show: Boolean) {
             .height(250.dp)
             .background(Brush.verticalGradient(listOf(Color(0xFF0D1B3E), Color(0xFF060B14))))
     ) {
-        // Nebula blobs
+        // Static ambient accents keep setup light on GPU.
         Box(
             modifier = Modifier.size(200.dp).align(Alignment.CenterEnd)
-                .offset(x = 40.dp, y = (-20).dp).blur(55.dp)
+                .offset(x = 40.dp, y = (-20).dp)
                 .background(
                     Brush.radialGradient(listOf(
-                        AccentPurple.copy(alpha = 0.35f * glowAlpha),
+                        AccentPurple.copy(alpha = 0.16f),
                         AccentBlue.copy(alpha = 0.18f),
                         Color.Transparent
                     )), CircleShape
@@ -212,9 +216,9 @@ fun HeroSection(show: Boolean) {
         )
         Box(
             modifier = Modifier.size(120.dp).align(Alignment.TopStart)
-                .offset(x = (-20).dp, y = 10.dp).blur(45.dp)
+                .offset(x = (-20).dp, y = 10.dp)
                 .background(
-                    Brush.radialGradient(listOf(AccentTeal.copy(alpha = 0.15f * glowAlpha), Color.Transparent)),
+                    Brush.radialGradient(listOf(AccentTeal.copy(alpha = 0.10f), Color.Transparent)),
                     CircleShape
                 )
         )
@@ -255,7 +259,7 @@ fun LogoWithOrbit(ringAngle: Float, glowAlpha: Float, logoTilt: Float, logoScale
 
         // Outer ambient glow
         Box(
-            modifier = Modifier.size(150.dp).blur(28.dp)
+            modifier = Modifier.size(150.dp)
                 .background(
                     Brush.radialGradient(listOf(
                         AccentPurple.copy(alpha = 0.45f * glowAlpha),
@@ -280,7 +284,7 @@ fun LogoWithOrbit(ringAngle: Float, glowAlpha: Float, logoTilt: Float, logoScale
                 ),
             contentAlignment = Alignment.Center
         ) {
-            // ── YOUR ACTUAL LOGO with tilt + scale ──
+            // Logo with static tilt and scale to avoid setup-screen GPU churn.
             Image(
                 painter            = painterResource(id = R.drawable.logo),
                 contentDescription = "Aritenis AI Logo",
@@ -294,14 +298,14 @@ fun LogoWithOrbit(ringAngle: Float, glowAlpha: Float, logoTilt: Float, logoScale
 
         // Inner teal glow behind logo
         Box(
-            modifier = Modifier.size(100.dp).blur(18.dp)
+            modifier = Modifier.size(100.dp)
                 .background(
                     Brush.radialGradient(listOf(AccentTeal.copy(alpha = 0.22f * glowAlpha), Color.Transparent)),
                     CircleShape
                 )
         )
 
-        // Canvas — orbital rings + animated dots
+        // Canvas: static orbital rings and dots.
         androidx.compose.foundation.Canvas(modifier = Modifier.size(160.dp)) {
             val cx = size.width / 2f
             val cy = size.height / 2f
@@ -333,7 +337,7 @@ fun LogoWithOrbit(ringAngle: Float, glowAlpha: Float, logoTilt: Float, logoScale
             drawCircle(color = AccentCyan.copy(alpha = 0.4f * glowAlpha), radius = 9f,   center = Offset(dx1, dy1))
             drawCircle(color = Color.White,                                radius = 4.5f, center = Offset(dx1, dy1))
 
-            // Second dot (180° offset, inner orbit)
+            // Second dot (180 degree offset, inner orbit)
             val rad2 = Math.toRadians((ringAngle + 180.0))
             val dx2  = (cx + rx2 * cos(rad2)).toFloat()
             val dy2  = (cy + ry2 * sin(rad2)).toFloat()

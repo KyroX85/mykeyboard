@@ -58,8 +58,21 @@ class SystemHardeningGuardrailsTest {
         assertFalse(hapticBody.contains("VibrationEffect.createOneShot"))
         assertTrue(hapticBody.contains("performHapticFeedback"))
         assertTrue(hapticBody.contains("cachedVibrator"))
+        assertTrue(hapticBody.contains("if (profile.kind == HapticKind.Normal) return"))
         assertFalse(hapticBody.contains(".cancel()"))
         assertTrue(hapticBody.contains("hapticTapGate.shouldPulse"))
+    }
+
+    @Test
+    fun productSignalBridgeUsesTimeoutsAndDropsWhenBusy() {
+        val source = sourceFile("app/src/main/java/com/example/mykeyboard/metrics/ProductSignalBridge.kt").readText()
+
+        assertTrue(source.contains("CONNECT_TIMEOUT_MS"))
+        assertTrue(source.contains("READ_TIMEOUT_MS"))
+        assertTrue(source.contains("connectTimeout = CONNECT_TIMEOUT_MS"))
+        assertTrue(source.contains("readTimeout = READ_TIMEOUT_MS"))
+        assertTrue(source.contains("signalInFlight.compareAndSet(false, true)"))
+        assertTrue(source.contains("signalInFlight.set(false)"))
     }
 
     @Test
@@ -173,6 +186,21 @@ class SystemHardeningGuardrailsTest {
         }
         val suggestionMs = (System.nanoTime() - suggestionStartedAt) / 1_000_000
         assertTrue("suggestion refresh budget exceeded: ${suggestionMs}ms", suggestionMs < 2_000)
+    }
+
+    @Test
+    fun externalSwipeDictionaryLookupIsCachedAndBounded() {
+        val source = sourceFile("app/src/main/java/com/example/mykeyboard/predictor/BasicPredictor.kt").readText()
+        val swipeLookup = methodBody(source, "findExternalDictionarySwipeCandidates")
+        val addMatches = methodBody(source, "addExternalSwipeMatches")
+
+        assertTrue(source.contains("EXTERNAL_SWIPE_CACHE_LIMIT"))
+        assertTrue(source.contains("EXTERNAL_SWIPE_TIME_BUDGET_MS"))
+        assertTrue(source.contains("externalSwipeCache"))
+        assertTrue(swipeLookup.contains("readExternalSwipeCache"))
+        assertTrue(swipeLookup.contains("writeExternalSwipeCache"))
+        assertTrue(swipeLookup.contains("take(EXTERNAL_SWIPE_SEQUENCE_LIMIT)"))
+        assertTrue(addMatches.contains("deadlineNanos"))
     }
 
     private fun hardeningCandidates(): List<SwipeWordCandidate> = listOf(

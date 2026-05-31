@@ -5,6 +5,7 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * ProductSignalBridge
@@ -12,13 +13,20 @@ import java.util.concurrent.Executors
  */
 object ProductSignalBridge {
     private const val TAG = "ProductSignalBridge"
+    private const val CONNECT_TIMEOUT_MS = 500
+    private const val READ_TIMEOUT_MS = 700
     private val INGEST_URLS = listOf(
         "http://10.0.2.2:3000/metrics/ingest",
         "http://localhost:3000/metrics/ingest"
     )
     private val executor = Executors.newSingleThreadExecutor()
+    private val signalInFlight = AtomicBoolean(false)
 
     fun emitAggregateSignal(snapshot: KeyboardUsageSnapshot) {
+        if (!signalInFlight.compareAndSet(false, true)) {
+            Log.d(TAG, "Dropping product signal because delivery is already in flight")
+            return
+        }
         executor.execute {
             try {
                 val suggestionRejectCount =
@@ -43,6 +51,8 @@ object ProductSignalBridge {
                 sendSignal(signal)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to prepare signal: ${e.message}")
+            } finally {
+                signalInFlight.set(false)
             }
         }
     }
@@ -66,6 +76,8 @@ object ProductSignalBridge {
             val url = URL(ingestUrl)
             connection = url.openConnection() as HttpURLConnection
             connection.requestMethod = "POST"
+            connection.connectTimeout = CONNECT_TIMEOUT_MS
+            connection.readTimeout = READ_TIMEOUT_MS
             connection.setRequestProperty("Content-Type", "application/json")
             connection.doOutput = true
             

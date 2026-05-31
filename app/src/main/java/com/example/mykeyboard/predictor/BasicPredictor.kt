@@ -47,6 +47,11 @@ class BasicPredictor internal constructor(
     @Volatile
     private var topUnigramCache = listOf<String>()
     private var lastSuggestionSnapshot = SuggestionSnapshot()
+    private val externalSwipeCacheLock = Any()
+    private val externalSwipeCache = object : LinkedHashMap<String, List<String>>(EXTERNAL_SWIPE_CACHE_LIMIT, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, List<String>>): Boolean =
+            size > EXTERNAL_SWIPE_CACHE_LIMIT
+    }
 
     companion object {
         private const val PREFS_MODEL_KEY = "predictor_model_v2"
@@ -69,8 +74,11 @@ class BasicPredictor internal constructor(
         private const val EXTERNAL_DICTIONARY_PREFIX_MIN_LENGTH = 4
         private const val EXTERNAL_DICTIONARY_LIMIT = 6
         private const val EXTERNAL_DICTIONARY_COUNT = 6
-        private const val EXTERNAL_SWIPE_LIMIT = 96
+        private const val EXTERNAL_SWIPE_LIMIT = 48
         private const val EXTERNAL_SWIPE_COUNT = 18
+        private const val EXTERNAL_SWIPE_SEQUENCE_LIMIT = 3
+        private const val EXTERNAL_SWIPE_CACHE_LIMIT = 64
+        private const val EXTERNAL_SWIPE_TIME_BUDGET_MS = 24L
         private const val MIN_LEARN_WORD_LENGTH = 2
         private const val MAX_LEARN_WORD_LENGTH = 24
         private const val MANUAL_LEARN_WEIGHT = 1
@@ -519,26 +527,49 @@ class BasicPredictor internal constructor(
 
     private fun findExternalDictionarySwipeCandidates(sequences: List<String>): List<String> {
         if (sequences.isEmpty()) return emptyList()
+        val boundedSequences = sequences
+            .asSequence()
+            .map { it.lowercase() }
+            .filter { it.length >= 4 }
+            .distinct()
+            .take(EXTERNAL_SWIPE_SEQUENCE_LIMIT)
+            .toList()
+        if (boundedSequences.isEmpty()) return emptyList()
+
+        val cacheKey = boundedSequences.joinToString("|")
+        readExternalSwipeCache(cacheKey)?.let { return it }
+
         val output = LinkedHashSet<String>(EXTERNAL_SWIPE_LIMIT)
-        for (sequence in sequences) {
-            if (sequence.length < 4) continue
+        val deadlineNanos = System.nanoTime() + EXTERNAL_SWIPE_TIME_BUDGET_MS * 1_000_000L
+        for (sequence in boundedSequences.take(EXTERNAL_SWIPE_SEQUENCE_LIMIT)) {
+            if (System.nanoTime() >= deadlineNanos) break
             val first = sequence.first()
             val last = sequence.last()
             if (first !in 'a'..'z' || last !in 'a'..'z') continue
             val minMiddle = maxOf(0, sequence.length - 4)
             val maxMiddle = minOf(MAX_LEARN_WORD_LENGTH - 2, sequence.length + 6)
             val orderedPattern = Pattern.compile("^${sequence.map { Pattern.quote(it.toString()) }.joinToString("[a-z]*")}$")
-            addExternalSwipeMatches(orderedPattern, output)
-            if (output.size >= EXTERNAL_SWIPE_LIMIT) return output.toList()
+            addExternalSwipeMatches(orderedPattern, output, deadlineNanos)
+            if (output.size >= EXTERNAL_SWIPE_LIMIT || System.nanoTime() >= deadlineNanos) break
 
             val endpointPattern = Pattern.compile("^${Pattern.quote(first.toString())}[a-z]{$minMiddle,$maxMiddle}${Pattern.quote(last.toString())}$")
-            addExternalSwipeMatches(endpointPattern, output)
-            if (output.size >= EXTERNAL_SWIPE_LIMIT) return output.toList()
+            addExternalSwipeMatches(endpointPattern, output, deadlineNanos)
+            if (output.size >= EXTERNAL_SWIPE_LIMIT || System.nanoTime() >= deadlineNanos) break
         }
-        return output.toList()
+        return output.toList().also { writeExternalSwipeCache(cacheKey, it) }
     }
 
-    private fun addExternalSwipeMatches(pattern: Pattern, output: MutableSet<String>) {
+    private fun readExternalSwipeCache(cacheKey: String): List<String>? =
+        synchronized(externalSwipeCacheLock) { externalSwipeCache[cacheKey] }
+
+    private fun writeExternalSwipeCache(cacheKey: String, words: List<String>) {
+        synchronized(externalSwipeCacheLock) {
+            externalSwipeCache[cacheKey] = words
+        }
+    }
+
+    private fun addExternalSwipeMatches(pattern: Pattern, output: MutableSet<String>, deadlineNanos: Long) {
+        if (System.nanoTime() >= deadlineNanos) return
         val options = mapOf(
             "limit" to EXTERNAL_SWIPE_LIMIT,
             "shuffle" to false
@@ -549,6 +580,7 @@ class BasicPredictor internal constructor(
             emptyArray<String>()
         }
         for (rawWord in words) {
+            if (System.nanoTime() >= deadlineNanos) return
             val word = normalizeWordForLearning(rawWord) ?: continue
             if (word.length !in 3..MAX_LEARN_WORD_LENGTH) continue
             output.add(word)
