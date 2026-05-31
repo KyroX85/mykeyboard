@@ -41,11 +41,31 @@ assert.strictEqual(fresh.ok, true);
 
 const check = startupSelfCheck({
   nodeEnv: 'test',
+  twilioAccountSid: 'AC123',
   twilioAuthToken: '',
+  twilioWhatsappFrom: 'whatsapp:+10000000000',
+  metaWhatsappAccessToken: '',
+  metaWhatsappPhoneNumberId: '',
   allowUnverified: true,
   founderNumber: '+1'
 });
 assert.strictEqual(typeof check.ok, 'boolean');
+assert(check.checks.some((item) => item.name === 'outbound-whatsapp-provider'));
+
+const outboundMissing = startupSelfCheck({
+  nodeEnv: 'production',
+  twilioAuthToken: 'token',
+  founderNumber: '+1'
+});
+assert.strictEqual(outboundMissing.ok, false);
+
+const metaOutbound = startupSelfCheck({
+  nodeEnv: 'production',
+  metaWhatsappAccessToken: 'token',
+  metaWhatsappPhoneNumberId: '123',
+  founderNumber: '+1'
+});
+assert.strictEqual(metaOutbound.ok, true);
 
 const recovered = readJsonWithRecovery('missing-file-for-test.json', { ok: true });
 assert.deepStrictEqual(recovered, { ok: true });

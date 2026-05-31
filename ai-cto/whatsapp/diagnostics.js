@@ -24,7 +24,31 @@ function startupSelfCheck(config = {}) {
   checks.push({
     name: 'twilio-auth-token',
     ok: Boolean(config.twilioAuthToken) || Boolean(config.allowUnverified),
-    severity: config.nodeEnv === 'production' ? 'critical' : 'warning'
+    severity: hasMetaOutbound(config) ? 'warning' : (config.nodeEnv === 'production' ? 'critical' : 'warning')
+  });
+
+  checks.push({
+    name: 'twilio-account-sid',
+    ok: Boolean(config.twilioAccountSid),
+    severity: hasMetaOutbound(config) ? 'warning' : 'critical'
+  });
+
+  checks.push({
+    name: 'twilio-whatsapp-from',
+    ok: Boolean(config.twilioWhatsappFrom),
+    severity: hasMetaOutbound(config) ? 'warning' : 'critical'
+  });
+
+  checks.push({
+    name: 'meta-whatsapp-access-token',
+    ok: Boolean(config.metaWhatsappAccessToken),
+    severity: hasTwilioOutbound(config) ? 'warning' : 'critical'
+  });
+
+  checks.push({
+    name: 'meta-whatsapp-phone-number-id',
+    ok: Boolean(config.metaWhatsappPhoneNumberId),
+    severity: hasTwilioOutbound(config) ? 'warning' : 'critical'
   });
 
   checks.push({
@@ -33,12 +57,26 @@ function startupSelfCheck(config = {}) {
     severity: config.nodeEnv === 'production' ? 'critical' : 'warning'
   });
 
+  checks.push({
+    name: 'outbound-whatsapp-provider',
+    ok: hasTwilioOutbound(config) || hasMetaOutbound(config),
+    severity: 'critical'
+  });
+
   const criticalFailed = checks.some((check) => !check.ok && check.severity === 'critical');
   return {
     ok: !criticalFailed,
     generatedAt: new Date().toISOString(),
     checks
   };
+}
+
+function hasTwilioOutbound(config = {}) {
+  return Boolean(config.twilioAccountSid && config.twilioAuthToken && config.twilioWhatsappFrom);
+}
+
+function hasMetaOutbound(config = {}) {
+  return Boolean(config.metaWhatsappAccessToken && config.metaWhatsappPhoneNumberId);
 }
 
 function workflowFreshness(state, now = Date.now()) {
@@ -67,5 +105,7 @@ function workflowFreshness(state, now = Date.now()) {
 module.exports = {
   startupSelfCheck,
   workflowFreshness,
+  hasTwilioOutbound,
+  hasMetaOutbound,
   TWELVE_HOURS_MS
 };

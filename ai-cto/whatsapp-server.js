@@ -250,7 +250,11 @@ function createApp() {
     const freshness = workflowFreshness(state);
     const diagnostics = startupSelfCheck({
       nodeEnv: process.env.NODE_ENV,
+      twilioAccountSid: process.env.TWILIO_ACCOUNT_SID || '',
       twilioAuthToken: TWILIO_AUTH_TOKEN,
+      twilioWhatsappFrom: process.env.TWILIO_WHATSAPP_FROM || '',
+      metaWhatsappAccessToken: process.env.META_WHATSAPP_ACCESS_TOKEN || '',
+      metaWhatsappPhoneNumberId: process.env.META_WHATSAPP_PHONE_NUMBER_ID || '',
       allowUnverified: ALLOW_UNVERIFIED_WHATSAPP,
       founderNumber: FOUNDER_WHATSAPP_NUMBER
     });
@@ -272,7 +276,11 @@ function createApp() {
     const state = loadEngineeringState();
     const diagnostics = startupSelfCheck({
       nodeEnv: process.env.NODE_ENV,
+      twilioAccountSid: process.env.TWILIO_ACCOUNT_SID || '',
       twilioAuthToken: TWILIO_AUTH_TOKEN,
+      twilioWhatsappFrom: process.env.TWILIO_WHATSAPP_FROM || '',
+      metaWhatsappAccessToken: process.env.META_WHATSAPP_ACCESS_TOKEN || '',
+      metaWhatsappPhoneNumberId: process.env.META_WHATSAPP_PHONE_NUMBER_ID || '',
       allowUnverified: ALLOW_UNVERIFIED_WHATSAPP,
       founderNumber: FOUNDER_WHATSAPP_NUMBER
     });
@@ -744,7 +752,11 @@ function sleep(ms) {
 if (require.main === module) {
   const diagnostics = startupSelfCheck({
     nodeEnv: process.env.NODE_ENV,
+    twilioAccountSid: process.env.TWILIO_ACCOUNT_SID || '',
     twilioAuthToken: TWILIO_AUTH_TOKEN,
+    twilioWhatsappFrom: process.env.TWILIO_WHATSAPP_FROM || '',
+    metaWhatsappAccessToken: process.env.META_WHATSAPP_ACCESS_TOKEN || '',
+    metaWhatsappPhoneNumberId: process.env.META_WHATSAPP_PHONE_NUMBER_ID || '',
     allowUnverified: ALLOW_UNVERIFIED_WHATSAPP,
     founderNumber: FOUNDER_WHATSAPP_NUMBER
   });
