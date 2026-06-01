@@ -49,6 +49,13 @@ const DOUBT_PATTERNS = [
   /\bwhy\s+(does\s+)?(this|it)\s+(not\s+feel|feel)\s+(valuable|useful|right|good|strong)\b/i
 ];
 
+const STRATEGIC_CHALLENGE_PATTERNS = [
+  /\b(if\s+you\s+had\s+to\s+)?disagree\s+with\s+me\b/i,
+  /\bwhat\s+would\s+you\s+disagree\s+with\b/i,
+  /\bwhere\s+(would|do)\s+you\s+(disagree|push\s+back)\b/i,
+  /\bchallenge\s+my\s+(thinking|assumption|direction|plan)\b/i
+];
+
 const AGENT_UNDERSTANDING_PATTERNS = [
   /\b(do|does)\s+(my\s+)?agents?\s+(really\s+)?understand\b/i,
   /\bagents?\b.*\b(understand|vision|project|dumb|basic|rule[-\s]?based|template|keyword)\b/i,
@@ -201,6 +208,16 @@ function classifyMindQuestion(text = '', memory = {}) {
     };
   }
 
+  if (STRATEGIC_CHALLENGE_PATTERNS.some((pattern) => pattern.test(text))) {
+    return {
+      intent: 'RECONSTRUCT_STRATEGIC_DISAGREEMENT',
+      category: 'FOUNDER_STRATEGY',
+      archetype: 'strategic_disagreement',
+      mode: 'FOUNDER_CONVERSATION_MODE',
+      confidence: 82
+    };
+  }
+
   if (FOUNDER_QUESTION_PATTERNS.some((pattern) => pattern.test(text))) {
     return {
       intent: 'RECONSTRUCT_FOUNDER_AMBITION',
@@ -301,6 +318,18 @@ function buildMindReport(kind, message, context = {}) {
     };
   }
 
+  if (kind.archetype === 'strategic_disagreement') {
+    return {
+      objective: 'Invite honest pushback instead of agreeable progress theater.',
+      assumption: 'The founder suspects enthusiasm may be hiding weak strategic judgment.',
+      concern: 'Aritenis could keep improving agents, governance, and infrastructure while delaying the user-facing product proof that would actually matter.',
+      decision: 'Decide which founder assumption deserves challenge right now without turning the answer into execution or status.',
+      desiredOutcome: 'A direct, respectful disagreement that helps the founder think more clearly about company direction.',
+      actualQuestion: 'Where should the system push back on my current assumptions?',
+      uselessLiteralAnswer: 'A team-ready response, health score, task plan, approval token, or generic status update.'
+    };
+  }
+
   if (kind.archetype === 'agent_understanding') {
     return {
       objective: 'Check whether the agents can reason from founder vision instead of repeating memory or templates.',
@@ -385,6 +414,16 @@ function buildDirectAnswer(kind, report) {
       'The deeper ambition is a Jarvis-style product, but grounded in trust: it should understand context, help complete real actions, and stay private and controllable.',
       'That means the company should be judged by whether Aritenis helps users understand and act faster, not by whether the agent system looks complex.',
       'So the honest reconstruction is: you are chasing leverage, trust, and a product people would miss if it disappeared.'
+    ];
+  }
+
+  if (kind.archetype === 'strategic_disagreement') {
+    return [
+      'I would disagree with the idea that making the agents more elaborate automatically moves Aritenis closer to the dream.',
+      'The uncomfortable truth: better routing, councils, memory, and governance are only useful if they produce a sharper user-facing product moment.',
+      'Right now the strongest disagreement is that agent sophistication can become a distraction from proving the Phase 2 wedge: Explain inside the typing flow.',
+      'I would also push back on trusting any progress report unless it shows real user value, capability, intelligence, or trust increased.',
+      'So my disagreement is not with the dream. It is with spending too long polishing the operating system around the dream before the user can feel the dream.'
     ];
   }
 
@@ -477,6 +516,9 @@ function responseAnswersFounderMind(reconstruction = {}) {
   }
   if (reconstruction.intent === 'RECONSTRUCT_FOUNDER_AMBITION') {
     return /personal intelligence layer|phone|keyboard|screenshots|trust|leverage|miss if it disappeared/i.test(answer);
+  }
+  if (reconstruction.intent === 'RECONSTRUCT_STRATEGIC_DISAGREEMENT') {
+    return /disagree|agent sophistication|user-facing product moment|Phase 2 wedge|Explain|progress report/i.test(answer);
   }
   if (reconstruction.intent === 'RESOLVE_FOUNDER_CONTINUITY_REFERENCE') {
     return /most likely refers|previous concern|partially addressed|what remains/i.test(answer);

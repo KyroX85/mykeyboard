@@ -34,6 +34,9 @@ const VISION_PATTERNS = [
 ];
 
 const STRATEGY_PATTERNS = [
+  /\b(if\s+you\s+had\s+to\s+)?disagree\s+with\s+me\b/i,
+  /\bwhat\s+would\s+you\s+disagree\s+with\b/i,
+  /\bwhere\s+(would|do)\s+you\s+(disagree|push\s+back)\b/i,
   /\bwhat\s+happens\s+if\s+we\s+focus\s+only\b/i,
   /\bif\s+we\s+focus\s+only\b/i,
   /\b(what|which)\s+(is|are)\s+(the\s+)?(highest|best|right|next)\s+(leverage|priority|strategy|move)\b/i,

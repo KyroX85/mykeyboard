@@ -122,6 +122,15 @@ assert.strictEqual(chasing.details.mode, 'FOUNDER_CONVERSATION_MODE');
 assert.match(chasing.details.mindReconstruction.actualQuestion, /long-term outcome|Aritenis/i);
 assert.doesNotMatch(String(chasing.response || ''), /TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution/i);
 
+const disagreement = assertMindRoute(
+  'Bro, if you had to disagree with me right now, what would you disagree with?',
+  /disagree|agent sophistication|user-facing product moment|Phase 2 wedge|Explain/i
+);
+assert.strictEqual(disagreement.details.category, 'FOUNDER_STRATEGY');
+assert.strictEqual(disagreement.details.intent, 'RECONSTRUCT_STRATEGIC_DISAGREEMENT');
+assert.match(disagreement.details.mindReconstruction.concern, /infrastructure|user-facing product proof/i);
+assert.doesNotMatch(String(disagreement.response || ''), /TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan|Files:|Validation:|Scope:/i);
+
 const reconstructed = reconstructFounderMind('Why did I ask that?', {});
 assert.strictEqual(reconstructed.mode, 'REFLECTION_MODE');
 assert.strictEqual(reconstructed.intent, 'RECONSTRUCT_FOUNDER_META_REASONING');

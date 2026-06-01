@@ -61,6 +61,11 @@ const cases = [
     text: 'What happens if we focus only on the execution layer for 6 months?',
     route: ROUTES.FOUNDER_STRATEGY,
     expected: /infrastructure|killer feature|misalignment|founder objective|strategic discussion|execution layer/i
+  },
+  {
+    text: 'Bro, if you had to disagree with me right now, what would you disagree with?',
+    route: ROUTES.FOUNDER_STRATEGY,
+    expected: /disagree|agent sophistication|user-facing product moment|Phase 2 wedge|Explain/i
   }
 ];
 

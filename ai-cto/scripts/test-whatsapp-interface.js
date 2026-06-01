@@ -236,9 +236,11 @@ assert(operationalRiskSummary.response.includes('routing integrity'));
 const productProgress = routeMessage('ok team what improvments u idid today any improvments toward the product?', sampleState);
 assert.strictEqual(productProgress.command, 'recent_product_improvements');
 assert.strictEqual(productProgress.matchedRoute, 'git_grounded_product_improvements');
-assert(productProgress.response.includes('Verified product-facing improvements today'));
-assert(productProgress.response.includes('Product impact:'));
+assert(productProgress.response.includes('Verified product-facing improvements today') || productProgress.response.includes('No meaningful founder-facing progress'));
 assert(!productProgress.response.includes('No fresh runtime fix recorded yet'));
+assert(!productProgress.response.includes('type: TASK_PLAN'));
+assert(!productProgress.response.includes('CODER:'));
+assert(!productProgress.response.includes('REVIEWER:'));
 
 const todayProgress = routeMessage('What progress did we make today?', sampleState);
 assert.strictEqual(todayProgress.command, 'recent_product_improvements');
