@@ -51,6 +51,11 @@ const cases = [
     text: "I think we're focusing on the wrong thing.",
     route: ROUTES.FOUNDER_DOUBT,
     expected: /infrastructure|killer feature|misalignment|founder objective|strategic discussion/i
+  },
+  {
+    text: 'What happens if we focus only on the execution layer for 6 months?',
+    route: ROUTES.FOUNDER_STRATEGY,
+    expected: /infrastructure|killer feature|misalignment|founder objective|strategic discussion|execution layer/i
   }
 ];
 

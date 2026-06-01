@@ -38,6 +38,8 @@ const FOUNDER_QUESTION_PATTERNS = [
 ];
 
 const DOUBT_PATTERNS = [
+  /\bwhat\s+happens\s+if\s+we\s+focus\s+only\b/i,
+  /\bif\s+we\s+focus\s+only\b/i,
   /\b(something|this|it)\s+(feels|feel)\s+(off|wrong|not right|missing|weak)\b/i,
   /\b(i\s+don'?t|i\s+do\s+not)\s+(like|feel)\s+(this|it)\b/i,
   /\b(not\s+satisfied|unsatisfied|dissatisfied)\b/i,
@@ -160,7 +162,8 @@ function classifyMindQuestion(text = '', memory = {}) {
     const isStrategicDoubt = text.includes('wrong thing') ||
       text.includes('wrong direction') ||
       text.includes('misaligned') ||
-      text.includes('direction');
+      text.includes('direction') ||
+      text.includes('focus only');
     return {
       intent: isStrategicDoubt
         ? 'RECONSTRUCT_STRATEGIC_MISALIGNMENT_CONCERN'
