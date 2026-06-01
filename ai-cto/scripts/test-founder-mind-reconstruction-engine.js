@@ -149,6 +149,30 @@ assert.strictEqual(userValueDoubt.details.intent, 'RECONSTRUCT_USER_VALUE_DOUBT'
 assert.match(userValueDoubt.details.mindReconstruction.actualQuestion, /real users care|change behavior/i);
 assert.doesNotMatch(String(userValueDoubt.response || ''), /NOISE|LOW INFORMATION|AMBIGUOUS INTENT|TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan/i);
 
+const shortUserValueDoubt = assertMindRoute(
+  "I think users don't care.",
+  /real risk|users will not care|frequent moment of confusion|understand a screenshot|less friction|users may care/i
+);
+assert.strictEqual(shortUserValueDoubt.details.category, 'DOUBT');
+assert.strictEqual(shortUserValueDoubt.details.intent, 'RECONSTRUCT_USER_VALUE_DOUBT');
+assert.doesNotMatch(String(shortUserValueDoubt.response || ''), /CLARIFICATION_REQUEST|TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan/i);
+
+const missingBlindSpot = assertMindRoute(
+  'What am I missing?',
+  /killer feature|user pull|Explain|blind spot|evidence/i
+);
+assert.strictEqual(missingBlindSpot.details.category, 'FOUNDER_STRATEGY');
+assert.strictEqual(missingBlindSpot.details.intent, 'RECONSTRUCT_MISSING_BLIND_SPOT');
+assert.doesNotMatch(String(missingBlindSpot.response || ''), /CLARIFICATION_REQUEST|TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan/i);
+
+const dangerousAssumption = assertMindRoute(
+  "What's the most dangerous assumption?",
+  /dangerous assumption|users.*care|Explain|daily habit|evidence/i
+);
+assert.strictEqual(dangerousAssumption.details.category, 'FOUNDER_STRATEGY');
+assert.strictEqual(dangerousAssumption.details.intent, 'RECONSTRUCT_DANGEROUS_ASSUMPTION');
+assert.doesNotMatch(String(dangerousAssumption.response || ''), /CLARIFICATION_REQUEST|TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan/i);
+
 const impressiveFear = assertMindRoute(
   "I'm scared we're building something impressive instead of useful.",
   /fear is valid|impressive and still fail|real user struggle|understand confusing content|faster, clearer, or more confident/i

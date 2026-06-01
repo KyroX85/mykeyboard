@@ -76,6 +76,9 @@ const DOUBT_PATTERNS = [
 ];
 
 const STRATEGIC_CHALLENGE_PATTERNS = [
+  /\bwhat\s+(am\s+i|i\s+am)\s+missing\b/i,
+  /\bwhat'?s\s+the\s+most\s+dangerous\s+assumption\b/i,
+  /\bwhat\s+is\s+the\s+most\s+dangerous\s+assumption\b/i,
   /\bif\s+we\s+fail\b.*\b(why|how|what)\b/i,
   /\bwhy\s+(would|do)\s+we\s+fail\b/i,
   /\b(what|why)\s+.*\bfail\s+in\s+\d+\s+(years?|months?)\b/i,
@@ -225,7 +228,8 @@ function classifyMindQuestion(text = '', memory = {}) {
         confidence: 85
       };
     }
-    if (/\busers?\s+(actually\s+)?(care|want|need)\b/i.test(text) ||
+    if (/\busers?\s+(don'?t|do\s+not)\s+(actually\s+)?(care|want|need)\b/i.test(text) ||
+      /\busers?\s+(actually\s+)?(care|want|need)\b/i.test(text) ||
       /\b(who|why)\s+would\s+users?\s+(care|want|need)\b/i.test(text)) {
       return {
         intent: 'RECONSTRUCT_USER_VALUE_DOUBT',
@@ -315,6 +319,24 @@ function classifyMindQuestion(text = '', memory = {}) {
   }
 
   if (STRATEGIC_CHALLENGE_PATTERNS.some((pattern) => pattern.test(text))) {
+    if (/\bwhat\s+(am\s+i|i\s+am)\s+missing\b/i.test(text)) {
+      return {
+        intent: 'RECONSTRUCT_MISSING_BLIND_SPOT',
+        category: 'FOUNDER_STRATEGY',
+        archetype: 'missing_blind_spot',
+        mode: 'FOUNDER_CONVERSATION_MODE',
+        confidence: 82
+      };
+    }
+    if (/\bmost\s+dangerous\s+assumption\b/i.test(text)) {
+      return {
+        intent: 'RECONSTRUCT_DANGEROUS_ASSUMPTION',
+        category: 'FOUNDER_STRATEGY',
+        archetype: 'dangerous_assumption',
+        mode: 'FOUNDER_CONVERSATION_MODE',
+        confidence: 84
+      };
+    }
     if (/\bfail\b/i.test(text)) {
       return {
         intent: 'RECONSTRUCT_LONG_TERM_FAILURE_PREMORTEM',
@@ -442,6 +464,30 @@ function buildMindReport(kind, message, context = {}) {
       desiredOutcome: 'A blunt product-value answer that separates real user pain from founder or agent excitement.',
       actualQuestion: 'Would real users care enough about this to change behavior?',
       uselessLiteralAnswer: 'A noise warning, status template, task plan, or feature defense without evidence.'
+    };
+  }
+
+  if (kind.archetype === 'missing_blind_spot') {
+    return {
+      objective: 'Identify the strategic blind spot the founder may be overlooking.',
+      assumption: 'The founder suspects there is a missing product truth, not a missing task list.',
+      concern: 'Aritenis may keep improving agents while still lacking proof that Explain creates repeated user pull.',
+      decision: 'Decide which missing evidence or product proof should change today’s focus.',
+      desiredOutcome: 'A blunt answer about the highest-leverage blind spot, grounded in user value and founder dream alignment.',
+      actualQuestion: 'What blind spot could make our current work feel busy but not decisive?',
+      uselessLiteralAnswer: 'A clarification request, health report, momentum update, or task plan.'
+    };
+  }
+
+  if (kind.archetype === 'dangerous_assumption') {
+    return {
+      objective: 'Name the assumption most likely to make Aritenis impressive but not useful.',
+      assumption: 'The founder wants strategic risk, not a generic risk report.',
+      concern: 'The company may assume users will care about Explain or the execution layer before evidence proves repeat behavior.',
+      decision: 'Decide which unproven belief needs validation before more build effort.',
+      desiredOutcome: 'A direct warning about the riskiest assumption and what evidence would weaken it.',
+      actualQuestion: 'What assumption could make the current strategy fail even if execution is good?',
+      uselessLiteralAnswer: 'A CTO status template, health score, task plan, or complexity report.'
     };
   }
 
@@ -626,6 +672,26 @@ function buildDirectAnswer(kind, report) {
     ];
   }
 
+  if (kind.archetype === 'missing_blind_spot') {
+    return [
+      'What you may be missing is not another agent layer.',
+      'The likely blind spot is proof of user pull: whether Explain solves a frequent enough pain that people would return to Aritenis instead of using Gboard plus a separate AI app.',
+      'The killer feature search is still the center of gravity. Explain is the current wedge, but it needs evidence that confusion is frequent, urgent, and better solved inside the keyboard flow.',
+      'So the missing piece is probably not more intelligence infrastructure. It is a sharper product proof: one repeated moment where Aritenis makes the user understand and act faster.',
+      'Until that proof exists, any progress report should stay cautious.'
+    ];
+  }
+
+  if (kind.archetype === 'dangerous_assumption') {
+    return [
+      'The most dangerous assumption is that users will care about Explain just because confusion is real.',
+      'Confusion being real does not automatically mean the keyboard is the place users want it solved.',
+      'A second dangerous assumption is that better agents equal better product. They only matter if they create a user-visible completed action.',
+      'So the core risk is daily habit: Explain must prove users would open it repeatedly during real messaging, screenshots, forms, bills, or notices.',
+      'The evidence needed is simple: repeated use, faster understanding, and less app-switching than the user’s current workflow.'
+    ];
+  }
+
   if (kind.archetype === 'impressive_not_useful_fear') {
     return [
       'That fear is valid.',
@@ -788,6 +854,12 @@ function responseAnswersFounderMind(reconstruction = {}) {
   }
   if (reconstruction.intent === 'RECONSTRUCT_USER_VALUE_DOUBT') {
     return /real risk|users will not care|frequent moment of confusion|understand a screenshot|less friction|users may care/i.test(answer);
+  }
+  if (reconstruction.intent === 'RECONSTRUCT_MISSING_BLIND_SPOT') {
+    return /missing|blind spot|proof of user pull|killer feature|Explain|evidence/i.test(answer);
+  }
+  if (reconstruction.intent === 'RECONSTRUCT_DANGEROUS_ASSUMPTION') {
+    return /dangerous assumption|users will care|Explain|daily habit|evidence needed/i.test(answer);
   }
   if (reconstruction.intent === 'RECONSTRUCT_IMPRESSIVE_NOT_USEFUL_FEAR') {
     return /fear is valid|impressive and still fail|real user struggle|understand confusing content|faster, clearer, or more confident/i.test(answer);

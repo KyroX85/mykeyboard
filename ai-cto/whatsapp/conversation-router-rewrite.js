@@ -21,7 +21,7 @@ const REFLECTION_PATTERNS = [
   /\b(founder|i)\b.*\b(same|changed|evolved|different)\b.*\b(months?|weeks?|ago|before|now)\b/i,
   /\bwhy\s+(am\s+i|i\s+am)\s+not\s+satisfied\b/i,
   /\bwhy\s+(am\s+i|did\s+i)\s+(asking|ask)\b/i,
-  /\bwhat\s+(am\s+i|i\s+am)\s+(worried|testing|missing)\b/i
+  /\bwhat\s+(am\s+i|i\s+am)\s+(worried|testing)\b/i
 ];
 
 const DOUBT_PATTERNS = [
@@ -50,6 +50,9 @@ const VISION_PATTERNS = [
 ];
 
 const STRATEGY_PATTERNS = [
+  /\bwhat\s+(am\s+i|i\s+am)\s+missing\b/i,
+  /\bwhat'?s\s+the\s+most\s+dangerous\s+assumption\b/i,
+  /\bwhat\s+is\s+the\s+most\s+dangerous\s+assumption\b/i,
   /\bif\s+we\s+fail\b.*\b(why|how|what)\b/i,
   /\bwhy\s+(would|do)\s+we\s+fail\b/i,
   /\b(what|why)\s+.*\bfail\s+in\s+\d+\s+(years?|months?)\b/i,
