@@ -1,0 +1,38 @@
+# Founder Evolution
+
+Founder identity must evolve; do not freeze old goals, frustrations, or hypotheses.
+
+Last updated: 2026-06-01T05:27:32.817Z
+Next review due: 2026-06-08T05:27:32.817Z
+Confidence: 90%
+
+## Founder Goals
+- Build Aritenis into a trusted phone-native intelligence layer, using the keyboard as the entry point.
+- Protect the Phase 1 keyboard foundation while proving Phase 2 Explain creates user leverage.
+- Aritenis is an Android keyboard with a protected typing foundation and a Phase 2 understanding/execution layer.
+- To help users understand confusing content before they type while preserving keyboard trust, privacy, and stability.
+
+## Current Phase
+Phase 1 protected foundation + Phase 2 Explain active. Phase 1 keyboard trust is protected; Explain is active for design, proposals, and Product Lab evidence.
+
+## Active Frustrations
+- The exact Phase 2 killer feature and first magical demo are not fully locked; Explain is the leading hypothesis.
+- Agents can still feel template-driven instead of genuinely understanding founder intent.
+- Product Lab evidence and screenshot reliability must be good enough before visual judgment is trusted.
+
+## Active Hypotheses
+- Explain: user sees confusing content, opens Aritenis, gets a clear explanation, and only then confirms any reply/action.
+- Explain is the leading Phase 2 wedge: users may switch if Aritenis helps them understand confusing content before typing.
+- Screenshot-powered understanding may become the first magical demo if privacy and evidence quality are preserved.
+
+## Rejected Paths
+- better prediction/swipe/themes as the main differentiator
+- emotional companion as the immediate active implementation path
+- auto-send or silent app control
+- cloud telemetry or raw typing/screenshot retention
+- architecture sophistication without user leverage
+- Generic Gboard clone strategy based on prediction, themes, settings, or swipe claims.
+- Architecture theatre, fake progress, emotional companion simulation, auto-send, cloud telemetry, and raw typing or screenshot retention.
+
+## Operating Rule
+Before proposing work, check whether the founder model has changed this week. If confidence is weak, ask a useful diagnostic question instead of assuming old preferences.

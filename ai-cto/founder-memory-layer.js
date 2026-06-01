@@ -1,5 +1,9 @@
 const fs = require('fs');
 const path = require('path');
+const {
+  buildFounderEvolutionContext,
+  loadFounderEvolution
+} = require('./founder-evolution-layer');
 
 const ROOT = path.resolve(__dirname, '..');
 
@@ -31,13 +35,15 @@ function loadFounderMemoryLayer({ root = ROOT } = {}) {
   const files = FOUNDER_MEMORY_FILES.map((relativePath) => readMemoryFile(root, relativePath));
   const missing = files.filter((file) => !file.exists).map((file) => file.relativePath);
   const confidence = calculateConfidence(files);
-  const memoryItems = buildFounderMemoryItems(files);
+  const founderEvolution = loadFounderEvolution({ root });
+  const memoryItems = buildFounderMemoryItems(files, founderEvolution);
   return {
     version: 'founder-memory-layer-v1',
     priority: 'FOUNDER_MEMORY_OVERRIDES_CONVERSATION_HISTORY',
     root,
     files,
     memoryItems,
+    founderEvolution,
     missing,
     confidence,
     audit: MEMORY_AUDIT,
@@ -77,6 +83,8 @@ function buildFounderMemorySystemContext(memoryLayer = loadFounderMemoryLayer())
     memoryLayer.confidence < 90 ? 'I do not have enough founder context.' : '',
     '',
     'Canonical founder memory:',
+    buildFounderEvolutionContext(memoryLayer.founderEvolution),
+    '',
     ...memoryLayer.files
       .filter((file) => file.exists)
       .map((file) => `--- ${file.relativePath} ---\n${file.text.slice(0, 1800)}`)
@@ -130,9 +138,9 @@ function calculateConfidence(files) {
   return Math.round((existing / files.length) * 100);
 }
 
-function buildFounderMemoryItems(files = []) {
+function buildFounderMemoryItems(files = [], founderEvolution = null) {
   const existing = new Map(files.filter((file) => file.exists).map((file) => [file.relativePath, file]));
-  return [
+  const staticItems = [
     item('founder_goal_understand_before_typing', 'founder_goals', 'FOUNDER_VISION.md',
       'Aritenis should become a trusted local-first keyboard intelligence layer that helps users understand confusing content before they type.',
       ['vision', 'trust', 'explain', 'keyboard_layer', 'user_leverage', 'privacy']),
@@ -167,6 +175,26 @@ function buildFounderMemoryItems(files = []) {
       'Confirmation before action is mandatory; Explain can prepare help, but nothing should be sent automatically.',
       ['decision', 'privacy', 'execution_safety', 'explain'])
   ].filter((entry) => existing.has(entry.source));
+
+  const evolutionItems = founderEvolution ? buildEvolutionMemoryItems(founderEvolution) : [];
+  return [...staticItems, ...evolutionItems];
+}
+
+function buildEvolutionMemoryItems(evolution = {}) {
+  return [
+    item('founder_evolution_current_goals', 'founder_evolution', 'FOUNDER_EVOLUTION.md',
+      first(evolution.founderGoals) || 'Founder goals should be updated weekly instead of frozen.',
+      ['vision', 'dream', 'founder_evolution', 'user_leverage']),
+    item('founder_evolution_active_frustration', 'founder_evolution', 'FOUNDER_EVOLUTION.md',
+      first(evolution.activeFrustrations) || 'Founder frustrations should be updated weekly.',
+      ['founder_frustration', 'templates', 'agent_understanding', 'missing_piece']),
+    item('founder_evolution_active_hypothesis', 'founder_evolution', 'FOUNDER_EVOLUTION.md',
+      first(evolution.activeHypotheses) || 'Founder hypotheses should be updated weekly.',
+      ['explain', 'killer_feature', 'hypothesis', 'founder_evolution']),
+    item('founder_evolution_rejected_path', 'founder_evolution', 'FOUNDER_EVOLUTION.md',
+      first(evolution.rejectedPaths) || 'Rejected paths should be updated weekly.',
+      ['rejected', 'founder_evolution', 'trust', 'architecture'])
+  ];
 }
 
 function item(id, category, source, summary, concepts) {
@@ -212,6 +240,10 @@ function scoreMemoryItem(item, intent) {
   if (item.category === 'founder_goals') score += 3;
   if (item.category === 'founder_current_phase') score += 2;
   return score;
+}
+
+function first(items) {
+  return Array.isArray(items) && items.length ? items[0] : null;
 }
 
 module.exports = {

@@ -38,6 +38,8 @@
     "cto:phase2-daily": "node ai-cto/scripts/phase2-daily-agent.js",
     "cto:codex-agents:test": "node ai-cto/scripts/test-codex-style-agent-system.js",
     "cto:founder-memory:test": "node ai-cto/scripts/test-founder-memory-layer.js",
+    "cto:founder-evolution": "node ai-cto/scripts/update-founder-evolution.js",
+    "cto:founder-evolution:test": "node ai-cto/scripts/test-founder-evolution-layer.js",
     "cto:reality-reconstruction:test": "node ai-cto/scripts/test-reality-reconstruction-layer.js",
     "cto:memory-policy:test": "node ai-cto/scripts/test-memory-policy-enforcer.js",
     "cto:execution-schema:test": "node ai-cto/scripts/test-execution-schema-enforcer.js"
