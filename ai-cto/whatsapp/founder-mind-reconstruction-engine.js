@@ -9,6 +9,10 @@ const REFLECTION_PATTERNS = [
 ];
 
 const { buildDreamAlignment, formatDreamAlignment } = require('../dream-model');
+const {
+  buildStrategicThinking,
+  formatStrategicThinking
+} = require('../strategic-thinking-layer');
 
 const VISION_PATTERNS = [
   /\b(are|r)\s+we\s+(even\s+)?(moving|going|heading)\s+(toward|towards|to)\s+(the\s+)?(dream|vision|goal)\b/i,
@@ -105,6 +109,12 @@ function reconstructFounderMind(message = '', context = {}) {
     report,
     dreamAlignment,
     directAnswer: buildDirectAnswer(kind, report),
+    strategicThinking: buildStrategicThinking({
+      message: original,
+      category: kind.category,
+      intent: kind.intent,
+      directAnswer: buildDirectAnswer(kind, report)
+    }),
     confidence: kind.confidence
   };
 
@@ -387,6 +397,11 @@ function buildReflectionResponse(reconstruction, { debug = false } = {}) {
   if (reconstruction.dreamAlignment) {
     lines.push('');
     lines.push(formatDreamAlignment(reconstruction.dreamAlignment));
+  }
+
+  if (reconstruction.strategicThinking) {
+    lines.push('');
+    lines.push(formatStrategicThinking(reconstruction.strategicThinking));
   }
 
   if (debug) {

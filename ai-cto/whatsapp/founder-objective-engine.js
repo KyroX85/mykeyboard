@@ -3,6 +3,10 @@ const {
   retrieveRelevantFounderMemories
 } = require('../founder-memory-layer');
 const { buildDreamAlignment, formatDreamAlignment } = require('../dream-model');
+const {
+  buildStrategicThinking,
+  formatStrategicThinking
+} = require('../strategic-thinking-layer');
 
 function routeFounderObjective(message = '', {
   root,
@@ -314,6 +318,12 @@ function buildObjectiveResponse(reconstruction) {
     '',
     dreamAlignment ? formatDreamAlignment(dreamAlignment) : '',
     dreamAlignment ? '' : '',
+    formatStrategicThinking(buildStrategicThinking({
+      message: reconstruction.message,
+      intent: reconstruction.intent,
+      directAnswer: reconstruction.directAnswer
+    })),
+    '',
     'Objective reconstruction:',
     ...reconstruction.objectiveReconstruction.map((item) => `- ${item}`),
     '',
