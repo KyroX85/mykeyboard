@@ -4,6 +4,10 @@ const { loadEngineeringState } = require('./state-reader');
 const { readRoadmap } = require('./roadmap-reader');
 const { buildAgentCouncil, summarizeCouncil } = require('../orchestration/agent-council-engine');
 const { buildNvidiaCouncil } = require('../orchestration/nvidia-council-engine');
+const {
+  predictFounderReaction,
+  formatFounderReactionPrediction
+} = require('../founder-personality-model');
 
 const DEFAULT_STATE = {
   version: '1.0',
@@ -21,6 +25,11 @@ function buildVisionStewardMessage({
   const pressure = inferHighestVisionPressure(engineeringState, roadmap);
   const suggestion = buildSafeSuggestion(pressure);
   const council = summarizeCouncil(buildAgentCouncil(suggestion));
+  const founderReaction = predictFounderReaction({
+    proposal: suggestion,
+    evidence: pressure.summary,
+    expectedUserOutcome: roadmap.northStar
+  });
   return [
     'Founder, one vision check.',
     '',
@@ -29,6 +38,7 @@ function buildVisionStewardMessage({
     `Council consensus: ${council.consensus}`,
     `Council dissent: ${council.dissent}`,
     `Suggested improvement: ${suggestion}`,
+    formatFounderReactionPrediction(founderReaction),
     'Execution: no code change started. This is a proposal only; I need your approval before implementation.'
   ].join('\n');
 }
@@ -51,6 +61,11 @@ async function buildVisionStewardMessageWithModelCouncil({
     client: nvidiaClient
   });
   const summary = council.summary || {};
+  const founderReaction = predictFounderReaction({
+    proposal: suggestion,
+    evidence: pressure.summary,
+    expectedUserOutcome: roadmap.northStar
+  });
   return [
     'Founder, one vision check.',
     '',
@@ -60,6 +75,7 @@ async function buildVisionStewardMessageWithModelCouncil({
     `Council consensus: ${summary.consensus}`,
     `Council dissent: ${summary.dissent}`,
     `Suggested improvement: ${suggestion}`,
+    formatFounderReactionPrediction(founderReaction),
     'Execution: no code change started. This is a proposal only; I need your approval before implementation.'
   ].join('\n');
 }
