@@ -86,6 +86,11 @@ const {
   generateStrongestDisagreement,
   updateIntelligentDisagreementMemory
 } = require('../intelligent-disagreement-layer');
+const {
+  detectDreamDrift,
+  updateDreamDriftMemory,
+  shouldEvaluateDreamDrift
+} = require('../dream-drift-detector');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const MEMORY_FILE = process.env.ARITENIS_WHATSAPP_MEMORY_FILE ||
@@ -167,6 +172,7 @@ const DEFAULT_MEMORY = {
   reinforcementPreferenceMemory: null,
   founderPatternDiscovery: null,
   intelligentDisagreementMemory: null,
+  dreamDriftMemory: null,
   routeScores: {},
   reinforcementEvents: [],
   lastRouteForReward: null,
@@ -266,6 +272,7 @@ function updateMemory(command, state, details = {}) {
     ...memory,
     ...details
   });
+  const dreamDriftMemory = updateDreamDriftIfNeeded(memory.dreamDriftMemory, details);
   const founderHypothesisTracker = updateFounderHypothesisIfNeeded(memory.founderHypothesisTracker, details);
   const predictionMemory = updatePredictionIfNeeded(memory.predictionMemory, details);
   const selfCritiqueMemory = updateSelfCritiqueIfNeeded(memory.selfCritiqueMemory, details);
@@ -326,6 +333,7 @@ function updateMemory(command, state, details = {}) {
     opportunityCostMemory,
     truthOverAgreementMemory,
     intelligentDisagreementMemory,
+    dreamDriftMemory,
     founderHypothesisTracker,
     predictionMemory,
     selfCritiqueMemory,
@@ -411,6 +419,7 @@ function readConversationMemory() {
     reinforcementPreferenceMemory: memory.reinforcementPreferenceMemory || null,
     founderPatternDiscovery: memory.founderPatternDiscovery || null,
     intelligentDisagreementMemory: memory.intelligentDisagreementMemory || null,
+    dreamDriftMemory: memory.dreamDriftMemory || null,
     routeScores: memory.routeScores && typeof memory.routeScores === 'object' ? memory.routeScores : {},
     reinforcementEvents: Array.isArray(memory.reinforcementEvents) ? memory.reinforcementEvents.slice(0, 80) : [],
     lastRouteForReward: memory.lastRouteForReward || null,
@@ -456,6 +465,7 @@ function updateConversationMemory(route, state) {
     ...memory,
     ...route
   });
+  const dreamDriftMemory = updateDreamDriftIfNeeded(memory.dreamDriftMemory, route);
   const founderHypothesisTracker = updateFounderHypothesisIfNeeded(memory.founderHypothesisTracker, route);
   const predictionMemory = updatePredictionIfNeeded(memory.predictionMemory, route);
   const selfCritiqueMemory = updateSelfCritiqueIfNeeded(memory.selfCritiqueMemory, route);
@@ -537,6 +547,7 @@ function updateConversationMemory(route, state) {
     opportunityCostMemory,
     truthOverAgreementMemory,
     intelligentDisagreementMemory,
+    dreamDriftMemory,
     founderHypothesisTracker,
     predictionMemory,
     selfCritiqueMemory,
@@ -700,6 +711,16 @@ function updateIntelligentDisagreementIfNeeded(existing, details = {}) {
   if (!message) return existing || null;
   const disagreement = generateStrongestDisagreement(message, details);
   return updateIntelligentDisagreementMemory(existing, disagreement);
+}
+
+function updateDreamDriftIfNeeded(existing, details = {}) {
+  if (details && details.dreamDrift) {
+    return updateDreamDriftMemory(existing, details.dreamDrift);
+  }
+  const message = details && (details.founderMessage || details.idea || details.proposal || details.decision || details.agentAnswer);
+  if (!shouldEvaluateDreamDrift(message)) return existing || null;
+  const drift = detectDreamDrift(message, details);
+  return updateDreamDriftMemory(existing, drift);
 }
 
 function updateFounderHypothesisIfNeeded(existing, details = {}) {
