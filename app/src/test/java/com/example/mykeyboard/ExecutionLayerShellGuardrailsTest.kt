@@ -14,13 +14,36 @@ class ExecutionLayerShellGuardrailsTest {
 
         assertTrue(source.contains("setupExecutionLayerShell()"))
         assertTrue(source.contains("EXECUTION_HANDLE_PULL_THRESHOLD_DP"))
-        assertTrue(source.contains("What do you want done?"))
+        assertTrue(source.contains("How can I help?"))
+        assertTrue(source.contains("Tell Aritenis..."))
+        assertTrue(source.contains("Speak naturally. Aritenis listens, understands, then acts."))
         assertTrue(source.contains("lightBlueGlassDrawable"))
         assertTrue(manifest.contains("android.permission.SYSTEM_ALERT_WINDOW"))
         assertFalse(source.contains("DeviceFileFinder"))
         assertFalse(source.contains("FileSearchMatcher"))
         assertFalse(manifest.contains("READ_EXTERNAL_STORAGE"))
         assertFalse(manifest.contains("READ_MEDIA_IMAGES"))
+    }
+
+    @Test
+    fun executionLayerIsVoiceFirstNotDashboardFirst() {
+        val source = sourceFile("app/src/main/java/com/example/mykeyboard/KeyboardService.kt").readText()
+        val setup = methodBody(source, "setupExecutionLayerShell")
+        val overlay = methodBody(source, "showFullScreenExecutionOverlay")
+
+        assertTrue(setup.contains("KEY_MIC"))
+        assertTrue(overlay.contains("KEY_MIC"))
+        assertTrue(setup.indexOf("KEY_MIC") < setup.indexOf("Tell Aritenis..."))
+        assertTrue(overlay.indexOf("KEY_MIC") < overlay.indexOf("Tell Aritenis..."))
+        assertFalse(setup.contains("Find"))
+        assertFalse(setup.contains("Check"))
+        assertFalse(setup.contains("Send"))
+        assertFalse(setup.contains("Make"))
+        assertFalse(overlay.contains("Find"))
+        assertFalse(overlay.contains("Check"))
+        assertFalse(overlay.contains("Send"))
+        assertFalse(overlay.contains("Make"))
+        assertFalse(source.contains("Speak: Open Instagram"))
     }
 
     @Test
