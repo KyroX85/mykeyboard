@@ -28,6 +28,11 @@ const {
   judgeUserValue,
   updateUserValueJudgments
 } = require('../user-value-judge');
+const {
+  shouldRunPremortem,
+  generatePremortem,
+  updatePremortemMemory
+} = require('../premortem-engine');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const MEMORY_FILE = process.env.ARITENIS_WHATSAPP_MEMORY_FILE ||
@@ -96,6 +101,7 @@ const DEFAULT_MEMORY = {
   founderBeliefTracker: null,
   founderContradictions: null,
   userValueJudgments: null,
+  premortemMemory: null,
   routeScores: {},
   reinforcementEvents: [],
   lastRouteForReward: null,
@@ -187,6 +193,7 @@ function updateMemory(command, state, details = {}) {
     founderBeliefTracker: details.founderBeliefTracker || memory.founderBeliefTracker
   });
   const userValueJudgments = updateUserValueIfNeeded(memory.userValueJudgments, details);
+  const premortemMemory = updatePremortemIfNeeded(memory.premortemMemory, details);
 
   return writeMemory({
     ...memory,
@@ -220,7 +227,8 @@ function updateMemory(command, state, details = {}) {
     founderQuestionClusters,
     founderBeliefTracker,
     founderContradictions,
-    userValueJudgments
+    userValueJudgments,
+    premortemMemory
   });
 }
 
@@ -285,6 +293,7 @@ function readConversationMemory() {
     founderBeliefTracker: memory.founderBeliefTracker || null,
     founderContradictions: memory.founderContradictions || null,
     userValueJudgments: memory.userValueJudgments || null,
+    premortemMemory: memory.premortemMemory || null,
     routeScores: memory.routeScores && typeof memory.routeScores === 'object' ? memory.routeScores : {},
     reinforcementEvents: Array.isArray(memory.reinforcementEvents) ? memory.reinforcementEvents.slice(0, 80) : [],
     lastRouteForReward: memory.lastRouteForReward || null,
@@ -323,6 +332,7 @@ function updateConversationMemory(route, state) {
     founderBeliefTracker: route.founderBeliefTracker || memory.founderBeliefTracker
   });
   const userValueJudgments = updateUserValueIfNeeded(memory.userValueJudgments, route);
+  const premortemMemory = updatePremortemIfNeeded(memory.premortemMemory, route);
   const next = {
     ...memory,
     ...reinforcement,
@@ -379,6 +389,7 @@ function updateConversationMemory(route, state) {
     founderBeliefTracker,
     founderContradictions,
     userValueJudgments,
+    premortemMemory,
     recentMessages: rememberMessage(memory.recentMessages, {
       role: 'agent',
       agent: route.agent || 'cto',
@@ -493,6 +504,13 @@ function updateUserValueIfNeeded(existing, details = {}) {
   if (!shouldJudgeIdea(idea)) return existing || null;
   const judgment = judgeUserValue(idea, details);
   return updateUserValueJudgments(existing, judgment);
+}
+
+function updatePremortemIfNeeded(existing, details = {}) {
+  const decision = details && (details.decision || details.idea || details.proposal || details.founderMessage || details.agentAnswer);
+  if (!shouldRunPremortem(decision, details)) return existing || null;
+  const premortem = generatePremortem(decision, details);
+  return updatePremortemMemory(existing, premortem);
 }
 
 function mergeContinuity(items, entry) {
