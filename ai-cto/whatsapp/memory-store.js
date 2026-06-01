@@ -23,6 +23,11 @@ const {
   detectFounderContradiction,
   updateFounderContradictions
 } = require('../founder-contradiction-detector');
+const {
+  shouldJudgeIdea,
+  judgeUserValue,
+  updateUserValueJudgments
+} = require('../user-value-judge');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const MEMORY_FILE = process.env.ARITENIS_WHATSAPP_MEMORY_FILE ||
@@ -90,6 +95,7 @@ const DEFAULT_MEMORY = {
   memoryCompression: null,
   founderBeliefTracker: null,
   founderContradictions: null,
+  userValueJudgments: null,
   routeScores: {},
   reinforcementEvents: [],
   lastRouteForReward: null,
@@ -180,6 +186,7 @@ function updateMemory(command, state, details = {}) {
     ...details,
     founderBeliefTracker: details.founderBeliefTracker || memory.founderBeliefTracker
   });
+  const userValueJudgments = updateUserValueIfNeeded(memory.userValueJudgments, details);
 
   return writeMemory({
     ...memory,
@@ -212,7 +219,8 @@ function updateMemory(command, state, details = {}) {
     lastFounderConcern: continuityEntry || memory.lastFounderConcern || null,
     founderQuestionClusters,
     founderBeliefTracker,
-    founderContradictions
+    founderContradictions,
+    userValueJudgments
   });
 }
 
@@ -276,6 +284,7 @@ function readConversationMemory() {
     memoryCompression: memory.memoryCompression || null,
     founderBeliefTracker: memory.founderBeliefTracker || null,
     founderContradictions: memory.founderContradictions || null,
+    userValueJudgments: memory.userValueJudgments || null,
     routeScores: memory.routeScores && typeof memory.routeScores === 'object' ? memory.routeScores : {},
     reinforcementEvents: Array.isArray(memory.reinforcementEvents) ? memory.reinforcementEvents.slice(0, 80) : [],
     lastRouteForReward: memory.lastRouteForReward || null,
@@ -313,6 +322,7 @@ function updateConversationMemory(route, state) {
     ...route,
     founderBeliefTracker: route.founderBeliefTracker || memory.founderBeliefTracker
   });
+  const userValueJudgments = updateUserValueIfNeeded(memory.userValueJudgments, route);
   const next = {
     ...memory,
     ...reinforcement,
@@ -368,6 +378,7 @@ function updateConversationMemory(route, state) {
     founderQuestionClusters,
     founderBeliefTracker,
     founderContradictions,
+    userValueJudgments,
     recentMessages: rememberMessage(memory.recentMessages, {
       role: 'agent',
       agent: route.agent || 'cto',
@@ -475,6 +486,13 @@ function updateContradictionsIfNeeded(existing, details = {}) {
   });
   if (!contradiction) return existing || null;
   return updateFounderContradictions(existing, contradiction);
+}
+
+function updateUserValueIfNeeded(existing, details = {}) {
+  const idea = details && (details.idea || details.proposal || details.founderMessage || details.agentAnswer);
+  if (!shouldJudgeIdea(idea)) return existing || null;
+  const judgment = judgeUserValue(idea, details);
+  return updateUserValueJudgments(existing, judgment);
 }
 
 function mergeContinuity(items, entry) {
