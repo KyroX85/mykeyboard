@@ -9,6 +9,9 @@ const {
 const {
   updateRouteReinforcement
 } = require('./reinforcement-learning-layer');
+const {
+  updateFounderQuestionClusters
+} = require('../founder-question-clustering');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const MEMORY_FILE = process.env.ARITENIS_WHATSAPP_MEMORY_FILE ||
@@ -70,6 +73,7 @@ const DEFAULT_MEMORY = {
   founderFeedback: [],
   lastFeedback: null,
   founderTasteModel: null,
+  founderQuestionClusters: null,
   routeScores: {},
   reinforcementEvents: [],
   lastRouteForReward: null,
@@ -154,6 +158,7 @@ function updateMemory(command, state, details = {}) {
     null;
   const continuityEntry = buildFounderContinuityEntry(details);
   const reinforcement = updateRouteReinforcement(memory, command, details);
+  const founderQuestionClusters = updateQuestionClustersIfNeeded(memory.founderQuestionClusters, details);
 
   return writeMemory({
     ...memory,
@@ -183,7 +188,8 @@ function updateMemory(command, state, details = {}) {
       ? mergeContinuity(memory.founderGoals, continuityEntry)
       : boundedContinuity(memory.founderGoals),
     founderDecisions: boundedContinuity(memory.founderDecisions),
-    lastFounderConcern: continuityEntry || memory.lastFounderConcern || null
+    lastFounderConcern: continuityEntry || memory.lastFounderConcern || null,
+    founderQuestionClusters
   });
 }
 
@@ -241,6 +247,7 @@ function readConversationMemory() {
     founderFeedback: Array.isArray(memory.founderFeedback) ? memory.founderFeedback.slice(0, 50) : [],
     lastFeedback: memory.lastFeedback || null,
     founderTasteModel: memory.founderTasteModel || null,
+    founderQuestionClusters: memory.founderQuestionClusters || null,
     routeScores: memory.routeScores && typeof memory.routeScores === 'object' ? memory.routeScores : {},
     reinforcementEvents: Array.isArray(memory.reinforcementEvents) ? memory.reinforcementEvents.slice(0, 80) : [],
     lastRouteForReward: memory.lastRouteForReward || null,
@@ -272,6 +279,7 @@ function updateConversationMemory(route, state) {
   const operationalIntelligence = buildOperationalIntelligence(state, semanticFounderState, memory);
   const continuityEntry = buildFounderContinuityEntry(route);
   const reinforcement = updateRouteReinforcement(memory, route.command || route.intent || 'agent', route);
+  const founderQuestionClusters = updateQuestionClustersIfNeeded(memory.founderQuestionClusters, route);
   const next = {
     ...memory,
     ...reinforcement,
@@ -324,6 +332,7 @@ function updateConversationMemory(route, state) {
     founderDecisions: boundedContinuity(memory.founderDecisions),
     lastFounderConcern: continuityEntry || memory.lastFounderConcern || null,
     nextContinuationAction,
+    founderQuestionClusters,
     recentMessages: rememberMessage(memory.recentMessages, {
       role: 'agent',
       agent: route.agent || 'cto',
@@ -398,6 +407,19 @@ function buildFounderContinuityEntry(details = {}) {
     founderMessage: details.founderMessage || null,
     confidence: details.confidence || null
   };
+}
+
+function updateQuestionClustersIfNeeded(existing, details = {}) {
+  if (!details || !details.founderMessage || !details.questionCluster) {
+    return existing || null;
+  }
+  return updateFounderQuestionClusters(existing, {
+    message: details.founderMessage,
+    questionCluster: details.questionCluster,
+    category: details.category || (details.mindReconstruction && details.mindReconstruction.category) || null,
+    intent: details.intent || null,
+    confidence: details.confidence || (details.questionCluster && details.questionCluster.confidence) || null
+  });
 }
 
 function mergeContinuity(items, entry) {

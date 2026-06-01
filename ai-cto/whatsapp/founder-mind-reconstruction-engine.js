@@ -32,6 +32,9 @@ const {
 const {
   applyFounderTasteToResponse
 } = require('../founder-taste-model');
+const {
+  classifyFounderQuestionCluster
+} = require('../founder-question-clustering');
 
 const VISION_PATTERNS = [
   /\bwhat\s+if\s+my\s+dream\s+(itself\s+)?is\s+wrong\b/i,
@@ -112,6 +115,12 @@ function routeFounderMindReconstruction(message = '', context = {}) {
 
   const reconstruction = reconstructFounderMind(message, context);
   if (!reconstruction || reconstruction.mode === 'NO_MATCH') return null;
+  const questionCluster = classifyFounderQuestionCluster(message, {
+    ...(context.memory || {}),
+    category: reconstruction.category,
+    intent: reconstruction.intent,
+    confidence: reconstruction.confidence
+  });
 
   const feedbackAdjustedResponse = applyFounderFeedbackToResponse(buildReflectionResponse(reconstruction, {
     debug: Boolean(context.debug)
@@ -137,6 +146,7 @@ function routeFounderMindReconstruction(message = '', context = {}) {
       mode: reconstruction.mode,
       category: reconstruction.category,
       confidence: reconstruction.confidence,
+      questionCluster,
       mindReconstruction: reconstruction.report,
       selfCheck: reconstruction.selfCheck,
       skipExecutionSchema: true
