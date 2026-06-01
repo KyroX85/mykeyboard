@@ -18,7 +18,7 @@ const { setMode } = require('../../governance/governance');
 
 setMode('ACTIVE', 'founder mind reconstruction test');
 
-const forbiddenTemplates = /(Current Foundation Health|Recommended Next Step|Momentum:\s*STALLED|Health:\s*\d+|roadmap priority|Team is ready|complexity report|Task Plan|Review Gate|TASK_PLAN|APPROVE|Execution Plan|Files:|Validation:|Risk:|Scope:)/i;
+const forbiddenTemplates = /(Current Foundation Health|Recommended Next Step|Momentum:\s*STALLED|Health:\s*\d+|roadmap priority|Team is ready|Team Ready|complexity report|Task Plan|Review Gate|TASK_PLAN|APPROVE|Execution Plan|Execution\b|Files:|Validation:|Risk:|Scope:)/i;
 
 function route(text) {
   return routeMessage(text, {}, {});
@@ -90,6 +90,15 @@ assert.strictEqual(wrongFocus.details.category, 'DOUBT');
 assert.strictEqual(wrongFocus.details.mode, 'FOUNDER_CONVERSATION_MODE');
 assert.match(wrongFocus.details.mindReconstruction.concern, /look operational|product moment|users would actually care/i);
 assert.doesNotMatch(String(wrongFocus.response || ''), /TASK_PLAN|APPROVE|Execution Plan|Files:|Validation:|Risk:|Scope:/i);
+
+const chasing = assertMindRoute(
+  "Bro what do you think I'm actually chasing?",
+  /personal intelligence layer|phone|keyboard|screenshots|trust|leverage|miss if it disappeared/i
+);
+assert.strictEqual(chasing.details.category, 'FOUNDER_QUESTION');
+assert.strictEqual(chasing.details.mode, 'FOUNDER_CONVERSATION_MODE');
+assert.match(chasing.details.mindReconstruction.actualQuestion, /long-term outcome|Aritenis/i);
+assert.doesNotMatch(String(chasing.response || ''), /TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution/i);
 
 const reconstructed = reconstructFounderMind('Why did I ask that?', {});
 assert.strictEqual(reconstructed.mode, 'REFLECTION_MODE');

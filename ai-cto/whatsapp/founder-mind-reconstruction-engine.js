@@ -15,6 +15,13 @@ const VISION_PATTERNS = [
   /\b(are|r)\s+we\s+building\s+(the\s+)?(right|actual)\s+thing\b/i
 ];
 
+const FOUNDER_QUESTION_PATTERNS = [
+  /\bwhat\s+do\s+you\s+think\s+i'?m\s+(actually\s+)?(chasing|trying\s+to\s+build|trying\s+to\s+achieve|after)\b/i,
+  /\bwhat\s+(am\s+i|i\s+am)\s+(actually\s+)?(chasing|trying\s+to\s+build|trying\s+to\s+achieve|after)\b/i,
+  /\bwhat\s+is\s+my\s+(real\s+)?(ambition|dream|goal|vision)\b/i,
+  /\bwhat\s+do\s+you\s+think\s+my\s+(real\s+)?(ambition|dream|goal|vision)\s+is\b/i
+];
+
 const DOUBT_PATTERNS = [
   /\b(something|this|it)\s+(feels|feel)\s+(off|wrong|not right|missing|weak)\b/i,
   /\b(i\s+don'?t|i\s+do\s+not)\s+(like|feel)\s+(this|it)\b/i,
@@ -39,7 +46,7 @@ const AWARENESS_CHECK_PATTERNS = [
   /\bwhats\s+going\s+on\b/i
 ];
 
-const FORBIDDEN_REFLECTION_OUTPUT = /(Current Foundation Health|Momentum:\s*STALLED|Health:\s*\d+|Recommended Next Step|roadmap priority|Phase 1 foundation is protected|Team is ready|complexity report|Task Plan|Review Gate)/i;
+const FORBIDDEN_REFLECTION_OUTPUT = /(Current Foundation Health|Momentum:\s*STALLED|Health:\s*\d+|Recommended Next Step|roadmap priority|Phase 1 foundation is protected|Team is ready|complexity report|Task Plan|Review Gate|TASK_PLAN|APPROVE|Execution Plan|Execution\b)/i;
 
 function routeFounderMindReconstruction(message = '', context = {}) {
   const reconstruction = reconstructFounderMind(message, context);
@@ -130,6 +137,16 @@ function classifyMindQuestion(text = '') {
     };
   }
 
+  if (FOUNDER_QUESTION_PATTERNS.some((pattern) => pattern.test(text))) {
+    return {
+      intent: 'RECONSTRUCT_FOUNDER_AMBITION',
+      category: 'FOUNDER_QUESTION',
+      archetype: 'founder_ambition',
+      mode: 'FOUNDER_CONVERSATION_MODE',
+      confidence: 85
+    };
+  }
+
   if (AGENT_UNDERSTANDING_PATTERNS.some((pattern) => pattern.test(text))) {
     return {
       intent: 'ASSESS_AGENT_UNDERSTANDING_ANXIETY',
@@ -187,6 +204,17 @@ function buildMindReport(kind, message, context = {}) {
     };
   }
 
+  if (kind.archetype === 'founder_ambition') {
+    return {
+      objective: 'Reconstruct the founder ambition behind the question instead of treating it as a status or task request.',
+      assumption: 'The founder is testing whether the agents understand the real company dream beyond files, governance, and short-term tasks.',
+      concern: 'The agents may know project facts but still miss the emotional and strategic ambition: building a personal intelligence layer people actually rely on.',
+      desiredOutcome: 'A direct explanation of the founder ambition and how current work should be judged against it.',
+      actualQuestion: 'What long-term outcome am I really chasing with Aritenis?',
+      uselessLiteralAnswer: 'A team-ready response, health score, task plan, approval token, or execution update.'
+    };
+  }
+
   if (kind.archetype === 'agent_understanding') {
     return {
       objective: 'Check whether the agents can reason from founder vision instead of repeating memory or templates.',
@@ -226,7 +254,7 @@ function buildDirectAnswer(kind, report) {
       'We are moving toward the dream in the sense that the foundation, governance, WhatsApp access, memory, Product Lab, and agent rails are being built.',
       'But we are not yet close enough to the dream itself: a phone-operated personal intelligence layer that can understand the founder, inspect the product, reason about real evidence, and help complete meaningful actions.',
       'The gap is intelligence and user leverage, not more templates.',
-      'So the honest answer is: the direction is aligned, but the current center of gravity is still infrastructure. The next proof has to be a real Explain/execution-layer moment that feels useful, not another governance improvement.'
+      'So the honest answer is: the direction is aligned, but the current center of gravity is still infrastructure. The next proof has to be a real Explain/action-surface moment that feels useful, not another governance improvement.'
     ];
   }
 
@@ -246,7 +274,17 @@ function buildDirectAnswer(kind, report) {
       'That concern is valid to test. Governance, memory, routing, and agent councils only matter if they help Aritenis reach the founder objective faster.',
       'The likely misalignment is this: the system may be getting better at operating itself, while the product still needs a clearer user-facing breakthrough.',
       'So I would treat this as a strategic discussion, not a task request.',
-      'The useful next question is: what current work most directly moves us toward the Explain / execution-layer moment users would actually feel?'
+      'The useful next question is: what current work most directly moves us toward the Explain action-surface moment users would actually feel?'
+    ];
+  }
+
+  if (kind.archetype === 'founder_ambition') {
+    return [
+      'You are chasing more than a keyboard feature.',
+      'You are trying to build a personal intelligence layer that lives where people already act: the phone, the keyboard, screenshots, messages, and daily workflows.',
+      'The deeper ambition is a Jarvis-style product, but grounded in trust: it should understand context, help complete real actions, and stay private and controllable.',
+      'That means the company should be judged by whether Aritenis helps users understand and act faster, not by whether the agent system looks complex.',
+      'So the honest reconstruction is: you are chasing leverage, trust, and a product people would miss if it disappeared.'
     ];
   }
 
@@ -319,6 +357,9 @@ function responseAnswersFounderMind(reconstruction = {}) {
   }
   if (reconstruction.intent === 'RECONSTRUCT_STRATEGIC_MISALIGNMENT_CONCERN') {
     return /wrong thing|infrastructure|killer feature|misalignment|founder objective|strategic discussion/i.test(answer);
+  }
+  if (reconstruction.intent === 'RECONSTRUCT_FOUNDER_AMBITION') {
+    return /personal intelligence layer|phone|keyboard|screenshots|trust|leverage|miss if it disappeared/i.test(answer);
   }
   return /reason behind your words|assumption being tested|worry underneath/i.test(answer);
 }
