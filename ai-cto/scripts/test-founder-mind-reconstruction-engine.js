@@ -12,8 +12,10 @@ process.env.ARITENIS_WHATSAPP_MEMORY_FILE = path.join(os.tmpdir(), 'aritenis-fou
 const { routeMessage, routeMessageWithAi } = require('../whatsapp/command-router');
 const {
   reconstructFounderMind,
-  responseAnswersFounderMind
+  responseAnswersFounderMind,
+  resolveContinuityReference
 } = require('../whatsapp/founder-mind-reconstruction-engine');
+const { readConversationMemory, updateMemory } = require('../whatsapp/memory-store');
 const { setMode } = require('../../governance/governance');
 
 setMode('ACTIVE', 'founder mind reconstruction test');
@@ -90,6 +92,22 @@ assert.strictEqual(wrongFocus.details.category, 'DOUBT');
 assert.strictEqual(wrongFocus.details.mode, 'FOUNDER_CONVERSATION_MODE');
 assert.match(wrongFocus.details.mindReconstruction.concern, /look operational|product moment|users would actually care/i);
 assert.doesNotMatch(String(wrongFocus.response || ''), /TASK_PLAN|APPROVE|Execution Plan|Files:|Validation:|Risk:|Scope:/i);
+updateMemory(wrongFocus.command, {}, {
+  ...(wrongFocus.details || {}),
+  founderMessage: "Bro I think we're focusing on the wrong thing.",
+  agentAnswer: wrongFocus.response
+});
+const continuityMemory = readConversationMemory();
+assert(continuityMemory.lastFounderConcern);
+assert(continuityMemory.founderDoubts.length >= 1);
+const resolvedThat = resolveContinuityReference('Did we fix that?', continuityMemory);
+assert(resolvedThat);
+assert.match(resolvedThat.concern, /look operational|product moment|users would actually care/i);
+const followUp = routeMessage('Did we fix that?', {}, continuityMemory);
+assert.strictEqual(followUp.command, 'founder_mind_reconstruction');
+assert.strictEqual(followUp.details.category, 'STRATEGIC_DISCUSSION');
+assert.match(followUp.response, /that.*previous concern|partially addressed|what remains/i);
+assert.doesNotMatch(String(followUp.response || ''), /TASK_PLAN|APPROVE|Execution Plan|Files:|Validation:|Risk:|Scope:/i);
 
 const chasing = assertMindRoute(
   "Bro what do you think I'm actually chasing?",

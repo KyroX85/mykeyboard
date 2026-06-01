@@ -46,6 +46,14 @@ const AWARENESS_CHECK_PATTERNS = [
   /\bwhats\s+going\s+on\b/i
 ];
 
+const CONTINUITY_PATTERNS = [
+  /\bdid\s+we\s+(fix|solve|address|handle)\s+(that|it|this)\b/i,
+  /\b(is|was)\s+(that|it|this)\s+(fixed|solved|addressed|handled)\b/i,
+  /\bhave\s+we\s+(fixed|solved|addressed|handled)\s+(that|it|this)\b/i,
+  /\bwhat\s+about\s+(that|it|this)\b/i,
+  /\b(after|about)\s+that\b/i
+];
+
 const FORBIDDEN_REFLECTION_OUTPUT = /(Current Foundation Health|Momentum:\s*STALLED|Health:\s*\d+|Recommended Next Step|roadmap priority|Phase 1 foundation is protected|Team is ready|complexity report|Task Plan|Review Gate|TASK_PLAN|APPROVE|Execution Plan|Execution\b)/i;
 
 function routeFounderMindReconstruction(message = '', context = {}) {
@@ -78,7 +86,7 @@ function reconstructFounderMind(message = '', context = {}) {
   const text = normalize(original);
   if (!text || isExplicitExecution(text) || isAuditRequest(text)) return null;
 
-  const kind = classifyMindQuestion(text);
+  const kind = classifyMindQuestion(text, context.memory || {});
   if (!kind) return null;
 
   const report = buildMindReport(kind, original, context);
@@ -100,7 +108,19 @@ function reconstructFounderMind(message = '', context = {}) {
   };
 }
 
-function classifyMindQuestion(text = '') {
+function classifyMindQuestion(text = '', memory = {}) {
+  const continuityReference = resolveContinuityReference(text, memory);
+  if (continuityReference) {
+    return {
+      intent: 'RESOLVE_FOUNDER_CONTINUITY_REFERENCE',
+      category: 'STRATEGIC_DISCUSSION',
+      archetype: 'continuity_reference',
+      mode: 'FOUNDER_CONVERSATION_MODE',
+      confidence: continuityReference.confidence,
+      continuityReference
+    };
+  }
+
   if (DOUBT_PATTERNS.some((pattern) => pattern.test(text))) {
     return {
       intent: text.includes('wrong thing') || text.includes('wrong direction') || text.includes('misaligned')
@@ -171,6 +191,23 @@ function classifyMindQuestion(text = '') {
 }
 
 function buildMindReport(kind, message, context = {}) {
+  if (kind.archetype === 'continuity_reference') {
+    const reference = kind.continuityReference || resolveContinuityReference(message, context.memory || {});
+    return {
+      objective: 'Resolve a short follow-up against the previous founder concern instead of treating it as a vague new command.',
+      assumption: 'The founder expects the agent to remember the prior concern semantically, not by keyword matching.',
+      concern: reference && reference.concern
+        ? reference.concern
+        : 'The previous concern is not available with enough confidence.',
+      desiredOutcome: 'Answer whether the remembered concern has been addressed and what remains unresolved.',
+      actualQuestion: reference && reference.actualQuestion
+        ? `Did we address this previous concern: ${reference.actualQuestion}`
+        : 'Did we address the previous founder concern?',
+      uselessLiteralAnswer: 'A generic clarification, task plan, health report, or fresh execution proposal.',
+      continuitySource: reference
+    };
+  }
+
   if (kind.archetype === 'vision_alignment') {
     return {
       objective: 'Check whether current work is moving toward the founder dream rather than becoming agent infrastructure for its own sake.',
@@ -248,6 +285,17 @@ function buildMindReport(kind, message, context = {}) {
 }
 
 function buildDirectAnswer(kind, report) {
+  if (kind.archetype === 'continuity_reference') {
+    const source = report.continuitySource || {};
+    const topic = source.concern || source.objective || 'the previous concern';
+    return [
+      `Yes, "that" most likely refers to the previous concern: ${topic}`,
+      'I should not treat this as a new task or ask what "that" means unless the memory is weak.',
+      'My honest answer: partially addressed if the conversation route now stays strategic, but not fully fixed until repeated WhatsApp tests stop producing task plans or approval tokens for the same kind of doubt.',
+      'What remains: keep testing follow-up questions and make sure the agent links them to the same concern without keyword matching.'
+    ];
+  }
+
   if (kind.archetype === 'vision_alignment') {
     return [
       'Partially.',
@@ -361,7 +409,41 @@ function responseAnswersFounderMind(reconstruction = {}) {
   if (reconstruction.intent === 'RECONSTRUCT_FOUNDER_AMBITION') {
     return /personal intelligence layer|phone|keyboard|screenshots|trust|leverage|miss if it disappeared/i.test(answer);
   }
+  if (reconstruction.intent === 'RESOLVE_FOUNDER_CONTINUITY_REFERENCE') {
+    return /most likely refers|previous concern|partially addressed|what remains/i.test(answer);
+  }
   return /reason behind your words|assumption being tested|worry underneath/i.test(answer);
+}
+
+function resolveContinuityReference(message = '', memory = {}) {
+  if (!CONTINUITY_PATTERNS.some((pattern) => pattern.test(String(message || '')))) return null;
+  const candidates = [
+    memory.lastFounderConcern,
+    first(memory.founderConcerns),
+    first(memory.founderDoubts),
+    memory.semanticFounderState && memory.semanticFounderState.unresolvedReference
+      ? {
+          concern: memory.semanticFounderState.unresolvedReference,
+          objective: memory.semanticFounderState.founderGoal,
+          actualQuestion: memory.semanticFounderState.unresolvedReference,
+          category: 'SEMANTIC_MEMORY'
+        }
+      : null,
+    memory.unresolvedReference
+      ? {
+          concern: memory.unresolvedReference,
+          objective: memory.founderGoal,
+          actualQuestion: memory.unresolvedReference,
+          category: 'UNRESOLVED_REFERENCE'
+        }
+      : null
+  ].filter(Boolean);
+  const candidate = candidates[0];
+  if (!candidate) return null;
+  return {
+    ...candidate,
+    confidence: candidate.category === 'SEMANTIC_MEMORY' || candidate.category === 'UNRESOLVED_REFERENCE' ? 72 : 86
+  };
 }
 
 function isReflectionModeQuestion(message = '') {
@@ -388,10 +470,15 @@ function normalize(value = '') {
     .trim();
 }
 
+function first(items) {
+  return Array.isArray(items) && items.length ? items[0] : null;
+}
+
 module.exports = {
   routeFounderMindReconstruction,
   reconstructFounderMind,
   buildReflectionResponse,
   responseAnswersFounderMind,
-  isReflectionModeQuestion
+  isReflectionModeQuestion,
+  resolveContinuityReference
 };

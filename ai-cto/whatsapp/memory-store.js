@@ -55,6 +55,11 @@ const DEFAULT_MEMORY = {
   founderRejectedPatterns: [],
   frictionReducers: [],
   fakeProgressPatterns: [],
+  founderConcerns: [],
+  founderDoubts: [],
+  founderDecisions: [],
+  founderGoals: [],
+  lastFounderConcern: null,
   nextContinuationAction: null,
   recentMessages: [],
   previousFounderQuestion: null,
@@ -137,6 +142,7 @@ function updateMemory(command, state, details = {}) {
     first(sections.approvals) ||
     memory.pendingAction ||
     null;
+  const continuityEntry = buildFounderContinuityEntry(details);
 
   return writeMemory({
     ...memory,
@@ -156,7 +162,16 @@ function updateMemory(command, state, details = {}) {
     previousFounderQuestion: details.founderMessage || memory.previousFounderQuestion || null,
     previousAgentAnswer: details.agentAnswer ? String(details.agentAnswer).slice(0, 1200) : memory.previousAgentAnswer || null,
     pendingAction,
-    lastDiscussedTopic: details.topic || details.intent || memory.lastDiscussedTopic || null
+    lastDiscussedTopic: details.topic || details.intent || memory.lastDiscussedTopic || null,
+    founderConcerns: mergeContinuity(memory.founderConcerns, continuityEntry),
+    founderDoubts: continuityEntry && ['DOUBT', 'FRUSTRATION', 'STRATEGIC_DISCUSSION'].includes(continuityEntry.category)
+      ? mergeContinuity(memory.founderDoubts, continuityEntry)
+      : boundedContinuity(memory.founderDoubts),
+    founderGoals: continuityEntry && ['VISION', 'FOUNDER_QUESTION'].includes(continuityEntry.category)
+      ? mergeContinuity(memory.founderGoals, continuityEntry)
+      : boundedContinuity(memory.founderGoals),
+    founderDecisions: boundedContinuity(memory.founderDecisions),
+    lastFounderConcern: continuityEntry || memory.lastFounderConcern || null
   });
 }
 
@@ -201,6 +216,11 @@ function readConversationMemory() {
     founderRejectedPatterns: Array.isArray(memory.founderRejectedPatterns) ? memory.founderRejectedPatterns : [],
     frictionReducers: Array.isArray(memory.frictionReducers) ? memory.frictionReducers : [],
     fakeProgressPatterns: Array.isArray(memory.fakeProgressPatterns) ? memory.fakeProgressPatterns : [],
+    founderConcerns: Array.isArray(memory.founderConcerns) ? memory.founderConcerns.slice(0, 10) : [],
+    founderDoubts: Array.isArray(memory.founderDoubts) ? memory.founderDoubts.slice(0, 10) : [],
+    founderDecisions: Array.isArray(memory.founderDecisions) ? memory.founderDecisions.slice(0, 10) : [],
+    founderGoals: Array.isArray(memory.founderGoals) ? memory.founderGoals.slice(0, 10) : [],
+    lastFounderConcern: memory.lastFounderConcern || null,
     nextContinuationAction: memory.nextContinuationAction || null,
     recentMessages: Array.isArray(memory.recentMessages) ? memory.recentMessages.slice(0, 10) : []
     ,
@@ -231,6 +251,7 @@ function updateConversationMemory(route, state) {
   const productPriorities = rankProductPriorities(state, semanticFounderState);
   const nextContinuationAction = continuationPlan(state, semanticFounderState);
   const operationalIntelligence = buildOperationalIntelligence(state, semanticFounderState, memory);
+  const continuityEntry = buildFounderContinuityEntry(route);
   const next = {
     ...memory,
     lastAgentInteraction: route.agent || memory.lastAgentInteraction,
@@ -272,6 +293,15 @@ function updateConversationMemory(route, state) {
     semanticConflicts: semanticFounderState.semanticConflicts,
     unresolvedTopics: semanticFounderState.unresolvedTopics,
     operationalIntelligence,
+    founderConcerns: mergeContinuity(memory.founderConcerns, continuityEntry),
+    founderDoubts: continuityEntry && ['DOUBT', 'FRUSTRATION', 'STRATEGIC_DISCUSSION'].includes(continuityEntry.category)
+      ? mergeContinuity(memory.founderDoubts, continuityEntry)
+      : boundedContinuity(memory.founderDoubts),
+    founderGoals: continuityEntry && ['VISION', 'FOUNDER_QUESTION'].includes(continuityEntry.category)
+      ? mergeContinuity(memory.founderGoals, continuityEntry)
+      : boundedContinuity(memory.founderGoals),
+    founderDecisions: boundedContinuity(memory.founderDecisions),
+    lastFounderConcern: continuityEntry || memory.lastFounderConcern || null,
     nextContinuationAction,
     recentMessages: rememberMessage(memory.recentMessages, {
       role: 'agent',
@@ -329,6 +359,41 @@ function mergeRemembered(items, value) {
   const list = Array.isArray(items) ? items : [];
   if (!value) return list.slice(0, 5);
   return [value, ...list.filter((item) => item !== value)].slice(0, 5);
+}
+
+function buildFounderContinuityEntry(details = {}) {
+  const mind = details.mindReconstruction;
+  if (!mind || typeof mind !== 'object') return null;
+  const category = details.category || mind.category || details.intent || 'FOUNDER_CONCERN';
+  return {
+    timestamp: new Date().toISOString(),
+    category,
+    objective: mind.objective || null,
+    assumption: mind.assumption || null,
+    concern: mind.concern || null,
+    desiredOutcome: mind.desiredOutcome || null,
+    actualQuestion: mind.actualQuestion || null,
+    founderMessage: details.founderMessage || null,
+    confidence: details.confidence || null
+  };
+}
+
+function mergeContinuity(items, entry) {
+  const list = boundedContinuity(items);
+  if (!entry) return list;
+  const key = continuityKey(entry);
+  return [
+    entry,
+    ...list.filter((item) => continuityKey(item) !== key)
+  ].slice(0, 10);
+}
+
+function boundedContinuity(items) {
+  return Array.isArray(items) ? items.filter(Boolean).slice(0, 10) : [];
+}
+
+function continuityKey(entry = {}) {
+  return String(entry.actualQuestion || entry.concern || entry.objective || '').toLowerCase();
 }
 
 module.exports = {
