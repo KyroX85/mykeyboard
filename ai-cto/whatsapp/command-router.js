@@ -35,6 +35,7 @@ const { routeFounderIntentUnderstanding } = require('./founder-intent-understand
 const { routeFounderMindReconstruction } = require('./founder-mind-reconstruction-engine');
 const { routeFounderObjective } = require('./founder-objective-engine');
 const { routeHumanInteraction } = require('./human-interaction-layer');
+const { enforceAntiTemplateOnRoute } = require('./anti-template-layer');
 const {
   buildScreenshotCaptureResponse,
   captureProductLabScreenshot,
@@ -1479,7 +1480,7 @@ function routeMessage(message, state, memory = {}) {
     message,
     memory,
     founderMemoryLayer
-  }), message);
+  }), message, state);
 }
 
 async function routeMessageWithAi(message, state, memory = {}, options = {}) {
@@ -1492,13 +1493,16 @@ async function routeMessageWithAi(message, state, memory = {}, options = {}) {
     message,
     memory,
     founderMemoryLayer
-  }), message);
+  }), message, state);
 }
 
-function enforceDeterministicResponse(route, message) {
-  if (route && route.details && route.details.skipExecutionSchema) return route;
-  return enforceExecutionSchemaOnRoute(route, {
+function enforceDeterministicResponse(route, message, state = {}) {
+  const antiTemplateRoute = enforceAntiTemplateOnRoute(route, { message, state });
+  if (antiTemplateRoute && antiTemplateRoute.details && antiTemplateRoute.details.skipExecutionSchema) {
+    return antiTemplateRoute;
+  }
+  return enforceExecutionSchemaOnRoute(antiTemplateRoute, {
     message,
-    memorySources: memorySourcesFromResponse(route && route.response)
+    memorySources: memorySourcesFromResponse(antiTemplateRoute && antiTemplateRoute.response)
   });
 }
