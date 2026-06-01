@@ -185,6 +185,15 @@ assert.strictEqual(dreamValidity.details.intent, 'RECONSTRUCT_DREAM_VALIDITY_DOU
 assert.match(dreamValidity.details.mindReconstruction.actualQuestion, /dream itself wrong|current path.*unproven/i);
 assert.doesNotMatch(String(dreamValidity.response || ''), /wrong response path|CLARIFICATION_REQUEST|NOISE|LOW INFORMATION|AMBIGUOUS INTENT|TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan/i);
 
+const beliefShift = assertMindRoute(
+  'What belief have I changed my mind about recently?',
+  /changed your mind|makes Aritenis valuable|advanced agents only matter|real user leverage|repeatable product moment|Explain/i
+);
+assert.strictEqual(beliefShift.details.category, 'REFLECTION');
+assert.strictEqual(beliefShift.details.intent, 'RECONSTRUCT_RECENT_BELIEF_SHIFT');
+assert.match(beliefShift.details.mindReconstruction.actualQuestion, /belief shift|visible in my behavior/i);
+assert.doesNotMatch(String(beliefShift.response || ''), /current-work|mostly maintenance|CLARIFICATION_REQUEST|NOISE|LOW INFORMATION|AMBIGUOUS INTENT|TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan/i);
+
 const reconstructed = reconstructFounderMind('Why did I ask that?', {});
 assert.strictEqual(reconstructed.mode, 'REFLECTION_MODE');
 assert.strictEqual(reconstructed.intent, 'RECONSTRUCT_FOUNDER_META_REASONING');

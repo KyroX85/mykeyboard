@@ -96,6 +96,11 @@ const cases = [
     text: 'Bro, what if my dream itself is wrong?',
     route: ROUTES.FOUNDER_VISION,
     expected: /dream might be wrong|underlying desire|keyboard is automatically the right vehicle|Explain is the current smallest test|user behavior decide/i
+  },
+  {
+    text: 'What belief have I changed my mind about recently?',
+    route: ROUTES.FOUNDER_REFLECTION,
+    expected: /changed your mind|makes Aritenis valuable|advanced agents only matter|real user leverage|repeatable product moment|Explain/i
   }
 ];
 

@@ -2,6 +2,9 @@ const REFLECTION_PATTERNS = [
   /\bbased\s+on\s+my\s+behavior\b.*\bwhat\s+(am\s+i|i\s+am)\s+optimizing\s+for\b/i,
   /\bwhat\s+(am\s+i|i\s+am)\s+optimizing\s+for\b/i,
   /\bforget\s+what\s+i\s+say\b.*\bbased\s+on\s+my\s+behavior\b/i,
+  /\bwhat\s+belief\s+have\s+i\s+changed\s+my\s+mind\s+about\b/i,
+  /\bwhat\s+have\s+i\s+changed\s+my\s+mind\s+about\b/i,
+  /\bchanged\s+my\s+mind\b.*\b(recently|lately|now)\b/i,
   /\b(am|was)\s+i\s+the\s+same\s+founder\b/i,
   /\b(founder|i)\b.*\b(same|changed|evolved|different)\b.*\b(months?|weeks?|ago|before|now)\b/i,
   /\bwhy\s+(am\s+i|did\s+i)\s+(asking|ask)\b/i,
@@ -224,6 +227,15 @@ function classifyMindQuestion(text = '', memory = {}) {
   }
 
   if (REFLECTION_PATTERNS.some((pattern) => pattern.test(text))) {
+    if (/\bchanged\s+my\s+mind\b/i.test(text) || /\bwhat\s+belief\s+have\s+i\b/i.test(text)) {
+      return {
+        intent: 'RECONSTRUCT_RECENT_BELIEF_SHIFT',
+        category: 'REFLECTION',
+        archetype: 'recent_belief_shift',
+        mode: 'REFLECTION_MODE',
+        confidence: 83
+      };
+    }
     if (/\boptimizing\s+for\b/i.test(text) || /\bbased\s+on\s+my\s+behavior\b/i.test(text)) {
       return {
         intent: 'RECONSTRUCT_FOUNDER_BEHAVIOR_OPTIMIZATION',
@@ -462,6 +474,18 @@ function buildMindReport(kind, message, context = {}) {
     };
   }
 
+  if (kind.archetype === 'recent_belief_shift') {
+    return {
+      objective: 'Identify the founder’s recent belief change from repeated decisions and corrections.',
+      assumption: 'The founder is asking for a behavioral read of how their thinking evolved, not a recent-work status report.',
+      concern: 'The system may miss the founder’s strategic evolution and keep optimizing for an older belief.',
+      decision: 'Decide which belief shift should change agent behavior going forward.',
+      desiredOutcome: 'A concise reconstruction of the belief the founder appears to have changed recently.',
+      actualQuestion: 'What recent belief shift is visible in my behavior?',
+      uselessLiteralAnswer: 'A current-work update, task plan, health score, or generic progress report.'
+    };
+  }
+
   if (kind.archetype === 'founder_evolution') {
     return {
       objective: 'Compare the founder’s current judgment and priorities against the earlier founder state.',
@@ -621,6 +645,16 @@ function buildDirectAnswer(kind, report) {
     ];
   }
 
+  if (kind.archetype === 'recent_belief_shift') {
+    return [
+      'You seem to have changed your mind about what makes Aritenis valuable.',
+      'Earlier, the belief was closer to: if the agents become advanced enough, the product will move toward the dream.',
+      'Recently, your behavior shows a sharper belief: advanced agents only matter if they produce real user leverage.',
+      'You also seem less convinced that infrastructure progress is company progress.',
+      'The new belief is: the system must prove usefulness through a repeatable product moment, probably Explain, not through more impressive agent machinery.'
+    ];
+  }
+
   if (kind.archetype === 'founder_evolution') {
     return [
       'No. You are not the same founder you were 3 months ago.',
@@ -738,6 +772,9 @@ function responseAnswersFounderMind(reconstruction = {}) {
   }
   if (reconstruction.intent === 'RECONSTRUCT_FOUNDER_BEHAVIOR_OPTIMIZATION') {
     return /product truth|stress-testing the agents|fake progress|leverage|useful breakthrough|trustworthy/i.test(answer);
+  }
+  if (reconstruction.intent === 'RECONSTRUCT_RECENT_BELIEF_SHIFT') {
+    return /changed your mind|makes Aritenis valuable|advanced agents only matter|real user leverage|repeatable product moment|Explain/i.test(answer);
   }
   if (reconstruction.intent === 'RECONSTRUCT_FOUNDER_EVOLUTION') {
     return /not the same founder|3 months ago|sharper|fake progress|product-truth mode|user-facing breakthrough/i.test(answer);
