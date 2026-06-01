@@ -113,7 +113,7 @@ jobs:
 
       - name: Send Daily WhatsApp School Mode Report
         if: always()
-        run: node ai-cto/scripts/send-whatsapp-report.js
+        run: node ai-cto/scripts/send-whatsapp-report.js || echo "WhatsApp school mode report failed; continuing because notification delivery is non-blocking."
         env:
           TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
           TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
