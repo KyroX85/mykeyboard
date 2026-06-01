@@ -131,6 +131,17 @@ const boundary = assertObjectiveRoute(
 );
 assert.match(response(boundary), /strategic judgment/i);
 
+const missing = assertObjectiveRoute(
+  'What are we missing?',
+  /RECONSTRUCT_MISSING_STRATEGIC_PIECE/,
+  /missing piece.*Explain|locked Phase 2 proof|first magical demo/i
+);
+assert.match(response(missing), /Top relevant founder memories:/);
+assert.match(response(missing), /current_blocker_killer_feature/);
+assert.match(response(missing), /active_hypothesis_explain_wedge/);
+assert.match(response(missing), /founder_goal_understand_before_typing/);
+assert.doesNotMatch(response(missing), /Health:|Momentum:|Current Foundation Health/);
+
 const statusCommand = route('status');
 assert.notStrictEqual(statusCommand.command, 'founder_objective_understanding');
 

@@ -1,4 +1,7 @@
-const { loadFounderMemoryLayer } = require('../founder-memory-layer');
+const {
+  loadFounderMemoryLayer,
+  retrieveRelevantFounderMemories
+} = require('../founder-memory-layer');
 
 function routeFounderObjective(message = '', {
   root,
@@ -103,6 +106,21 @@ function reconstructFounderObjective(message = '', {
         'If an agent answers with a fixed roadmap-status block to this question, it failed the objective and matched keywords instead.'
       ],
       confidence: 82
+    });
+  }
+
+  if (asksWhatMissing(text)) {
+    return withSelfCheck({
+      ...base,
+      intent: 'RECONSTRUCT_MISSING_STRATEGIC_PIECE',
+      objective: 'Identify the most important missing piece from relevant founder memory instead of dumping random project context.',
+      objectiveReconstruction: [
+        'Founder is asking for the strategic gap, not a general status report.',
+        'Founder likely wants the agent to connect the dream, current wedge, trust boundaries, and current uncertainty.',
+        'A satisfying answer should name the missing proof: a locked killer feature / first magical Explain demo with reliable evidence.'
+      ],
+      directAnswer: buildMissingPieceAnswer(base.relevantFounderMemories),
+      confidence: Math.min(86, base.relevantFounderMemories.confidence)
     });
   }
 
@@ -224,12 +242,24 @@ function reconstructFounderObjective(message = '', {
 
 function buildBaseContext({ root, state, memory, message }) {
   const founderMemoryLayer = loadFounderMemoryLayer({ root });
+  const relevantFounderMemories = retrieveRelevantFounderMemories(message, founderMemoryLayer, { limit: 5 });
   return {
     message,
     founderMemoryLayer,
-    evidence: buildEvidence({ state, founderMemoryLayer }),
+    relevantFounderMemories,
+    evidence: buildEvidence({ state, founderMemoryLayer, relevantFounderMemories }),
     uncertainty: buildUncertainty({ state, memory })
   };
+}
+
+function buildMissingPieceAnswer(retrieval = {}) {
+  return [
+    'What we are missing is not more memory files or more agent rules.',
+    'The missing piece is a locked Phase 2 proof: one Explain workflow that feels clearly useful enough that someone would choose Aritenis over a normal keyboard.',
+    'The strongest candidate is still screenshot-powered Explain, but Product Lab evidence must be reliable first and the first magical demo is not fully locked.',
+    'So the gap is: founder dream -> Explain wedge -> clean evidence -> one confirmed user outcome.',
+    'Trust protection still matters because any Explain feature that weakens typing trust, stores private content, or auto-sends actions would violate the reason Aritenis should exist.'
+  ];
 }
 
 function buildHowGoingAnswer(state = {}, memory = {}) {
@@ -269,6 +299,9 @@ function buildMonitoringAnswer(state = {}) {
 }
 
 function buildObjectiveResponse(reconstruction) {
+  const relevant = reconstruction.relevantFounderMemories && Array.isArray(reconstruction.relevantFounderMemories.items)
+    ? reconstruction.relevantFounderMemories.items
+    : [];
   return [
     reconstruction.directAnswer.join('\n'),
     '',
@@ -281,6 +314,9 @@ function buildObjectiveResponse(reconstruction) {
     '',
     'Evidence used:',
     ...reconstruction.evidence.map((item) => `- ${item}`),
+    '',
+    relevant.length ? 'Top relevant founder memories:' : 'Top relevant founder memories: none selected',
+    ...relevant.map((item) => `- ${item.category} / ${item.source}: ${item.summary}`),
     '',
     'Uncertainty / missing information:',
     ...reconstruction.uncertainty.map((item) => `- ${item}`),
@@ -313,14 +349,21 @@ function responseAnswersFounderObjective(reconstruction = {}) {
   if (reconstruction.intent === 'EXPLAIN_ACTIVE_WEDGE_USER_PAIN') return /confusing|understand|typing about/.test(answer);
   if (reconstruction.intent === 'DEFINE_EXPLAIN_SCREENSHOT_PRIVACY_BOUNDARY') return /not store screenshots forever|temporary|no silent reading/.test(answer);
   if (reconstruction.intent === 'RECONSTRUCT_CURRENT_ROADMAP_PRIORITY') return /phase 1 foundation is protected|phase 2 explain is active/.test(answer);
+  if (reconstruction.intent === 'RECONSTRUCT_MISSING_STRATEGIC_PIECE') return /missing piece|explain|screenshot|trust|user outcome/.test(answer);
   return true;
 }
 
-function buildEvidence({ state = {}, founderMemoryLayer = null } = {}) {
+function buildEvidence({ state = {}, founderMemoryLayer = null, relevantFounderMemories = null } = {}) {
   const evidence = [];
   if (founderMemoryLayer) evidence.push('Founder memory loaded as persistent project context.');
-  evidence.push('Founder direction says Phase 1 foundation is protected and Phase 2 Explain is active.');
-  evidence.push('Founder direction says keywords are evidence, never intent.');
+  const relevant = relevantFounderMemories && Array.isArray(relevantFounderMemories.items)
+    ? relevantFounderMemories.items
+    : [];
+  if (relevant.length) {
+    evidence.push(`Relevant founder memories selected: ${relevant.map((item) => `${item.source}:${item.id}`).join(', ')}.`);
+  } else {
+    evidence.push('Relevant founder memory retrieval returned no high-confidence items.');
+  }
   if (state.generatedAt) evidence.push(`Engineering state loaded from latest scan timestamp ${state.generatedAt}.`);
   return evidence;
 }
@@ -369,7 +412,13 @@ function asksWhyAnswered(text) {
 }
 
 function asksWhatBuilding(text) {
-  return /\b(what are we actually trying to build|what are we building|what product are we building|actual aim|final goal|company goal|north star)\b/.test(text);
+  return /\b(what are we actually trying to build|what are we building|actual aim|final goal|company goal|north star)\b/.test(text);
+}
+
+function asksWhatMissing(text) {
+  return /\bwhat\s+(are|r)\s+we\s+missing\b/.test(text) ||
+    /\bwhat\s+is\s+(the\s+)?missing\s+(piece|gap)\b/.test(text) ||
+    /\bwhat\s+gap\s+(is|are)\s+left\b/.test(text);
 }
 
 function asksBuildBoundaries(text) {

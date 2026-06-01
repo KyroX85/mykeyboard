@@ -7,7 +7,8 @@ const {
   FOUNDER_MEMORY_FILES,
   buildFounderMemorySystemContext,
   formatMemoryAudit,
-  loadFounderMemoryLayer
+  loadFounderMemoryLayer,
+  retrieveRelevantFounderMemories
 } = require('../founder-memory-layer');
 const { formatRealityReconstruction } = require('../reality-reconstruction-layer');
 const { routeMessage, routeMessageWithAi } = require('../whatsapp/command-router');
@@ -23,6 +24,14 @@ assert.strictEqual(memoryLayer.files.length, FOUNDER_MEMORY_FILES.length);
 assert(memoryLayer.audit.product.includes('Aritenis'));
 assert(memoryLayer.audit.currentStage.includes('Phase 2'));
 assert(memoryLayer.audit.activeHypothesis.includes('Explain'));
+assert(memoryLayer.memoryItems.length >= 8);
+
+const missingRetrieval = retrieveRelevantFounderMemories('What are we missing?', memoryLayer);
+assert.strictEqual(missingRetrieval.strategy, 'concept_relevance_ranking');
+assert(missingRetrieval.items.some((item) => item.id === 'current_blocker_killer_feature'));
+assert(missingRetrieval.items.some((item) => item.id === 'active_hypothesis_explain_wedge'));
+assert(missingRetrieval.items.some((item) => item.id === 'founder_goal_understand_before_typing'));
+assert(missingRetrieval.items.some((item) => item.id === 'agent_understanding_gap'));
 
 const audit = formatMemoryAudit(memoryLayer);
 assert(audit.includes('What are we building?'));
@@ -77,16 +86,26 @@ assert(productQuestion.response.includes('Reality reconstruction'));
 assert(!productQuestion.response.includes('Current Foundation Health: protected.'));
 
 const finalGoal = routeMessage('what is the final goal of our company?', {}, {});
-assert.strictEqual(finalGoal.command, 'founder_intent_understanding');
-assert(finalGoal.response.includes('Why I believe this:'));
+assert.strictEqual(finalGoal.command, 'founder_objective_understanding');
+assert(finalGoal.response.includes('Evidence used:'));
 assert(finalGoal.response.includes('understand confusing content'));
 assert(!finalGoal.response.includes('Recommended Next Step:'));
 
 const doNotBuild = routeMessage('what should not be built right now?', {}, {});
-assert.strictEqual(doNotBuild.command, 'founder_intent_understanding');
+assert.strictEqual(doNotBuild.command, 'founder_objective_understanding');
 assert(doNotBuild.response.includes('auto-send'));
 assert(doNotBuild.response.includes('Confidence:'));
 assert(!doNotBuild.response.includes('100%'));
+
+const missingQuestion = routeMessage('What are we missing?', {}, {});
+assert.strictEqual(missingQuestion.command, 'founder_objective_understanding');
+assert.strictEqual(missingQuestion.matchedRoute, 'founder_objective_engine');
+assert(missingQuestion.response.includes('locked Phase 2 proof'));
+assert(missingQuestion.response.includes('screenshot-powered Explain'));
+assert(missingQuestion.response.includes('Top relevant founder memories:'));
+assert(missingQuestion.response.includes('current_blocker_killer_feature'));
+assert(missingQuestion.response.includes('active_hypothesis_explain_wedge'));
+assert(!missingQuestion.response.includes('Current Foundation Health'));
 
 const reconstruction = formatRealityReconstruction({ root, memoryLayer });
 assert(reconstruction.includes('Reality reconstruction'));
