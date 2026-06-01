@@ -144,7 +144,7 @@ Set the Twilio webhook method to `POST`.
 
 ## Meta WhatsApp Business API Fallback
 
-Meta fallback is optional and only used for outbound sends when Twilio cannot send.
+Meta fallback is optional for outbound sends when Twilio cannot send. Meta inbound webhooks are also supported so the Meta test number can receive founder messages directly.
 
 Required Meta values:
 
@@ -152,6 +152,8 @@ Required Meta values:
 - `META_WHATSAPP_PHONE_NUMBER_ID`
 - `META_WHATSAPP_GRAPH_VERSION` such as `v25.0`
 - `META_WHATSAPP_TO` or `FOUNDER_WHATSAPP_NUMBER`
+- `META_WHATSAPP_VERIFY_TOKEN` for Meta webhook verification
+- `META_APP_SECRET` optional but recommended for signed webhook validation
 
 The fallback posts text messages to Meta Graph API:
 
@@ -160,6 +162,20 @@ POST https://graph.facebook.com/<version>/<phone-number-id>/messages
 ```
 
 The payload uses `messaging_product=whatsapp`, recipient phone number, and a text body. Media URLs are appended as text links in Meta fallback mode; Twilio still uses `MediaUrl`.
+
+Meta webhook setup:
+
+```text
+Callback URL: https://<render-service-name>.onrender.com/meta/whatsapp
+Verify token: same value as META_WHATSAPP_VERIFY_TOKEN
+Webhook field: messages
+```
+
+Twilio can remain pointed at:
+
+```text
+https://<render-service-name>.onrender.com/twilio/whatsapp
+```
 
 ## Render Deployment Steps
 
@@ -183,6 +199,8 @@ Environment variables:
 - `META_WHATSAPP_ACCESS_TOKEN=<meta-cloud-api-token>`
 - `META_WHATSAPP_PHONE_NUMBER_ID=<meta-phone-number-id>`
 - `META_WHATSAPP_GRAPH_VERSION=v25.0`
+- `META_WHATSAPP_VERIFY_TOKEN=<private-random-string-used-in-meta-webhook-setup>`
+- `META_APP_SECRET=<meta-app-secret-optional-recommended>`
 - `FOUNDER_WHATSAPP_NUMBER=+<country-code-and-number>`
 - `WHATSAPP_RATE_LIMIT_WINDOW_MS=60000`
 - `WHATSAPP_RATE_LIMIT_MAX=12`
@@ -207,6 +225,7 @@ Primary risks:
 Implemented controls:
 
 - Twilio signature validation
+- Optional Meta `X-Hub-Signature-256` validation when `META_APP_SECRET` is configured
 - Founder phone number allowlist
 - Production config enforcement
 - XML escaping for Twilio responses

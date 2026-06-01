@@ -34,6 +34,8 @@ const PORT = Number(process.env.PORT || 3000);
 const REPO_ROOT = process.env.ARITENIS_REPO_ROOT || process.cwd();
 const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || '';
 const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN || '';
+const META_WHATSAPP_VERIFY_TOKEN = process.env.META_WHATSAPP_VERIFY_TOKEN || '';
+const META_APP_SECRET = process.env.META_APP_SECRET || '';
 const FOUNDER_WHATSAPP_NUMBER = normalizePhone(process.env.FOUNDER_WHATSAPP_NUMBER || '');
 const ALLOW_UNVERIFIED_WHATSAPP = process.env.ALLOW_UNVERIFIED_WHATSAPP === 'true';
 const STARTED_AT = new Date().toISOString();
@@ -65,6 +67,16 @@ function logStartupExecutionDiagnostics() {
 
 function normalizePhone(value) {
   return String(value || '').replace(/^whatsapp:/i, '').replace(/\s+/g, '');
+}
+
+function phoneDigits(value) {
+  return String(value || '').replace(/[^\d]/g, '');
+}
+
+function samePhoneNumber(a, b) {
+  const left = phoneDigits(a);
+  const right = phoneDigits(b);
+  return Boolean(left && right && left === right);
 }
 
 function twiml(message, mediaUrls = []) {
@@ -171,7 +183,11 @@ function checkTwilioSignature(req) {
 
 function assertProductionConfig() {
   if (process.env.NODE_ENV !== 'production') return null;
-  if (!TWILIO_AUTH_TOKEN && !ALLOW_UNVERIFIED_WHATSAPP) return 'TWILIO_AUTH_TOKEN is required in production.';
+  const hasTwilio = Boolean(TWILIO_AUTH_TOKEN);
+  const hasMeta = Boolean(process.env.META_WHATSAPP_ACCESS_TOKEN && process.env.META_WHATSAPP_PHONE_NUMBER_ID);
+  if (!hasTwilio && !hasMeta && !ALLOW_UNVERIFIED_WHATSAPP) {
+    return 'Twilio or Meta WhatsApp credentials are required in production.';
+  }
   if (!FOUNDER_WHATSAPP_NUMBER) return 'FOUNDER_WHATSAPP_NUMBER is required in production.';
   return null;
 }
@@ -191,6 +207,62 @@ function extractTwilioBody(req) {
     to: parsed.To || '',
     accountSid: parsed.AccountSid || ''
   };
+}
+
+function verifyMetaChallenge(query = {}) {
+  const mode = query['hub.mode'];
+  const token = query['hub.verify_token'];
+  const challenge = query['hub.challenge'];
+  if (mode === 'subscribe' && META_WHATSAPP_VERIFY_TOKEN && token === META_WHATSAPP_VERIFY_TOKEN) {
+    return { ok: true, challenge: String(challenge || '') };
+  }
+  return { ok: false, reason: META_WHATSAPP_VERIFY_TOKEN ? 'verify_token_mismatch' : 'verify_token_missing' };
+}
+
+function validateMetaSignature(req) {
+  if (!META_APP_SECRET) return { valid: true, skipped: true, reason: 'META_APP_SECRET not configured' };
+  const provided = req.get('X-Hub-Signature-256') || '';
+  if (!provided.startsWith('sha256=')) return { valid: false, skipped: false, reason: 'signature_missing' };
+  const rawBody = req.rawBody || JSON.stringify(req.body || {});
+  const expected = `sha256=${crypto
+    .createHmac('sha256', META_APP_SECRET)
+    .update(Buffer.from(rawBody, 'utf8'))
+    .digest('hex')}`;
+  const providedBuffer = Buffer.from(provided);
+  const expectedBuffer = Buffer.from(expected);
+  const valid = providedBuffer.length === expectedBuffer.length &&
+    crypto.timingSafeEqual(providedBuffer, expectedBuffer);
+  return { valid, skipped: false, reason: valid ? 'signature_valid' : 'signature_mismatch' };
+}
+
+function extractMetaMessages(body = {}) {
+  const messages = [];
+  const entries = Array.isArray(body.entry) ? body.entry : [];
+  for (const entry of entries) {
+    const changes = Array.isArray(entry.changes) ? entry.changes : [];
+    for (const change of changes) {
+      const value = change && change.value && typeof change.value === 'object' ? change.value : {};
+      const contacts = Array.isArray(value.contacts) ? value.contacts : [];
+      const rawMessages = Array.isArray(value.messages) ? value.messages : [];
+      const metadata = value.metadata || {};
+      for (const message of rawMessages) {
+        const from = normalizePhone(message.from || (contacts[0] && contacts[0].wa_id) || '');
+        const text = message.text && typeof message.text.body === 'string' ? message.text.body : '';
+        messages.push({
+          rawType: typeof body,
+          parsed: body,
+          from,
+          body: text,
+          messageSid: message.id || '',
+          to: metadata.display_phone_number ? normalizePhone(metadata.display_phone_number) : '',
+          phoneNumberId: metadata.phone_number_id || '',
+          accountSid: '',
+          provider: 'meta'
+        });
+      }
+    }
+  }
+  return messages.filter((message) => message.from && message.body);
 }
 
 function isFastGreeting(body) {
@@ -241,7 +313,12 @@ function maskPhoneForConsole(phone) {
 function createApp() {
   const app = express();
   app.set('trust proxy', true);
-  app.use(express.json({ limit: '32kb' }));
+  app.use(express.json({
+    limit: '32kb',
+    verify: (req, res, buffer) => {
+      req.rawBody = buffer ? buffer.toString('utf8') : '';
+    }
+  }));
   app.use(express.urlencoded({ extended: false }));
   app.use('/product-lab/screenshots', express.static(path.join(REPO_ROOT, 'artifacts', 'product-lab', 'screenshots')));
 
@@ -296,6 +373,40 @@ function createApp() {
   });
 
   app.post('/metrics/ingest', createMetricsIngestHandler({ root: REPO_ROOT }));
+
+  app.get('/meta/whatsapp', (req, res) => {
+    const verification = verifyMetaChallenge(req.query || {});
+    if (!verification.ok) return res.status(403).send(verification.reason);
+    return res.status(200).send(verification.challenge);
+  });
+
+  app.post('/meta/whatsapp', async (req, res) => {
+    const startedAt = Date.now();
+    const id = requestId();
+    const signature = validateMetaSignature(req);
+    if (!signature.valid) {
+      logWebhookEvent({
+        type: 'meta_signature_rejected',
+        requestId: id,
+        from: '',
+        body: '',
+        status: 403,
+        durationMs: Date.now() - startedAt,
+        meta: signature
+      });
+      return res.status(403).json({ ok: false, reason: signature.reason });
+    }
+
+    const messages = extractMetaMessages(req.body || {});
+    if (!messages.length) return res.status(200).json({ ok: true, ignored: true });
+
+    res.status(200).json({ ok: true, accepted: messages.length });
+    for (const incoming of messages) {
+      handleMetaIncomingMessage({ incoming, requestId: id, startedAt }).catch((error) => {
+        console.log(`[whatsapp-cto] META WEBHOOK HANDLER ERROR requestId=${id} message=${error.message}`);
+      });
+    }
+  });
 
   app.post('/twilio/whatsapp', async (req, res) => {
     const startedAt = Date.now();
@@ -549,6 +660,109 @@ function createApp() {
   return app;
 }
 
+async function handleMetaIncomingMessage({ incoming, requestId, startedAt }) {
+  const from = incoming.from;
+  const body = incoming.body;
+  const messageSid = incoming.messageSid;
+
+  const configError = assertProductionConfig();
+  if (configError) {
+    logWebhookEvent({ type: 'meta_config_error', requestId, from, body, status: 503, error: configError });
+    return;
+  }
+  if (guard.isAbusive(from)) {
+    logWebhookEvent({ type: 'meta_abuse_blocked', requestId, from, body, status: 403 });
+    return;
+  }
+  if (FOUNDER_WHATSAPP_NUMBER && !samePhoneNumber(from, FOUNDER_WHATSAPP_NUMBER)) {
+    guard.recordAbuse(from, 'bad_sender');
+    logWebhookEvent({ type: 'meta_sender_rejected', requestId, from, body, status: 403 });
+    return;
+  }
+  const replay = guard.checkReplay(messageSid);
+  if (replay.replayed) {
+    logWebhookEvent({ type: 'meta_replay_rejected', requestId, from, body, status: 409, meta: { messageSid } });
+    return;
+  }
+  const rate = guard.checkRateLimit(from);
+  if (rate.limited) {
+    logWebhookEvent({ type: 'meta_rate_limited', requestId, from, body, status: 429, meta: { count: rate.count } });
+    return;
+  }
+
+  const reply = isFastGreeting(body)
+    ? { command: 'fast_greeting', response: fastGreetingReply(), mediaUrls: [] }
+    : await routeMetaMessage(body, requestId);
+
+  await sendWhatsAppMessageWithFallback({
+    body: reply.response,
+    mediaUrls: reply.mediaUrls || [],
+    twilio: {
+      accountSid: '',
+      authToken: TWILIO_AUTH_TOKEN,
+      from: incoming.to ? `whatsapp:${incoming.to}` : '',
+      to: `whatsapp:${from}`
+    },
+    meta: {
+      to: from
+    }
+  });
+
+  logWebhookEvent({
+    type: 'meta_reply',
+    requestId,
+    from,
+    body,
+    command: reply.command,
+    status: 200,
+    durationMs: Date.now() - startedAt,
+    meta: { matchedRoute: reply.matchedRoute || reply.command }
+  });
+
+  if (reply.command === 'vision_command_execution_started') {
+    runDeferredVisionExecution({ requestId, entry: reply.details && reply.details.visionCommand, incoming });
+  }
+  if (reply.command === 'product_lab_screenshot_workflow') {
+    runDeferredProductLabScreenshotDelivery({
+      requestId,
+      incoming,
+      publicBaseUrl: PUBLIC_BASE_URL
+    });
+  }
+}
+
+async function routeMetaMessage(body, requestId) {
+  const state = loadEngineeringState();
+  state.workflowFreshness = workflowFreshness(state);
+  const memory = readConversationMemory();
+  const routed = await routeMessageWithAi(body, state, memory, {
+    commit: process.env.CTO_AI_EXECUTION_COMMIT !== 'false',
+    push: process.env.CTO_AI_EXECUTION_PUSH !== 'false',
+    deferLowRiskVisionExecution: true,
+    root: REPO_ROOT,
+    publicBaseUrl: PUBLIC_BASE_URL
+  });
+  const memoryDetails = {
+    ...(routed.details || {}),
+    founderMessage: body,
+    agentAnswer: routed.response,
+    pendingAction: routed.details && routed.details.pendingAction
+  };
+  if (routed.command === 'agent') {
+    updateConversationMemory(memoryDetails, state);
+  } else {
+    updateMemory(routed.command, state, memoryDetails);
+  }
+  rememberFounderInteraction({
+    founderMessage: body,
+    agentDecision: routed.command,
+    executed: /execution|approved/i.test(routed.command),
+    outcome: routed.response,
+    commitHash: routed.details && routed.details.visionCommand && routed.details.visionCommand.commitHash
+  });
+  return routed;
+}
+
 function runDeferredVisionExecution({ requestId, entry, incoming }) {
   if (!entry) return;
   setImmediate(async () => {
@@ -779,10 +993,14 @@ module.exports = {
   buildTwilioMessageParams,
   sendWhatsAppMessageWithFallback,
   validateTwilioSignature,
+  verifyMetaChallenge,
+  validateMetaSignature,
+  extractMetaMessages,
   twiml,
   twimlMessages,
   chunkMessage,
   normalizePhone,
+  samePhoneNumber,
   extractTwilioBody,
   startupExecutionDiagnostics,
   startProactiveVisionSteward
