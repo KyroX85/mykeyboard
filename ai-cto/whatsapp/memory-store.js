@@ -15,6 +15,10 @@ const {
 const {
   compressFounderMemory
 } = require('../memory-compression-layer');
+const {
+  extractFounderBeliefShift,
+  updateFounderBeliefTracker
+} = require('../founder-belief-tracker');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const MEMORY_FILE = process.env.ARITENIS_WHATSAPP_MEMORY_FILE ||
@@ -80,6 +84,7 @@ const DEFAULT_MEMORY = {
   wrongAnswerAnalysis: null,
   compressedFounderInsights: [],
   memoryCompression: null,
+  founderBeliefTracker: null,
   routeScores: {},
   reinforcementEvents: [],
   lastRouteForReward: null,
@@ -165,6 +170,7 @@ function updateMemory(command, state, details = {}) {
   const continuityEntry = buildFounderContinuityEntry(details);
   const reinforcement = updateRouteReinforcement(memory, command, details);
   const founderQuestionClusters = updateQuestionClustersIfNeeded(memory.founderQuestionClusters, details);
+  const founderBeliefTracker = updateBeliefTrackerIfNeeded(memory.founderBeliefTracker, details);
 
   return writeMemory({
     ...memory,
@@ -195,7 +201,8 @@ function updateMemory(command, state, details = {}) {
       : boundedContinuity(memory.founderGoals),
     founderDecisions: boundedContinuity(memory.founderDecisions),
     lastFounderConcern: continuityEntry || memory.lastFounderConcern || null,
-    founderQuestionClusters
+    founderQuestionClusters,
+    founderBeliefTracker
   });
 }
 
@@ -257,6 +264,7 @@ function readConversationMemory() {
     wrongAnswerAnalysis: memory.wrongAnswerAnalysis || null,
     compressedFounderInsights: Array.isArray(memory.compressedFounderInsights) ? memory.compressedFounderInsights.slice(0, 5) : [],
     memoryCompression: memory.memoryCompression || null,
+    founderBeliefTracker: memory.founderBeliefTracker || null,
     routeScores: memory.routeScores && typeof memory.routeScores === 'object' ? memory.routeScores : {},
     reinforcementEvents: Array.isArray(memory.reinforcementEvents) ? memory.reinforcementEvents.slice(0, 80) : [],
     lastRouteForReward: memory.lastRouteForReward || null,
@@ -289,6 +297,7 @@ function updateConversationMemory(route, state) {
   const continuityEntry = buildFounderContinuityEntry(route);
   const reinforcement = updateRouteReinforcement(memory, route.command || route.intent || 'agent', route);
   const founderQuestionClusters = updateQuestionClustersIfNeeded(memory.founderQuestionClusters, route);
+  const founderBeliefTracker = updateBeliefTrackerIfNeeded(memory.founderBeliefTracker, route);
   const next = {
     ...memory,
     ...reinforcement,
@@ -342,6 +351,7 @@ function updateConversationMemory(route, state) {
     lastFounderConcern: continuityEntry || memory.lastFounderConcern || null,
     nextContinuationAction,
     founderQuestionClusters,
+    founderBeliefTracker,
     recentMessages: rememberMessage(memory.recentMessages, {
       role: 'agent',
       agent: route.agent || 'cto',
@@ -429,6 +439,13 @@ function updateQuestionClustersIfNeeded(existing, details = {}) {
     intent: details.intent || null,
     confidence: details.confidence || (details.questionCluster && details.questionCluster.confidence) || null
   });
+}
+
+function updateBeliefTrackerIfNeeded(existing, details = {}) {
+  if (!details || !details.founderMessage) return existing || null;
+  const shift = extractFounderBeliefShift(details);
+  if (!shift) return existing || null;
+  return updateFounderBeliefTracker(existing, shift);
 }
 
 function mergeContinuity(items, entry) {
