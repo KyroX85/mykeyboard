@@ -33,6 +33,11 @@ const {
   generatePremortem,
   updatePremortemMemory
 } = require('../premortem-engine');
+const {
+  shouldEvaluateOpportunityCost,
+  evaluateOpportunityCost,
+  updateOpportunityCostMemory
+} = require('../opportunity-cost-layer');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const MEMORY_FILE = process.env.ARITENIS_WHATSAPP_MEMORY_FILE ||
@@ -102,6 +107,7 @@ const DEFAULT_MEMORY = {
   founderContradictions: null,
   userValueJudgments: null,
   premortemMemory: null,
+  opportunityCostMemory: null,
   routeScores: {},
   reinforcementEvents: [],
   lastRouteForReward: null,
@@ -194,6 +200,7 @@ function updateMemory(command, state, details = {}) {
   });
   const userValueJudgments = updateUserValueIfNeeded(memory.userValueJudgments, details);
   const premortemMemory = updatePremortemIfNeeded(memory.premortemMemory, details);
+  const opportunityCostMemory = updateOpportunityCostIfNeeded(memory.opportunityCostMemory, details);
 
   return writeMemory({
     ...memory,
@@ -228,7 +235,8 @@ function updateMemory(command, state, details = {}) {
     founderBeliefTracker,
     founderContradictions,
     userValueJudgments,
-    premortemMemory
+    premortemMemory,
+    opportunityCostMemory
   });
 }
 
@@ -294,6 +302,7 @@ function readConversationMemory() {
     founderContradictions: memory.founderContradictions || null,
     userValueJudgments: memory.userValueJudgments || null,
     premortemMemory: memory.premortemMemory || null,
+    opportunityCostMemory: memory.opportunityCostMemory || null,
     routeScores: memory.routeScores && typeof memory.routeScores === 'object' ? memory.routeScores : {},
     reinforcementEvents: Array.isArray(memory.reinforcementEvents) ? memory.reinforcementEvents.slice(0, 80) : [],
     lastRouteForReward: memory.lastRouteForReward || null,
@@ -333,6 +342,7 @@ function updateConversationMemory(route, state) {
   });
   const userValueJudgments = updateUserValueIfNeeded(memory.userValueJudgments, route);
   const premortemMemory = updatePremortemIfNeeded(memory.premortemMemory, route);
+  const opportunityCostMemory = updateOpportunityCostIfNeeded(memory.opportunityCostMemory, route);
   const next = {
     ...memory,
     ...reinforcement,
@@ -390,6 +400,7 @@ function updateConversationMemory(route, state) {
     founderContradictions,
     userValueJudgments,
     premortemMemory,
+    opportunityCostMemory,
     recentMessages: rememberMessage(memory.recentMessages, {
       role: 'agent',
       agent: route.agent || 'cto',
@@ -511,6 +522,13 @@ function updatePremortemIfNeeded(existing, details = {}) {
   if (!shouldRunPremortem(decision, details)) return existing || null;
   const premortem = generatePremortem(decision, details);
   return updatePremortemMemory(existing, premortem);
+}
+
+function updateOpportunityCostIfNeeded(existing, details = {}) {
+  const initiative = details && (details.initiative || details.decision || details.idea || details.proposal || details.founderMessage || details.agentAnswer);
+  if (!shouldEvaluateOpportunityCost(initiative, details)) return existing || null;
+  const opportunityCost = evaluateOpportunityCost(initiative, details);
+  return updateOpportunityCostMemory(existing, opportunityCost);
 }
 
 function mergeContinuity(items, entry) {
