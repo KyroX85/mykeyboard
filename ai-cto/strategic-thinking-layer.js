@@ -38,6 +38,9 @@ function responseUsesStrategicThinking(response = '') {
 }
 
 function classifyStrategicDomain(text = '') {
+  if (/\b(same founder|3 months ago|founder evolution|product-truth mode|builder-survival mode)\b/.test(text)) {
+    return 'founder_evolution';
+  }
   if (/\b(wrong thing|wrong direction|misaligned|dream|vision|chasing|ambition|killer feature)\b/.test(text)) {
     return 'vision_alignment';
   }
@@ -57,6 +60,14 @@ function classifyStrategicDomain(text = '') {
 }
 
 const STRATEGIC_DOMAIN_MAP = {
+  founder_evolution: {
+    firstOrderConsequence: 'Recognizing founder evolution helps separate useful sharper taste from random direction changes.',
+    secondOrderConsequence: 'If the agents miss that evolution, they will keep answering the old company problem instead of the current one.',
+    opportunityCost: 'Treating founder growth as inconsistency wastes time defending old priorities instead of using the clearer product judgment.',
+    alternativePath: 'Keep the protected foundation stable, then use the sharper founder taste to judge Phase 2 Explain evidence.',
+    ctoBias: 'favor founder evolution as signal, not noise',
+    confidence: 82
+  },
   vision_alignment: {
     firstOrderConsequence: 'Continuing the current path improves operating discipline, but may not prove the user-facing breakthrough.',
     secondOrderConsequence: 'If the system keeps optimizing infrastructure, founder trust can drop because progress feels busy but not closer to the dream.',

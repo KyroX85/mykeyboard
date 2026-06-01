@@ -66,6 +66,11 @@ const cases = [
     text: 'Bro, if you had to disagree with me right now, what would you disagree with?',
     route: ROUTES.FOUNDER_STRATEGY,
     expected: /disagree|agent sophistication|user-facing product moment|Phase 2 wedge|Explain/i
+  },
+  {
+    text: 'Am I the same founder I was 3 months ago?',
+    route: ROUTES.FOUNDER_REFLECTION,
+    expected: /not the same founder|3 months ago|fake progress|product-truth mode|user-facing breakthrough/i
   }
 ];
 

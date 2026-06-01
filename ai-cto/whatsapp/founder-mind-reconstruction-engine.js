@@ -1,4 +1,6 @@
 const REFLECTION_PATTERNS = [
+  /\b(am|was)\s+i\s+the\s+same\s+founder\b/i,
+  /\b(founder|i)\b.*\b(same|changed|evolved|different)\b.*\b(months?|weeks?|ago|before|now)\b/i,
   /\bwhy\s+(am\s+i|did\s+i)\s+(asking|ask)\b/i,
   /\bwhy\s+did\s+i\s+ask\s+that\b/i,
   /\bwhy\s+(am\s+i|i\s+am)\s+not\s+satisfied\b/i,
@@ -189,6 +191,16 @@ function classifyMindQuestion(text = '', memory = {}) {
   }
 
   if (REFLECTION_PATTERNS.some((pattern) => pattern.test(text))) {
+    if (/\b(am|was)\s+i\s+the\s+same\s+founder\b/i.test(text) ||
+      /\b(founder|i)\b.*\b(same|changed|evolved|different)\b.*\b(months?|weeks?|ago|before|now)\b/i.test(text)) {
+      return {
+        intent: 'RECONSTRUCT_FOUNDER_EVOLUTION',
+        category: 'REFLECTION',
+        archetype: 'founder_evolution',
+        mode: 'REFLECTION_MODE',
+        confidence: 82
+      };
+    }
     return {
       intent: 'RECONSTRUCT_FOUNDER_META_REASONING',
       category: 'REFLECTION',
@@ -330,6 +342,18 @@ function buildMindReport(kind, message, context = {}) {
     };
   }
 
+  if (kind.archetype === 'founder_evolution') {
+    return {
+      objective: 'Compare the founder’s current judgment and priorities against the earlier founder state.',
+      assumption: 'The founder is testing whether the system recognizes personal evolution, not asking for a project status update.',
+      concern: 'The founder may worry that changing direction means inconsistency, when it may actually mean sharper product judgment.',
+      decision: 'Decide what has changed in founder thinking and whether that change is healthy for Aritenis.',
+      desiredOutcome: 'A grounded reflection on how the founder has evolved and what that implies for current company direction.',
+      actualQuestion: 'Have I changed as a founder, and is that change helping or hurting Aritenis?',
+      uselessLiteralAnswer: 'A noise warning, health score, team status, task plan, or generic roadmap update.'
+    };
+  }
+
   if (kind.archetype === 'agent_understanding') {
     return {
       objective: 'Check whether the agents can reason from founder vision instead of repeating memory or templates.',
@@ -427,6 +451,16 @@ function buildDirectAnswer(kind, report) {
     ];
   }
 
+  if (kind.archetype === 'founder_evolution') {
+    return [
+      'No. You are not the same founder you were 3 months ago.',
+      'Earlier, the center of gravity was proving the keyboard could become stable and building enough agent infrastructure to keep work moving.',
+      'Now your judgment is sharper: you reject fake progress faster, you care less about impressive systems, and you are more focused on whether Aritenis creates a user-facing breakthrough.',
+      'That shift is useful, but it also creates pressure: the agents must stop celebrating infrastructure and start helping you find the product moment users would actually feel.',
+      'So the founder has evolved from builder-survival mode into product-truth mode. The risk is becoming impatient with foundations too early; the opportunity is that your taste is now clearer.'
+    ];
+  }
+
   if (kind.archetype === 'agent_understanding') {
     return [
       'You are not asking for a project summary.',
@@ -519,6 +553,9 @@ function responseAnswersFounderMind(reconstruction = {}) {
   }
   if (reconstruction.intent === 'RECONSTRUCT_STRATEGIC_DISAGREEMENT') {
     return /disagree|agent sophistication|user-facing product moment|Phase 2 wedge|Explain|progress report/i.test(answer);
+  }
+  if (reconstruction.intent === 'RECONSTRUCT_FOUNDER_EVOLUTION') {
+    return /not the same founder|3 months ago|sharper|fake progress|product-truth mode|user-facing breakthrough/i.test(answer);
   }
   if (reconstruction.intent === 'RESOLVE_FOUNDER_CONTINUITY_REFERENCE') {
     return /most likely refers|previous concern|partially addressed|what remains/i.test(answer);

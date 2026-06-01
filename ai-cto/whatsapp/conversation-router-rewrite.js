@@ -11,6 +11,8 @@ const ROUTES = Object.freeze({
 const REFLECTION_PATTERNS = [
   /\bwhat\s+(am\s+i|i\s+am)\s+(actually\s+)?(chasing|trying\s+to\s+build|trying\s+to\s+achieve|after)\b/i,
   /\bwhat\s+do\s+you\s+think\s+i'?m\s+(actually\s+)?(chasing|trying\s+to\s+build|trying\s+to\s+achieve|after)\b/i,
+  /\b(am|was)\s+i\s+the\s+same\s+founder\b/i,
+  /\b(founder|i)\b.*\b(same|changed|evolved|different)\b.*\b(months?|weeks?|ago|before|now)\b/i,
   /\bwhy\s+(am\s+i|i\s+am)\s+not\s+satisfied\b/i,
   /\bwhy\s+(am\s+i|did\s+i)\s+(asking|ask)\b/i,
   /\bwhat\s+(am\s+i|i\s+am)\s+(worried|testing|missing)\b/i

@@ -131,6 +131,15 @@ assert.strictEqual(disagreement.details.intent, 'RECONSTRUCT_STRATEGIC_DISAGREEM
 assert.match(disagreement.details.mindReconstruction.concern, /infrastructure|user-facing product proof/i);
 assert.doesNotMatch(String(disagreement.response || ''), /TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan|Files:|Validation:|Scope:/i);
 
+const founderEvolution = assertMindRoute(
+  'Am I the same founder I was 3 months ago?',
+  /not the same founder|3 months ago|fake progress|product-truth mode|user-facing breakthrough/i
+);
+assert.strictEqual(founderEvolution.details.category, 'REFLECTION');
+assert.strictEqual(founderEvolution.details.intent, 'RECONSTRUCT_FOUNDER_EVOLUTION');
+assert.match(founderEvolution.details.mindReconstruction.actualQuestion, /changed as a founder|helping or hurting Aritenis/i);
+assert.doesNotMatch(String(founderEvolution.response || ''), /NOISE|LOW INFORMATION|AMBIGUOUS INTENT|TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan/i);
+
 const reconstructed = reconstructFounderMind('Why did I ask that?', {});
 assert.strictEqual(reconstructed.mode, 'REFLECTION_MODE');
 assert.strictEqual(reconstructed.intent, 'RECONSTRUCT_FOUNDER_META_REASONING');
