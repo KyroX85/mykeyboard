@@ -32,6 +32,13 @@ function enforceAntiTemplateOnRoute(route, {
   if (!route || typeof route.response !== 'string') return route;
   if (!containsForbiddenTemplate(route.response)) return route;
   if (allowsStatusTemplate(message, route, state)) return route;
+  const confidence = route.details && route.details.routeConfidence;
+  const confidenceLines = confidence
+    ? [
+        `Route Confidence: ${confidence.confidence}%`,
+        `Route Reason: ${confidence.reason}`
+      ]
+    : [];
 
   return {
     ...route,
@@ -47,6 +54,7 @@ function enforceAntiTemplateOnRoute(route, {
       skipExecutionSchema: true
     },
     response: [
+      ...confidenceLines,
       'That would be the wrong response path.',
       'You are asking a conversation or product-judgment question, not requesting a status template.',
       'I should answer your actual concern directly and avoid health, momentum, team-ready, review-gate, or complexity-report blocks unless you explicitly ask for sourced status.'
@@ -60,6 +68,7 @@ function containsForbiddenTemplate(response = '') {
 
 function allowsStatusTemplate(message = '', route = {}, state = {}) {
   const text = String(message || '').trim();
+  if (route.details && route.details.classification === 'PHASE2_CONVERSATION') return true;
   if (GREETING_PATTERNS.some((pattern) => pattern.test(text))) return true;
   if (route.command === 'human_status_check' || route.command === 'human_monitoring_answer') return true;
   if (['status', 'health', 'momentum', 'risks', 'focus'].includes(route.command)) return true;

@@ -7,6 +7,12 @@ const FULL_RECALL_PATTERNS = [
   /\bwe already decided\b/i
 ];
 
+const {
+  calibrateRouteConfidence,
+  attachRouteConfidence,
+  maybeApplyCuriosity
+} = require('./route-confidence-calibration');
+
 function enforceMemoryPolicyOnRoute(route = {}, {
   message = '',
   memory = {},
@@ -14,14 +20,21 @@ function enforceMemoryPolicyOnRoute(route = {}, {
   executionRelevant = false
 } = {}) {
   if (!route || typeof route !== 'object') return route;
+  const routeConfidence = calibrateRouteConfidence(route, { message, memory });
+  const responseWithMemory = enforceMemoryPolicyOnResponse(route.response, {
+    message,
+    memory,
+    founderMemoryLayer,
+    executionRelevant: executionRelevant || isExecutionRoute(route)
+  });
+  const responseWithConfidence = attachRouteConfidence(responseWithMemory, routeConfidence);
   return {
     ...route,
-    response: enforceMemoryPolicyOnResponse(route.response, {
-      message,
-      memory,
-      founderMemoryLayer,
-      executionRelevant: executionRelevant || isExecutionRoute(route)
-    })
+    details: {
+      ...(route.details || {}),
+      routeConfidence
+    },
+    response: maybeApplyCuriosity(responseWithConfidence, route, routeConfidence, { message })
   };
 }
 

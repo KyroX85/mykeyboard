@@ -46,7 +46,7 @@ const VISION_PATTERNS = [
 ];
 
 const FOUNDER_QUESTION_PATTERNS = [
-  /\bwhat\s+do\s+you\s+think\s+i'?m\s+(actually\s+)?(chasing|trying\s+to\s+build|trying\s+to\s+achieve|after)\b/i,
+  /\bwhat\s+do\s+you\s+think\s+(i'?m|i\s+am)\s+(actually\s+)?(chasing|trying\s+to\s+build|trying\s+to\s+achieve|after)\b/i,
   /\bwhat\s+(am\s+i|i\s+am)\s+(actually\s+)?(chasing|trying\s+to\s+build|trying\s+to\s+achieve|after)\b/i,
   /\bwhat\s+is\s+my\s+(real\s+)?(ambition|dream|goal|vision)\b/i,
   /\bwhat\s+do\s+you\s+think\s+my\s+(real\s+)?(ambition|dream|goal|vision)\s+is\b/i

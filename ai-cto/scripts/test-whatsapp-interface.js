@@ -78,10 +78,18 @@ sampleState.metricProvenance = buildMetricProvenance({
 });
 
 function withoutMemoryHeader(value) {
-  return String(value || '')
-    .replace(/^Memory Sources Used:[^\n]*\n/, '')
-    .replace(/^type:\s*(AUDIT_REPORT|TASK_PLAN|EXECUTION_RESULT|CLARIFICATION_REQUEST)\s*\n/, '')
-    .replace(/^intent:\s*[a-z_]+\s*\n/, '');
+  let output = String(value || '');
+  let previous = '';
+  while (output !== previous) {
+    previous = output;
+    output = output
+      .replace(/^Memory Sources Used:[^\n]*\n/, '')
+      .replace(/^Route Confidence:\s*\d+%\n/, '')
+      .replace(/^Route Reason:[^\n]*\n/, '')
+      .replace(/^type:\s*(AUDIT_REPORT|TASK_PLAN|EXECUTION_RESULT|CLARIFICATION_REQUEST)\s*\n/, '')
+      .replace(/^intent:\s*[a-z_]+\s*\n/, '');
+  }
+  return output;
 }
 
 const initialBrainBackup = fs.existsSync(AGENT_BRAIN_DIR)
