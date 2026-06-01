@@ -41,6 +41,9 @@ const VISION_PATTERNS = [
 ];
 
 const STRATEGY_PATTERNS = [
+  /\bif\s+we\s+fail\b.*\b(why|how|what)\b/i,
+  /\bwhy\s+(would|do)\s+we\s+fail\b/i,
+  /\b(what|why)\s+.*\bfail\s+in\s+\d+\s+(years?|months?)\b/i,
   /\b(if\s+you\s+had\s+to\s+)?disagree\s+with\s+me\b/i,
   /\bwhat\s+would\s+you\s+disagree\s+with\b/i,
   /\bwhere\s+(would|do)\s+you\s+(disagree|push\s+back)\b/i,

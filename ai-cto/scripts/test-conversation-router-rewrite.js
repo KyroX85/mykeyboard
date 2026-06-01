@@ -81,6 +81,11 @@ const cases = [
     text: "I'm scared we're building something impressive instead of useful.",
     route: ROUTES.FOUNDER_DOUBT,
     expected: /fear is valid|impressive and still fail|real user struggle|understand confusing content|faster, clearer, or more confident/i
+  },
+  {
+    text: 'If we fail in 3 years, why do we fail?',
+    route: ROUTES.FOUNDER_STRATEGY,
+    expected: /fails in 3 years|user habit|Explain never becomes a daily need|trust erosion|behaviorally optional|repeatable moment/i
   }
 ];
 

@@ -57,6 +57,9 @@ const DOUBT_PATTERNS = [
 ];
 
 const STRATEGIC_CHALLENGE_PATTERNS = [
+  /\bif\s+we\s+fail\b.*\b(why|how|what)\b/i,
+  /\bwhy\s+(would|do)\s+we\s+fail\b/i,
+  /\b(what|why)\s+.*\bfail\s+in\s+\d+\s+(years?|months?)\b/i,
   /\b(if\s+you\s+had\s+to\s+)?disagree\s+with\s+me\b/i,
   /\bwhat\s+would\s+you\s+disagree\s+with\b/i,
   /\bwhere\s+(would|do)\s+you\s+(disagree|push\s+back)\b/i,
@@ -245,6 +248,15 @@ function classifyMindQuestion(text = '', memory = {}) {
   }
 
   if (STRATEGIC_CHALLENGE_PATTERNS.some((pattern) => pattern.test(text))) {
+    if (/\bfail\b/i.test(text)) {
+      return {
+        intent: 'RECONSTRUCT_LONG_TERM_FAILURE_PREMORTEM',
+        category: 'FOUNDER_STRATEGY',
+        archetype: 'long_term_failure_premortem',
+        mode: 'FOUNDER_CONVERSATION_MODE',
+        confidence: 84
+      };
+    }
     return {
       intent: 'RECONSTRUCT_STRATEGIC_DISAGREEMENT',
       category: 'FOUNDER_STRATEGY',
@@ -390,6 +402,18 @@ function buildMindReport(kind, message, context = {}) {
     };
   }
 
+  if (kind.archetype === 'long_term_failure_premortem') {
+    return {
+      objective: 'Run an honest long-term failure premortem for Aritenis.',
+      assumption: 'The founder is testing whether the agents can see strategic failure modes before they become obvious.',
+      concern: 'Aritenis could spend years building impressive agent infrastructure without finding a daily user pull strong enough to beat existing keyboards and AI tools.',
+      decision: 'Decide which failure risks deserve attention now while the company is still small enough to change direction.',
+      desiredOutcome: 'A blunt strategic answer about why Aritenis could fail and what that implies today.',
+      actualQuestion: 'If Aritenis fails in 3 years, what strategic mistake probably caused it?',
+      uselessLiteralAnswer: 'A health report, team status, task plan, approval token, or generic motivational answer.'
+    };
+  }
+
   if (kind.archetype === 'founder_evolution') {
     return {
       objective: 'Compare the founder’s current judgment and priorities against the earlier founder state.',
@@ -519,6 +543,16 @@ function buildDirectAnswer(kind, report) {
     ];
   }
 
+  if (kind.archetype === 'long_term_failure_premortem') {
+    return [
+      'If Aritenis fails in 3 years, the most likely reason is not that the keyboard was not advanced enough.',
+      'It is that we built a strong operating system around the product before proving a user habit people actually return to.',
+      'The failure path would look like this: Phase 1 stays stable, agents become impressive, reports look mature, but Explain never becomes a daily need.',
+      'A second failure mode is trust erosion: if the keyboard feels heavy, confusing, invasive, or unreliable, users will choose Gboard and separate AI tools instead.',
+      'So the real danger is building something strategically elegant but behaviorally optional. The antidote is proving one repeatable moment where Aritenis helps users understand and act faster than their current workflow.'
+    ];
+  }
+
   if (kind.archetype === 'founder_evolution') {
     return [
       'No. You are not the same founder you were 3 months ago.',
@@ -627,6 +661,9 @@ function responseAnswersFounderMind(reconstruction = {}) {
   }
   if (reconstruction.intent === 'RECONSTRUCT_STRATEGIC_DISAGREEMENT') {
     return /disagree|agent sophistication|user-facing product moment|Phase 2 wedge|Explain|progress report/i.test(answer);
+  }
+  if (reconstruction.intent === 'RECONSTRUCT_LONG_TERM_FAILURE_PREMORTEM') {
+    return /fails in 3 years|user habit|Explain never becomes a daily need|trust erosion|behaviorally optional|repeatable moment/i.test(answer);
   }
   if (reconstruction.intent === 'RECONSTRUCT_FOUNDER_EVOLUTION') {
     return /not the same founder|3 months ago|sharper|fake progress|product-truth mode|user-facing breakthrough/i.test(answer);

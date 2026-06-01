@@ -158,6 +158,15 @@ assert.strictEqual(impressiveFear.details.intent, 'RECONSTRUCT_IMPRESSIVE_NOT_US
 assert.match(impressiveFear.details.mindReconstruction.actualQuestion, /users need|looks impressive/i);
 assert.doesNotMatch(String(impressiveFear.response || ''), /NOISE|LOW INFORMATION|AMBIGUOUS INTENT|TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan/i);
 
+const failurePremortem = assertMindRoute(
+  'If we fail in 3 years, why do we fail?',
+  /fails in 3 years|user habit|Explain never becomes a daily need|trust erosion|behaviorally optional|repeatable moment/i
+);
+assert.strictEqual(failurePremortem.details.category, 'FOUNDER_STRATEGY');
+assert.strictEqual(failurePremortem.details.intent, 'RECONSTRUCT_LONG_TERM_FAILURE_PREMORTEM');
+assert.match(failurePremortem.details.mindReconstruction.actualQuestion, /fails in 3 years|strategic mistake/i);
+assert.doesNotMatch(String(failurePremortem.response || ''), /CLARIFICATION_REQUEST|NOISE|LOW INFORMATION|AMBIGUOUS INTENT|TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan/i);
+
 const reconstructed = reconstructFounderMind('Why did I ask that?', {});
 assert.strictEqual(reconstructed.mode, 'REFLECTION_MODE');
 assert.strictEqual(reconstructed.intent, 'RECONSTRUCT_FOUNDER_META_REASONING');
