@@ -149,6 +149,15 @@ assert.strictEqual(userValueDoubt.details.intent, 'RECONSTRUCT_USER_VALUE_DOUBT'
 assert.match(userValueDoubt.details.mindReconstruction.actualQuestion, /real users care|change behavior/i);
 assert.doesNotMatch(String(userValueDoubt.response || ''), /NOISE|LOW INFORMATION|AMBIGUOUS INTENT|TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan/i);
 
+const impressiveFear = assertMindRoute(
+  "I'm scared we're building something impressive instead of useful.",
+  /fear is valid|impressive and still fail|real user struggle|understand confusing content|faster, clearer, or more confident/i
+);
+assert.strictEqual(impressiveFear.details.category, 'DOUBT');
+assert.strictEqual(impressiveFear.details.intent, 'RECONSTRUCT_IMPRESSIVE_NOT_USEFUL_FEAR');
+assert.match(impressiveFear.details.mindReconstruction.actualQuestion, /users need|looks impressive/i);
+assert.doesNotMatch(String(impressiveFear.response || ''), /NOISE|LOW INFORMATION|AMBIGUOUS INTENT|TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan/i);
+
 const reconstructed = reconstructFounderMind('Why did I ask that?', {});
 assert.strictEqual(reconstructed.mode, 'REFLECTION_MODE');
 assert.strictEqual(reconstructed.intent, 'RECONSTRUCT_FOUNDER_META_REASONING');

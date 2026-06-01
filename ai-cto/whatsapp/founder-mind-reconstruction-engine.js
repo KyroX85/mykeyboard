@@ -43,6 +43,8 @@ const DOUBT_PATTERNS = [
   /\bwhat\s+happens\s+if\s+we\s+focus\s+only\b/i,
   /\bif\s+we\s+focus\s+only\b/i,
   /\b(something|this|it)\s+(feels|feel)\s+(off|wrong|not right|missing|weak)\b/i,
+  /\b(i'?m|i\s+am)\s+(scared|afraid|worried)\b.*\b(impressive|cool|advanced|complex)\b.*\b(useful|valuable|needed|real)\b/i,
+  /\b(impressive|cool|advanced|complex)\s+instead\s+of\s+(useful|valuable|needed|real)\b/i,
   /\b(i\s+don'?t\s+think|i\s+do\s+not\s+think)\s+users?\s+(actually\s+)?(care|want|need)\b/i,
   /\busers?\s+(don'?t|do\s+not)\s+(actually\s+)?(care|want|need)\b/i,
   /\b(who|why)\s+would\s+users?\s+(care|want|need)\b/i,
@@ -171,6 +173,15 @@ function classifyMindQuestion(text = '', memory = {}) {
   }
 
   if (DOUBT_PATTERNS.some((pattern) => pattern.test(text))) {
+    if (/\b(impressive|cool|advanced|complex)\b.*\b(useful|valuable|needed|real)\b/i.test(text)) {
+      return {
+        intent: 'RECONSTRUCT_IMPRESSIVE_NOT_USEFUL_FEAR',
+        category: 'DOUBT',
+        archetype: 'impressive_not_useful_fear',
+        mode: 'FOUNDER_CONVERSATION_MODE',
+        confidence: 85
+      };
+    }
     if (/\busers?\s+(actually\s+)?(care|want|need)\b/i.test(text) ||
       /\b(who|why)\s+would\s+users?\s+(care|want|need)\b/i.test(text)) {
       return {
@@ -343,6 +354,18 @@ function buildMindReport(kind, message, context = {}) {
     };
   }
 
+  if (kind.archetype === 'impressive_not_useful_fear') {
+    return {
+      objective: 'Separate impressive system-building from useful product progress.',
+      assumption: 'The founder fears Aritenis may be gaining sophistication without creating a user outcome people would feel.',
+      concern: 'The company could mistake agent complexity, governance, and infrastructure for product value.',
+      decision: 'Decide whether current work should continue, narrow toward the Explain wedge, or be paused until usefulness is proven.',
+      desiredOutcome: 'A direct answer that validates the concern and identifies the usefulness test.',
+      actualQuestion: 'Are we building something users need, or something that only looks impressive to us?',
+      uselessLiteralAnswer: 'A noise warning, team status, task plan, health score, or defense of complexity.'
+    };
+  }
+
   if (kind.archetype === 'founder_ambition') {
     return {
       objective: 'Reconstruct the founder ambition behind the question instead of treating it as a status or task request.',
@@ -466,6 +489,16 @@ function buildDirectAnswer(kind, report) {
     ];
   }
 
+  if (kind.archetype === 'impressive_not_useful_fear') {
+    return [
+      'That fear is valid.',
+      'Aritenis can become impressive and still fail if the impressive parts do not reduce a real user struggle.',
+      'The dangerous version is: agents, councils, reports, screenshots, and governance all work, but the user still does not get a faster answer, calmer typing, or a completed action.',
+      'The useful version is narrower: the keyboard helps someone understand confusing content at the exact moment they need to respond.',
+      'So the test should be brutal: does this make a real user faster, clearer, or more confident today? If not, it is probably impressive infrastructure, not product progress.'
+    ];
+  }
+
   if (kind.archetype === 'founder_ambition') {
     return [
       'You are chasing more than a keyboard feature.',
@@ -585,6 +618,9 @@ function responseAnswersFounderMind(reconstruction = {}) {
   }
   if (reconstruction.intent === 'RECONSTRUCT_USER_VALUE_DOUBT') {
     return /real risk|users will not care|frequent moment of confusion|understand a screenshot|less friction|users may care/i.test(answer);
+  }
+  if (reconstruction.intent === 'RECONSTRUCT_IMPRESSIVE_NOT_USEFUL_FEAR') {
+    return /fear is valid|impressive and still fail|real user struggle|understand confusing content|faster, clearer, or more confident/i.test(answer);
   }
   if (reconstruction.intent === 'RECONSTRUCT_FOUNDER_AMBITION') {
     return /personal intelligence layer|phone|keyboard|screenshots|trust|leverage|miss if it disappeared/i.test(answer);

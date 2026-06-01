@@ -20,6 +20,8 @@ const REFLECTION_PATTERNS = [
 
 const DOUBT_PATTERNS = [
   /\b(i\s+think|i\s+feel|something|this|it)\b.*\b(wrong thing|wrong direction|misaligned|off|not right)\b/i,
+  /\b(i'?m|i\s+am)\s+(scared|afraid|worried)\b.*\b(impressive|cool|advanced|complex)\b.*\b(useful|valuable|needed|real)\b/i,
+  /\b(impressive|cool|advanced|complex)\s+instead\s+of\s+(useful|valuable|needed|real)\b/i,
   /\b(i\s+don'?t\s+think|i\s+do\s+not\s+think)\s+users?\s+(actually\s+)?(care|want|need)\b/i,
   /\busers?\s+(don'?t|do\s+not)\s+(actually\s+)?(care|want|need)\b/i,
   /\b(who|why)\s+would\s+users?\s+(care|want|need)\b/i,

@@ -76,6 +76,11 @@ const cases = [
     text: "I don't think users actually care.",
     route: ROUTES.FOUNDER_DOUBT,
     expected: /real risk|users will not care|frequent moment of confusion|understand a screenshot|users may care/i
+  },
+  {
+    text: "I'm scared we're building something impressive instead of useful.",
+    route: ROUTES.FOUNDER_DOUBT,
+    expected: /fear is valid|impressive and still fail|real user struggle|understand confusing content|faster, clearer, or more confident/i
   }
 ];
 
