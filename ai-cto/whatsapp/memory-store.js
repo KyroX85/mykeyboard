@@ -71,6 +71,10 @@ const {
   evaluateEvidenceRequirement,
   updateEvidenceRequirementMemory
 } = require('../evidence-requirement-layer');
+const {
+  analyzeMetaLearning,
+  updateMetaLearningMemory
+} = require('../meta-learning-layer');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const MEMORY_FILE = process.env.ARITENIS_WHATSAPP_MEMORY_FILE ||
@@ -148,6 +152,7 @@ const DEFAULT_MEMORY = {
   routeEvolutionMemory: null,
   founderMentalStateMemory: null,
   evidenceRequirementMemory: null,
+  metaLearningMemory: null,
   routeScores: {},
   reinforcementEvents: [],
   lastRouteForReward: null,
@@ -250,6 +255,12 @@ function updateMemory(command, state, details = {}) {
     ...details,
     memory
   });
+  const metaLearningMemory = updateMetaLearningIfNeeded(memory.metaLearningMemory, {
+    ...memory,
+    ...reinforcement,
+    evidenceRequirementMemory,
+    details
+  }, details);
   const routeEvolutionMemory = updateRouteEvolutionIfNeeded(memory.routeEvolutionMemory, {
     ...memory,
     ...reinforcement
@@ -296,6 +307,7 @@ function updateMemory(command, state, details = {}) {
     selfCritiqueMemory,
     founderMentalStateMemory,
     evidenceRequirementMemory,
+    metaLearningMemory,
     routeEvolutionMemory
   });
 }
@@ -370,6 +382,7 @@ function readConversationMemory() {
     routeEvolutionMemory: memory.routeEvolutionMemory || null,
     founderMentalStateMemory: memory.founderMentalStateMemory || null,
     evidenceRequirementMemory: memory.evidenceRequirementMemory || null,
+    metaLearningMemory: memory.metaLearningMemory || null,
     routeScores: memory.routeScores && typeof memory.routeScores === 'object' ? memory.routeScores : {},
     reinforcementEvents: Array.isArray(memory.reinforcementEvents) ? memory.reinforcementEvents.slice(0, 80) : [],
     lastRouteForReward: memory.lastRouteForReward || null,
@@ -419,6 +432,11 @@ function updateConversationMemory(route, state) {
     ...route,
     memory
   });
+  const metaLearningMemory = updateMetaLearningIfNeeded(memory.metaLearningMemory, {
+    ...memory,
+    ...reinforcement,
+    evidenceRequirementMemory
+  }, route);
   const routeEvolutionMemory = updateRouteEvolutionIfNeeded(memory.routeEvolutionMemory, {
     ...memory,
     ...reinforcement
@@ -487,6 +505,7 @@ function updateConversationMemory(route, state) {
     selfCritiqueMemory,
     founderMentalStateMemory,
     evidenceRequirementMemory,
+    metaLearningMemory,
     routeEvolutionMemory,
     recentMessages: rememberMessage(memory.recentMessages, {
       role: 'agent',
@@ -692,6 +711,19 @@ function updateEvidenceRequirementIfNeeded(existing, details = {}) {
   if (!shouldRequireEvidence(claim, details)) return existing || null;
   const check = evaluateEvidenceRequirement(claim, details);
   return updateEvidenceRequirementMemory(existing, check);
+}
+
+function updateMetaLearningIfNeeded(existing, memory = {}, details = {}) {
+  if (details && details.metaLearningAnalysis) {
+    return updateMetaLearningMemory(existing, details.metaLearningAnalysis);
+  }
+  const hasFeedback = Array.isArray(memory.founderFeedback) && memory.founderFeedback.length > 0;
+  const hasRouteEvidence = memory.routeScores && Object.keys(memory.routeScores).length > 0;
+  const hasWrongAnswerEvidence = memory.wrongAnswerAnalysis && Array.isArray(memory.wrongAnswerAnalysis.recentFailures) && memory.wrongAnswerAnalysis.recentFailures.length > 0;
+  const hasEvidenceChecks = memory.evidenceRequirementMemory && Array.isArray(memory.evidenceRequirementMemory.recentChecks) && memory.evidenceRequirementMemory.recentChecks.length > 0;
+  if (!hasFeedback && !hasRouteEvidence && !hasWrongAnswerEvidence && !hasEvidenceChecks) return existing || null;
+  const analysis = analyzeMetaLearning(memory);
+  return updateMetaLearningMemory(existing, analysis);
 }
 
 function mergeContinuity(items, entry) {
