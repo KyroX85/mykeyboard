@@ -4,6 +4,7 @@ const { logAgentAction, readActionLog } = require('./agent-action-log');
 const { classifyRisk } = require('../scripts/execution-engine');
 const { getDeepSeekFixLimitStatus } = require('../scripts/ai-execution-bridge');
 const { readFounderMemory, formatFounderMemorySummary } = require('./founder-memory');
+const { evaluateFounderFacingProgress, formatRealityCheck } = require('../reality-check-layer');
 
 function linesOrFallback(items, fallback) {
   if (!items || items.length === 0) return [fallback];
@@ -20,6 +21,22 @@ function formatValidation(validation) {
     const icon = status === 'PASSED' ? '\u2705' : status === 'FAILED' ? '\u274c' : '\u26a0\ufe0f';
     return `${icon} ${item.task}: ${status}`;
   });
+}
+
+function formatProgressResponse(lines, completedItems = []) {
+  const progress = evaluateFounderFacingProgress({ items: completedItems });
+  if (!progress.meaningful) {
+    return [
+      lines[0],
+      'No meaningful founder-facing progress.',
+      ...progress.reasons.map((reason) => `Reason: ${reason}`)
+    ].join('\n');
+  }
+  return [
+    ...lines,
+    '',
+    formatRealityCheck(progress)
+  ].join('\n');
 }
 
 function compactIssue(issue) {
@@ -188,10 +205,10 @@ function generateResponse(command, state, memory = {}, details = {}) {
       ].join('\n');
 
     case 'latest_fixes':
-      return [
+      return formatProgressResponse([
         'Founder, latest fixes',
         ...linesOrFallback(state.sections.completedFixes, 'No completed fix was recorded in the latest run.')
-      ].join('\n');
+      ], state.sections.completedFixes);
 
     case 'unresolved':
     case 'pending_issues':
@@ -202,7 +219,7 @@ function generateResponse(command, state, memory = {}, details = {}) {
       ].join('\n');
 
     case 'what_changed':
-      return [
+      return formatProgressResponse([
         'Founder, what changed',
         `\ud83d\udd52 Last trend: ${state.changed.lastTrendAt || 'not recorded yet'}`,
         `\ud83d\udccc Issues in latest trend: ${state.changed.issueCount == null ? 'unknown' : state.changed.issueCount}`,
@@ -212,7 +229,7 @@ function generateResponse(command, state, memory = {}, details = {}) {
         '',
         'New risks',
         ...linesOrFallback(state.changed.newRisks, 'No new risk recorded.')
-      ].join('\n');
+      ], state.changed.completed);
 
     case 'next_priorities':
       return [
