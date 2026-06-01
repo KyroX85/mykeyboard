@@ -43,6 +43,9 @@ const DOUBT_PATTERNS = [
   /\bwhat\s+happens\s+if\s+we\s+focus\s+only\b/i,
   /\bif\s+we\s+focus\s+only\b/i,
   /\b(something|this|it)\s+(feels|feel)\s+(off|wrong|not right|missing|weak)\b/i,
+  /\b(i\s+don'?t\s+think|i\s+do\s+not\s+think)\s+users?\s+(actually\s+)?(care|want|need)\b/i,
+  /\busers?\s+(don'?t|do\s+not)\s+(actually\s+)?(care|want|need)\b/i,
+  /\b(who|why)\s+would\s+users?\s+(care|want|need)\b/i,
   /\b(i\s+don'?t|i\s+do\s+not)\s+(like|feel)\s+(this|it)\b/i,
   /\b(not\s+satisfied|unsatisfied|dissatisfied)\b/i,
   /\b(focusing|focused|focus)\s+on\s+the\s+wrong\s+thing\b/i,
@@ -168,6 +171,16 @@ function classifyMindQuestion(text = '', memory = {}) {
   }
 
   if (DOUBT_PATTERNS.some((pattern) => pattern.test(text))) {
+    if (/\busers?\s+(actually\s+)?(care|want|need)\b/i.test(text) ||
+      /\b(who|why)\s+would\s+users?\s+(care|want|need)\b/i.test(text)) {
+      return {
+        intent: 'RECONSTRUCT_USER_VALUE_DOUBT',
+        category: 'DOUBT',
+        archetype: 'user_value_doubt',
+        mode: 'FOUNDER_CONVERSATION_MODE',
+        confidence: 84
+      };
+    }
     const isStrategicDoubt = text.includes('wrong thing') ||
       text.includes('wrong direction') ||
       text.includes('misaligned') ||
@@ -318,6 +331,18 @@ function buildMindReport(kind, message, context = {}) {
     };
   }
 
+  if (kind.archetype === 'user_value_doubt') {
+    return {
+      objective: 'Test whether the current product direction creates a user outcome people would actually care about.',
+      assumption: 'The founder suspects the system may be building capability without proving user demand.',
+      concern: 'A feature can sound strategically correct but still fail if users do not feel pain, urgency, or daily usefulness.',
+      decision: 'Decide whether to keep investing in this wedge or demand stronger evidence of user pull.',
+      desiredOutcome: 'A blunt product-value answer that separates real user pain from founder or agent excitement.',
+      actualQuestion: 'Would real users care enough about this to change behavior?',
+      uselessLiteralAnswer: 'A noise warning, status template, task plan, or feature defense without evidence.'
+    };
+  }
+
   if (kind.archetype === 'founder_ambition') {
     return {
       objective: 'Reconstruct the founder ambition behind the question instead of treating it as a status or task request.',
@@ -428,6 +453,16 @@ function buildDirectAnswer(kind, report) {
       'The likely misalignment is this: the system may be getting better at operating itself, while the product still needs a clearer user-facing breakthrough.',
       'So I would treat this as a strategic discussion, not a task request.',
       'The useful next question is: what current work most directly moves us toward the Explain action-surface moment users would actually feel?'
+    ];
+  }
+
+  if (kind.archetype === 'user_value_doubt') {
+    return [
+      'That is a real risk.',
+      'Users will not care about Aritenis because it has agents, governance, screenshots, or an execution layer.',
+      'They will care only if it removes a frequent moment of confusion or effort inside something they already do.',
+      'So the test is not "is Explain impressive?" The test is: does it help someone understand a screenshot, message, bill, notice, or form faster than leaving the app and asking another tool?',
+      'If that pain is not frequent or sharp, the feature is weak. If it is frequent and the keyboard solves it with less friction than alternatives, users may care.'
     ];
   }
 
@@ -547,6 +582,9 @@ function responseAnswersFounderMind(reconstruction = {}) {
   }
   if (reconstruction.intent === 'RECONSTRUCT_STRATEGIC_MISALIGNMENT_CONCERN') {
     return /wrong thing|infrastructure|killer feature|misalignment|founder objective|strategic discussion/i.test(answer);
+  }
+  if (reconstruction.intent === 'RECONSTRUCT_USER_VALUE_DOUBT') {
+    return /real risk|users will not care|frequent moment of confusion|understand a screenshot|less friction|users may care/i.test(answer);
   }
   if (reconstruction.intent === 'RECONSTRUCT_FOUNDER_AMBITION') {
     return /personal intelligence layer|phone|keyboard|screenshots|trust|leverage|miss if it disappeared/i.test(answer);

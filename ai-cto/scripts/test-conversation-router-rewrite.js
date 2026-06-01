@@ -71,6 +71,11 @@ const cases = [
     text: 'Am I the same founder I was 3 months ago?',
     route: ROUTES.FOUNDER_REFLECTION,
     expected: /not the same founder|3 months ago|fake progress|product-truth mode|user-facing breakthrough/i
+  },
+  {
+    text: "I don't think users actually care.",
+    route: ROUTES.FOUNDER_DOUBT,
+    expected: /real risk|users will not care|frequent moment of confusion|understand a screenshot|users may care/i
   }
 ];
 

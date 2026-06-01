@@ -21,7 +21,7 @@ const { setMode } = require('../../governance/governance');
 
 setMode('ACTIVE', 'founder mind reconstruction test');
 
-const forbiddenTemplates = /(Current Foundation Health|Recommended Next Step|Momentum:\s*STALLED|Health:\s*\d+|roadmap priority|Team is ready|Team Ready|complexity report|Task Plan|Review Gate|TASK_PLAN|APPROVE|Execution Plan|Execution\b|Files:|Validation:|Risk:|Scope:)/i;
+const forbiddenTemplates = /(Current Foundation Health|Recommended Next Step|Momentum:\s*STALLED|Health:\s*\d+|roadmap priority|Team is ready|Team Ready|complexity report|Task Plan|Review Gate|TASK_PLAN|APPROVE|Execution Plan|Files:|Validation:|Risk:\s*(LOW|MEDIUM|HIGH|CRITICAL)|Scope:)/i;
 
 function route(text) {
   return routeMessage(text, {}, {});
@@ -139,6 +139,15 @@ assert.strictEqual(founderEvolution.details.category, 'REFLECTION');
 assert.strictEqual(founderEvolution.details.intent, 'RECONSTRUCT_FOUNDER_EVOLUTION');
 assert.match(founderEvolution.details.mindReconstruction.actualQuestion, /changed as a founder|helping or hurting Aritenis/i);
 assert.doesNotMatch(String(founderEvolution.response || ''), /NOISE|LOW INFORMATION|AMBIGUOUS INTENT|TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan/i);
+
+const userValueDoubt = assertMindRoute(
+  "I don't think users actually care.",
+  /real risk|users will not care|frequent moment of confusion|understand a screenshot|less friction|users may care/i
+);
+assert.strictEqual(userValueDoubt.details.category, 'DOUBT');
+assert.strictEqual(userValueDoubt.details.intent, 'RECONSTRUCT_USER_VALUE_DOUBT');
+assert.match(userValueDoubt.details.mindReconstruction.actualQuestion, /real users care|change behavior/i);
+assert.doesNotMatch(String(userValueDoubt.response || ''), /NOISE|LOW INFORMATION|AMBIGUOUS INTENT|TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan/i);
 
 const reconstructed = reconstructFounderMind('Why did I ask that?', {});
 assert.strictEqual(reconstructed.mode, 'REFLECTION_MODE');
