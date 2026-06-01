@@ -18,7 +18,7 @@ const { setMode } = require('../../governance/governance');
 
 setMode('ACTIVE', 'founder mind reconstruction test');
 
-const forbiddenTemplates = /(Current Foundation Health|Recommended Next Step|Momentum:\s*STALLED|Health:\s*\d+|roadmap priority)/i;
+const forbiddenTemplates = /(Current Foundation Health|Recommended Next Step|Momentum:\s*STALLED|Health:\s*\d+|roadmap priority|Team is ready|complexity report|Task Plan|Review Gate)/i;
 
 function route(text) {
   return routeMessage(text, {}, {});
@@ -29,7 +29,7 @@ function assertMindRoute(text, requiredPattern) {
   const body = String(result.response || '');
   assert.strictEqual(result.command, 'founder_mind_reconstruction', text);
   assert.strictEqual(result.matchedRoute, 'founder_mind_reconstruction', text);
-  assert.strictEqual(result.details.mode, 'REFLECTION_MODE', text);
+  assert.match(result.details.mode, /REFLECTION_MODE|FOUNDER_CONVERSATION_MODE/, text);
   assert(result.details.mindReconstruction.objective, text);
   assert(result.details.mindReconstruction.assumption, text);
   assert(result.details.mindReconstruction.concern, text);
@@ -66,6 +66,21 @@ assertMindRoute(
   "What's happening?",
   /context-aware|health report|awareness/i
 );
+
+const dream = assertMindRoute(
+  'Bro are we even moving toward the dream?',
+  /Partially|dream|personal intelligence layer|infrastructure|aligned/i
+);
+assert.strictEqual(dream.details.category, 'VISION');
+assert.strictEqual(dream.details.mode, 'FOUNDER_CONVERSATION_MODE');
+assert.match(dream.details.mindReconstruction.actualQuestion, /long-term Aritenis dream|agents look busy/i);
+
+const dissatisfaction = assertMindRoute(
+  'Bro why am I not satisfied with this feature?',
+  /meaningful user outcome|value gap|hidden concern|technically works/i
+);
+assert.strictEqual(dissatisfaction.details.category, 'REFLECTION');
+assert.match(dissatisfaction.details.mindReconstruction.concern, /mechanically|meaningful user outcome|strategic differentiation/i);
 
 const reconstructed = reconstructFounderMind('Why did I ask that?', {});
 assert.strictEqual(reconstructed.mode, 'REFLECTION_MODE');

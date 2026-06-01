@@ -1,10 +1,25 @@
 const REFLECTION_PATTERNS = [
   /\bwhy\s+(am\s+i|did\s+i)\s+(asking|ask)\b/i,
   /\bwhy\s+did\s+i\s+ask\s+that\b/i,
+  /\bwhy\s+(am\s+i|i\s+am)\s+not\s+satisfied\b/i,
   /\bwhat\s+assumption\s+(am\s+i|i\s+am|am\s+i\s+holding|am\s+i\s+testing)\b/i,
   /\bwhat\s+(am\s+i|i\s+am)\s+(worried|concerned)\s+about\b/i,
   /\bwhat\s+(am\s+i|i\s+am)\s+testing\b/i,
   /\bwhat\s+is\s+my\s+(hidden\s+)?(concern|objective|intent)\b/i
+];
+
+const VISION_PATTERNS = [
+  /\b(are|r)\s+we\s+(even\s+)?(moving|going|heading)\s+(toward|towards|to)\s+(the\s+)?(dream|vision|goal)\b/i,
+  /\b(is|are)\s+(this|we)\s+aligned\s+(with|to)\s+(the\s+)?(dream|vision|goal)\b/i,
+  /\b(does|is)\s+this\s+(move|moving)\s+us\s+(toward|towards|to)\s+(the\s+)?(dream|vision|goal)\b/i,
+  /\b(are|r)\s+we\s+building\s+(the\s+)?(right|actual)\s+thing\b/i
+];
+
+const DOUBT_PATTERNS = [
+  /\b(something|this|it)\s+(feels|feel)\s+(off|wrong|not right|missing|weak)\b/i,
+  /\b(i\s+don'?t|i\s+do\s+not)\s+(like|feel)\s+(this|it)\b/i,
+  /\b(not\s+satisfied|unsatisfied|dissatisfied)\b/i,
+  /\bwhy\s+(does\s+)?(this|it)\s+(not\s+feel|feel)\s+(valuable|useful|right|good|strong)\b/i
 ];
 
 const AGENT_UNDERSTANDING_PATTERNS = [
@@ -21,7 +36,7 @@ const AWARENESS_CHECK_PATTERNS = [
   /\bwhats\s+going\s+on\b/i
 ];
 
-const FORBIDDEN_REFLECTION_OUTPUT = /(Current Foundation Health|Momentum:\s*STALLED|Health:\s*\d+|Recommended Next Step|roadmap priority|Phase 1 foundation is protected)/i;
+const FORBIDDEN_REFLECTION_OUTPUT = /(Current Foundation Health|Momentum:\s*STALLED|Health:\s*\d+|Recommended Next Step|roadmap priority|Phase 1 foundation is protected|Team is ready|complexity report|Task Plan|Review Gate)/i;
 
 function routeFounderMindReconstruction(message = '', context = {}) {
   const reconstruction = reconstructFounderMind(message, context);
@@ -37,7 +52,8 @@ function routeFounderMindReconstruction(message = '', context = {}) {
     details: {
       agent: 'cto',
       intent: reconstruction.intent,
-      mode: 'REFLECTION_MODE',
+      mode: reconstruction.mode,
+      category: reconstruction.category,
       confidence: reconstruction.confidence,
       mindReconstruction: reconstruction.report,
       selfCheck: reconstruction.selfCheck,
@@ -57,7 +73,8 @@ function reconstructFounderMind(message = '', context = {}) {
 
   const report = buildMindReport(kind, original, context);
   const reconstruction = {
-    mode: 'REFLECTION_MODE',
+    mode: kind.mode,
+    category: kind.category,
     intent: kind.intent,
     message: original,
     report,
@@ -74,18 +91,42 @@ function reconstructFounderMind(message = '', context = {}) {
 }
 
 function classifyMindQuestion(text = '') {
+  if (DOUBT_PATTERNS.some((pattern) => pattern.test(text))) {
+    return {
+      intent: 'RECONSTRUCT_PRODUCT_DISSATISFACTION',
+      category: 'REFLECTION',
+      archetype: 'dissatisfaction',
+      mode: 'FOUNDER_CONVERSATION_MODE',
+      confidence: 82
+    };
+  }
+
   if (REFLECTION_PATTERNS.some((pattern) => pattern.test(text))) {
     return {
       intent: 'RECONSTRUCT_FOUNDER_META_REASONING',
+      category: 'REFLECTION',
       archetype: 'reflection',
+      mode: 'REFLECTION_MODE',
       confidence: 86
+    };
+  }
+
+  if (VISION_PATTERNS.some((pattern) => pattern.test(text))) {
+    return {
+      intent: 'RECONSTRUCT_VISION_ALIGNMENT_CONCERN',
+      category: 'VISION',
+      archetype: 'vision_alignment',
+      mode: 'FOUNDER_CONVERSATION_MODE',
+      confidence: 84
     };
   }
 
   if (AGENT_UNDERSTANDING_PATTERNS.some((pattern) => pattern.test(text))) {
     return {
       intent: 'ASSESS_AGENT_UNDERSTANDING_ANXIETY',
+      category: 'REFLECTION',
       archetype: 'agent_understanding',
+      mode: 'REFLECTION_MODE',
       confidence: 84
     };
   }
@@ -93,7 +134,9 @@ function classifyMindQuestion(text = '') {
   if (AWARENESS_CHECK_PATTERNS.some((pattern) => pattern.test(text))) {
     return {
       intent: 'INTERPRET_AWARENESS_CHECK',
+      category: 'REFLECTION',
       archetype: 'awareness_check',
+      mode: 'REFLECTION_MODE',
       confidence: 78
     };
   }
@@ -102,6 +145,28 @@ function classifyMindQuestion(text = '') {
 }
 
 function buildMindReport(kind, message, context = {}) {
+  if (kind.archetype === 'vision_alignment') {
+    return {
+      objective: 'Check whether current work is moving toward the founder dream rather than becoming agent infrastructure for its own sake.',
+      assumption: 'The founder suspects the system is improving governance and plumbing, but may still be far from the actual personal intelligence layer.',
+      concern: 'Aritenis may be becoming operationally elaborate without yet delivering the magical user outcome: phone-operated help that understands and completes real tasks.',
+      desiredOutcome: 'An honest alignment judgment that separates useful infrastructure from the missing intelligence and execution experience.',
+      actualQuestion: 'Are we building toward the long-term Aritenis dream, or just making the agents look busy?',
+      uselessLiteralAnswer: 'A team-ready greeting, status block, health score, or task list.'
+    };
+  }
+
+  if (kind.archetype === 'dissatisfaction') {
+    return {
+      objective: 'Explain the hidden product reason behind founder dissatisfaction.',
+      assumption: 'The founder is testing whether technical completion equals real product value.',
+      concern: 'The feature may work mechanically but fail to create a meaningful user outcome, emotional pull, or strategic differentiation.',
+      desiredOutcome: 'A direct diagnosis of the feature-value gap and what evidence would make the feature feel worth keeping.',
+      actualQuestion: 'Why does this feature fail to satisfy me even if it technically works?',
+      uselessLiteralAnswer: 'A health score, momentum report, complexity warning, or generic progress update.'
+    };
+  }
+
   if (kind.archetype === 'agent_understanding') {
     return {
       objective: 'Check whether the agents can reason from founder vision instead of repeating memory or templates.',
@@ -135,6 +200,26 @@ function buildMindReport(kind, message, context = {}) {
 }
 
 function buildDirectAnswer(kind, report) {
+  if (kind.archetype === 'vision_alignment') {
+    return [
+      'Partially.',
+      'We are moving toward the dream in the sense that the foundation, governance, WhatsApp access, memory, Product Lab, and agent rails are being built.',
+      'But we are not yet close enough to the dream itself: a phone-operated personal intelligence layer that can understand the founder, inspect the product, reason about real evidence, and help complete meaningful actions.',
+      'The gap is intelligence and user leverage, not more templates.',
+      'So the honest answer is: the direction is aligned, but the current center of gravity is still infrastructure. The next proof has to be a real Explain/execution-layer moment that feels useful, not another governance improvement.'
+    ];
+  }
+
+  if (kind.archetype === 'dissatisfaction') {
+    return [
+      'You may be dissatisfied because the feature works technically but does not yet create a meaningful user outcome.',
+      'That usually means the implementation exists, but the value gap is still open: it does not feel magical, necessary, or clearly better than doing nothing.',
+      `The hidden concern is: ${report.concern}`,
+      'A satisfying feature should make the user feel more capable in the moment, not just prove that the system can route, report, or execute.',
+      'So the right question is probably: what user pain did this remove, and would anyone miss it if we removed it tomorrow?'
+    ];
+  }
+
   if (kind.archetype === 'agent_understanding') {
     return [
       'You are not asking for a project summary.',
@@ -195,6 +280,12 @@ function responseAnswersFounderMind(reconstruction = {}) {
   }
   if (reconstruction.intent === 'INTERPRET_AWARENESS_CHECK') {
     return /context-aware|keywords|health report|awareness/i.test(answer);
+  }
+  if (reconstruction.intent === 'RECONSTRUCT_VISION_ALIGNMENT_CONCERN') {
+    return /partially|dream|personal intelligence layer|infrastructure|aligned/i.test(answer);
+  }
+  if (reconstruction.intent === 'RECONSTRUCT_PRODUCT_DISSATISFACTION') {
+    return /dissatisfied|meaningful user outcome|value gap|hidden concern/i.test(answer);
   }
   return /reason behind your words|assumption being tested|worry underneath/i.test(answer);
 }
