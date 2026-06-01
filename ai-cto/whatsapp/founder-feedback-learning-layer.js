@@ -6,6 +6,10 @@ const {
 const {
   updateFounderTasteModel
 } = require('../founder-taste-model');
+const {
+  analyzeWrongAnswer,
+  updateWrongAnswerMemory
+} = require('../wrong-answer-analyzer');
 
 const MAX_FEEDBACK_ITEMS = 50;
 
@@ -114,6 +118,7 @@ function maybeRouteFounderFeedback(message = '', memory = {}) {
     response: [
       'Feedback recorded.',
       `Learned: ${formatAdaptation(entry.adaptation)}.`,
+      formatFailureAnalysis(entry.wrongAnswerAnalysis),
       `Taste profile: ${formatTasteProfile(founderTasteModel)}.`,
       `Applies to: ${entry.questionPattern || 'previous founder exchange unavailable'}.`,
       'No execution started.'
@@ -143,16 +148,22 @@ function recordFounderFeedback(message = '', providedMemory = {}, classification
     rawAnswerPreview: preview(previous.answer)
   };
 
+  const wrongAnswerAnalysis = analyzeWrongAnswer(entry);
+  const analyzedEntry = wrongAnswerAnalysis
+    ? { ...entry, wrongAnswerAnalysis }
+    : entry;
   const existing = Array.isArray(current.founderFeedback) ? current.founderFeedback : [];
-  const nextFeedback = [entry, ...existing].slice(0, MAX_FEEDBACK_ITEMS);
-  const founderTasteModel = updateFounderTasteModel(current.founderTasteModel, entry);
+  const nextFeedback = [analyzedEntry, ...existing].slice(0, MAX_FEEDBACK_ITEMS);
+  const founderTasteModel = updateFounderTasteModel(current.founderTasteModel, analyzedEntry);
+  const wrongAnswerMemory = updateWrongAnswerMemory(current.wrongAnswerAnalysis, wrongAnswerAnalysis);
   writeMemory({
     ...current,
     founderFeedback: nextFeedback,
-    lastFeedback: entry,
-    founderTasteModel
+    lastFeedback: analyzedEntry,
+    founderTasteModel,
+    wrongAnswerAnalysis: wrongAnswerMemory
   });
-  return entry;
+  return analyzedEntry;
 }
 
 function applyFounderFeedbackToResponse(response = '', context = {}) {
@@ -265,6 +276,11 @@ function formatTasteProfile(model = {}) {
   ].join(', ');
 }
 
+function formatFailureAnalysis(analysis = null) {
+  if (!analysis) return 'Failure analyzed: not applicable for positive feedback.';
+  return `Failure analyzed: ${analysis.failureReasons.map((item) => item.replace(/_/g, ' ')).join(', ')}.`;
+}
+
 function buildAdaptationLine(entry = {}) {
   switch (entry.adaptation) {
     case 'answer_actual_question_first':
@@ -317,5 +333,6 @@ module.exports = {
   applyFounderFeedbackToResponse,
   findRelevantFounderFeedback,
   normalizePattern,
-  formatTasteProfile
+  formatTasteProfile,
+  formatFailureAnalysis
 };
