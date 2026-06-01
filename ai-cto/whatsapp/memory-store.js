@@ -48,6 +48,11 @@ const {
   extractFounderHypothesis,
   updateFounderHypothesisMemory
 } = require('../founder-hypothesis-tracker');
+const {
+  shouldPredictActionOutcome,
+  generateActionPrediction,
+  updatePredictionMemory
+} = require('../prediction-engine');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const MEMORY_FILE = process.env.ARITENIS_WHATSAPP_MEMORY_FILE ||
@@ -120,6 +125,7 @@ const DEFAULT_MEMORY = {
   opportunityCostMemory: null,
   truthOverAgreementMemory: null,
   founderHypothesisTracker: null,
+  predictionMemory: null,
   routeScores: {},
   reinforcementEvents: [],
   lastRouteForReward: null,
@@ -215,6 +221,7 @@ function updateMemory(command, state, details = {}) {
   const opportunityCostMemory = updateOpportunityCostIfNeeded(memory.opportunityCostMemory, details);
   const truthOverAgreementMemory = updateTruthOverAgreementIfNeeded(memory.truthOverAgreementMemory, details);
   const founderHypothesisTracker = updateFounderHypothesisIfNeeded(memory.founderHypothesisTracker, details);
+  const predictionMemory = updatePredictionIfNeeded(memory.predictionMemory, details);
 
   return writeMemory({
     ...memory,
@@ -252,7 +259,8 @@ function updateMemory(command, state, details = {}) {
     premortemMemory,
     opportunityCostMemory,
     truthOverAgreementMemory,
-    founderHypothesisTracker
+    founderHypothesisTracker,
+    predictionMemory
   });
 }
 
@@ -321,6 +329,7 @@ function readConversationMemory() {
     opportunityCostMemory: memory.opportunityCostMemory || null,
     truthOverAgreementMemory: memory.truthOverAgreementMemory || null,
     founderHypothesisTracker: memory.founderHypothesisTracker || null,
+    predictionMemory: memory.predictionMemory || null,
     routeScores: memory.routeScores && typeof memory.routeScores === 'object' ? memory.routeScores : {},
     reinforcementEvents: Array.isArray(memory.reinforcementEvents) ? memory.reinforcementEvents.slice(0, 80) : [],
     lastRouteForReward: memory.lastRouteForReward || null,
@@ -363,6 +372,7 @@ function updateConversationMemory(route, state) {
   const opportunityCostMemory = updateOpportunityCostIfNeeded(memory.opportunityCostMemory, route);
   const truthOverAgreementMemory = updateTruthOverAgreementIfNeeded(memory.truthOverAgreementMemory, route);
   const founderHypothesisTracker = updateFounderHypothesisIfNeeded(memory.founderHypothesisTracker, route);
+  const predictionMemory = updatePredictionIfNeeded(memory.predictionMemory, route);
   const next = {
     ...memory,
     ...reinforcement,
@@ -423,6 +433,7 @@ function updateConversationMemory(route, state) {
     opportunityCostMemory,
     truthOverAgreementMemory,
     founderHypothesisTracker,
+    predictionMemory,
     recentMessages: rememberMessage(memory.recentMessages, {
       role: 'agent',
       agent: route.agent || 'cto',
@@ -565,6 +576,13 @@ function updateFounderHypothesisIfNeeded(existing, details = {}) {
   if (!shouldTrackFounderHypothesis(message, details)) return existing || null;
   const hypothesis = extractFounderHypothesis(details);
   return updateFounderHypothesisMemory(existing, hypothesis);
+}
+
+function updatePredictionIfNeeded(existing, details = {}) {
+  const action = details && (details.action || details.decision || details.initiative || details.idea || details.proposal || details.founderMessage || details.agentAnswer);
+  if (!shouldPredictActionOutcome(action, details)) return existing || null;
+  const prediction = generateActionPrediction(action, details);
+  return updatePredictionMemory(existing, prediction);
 }
 
 function mergeContinuity(items, entry) {
