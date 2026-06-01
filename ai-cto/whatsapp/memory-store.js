@@ -12,6 +12,9 @@ const {
 const {
   updateFounderQuestionClusters
 } = require('../founder-question-clustering');
+const {
+  compressFounderMemory
+} = require('../memory-compression-layer');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const MEMORY_FILE = process.env.ARITENIS_WHATSAPP_MEMORY_FILE ||
@@ -75,6 +78,8 @@ const DEFAULT_MEMORY = {
   founderTasteModel: null,
   founderQuestionClusters: null,
   wrongAnswerAnalysis: null,
+  compressedFounderInsights: [],
+  memoryCompression: null,
   routeScores: {},
   reinforcementEvents: [],
   lastRouteForReward: null,
@@ -97,12 +102,12 @@ function readMemory() {
 }
 
 function writeMemory(memory) {
-  const next = {
+  const next = compressFounderMemory({
     ...DEFAULT_MEMORY,
     ...memory,
     version: DEFAULT_MEMORY.version,
     lastUpdatedAt: new Date().toISOString()
-  };
+  });
 
   try {
     const tmp = `${MEMORY_FILE}.tmp`;
@@ -250,6 +255,8 @@ function readConversationMemory() {
     founderTasteModel: memory.founderTasteModel || null,
     founderQuestionClusters: memory.founderQuestionClusters || null,
     wrongAnswerAnalysis: memory.wrongAnswerAnalysis || null,
+    compressedFounderInsights: Array.isArray(memory.compressedFounderInsights) ? memory.compressedFounderInsights.slice(0, 5) : [],
+    memoryCompression: memory.memoryCompression || null,
     routeScores: memory.routeScores && typeof memory.routeScores === 'object' ? memory.routeScores : {},
     reinforcementEvents: Array.isArray(memory.reinforcementEvents) ? memory.reinforcementEvents.slice(0, 80) : [],
     lastRouteForReward: memory.lastRouteForReward || null,
