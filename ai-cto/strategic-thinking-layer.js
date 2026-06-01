@@ -38,6 +38,9 @@ function responseUsesStrategicThinking(response = '') {
 }
 
 function classifyStrategicDomain(text = '') {
+  if (/\b(product truth|stress-testing the agents|optimizing for|useful breakthrough|behavior)\b/.test(text)) {
+    return 'founder_behavior';
+  }
   if (/\b(same founder|3 months ago|founder evolution|product-truth mode|builder-survival mode)\b/.test(text)) {
     return 'founder_evolution';
   }
@@ -60,6 +63,14 @@ function classifyStrategicDomain(text = '') {
 }
 
 const STRATEGIC_DOMAIN_MAP = {
+  founder_behavior: {
+    firstOrderConsequence: 'Reading founder behavior correctly keeps the agents aligned to the real decision, not just the literal words.',
+    secondOrderConsequence: 'If the agents miss the founder’s behavior pattern, they will keep optimizing for outputs that look useful but feel hollow.',
+    opportunityCost: 'Every answer that avoids the real behavioral signal wastes a chance to sharpen product direction.',
+    alternativePath: 'Treat repeated founder pressure as evidence about what the company must optimize for next.',
+    ctoBias: 'favor behavioral truth over polite agreement',
+    confidence: 82
+  },
   founder_evolution: {
     firstOrderConsequence: 'Recognizing founder evolution helps separate useful sharper taste from random direction changes.',
     secondOrderConsequence: 'If the agents miss that evolution, they will keep answering the old company problem instead of the current one.',

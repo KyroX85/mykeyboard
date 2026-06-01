@@ -86,6 +86,11 @@ const cases = [
     text: 'If we fail in 3 years, why do we fail?',
     route: ROUTES.FOUNDER_STRATEGY,
     expected: /fails in 3 years|user habit|Explain never becomes a daily need|trust erosion|behaviorally optional|repeatable moment/i
+  },
+  {
+    text: 'Forget what I say.\n\nBased on my behavior, what am I optimizing for?',
+    route: ROUTES.FOUNDER_REFLECTION,
+    expected: /product truth|stress-testing the agents|fake progress|leverage|useful breakthrough|trustworthy/i
   }
 ];
 

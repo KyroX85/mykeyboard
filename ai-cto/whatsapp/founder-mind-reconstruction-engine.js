@@ -1,4 +1,7 @@
 const REFLECTION_PATTERNS = [
+  /\bbased\s+on\s+my\s+behavior\b.*\bwhat\s+(am\s+i|i\s+am)\s+optimizing\s+for\b/i,
+  /\bwhat\s+(am\s+i|i\s+am)\s+optimizing\s+for\b/i,
+  /\bforget\s+what\s+i\s+say\b.*\bbased\s+on\s+my\s+behavior\b/i,
   /\b(am|was)\s+i\s+the\s+same\s+founder\b/i,
   /\b(founder|i)\b.*\b(same|changed|evolved|different)\b.*\b(months?|weeks?|ago|before|now)\b/i,
   /\bwhy\s+(am\s+i|did\s+i)\s+(asking|ask)\b/i,
@@ -218,6 +221,15 @@ function classifyMindQuestion(text = '', memory = {}) {
   }
 
   if (REFLECTION_PATTERNS.some((pattern) => pattern.test(text))) {
+    if (/\boptimizing\s+for\b/i.test(text) || /\bbased\s+on\s+my\s+behavior\b/i.test(text)) {
+      return {
+        intent: 'RECONSTRUCT_FOUNDER_BEHAVIOR_OPTIMIZATION',
+        category: 'REFLECTION',
+        archetype: 'founder_behavior_optimization',
+        mode: 'REFLECTION_MODE',
+        confidence: 84
+      };
+    }
     if (/\b(am|was)\s+i\s+the\s+same\s+founder\b/i.test(text) ||
       /\b(founder|i)\b.*\b(same|changed|evolved|different)\b.*\b(months?|weeks?|ago|before|now)\b/i.test(text)) {
       return {
@@ -414,6 +426,18 @@ function buildMindReport(kind, message, context = {}) {
     };
   }
 
+  if (kind.archetype === 'founder_behavior_optimization') {
+    return {
+      objective: 'Infer the founder’s real optimization target from repeated behavior, not stated preferences alone.',
+      assumption: 'The founder suspects their actions reveal a deeper priority than their explicit roadmap language.',
+      concern: 'The system may obey stated tasks while missing the founder’s actual decision function.',
+      decision: 'Decide what the founder is truly optimizing for so agents can align with behavior, not slogans.',
+      desiredOutcome: 'A candid behavioral read of the founder’s real priority stack.',
+      actualQuestion: 'What does my repeated behavior show I actually optimize for?',
+      uselessLiteralAnswer: 'A task plan, status report, health score, or literal refusal to use founder memory.'
+    };
+  }
+
   if (kind.archetype === 'founder_evolution') {
     return {
       objective: 'Compare the founder’s current judgment and priorities against the earlier founder state.',
@@ -553,6 +577,16 @@ function buildDirectAnswer(kind, report) {
     ];
   }
 
+  if (kind.archetype === 'founder_behavior_optimization') {
+    return [
+      'Based on your behavior, you are optimizing for product truth over comfort.',
+      'You keep stress-testing the agents because you do not want a system that sounds smart but misses the real question.',
+      'You repeatedly reject fake progress, templates, architecture theater, and impressive-but-useless work.',
+      'Under that, you are optimizing for leverage: a product that creates a real user outcome without losing trust.',
+      'So the honest read is: you are not optimizing for speed, elegance, or agent sophistication. You are optimizing for a useful breakthrough that still feels trustworthy.'
+    ];
+  }
+
   if (kind.archetype === 'founder_evolution') {
     return [
       'No. You are not the same founder you were 3 months ago.',
@@ -664,6 +698,9 @@ function responseAnswersFounderMind(reconstruction = {}) {
   }
   if (reconstruction.intent === 'RECONSTRUCT_LONG_TERM_FAILURE_PREMORTEM') {
     return /fails in 3 years|user habit|Explain never becomes a daily need|trust erosion|behaviorally optional|repeatable moment/i.test(answer);
+  }
+  if (reconstruction.intent === 'RECONSTRUCT_FOUNDER_BEHAVIOR_OPTIMIZATION') {
+    return /product truth|stress-testing the agents|fake progress|leverage|useful breakthrough|trustworthy/i.test(answer);
   }
   if (reconstruction.intent === 'RECONSTRUCT_FOUNDER_EVOLUTION') {
     return /not the same founder|3 months ago|sharper|fake progress|product-truth mode|user-facing breakthrough/i.test(answer);

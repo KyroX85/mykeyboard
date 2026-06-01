@@ -167,6 +167,15 @@ assert.strictEqual(failurePremortem.details.intent, 'RECONSTRUCT_LONG_TERM_FAILU
 assert.match(failurePremortem.details.mindReconstruction.actualQuestion, /fails in 3 years|strategic mistake/i);
 assert.doesNotMatch(String(failurePremortem.response || ''), /CLARIFICATION_REQUEST|NOISE|LOW INFORMATION|AMBIGUOUS INTENT|TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan/i);
 
+const behaviorOptimization = assertMindRoute(
+  'Forget what I say.\n\nBased on my behavior, what am I optimizing for?',
+  /product truth|stress-testing the agents|fake progress|leverage|useful breakthrough|trustworthy/i
+);
+assert.strictEqual(behaviorOptimization.details.category, 'REFLECTION');
+assert.strictEqual(behaviorOptimization.details.intent, 'RECONSTRUCT_FOUNDER_BEHAVIOR_OPTIMIZATION');
+assert.match(behaviorOptimization.details.mindReconstruction.actualQuestion, /behavior.*optimize|repeated behavior/i);
+assert.doesNotMatch(String(behaviorOptimization.response || ''), /CLARIFICATION_REQUEST|NOISE|LOW INFORMATION|AMBIGUOUS INTENT|TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan/i);
+
 const reconstructed = reconstructFounderMind('Why did I ask that?', {});
 assert.strictEqual(reconstructed.mode, 'REFLECTION_MODE');
 assert.strictEqual(reconstructed.intent, 'RECONSTRUCT_FOUNDER_META_REASONING');
