@@ -240,6 +240,15 @@ assert(productProgress.response.includes('Verified product-facing improvements t
 assert(productProgress.response.includes('Product impact:'));
 assert(!productProgress.response.includes('No fresh runtime fix recorded yet'));
 
+const todayProgress = routeMessage('What progress did we make today?', sampleState);
+assert.strictEqual(todayProgress.command, 'recent_product_improvements');
+assert.strictEqual(todayProgress.matchedRoute, 'git_grounded_product_improvements');
+assert(todayProgress.response.includes('Verified product-facing improvements today') || todayProgress.response.includes('No meaningful founder-facing progress'));
+assert(!todayProgress.response.includes('type: TASK_PLAN'));
+assert(!todayProgress.response.includes('CODER:'));
+assert(!todayProgress.response.includes('REVIEWER:'));
+assert(!todayProgress.response.includes('What would you like to prioritize next'));
+
 const contradictionAnswer = routeMessage('if governance blocks a request but coder still executes, what happens?', sampleState);
 assert.strictEqual(contradictionAnswer.command, 'governance_contradiction_answer');
 assert(contradictionAnswer.response.includes('governance contradiction'));

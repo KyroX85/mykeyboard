@@ -20,6 +20,8 @@ const PRODUCT_KEYWORDS = [
 function isProductImprovementQuestion(message = '') {
   const text = String(message || '').toLowerCase();
   if (/\bwhat should we improve next\b/.test(text)) return false;
+  if (/\bwhat\s+progress\s+did\s+we\s+make\s+today\b/.test(text)) return true;
+  if (/\b(progress|made progress)\b/.test(text) && /\b(today|recently|now)\b/.test(text)) return true;
   const asksImprovement = /\b(improvements?|improvments?|improved?|toward the product|product)\b/.test(text);
   const asksCompletedWork = /\b(today|team|did|done|idid|what did|what improvements?|what improvments?|any improvements?|any improvments?)\b/.test(text);
   return asksImprovement && asksCompletedWork;

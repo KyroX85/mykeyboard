@@ -1247,7 +1247,12 @@ function maybeRouteRecentProductImprovements(message, options = {}) {
   if (!isProductImprovementQuestion(message)) return null;
   return {
     command: 'recent_product_improvements',
-    details: { agent: 'cto', intent: 'recent_product_improvements' },
+    details: {
+      agent: 'cto',
+      intent: 'recent_product_improvements',
+      conversationMode: 'PROGRESS_REALITY',
+      skipExecutionSchema: true
+    },
     matchedRoute: 'git_grounded_product_improvements',
     response: buildRecentProductImprovementAnswer({
       root: options.root || ROOT
