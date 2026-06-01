@@ -13,6 +13,10 @@ const {
   buildStrategicThinking,
   formatStrategicThinking
 } = require('../strategic-thinking-layer');
+const {
+  buildCuriosityPrompt,
+  formatCuriosityPrompt
+} = require('../curiosity-layer');
 
 const VISION_PATTERNS = [
   /\b(are|r)\s+we\s+(even\s+)?(moving|going|heading)\s+(toward|towards|to)\s+(the\s+)?(dream|vision|goal)\b/i,
@@ -115,6 +119,14 @@ function reconstructFounderMind(message = '', context = {}) {
       intent: kind.intent,
       directAnswer: buildDirectAnswer(kind, report)
     }),
+    curiosityPrompt: buildCuriosityPrompt({
+      message: original,
+      category: kind.category,
+      intent: kind.intent,
+      confidence: kind.confidence,
+      concern: report.concern,
+      objective: report.objective
+    }),
     confidence: kind.confidence
   };
 
@@ -140,14 +152,18 @@ function classifyMindQuestion(text = '', memory = {}) {
   }
 
   if (DOUBT_PATTERNS.some((pattern) => pattern.test(text))) {
+    const isStrategicDoubt = text.includes('wrong thing') ||
+      text.includes('wrong direction') ||
+      text.includes('misaligned') ||
+      text.includes('direction');
     return {
-      intent: text.includes('wrong thing') || text.includes('wrong direction') || text.includes('misaligned')
+      intent: isStrategicDoubt
         ? 'RECONSTRUCT_STRATEGIC_MISALIGNMENT_CONCERN'
         : 'RECONSTRUCT_PRODUCT_DISSATISFACTION',
-      category: text.includes('wrong thing') || text.includes('wrong direction') || text.includes('misaligned')
+      category: isStrategicDoubt
         ? 'DOUBT'
         : 'REFLECTION',
-      archetype: text.includes('wrong thing') || text.includes('wrong direction') || text.includes('misaligned')
+      archetype: isStrategicDoubt
         ? 'strategic_doubt'
         : 'dissatisfaction',
       mode: 'FOUNDER_CONVERSATION_MODE',
@@ -402,6 +418,12 @@ function buildReflectionResponse(reconstruction, { debug = false } = {}) {
   if (reconstruction.strategicThinking) {
     lines.push('');
     lines.push(formatStrategicThinking(reconstruction.strategicThinking));
+  }
+
+  const curiosity = formatCuriosityPrompt(reconstruction.curiosityPrompt);
+  if (curiosity) {
+    lines.push('');
+    lines.push(curiosity);
   }
 
   if (debug) {
