@@ -176,6 +176,15 @@ assert.strictEqual(behaviorOptimization.details.intent, 'RECONSTRUCT_FOUNDER_BEH
 assert.match(behaviorOptimization.details.mindReconstruction.actualQuestion, /behavior.*optimize|repeated behavior/i);
 assert.doesNotMatch(String(behaviorOptimization.response || ''), /CLARIFICATION_REQUEST|NOISE|LOW INFORMATION|AMBIGUOUS INTENT|TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan/i);
 
+const dreamValidity = assertMindRoute(
+  'Bro, what if my dream itself is wrong?',
+  /dream might be wrong|underlying desire|keyboard is automatically the right vehicle|Explain is the current smallest test|user behavior decide/i
+);
+assert.strictEqual(dreamValidity.details.category, 'VISION');
+assert.strictEqual(dreamValidity.details.intent, 'RECONSTRUCT_DREAM_VALIDITY_DOUBT');
+assert.match(dreamValidity.details.mindReconstruction.actualQuestion, /dream itself wrong|current path.*unproven/i);
+assert.doesNotMatch(String(dreamValidity.response || ''), /wrong response path|CLARIFICATION_REQUEST|NOISE|LOW INFORMATION|AMBIGUOUS INTENT|TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan/i);
+
 const reconstructed = reconstructFounderMind('Why did I ask that?', {});
 assert.strictEqual(reconstructed.mode, 'REFLECTION_MODE');
 assert.strictEqual(reconstructed.intent, 'RECONSTRUCT_FOUNDER_META_REASONING');

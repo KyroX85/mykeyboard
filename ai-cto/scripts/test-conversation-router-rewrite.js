@@ -91,6 +91,11 @@ const cases = [
     text: 'Forget what I say.\n\nBased on my behavior, what am I optimizing for?',
     route: ROUTES.FOUNDER_REFLECTION,
     expected: /product truth|stress-testing the agents|fake progress|leverage|useful breakthrough|trustworthy/i
+  },
+  {
+    text: 'Bro, what if my dream itself is wrong?',
+    route: ROUTES.FOUNDER_VISION,
+    expected: /dream might be wrong|underlying desire|keyboard is automatically the right vehicle|Explain is the current smallest test|user behavior decide/i
   }
 ];
 

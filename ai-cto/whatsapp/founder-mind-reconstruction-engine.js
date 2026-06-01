@@ -24,6 +24,9 @@ const {
 } = require('../curiosity-layer');
 
 const VISION_PATTERNS = [
+  /\bwhat\s+if\s+my\s+dream\s+(itself\s+)?is\s+wrong\b/i,
+  /\bwhat\s+if\s+(the\s+)?dream\s+(itself\s+)?is\s+wrong\b/i,
+  /\b(is|could)\s+my\s+dream\s+(be\s+)?wrong\b/i,
   /\b(are|r)\s+we\s+(even\s+)?(moving|going|heading)\s+(toward|towards|to)\s+(the\s+)?(dream|vision|goal)\b/i,
   /\b(is|are)\s+(this|we)\s+aligned\s+(with|to)\s+(the\s+)?(dream|vision|goal)\b/i,
   /\b(does|is)\s+this\s+(move|moving)\s+us\s+(toward|towards|to)\s+(the\s+)?(dream|vision|goal)\b/i,
@@ -250,6 +253,15 @@ function classifyMindQuestion(text = '', memory = {}) {
   }
 
   if (VISION_PATTERNS.some((pattern) => pattern.test(text))) {
+    if (/\bdream\b.*\bwrong\b/i.test(text)) {
+      return {
+        intent: 'RECONSTRUCT_DREAM_VALIDITY_DOUBT',
+        category: 'VISION',
+        archetype: 'dream_validity_doubt',
+        mode: 'FOUNDER_CONVERSATION_MODE',
+        confidence: 84
+      };
+    }
     return {
       intent: 'RECONSTRUCT_VISION_ALIGNMENT_CONCERN',
       category: 'VISION',
@@ -339,6 +351,18 @@ function buildMindReport(kind, message, context = {}) {
       desiredOutcome: 'An honest alignment judgment that separates useful infrastructure from the missing intelligence and execution experience.',
       actualQuestion: 'Are we building toward the long-term Aritenis dream, or just making the agents look busy?',
       uselessLiteralAnswer: 'A team-ready greeting, status block, health score, or task list.'
+    };
+  }
+
+  if (kind.archetype === 'dream_validity_doubt') {
+    return {
+      objective: 'Test whether the founder dream is strategically valid, not merely emotionally motivating.',
+      assumption: 'The founder is questioning the premise beneath Aritenis, not asking for encouragement.',
+      concern: 'The dream could be too broad, too personal, or too impressive unless it maps to a repeated user pain.',
+      decision: 'Decide whether to preserve the dream, narrow it, or demand stronger proof through a smaller wedge.',
+      desiredOutcome: 'An honest answer that separates the dream from the current product hypothesis.',
+      actualQuestion: 'Is the long-term Aritenis dream itself wrong, or is the current path to it unproven?',
+      uselessLiteralAnswer: 'A motivational answer, team status, health report, task plan, or blind reassurance.'
     };
   }
 
@@ -504,6 +528,16 @@ function buildDirectAnswer(kind, report) {
       'But we are not yet close enough to the dream itself: a phone-operated personal intelligence layer that can understand the founder, inspect the product, reason about real evidence, and help complete meaningful actions.',
       'The gap is intelligence and user leverage, not more templates.',
       'So the honest answer is: the direction is aligned, but the current center of gravity is still infrastructure. The next proof has to be a real Explain/action-surface moment that feels useful, not another governance improvement.'
+    ];
+  }
+
+  if (kind.archetype === 'dream_validity_doubt') {
+    return [
+      'The dream might be wrong in its current shape, but the underlying desire is probably not wrong.',
+      'Wanting a trusted phone-native intelligence layer is a real direction. The risky part is assuming the keyboard is automatically the right vehicle, or that users want the whole dream at once.',
+      'So I would separate dream from proof: the dream is a hypothesis about leverage, trust, and daily assistance; Explain is the current smallest test of that hypothesis.',
+      'If Explain cannot create repeat use, the dream may need to narrow or move to a different surface.',
+      'The honest answer: do not kill the dream yet, but stop protecting it from evidence. Let user behavior decide its shape.'
     ];
   }
 
@@ -677,6 +711,9 @@ function responseAnswersFounderMind(reconstruction = {}) {
   }
   if (reconstruction.intent === 'RECONSTRUCT_VISION_ALIGNMENT_CONCERN') {
     return /partially|dream|personal intelligence layer|infrastructure|aligned/i.test(answer);
+  }
+  if (reconstruction.intent === 'RECONSTRUCT_DREAM_VALIDITY_DOUBT') {
+    return /dream might be wrong|underlying desire|keyboard is automatically the right vehicle|Explain is the current smallest test|user behavior decide/i.test(answer);
   }
   if (reconstruction.intent === 'RECONSTRUCT_PRODUCT_DISSATISFACTION') {
     return /dissatisfied|meaningful user outcome|value gap|hidden concern/i.test(answer);
