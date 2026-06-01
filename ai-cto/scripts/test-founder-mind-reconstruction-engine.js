@@ -18,7 +18,7 @@ const { setMode } = require('../../governance/governance');
 
 setMode('ACTIVE', 'founder mind reconstruction test');
 
-const forbiddenTemplates = /(Current Foundation Health|Recommended Next Step|Momentum:\s*STALLED|Health:\s*\d+|roadmap priority|Team is ready|complexity report|Task Plan|Review Gate)/i;
+const forbiddenTemplates = /(Current Foundation Health|Recommended Next Step|Momentum:\s*STALLED|Health:\s*\d+|roadmap priority|Team is ready|complexity report|Task Plan|Review Gate|TASK_PLAN|APPROVE|Execution Plan|Files:|Validation:|Risk:|Scope:)/i;
 
 function route(text) {
   return routeMessage(text, {}, {});
@@ -81,6 +81,15 @@ const dissatisfaction = assertMindRoute(
 );
 assert.strictEqual(dissatisfaction.details.category, 'REFLECTION');
 assert.match(dissatisfaction.details.mindReconstruction.concern, /mechanically|meaningful user outcome|strategic differentiation/i);
+
+const wrongFocus = assertMindRoute(
+  "Bro I think we're focusing on the wrong thing.",
+  /worried.*infrastructure|killer feature|misalignment|founder objective|strategic discussion/i
+);
+assert.strictEqual(wrongFocus.details.category, 'DOUBT');
+assert.strictEqual(wrongFocus.details.mode, 'FOUNDER_CONVERSATION_MODE');
+assert.match(wrongFocus.details.mindReconstruction.concern, /look operational|product moment|users would actually care/i);
+assert.doesNotMatch(String(wrongFocus.response || ''), /TASK_PLAN|APPROVE|Execution Plan|Files:|Validation:|Risk:|Scope:/i);
 
 const reconstructed = reconstructFounderMind('Why did I ask that?', {});
 assert.strictEqual(reconstructed.mode, 'REFLECTION_MODE');

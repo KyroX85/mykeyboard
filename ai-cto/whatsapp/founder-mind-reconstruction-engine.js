@@ -19,6 +19,9 @@ const DOUBT_PATTERNS = [
   /\b(something|this|it)\s+(feels|feel)\s+(off|wrong|not right|missing|weak)\b/i,
   /\b(i\s+don'?t|i\s+do\s+not)\s+(like|feel)\s+(this|it)\b/i,
   /\b(not\s+satisfied|unsatisfied|dissatisfied)\b/i,
+  /\b(focusing|focused|focus)\s+on\s+the\s+wrong\s+thing\b/i,
+  /\b(wrong\s+thing|wrong\s+direction|misaligned|not\s+aligned)\b/i,
+  /\b(i\s+think|i\s+feel|maybe|bro)\b.*\b(wrong\s+thing|wrong\s+direction|misaligned|off)\b/i,
   /\bwhy\s+(does\s+)?(this|it)\s+(not\s+feel|feel)\s+(valuable|useful|right|good|strong)\b/i
 ];
 
@@ -93,9 +96,15 @@ function reconstructFounderMind(message = '', context = {}) {
 function classifyMindQuestion(text = '') {
   if (DOUBT_PATTERNS.some((pattern) => pattern.test(text))) {
     return {
-      intent: 'RECONSTRUCT_PRODUCT_DISSATISFACTION',
-      category: 'REFLECTION',
-      archetype: 'dissatisfaction',
+      intent: text.includes('wrong thing') || text.includes('wrong direction') || text.includes('misaligned')
+        ? 'RECONSTRUCT_STRATEGIC_MISALIGNMENT_CONCERN'
+        : 'RECONSTRUCT_PRODUCT_DISSATISFACTION',
+      category: text.includes('wrong thing') || text.includes('wrong direction') || text.includes('misaligned')
+        ? 'DOUBT'
+        : 'REFLECTION',
+      archetype: text.includes('wrong thing') || text.includes('wrong direction') || text.includes('misaligned')
+        ? 'strategic_doubt'
+        : 'dissatisfaction',
       mode: 'FOUNDER_CONVERSATION_MODE',
       confidence: 82
     };
@@ -167,6 +176,17 @@ function buildMindReport(kind, message, context = {}) {
     };
   }
 
+  if (kind.archetype === 'strategic_doubt') {
+    return {
+      objective: 'Understand whether the founder believes current effort is aimed at the wrong strategic target.',
+      assumption: 'The founder suspects the agents may be improving infrastructure, governance, or agent mechanics instead of moving closer to the killer feature.',
+      concern: 'The company could spend time making the system look operational while delaying the product moment that users would actually care about.',
+      desiredOutcome: 'A strategic conversation about possible misalignment, not an execution plan or file-change proposal.',
+      actualQuestion: 'Are we focusing on work that moves Aritenis toward the founder objective, or are we optimizing the wrong layer?',
+      uselessLiteralAnswer: 'A task plan, approve token, file list, validation command, risk block, or engineering report.'
+    };
+  }
+
   if (kind.archetype === 'agent_understanding') {
     return {
       objective: 'Check whether the agents can reason from founder vision instead of repeating memory or templates.',
@@ -217,6 +237,16 @@ function buildDirectAnswer(kind, report) {
       `The hidden concern is: ${report.concern}`,
       'A satisfying feature should make the user feel more capable in the moment, not just prove that the system can route, report, or execute.',
       'So the right question is probably: what user pain did this remove, and would anyone miss it if we removed it tomorrow?'
+    ];
+  }
+
+  if (kind.archetype === 'strategic_doubt') {
+    return [
+      'You may be worried that we are spending time improving infrastructure instead of getting closer to the killer feature.',
+      'That concern is valid to test. Governance, memory, routing, and agent councils only matter if they help Aritenis reach the founder objective faster.',
+      'The likely misalignment is this: the system may be getting better at operating itself, while the product still needs a clearer user-facing breakthrough.',
+      'So I would treat this as a strategic discussion, not a task request.',
+      'The useful next question is: what current work most directly moves us toward the Explain / execution-layer moment users would actually feel?'
     ];
   }
 
@@ -286,6 +316,9 @@ function responseAnswersFounderMind(reconstruction = {}) {
   }
   if (reconstruction.intent === 'RECONSTRUCT_PRODUCT_DISSATISFACTION') {
     return /dissatisfied|meaningful user outcome|value gap|hidden concern/i.test(answer);
+  }
+  if (reconstruction.intent === 'RECONSTRUCT_STRATEGIC_MISALIGNMENT_CONCERN') {
+    return /wrong thing|infrastructure|killer feature|misalignment|founder objective|strategic discussion/i.test(answer);
   }
   return /reason behind your words|assumption being tested|worry underneath/i.test(answer);
 }
