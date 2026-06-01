@@ -3,6 +3,9 @@ const {
   writeMemory,
   readConversationMemory
 } = require('./memory-store');
+const {
+  updateFounderTasteModel
+} = require('../founder-taste-model');
 
 const MAX_FEEDBACK_ITEMS = 50;
 
@@ -96,6 +99,7 @@ function maybeRouteFounderFeedback(message = '', memory = {}) {
   if (!classification) return null;
 
   const entry = recordFounderFeedback(message, memory, classification);
+  const founderTasteModel = readConversationMemory().founderTasteModel;
   return {
     command: 'founder_feedback_recorded',
     matchedRoute: 'founder_feedback_learning_layer',
@@ -110,6 +114,7 @@ function maybeRouteFounderFeedback(message = '', memory = {}) {
     response: [
       'Feedback recorded.',
       `Learned: ${formatAdaptation(entry.adaptation)}.`,
+      `Taste profile: ${formatTasteProfile(founderTasteModel)}.`,
       `Applies to: ${entry.questionPattern || 'previous founder exchange unavailable'}.`,
       'No execution started.'
     ].join('\n')
@@ -140,10 +145,12 @@ function recordFounderFeedback(message = '', providedMemory = {}, classification
 
   const existing = Array.isArray(current.founderFeedback) ? current.founderFeedback : [];
   const nextFeedback = [entry, ...existing].slice(0, MAX_FEEDBACK_ITEMS);
+  const founderTasteModel = updateFounderTasteModel(current.founderTasteModel, entry);
   writeMemory({
     ...current,
     founderFeedback: nextFeedback,
-    lastFeedback: entry
+    lastFeedback: entry,
+    founderTasteModel
   });
   return entry;
 }
@@ -246,6 +253,18 @@ function formatAdaptation(adaptation = '') {
     .replace(/_/g, ' ');
 }
 
+function formatTasteProfile(model = {}) {
+  const profile = model && model.profile ? model.profile : {};
+  const confidence = Math.round((profile.confidence || 0) * 100);
+  return [
+    `depth=${profile.preferredDepthLevel || 'unknown'}`,
+    `tone=${profile.preferredTone || 'unknown'}`,
+    `strategy=${profile.preferredStrategicDensity || 'unknown'}`,
+    `skepticism=${profile.preferredSkepticismLevel || 'unknown'}`,
+    `confidence=${confidence}%`
+  ].join(', ');
+}
+
 function buildAdaptationLine(entry = {}) {
   switch (entry.adaptation) {
     case 'answer_actual_question_first':
@@ -297,5 +316,6 @@ module.exports = {
   recordFounderFeedback,
   applyFounderFeedbackToResponse,
   findRelevantFounderFeedback,
-  normalizePattern
+  normalizePattern,
+  formatTasteProfile
 };

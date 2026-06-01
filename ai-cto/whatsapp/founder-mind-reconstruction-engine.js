@@ -29,6 +29,9 @@ const {
   maybeRouteFounderFeedback,
   applyFounderFeedbackToResponse
 } = require('./founder-feedback-learning-layer');
+const {
+  applyFounderTasteToResponse
+} = require('../founder-taste-model');
 
 const VISION_PATTERNS = [
   /\bwhat\s+if\s+my\s+dream\s+(itself\s+)?is\s+wrong\b/i,
@@ -110,9 +113,15 @@ function routeFounderMindReconstruction(message = '', context = {}) {
   const reconstruction = reconstructFounderMind(message, context);
   if (!reconstruction || reconstruction.mode === 'NO_MATCH') return null;
 
-  const response = applyFounderFeedbackToResponse(buildReflectionResponse(reconstruction, {
+  const feedbackAdjustedResponse = applyFounderFeedbackToResponse(buildReflectionResponse(reconstruction, {
     debug: Boolean(context.debug)
   }), {
+    message,
+    memory: context.memory || {},
+    category: reconstruction.category,
+    intent: reconstruction.intent
+  });
+  const response = applyFounderTasteToResponse(feedbackAdjustedResponse, {
     message,
     memory: context.memory || {},
     category: reconstruction.category,
