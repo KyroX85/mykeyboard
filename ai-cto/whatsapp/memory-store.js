@@ -64,6 +64,8 @@ const DEFAULT_MEMORY = {
   recentMessages: [],
   previousFounderQuestion: null,
   previousAgentAnswer: null,
+  founderFeedback: [],
+  lastFeedback: null,
   pendingAction: null,
   lastCommand: null,
   lastUpdatedAt: null
@@ -226,6 +228,8 @@ function readConversationMemory() {
     ,
     previousFounderQuestion: memory.previousFounderQuestion || null,
     previousAgentAnswer: memory.previousAgentAnswer || null,
+    founderFeedback: Array.isArray(memory.founderFeedback) ? memory.founderFeedback.slice(0, 50) : [],
+    lastFeedback: memory.lastFeedback || null,
     pendingAction: memory.pendingAction || memory.nextContinuationAction || null
   };
 }

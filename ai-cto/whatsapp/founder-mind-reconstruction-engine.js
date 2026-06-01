@@ -25,6 +25,10 @@ const {
   buildCuriosityPrompt,
   formatCuriosityPrompt
 } = require('../curiosity-layer');
+const {
+  maybeRouteFounderFeedback,
+  applyFounderFeedbackToResponse
+} = require('./founder-feedback-learning-layer');
 
 const VISION_PATTERNS = [
   /\bwhat\s+if\s+my\s+dream\s+(itself\s+)?is\s+wrong\b/i,
@@ -100,11 +104,19 @@ const CONTINUITY_PATTERNS = [
 const FORBIDDEN_REFLECTION_OUTPUT = /(Current Foundation Health|Momentum:\s*STALLED|Health:\s*\d+|Recommended Next Step|roadmap priority|Phase 1 foundation is protected|Team is ready|complexity report|Task Plan|Review Gate|TASK_PLAN|APPROVE|Execution Plan|Execution\b)/i;
 
 function routeFounderMindReconstruction(message = '', context = {}) {
+  const feedbackRoute = maybeRouteFounderFeedback(message, context.memory || {});
+  if (feedbackRoute) return feedbackRoute;
+
   const reconstruction = reconstructFounderMind(message, context);
   if (!reconstruction || reconstruction.mode === 'NO_MATCH') return null;
 
-  const response = buildReflectionResponse(reconstruction, {
+  const response = applyFounderFeedbackToResponse(buildReflectionResponse(reconstruction, {
     debug: Boolean(context.debug)
+  }), {
+    message,
+    memory: context.memory || {},
+    category: reconstruction.category,
+    intent: reconstruction.intent
   });
 
   return {

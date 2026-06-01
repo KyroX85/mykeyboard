@@ -35,6 +35,7 @@ const { routeFounderIntentUnderstanding } = require('./founder-intent-understand
 const { routeFounderMindReconstruction } = require('./founder-mind-reconstruction-engine');
 const { routeFounderObjective } = require('./founder-objective-engine');
 const { routeHumanInteraction } = require('./human-interaction-layer');
+const { maybeRouteFounderFeedback } = require('./founder-feedback-learning-layer');
 const { enforceAntiTemplateOnRoute } = require('./anti-template-layer');
 const {
   classifyConversationRoute,
@@ -162,6 +163,8 @@ function routeMessageInternal(message, state, memory = {}) {
   if (preservationDecision) return preservationDecision;
   const preservationBlock = maybeBlockPreservationMutation(normalized);
   if (preservationBlock) return preservationBlock;
+  const founderFeedback = maybeRouteFounderFeedback(message, memory);
+  if (founderFeedback) return founderFeedback;
   const antiVanityBlock = maybeRouteAntiVanityBlock(normalized);
   if (antiVanityBlock) return antiVanityBlock;
   const conversationRoute = maybeRouteFounderThinkingFirst(message, state, memory);
