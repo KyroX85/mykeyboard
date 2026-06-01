@@ -43,6 +43,11 @@ const {
   evaluateTruthOverAgreement,
   updateTruthOverAgreementMemory
 } = require('../truth-over-agreement-layer');
+const {
+  shouldTrackFounderHypothesis,
+  extractFounderHypothesis,
+  updateFounderHypothesisMemory
+} = require('../founder-hypothesis-tracker');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const MEMORY_FILE = process.env.ARITENIS_WHATSAPP_MEMORY_FILE ||
@@ -114,6 +119,7 @@ const DEFAULT_MEMORY = {
   premortemMemory: null,
   opportunityCostMemory: null,
   truthOverAgreementMemory: null,
+  founderHypothesisTracker: null,
   routeScores: {},
   reinforcementEvents: [],
   lastRouteForReward: null,
@@ -208,6 +214,7 @@ function updateMemory(command, state, details = {}) {
   const premortemMemory = updatePremortemIfNeeded(memory.premortemMemory, details);
   const opportunityCostMemory = updateOpportunityCostIfNeeded(memory.opportunityCostMemory, details);
   const truthOverAgreementMemory = updateTruthOverAgreementIfNeeded(memory.truthOverAgreementMemory, details);
+  const founderHypothesisTracker = updateFounderHypothesisIfNeeded(memory.founderHypothesisTracker, details);
 
   return writeMemory({
     ...memory,
@@ -244,7 +251,8 @@ function updateMemory(command, state, details = {}) {
     userValueJudgments,
     premortemMemory,
     opportunityCostMemory,
-    truthOverAgreementMemory
+    truthOverAgreementMemory,
+    founderHypothesisTracker
   });
 }
 
@@ -312,6 +320,7 @@ function readConversationMemory() {
     premortemMemory: memory.premortemMemory || null,
     opportunityCostMemory: memory.opportunityCostMemory || null,
     truthOverAgreementMemory: memory.truthOverAgreementMemory || null,
+    founderHypothesisTracker: memory.founderHypothesisTracker || null,
     routeScores: memory.routeScores && typeof memory.routeScores === 'object' ? memory.routeScores : {},
     reinforcementEvents: Array.isArray(memory.reinforcementEvents) ? memory.reinforcementEvents.slice(0, 80) : [],
     lastRouteForReward: memory.lastRouteForReward || null,
@@ -353,6 +362,7 @@ function updateConversationMemory(route, state) {
   const premortemMemory = updatePremortemIfNeeded(memory.premortemMemory, route);
   const opportunityCostMemory = updateOpportunityCostIfNeeded(memory.opportunityCostMemory, route);
   const truthOverAgreementMemory = updateTruthOverAgreementIfNeeded(memory.truthOverAgreementMemory, route);
+  const founderHypothesisTracker = updateFounderHypothesisIfNeeded(memory.founderHypothesisTracker, route);
   const next = {
     ...memory,
     ...reinforcement,
@@ -412,6 +422,7 @@ function updateConversationMemory(route, state) {
     premortemMemory,
     opportunityCostMemory,
     truthOverAgreementMemory,
+    founderHypothesisTracker,
     recentMessages: rememberMessage(memory.recentMessages, {
       role: 'agent',
       agent: route.agent || 'cto',
@@ -547,6 +558,13 @@ function updateTruthOverAgreementIfNeeded(existing, details = {}) {
   if (!shouldEvaluateTruthOverAgreement(message, details)) return existing || null;
   const truthCheck = evaluateTruthOverAgreement(message, details);
   return updateTruthOverAgreementMemory(existing, truthCheck);
+}
+
+function updateFounderHypothesisIfNeeded(existing, details = {}) {
+  const message = details && (details.founderMessage || details.agentAnswer || details.idea || details.proposal);
+  if (!shouldTrackFounderHypothesis(message, details)) return existing || null;
+  const hypothesis = extractFounderHypothesis(details);
+  return updateFounderHypothesisMemory(existing, hypothesis);
 }
 
 function mergeContinuity(items, entry) {
