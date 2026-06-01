@@ -43,6 +43,11 @@ const cases = [
     expected: /Partially|dream|personal intelligence layer|infrastructure|aligned/i
   },
   {
+    text: 'If Aritenis succeeds beyond our expectations, what does the world look like?',
+    route: ROUTES.FOUNDER_VISION,
+    expected: /Partially|dream|personal intelligence layer|infrastructure|aligned|phone-native intelligence layer/i
+  },
+  {
     text: "I think we're focusing on the wrong thing.",
     route: ROUTES.FOUNDER_DOUBT,
     expected: /infrastructure|killer feature|misalignment|founder objective|strategic discussion/i

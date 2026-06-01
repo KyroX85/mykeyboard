@@ -22,7 +22,12 @@ const VISION_PATTERNS = [
   /\b(are|r)\s+we\s+(even\s+)?(moving|going|heading)\s+(toward|towards|to)\s+(the\s+)?(dream|vision|goal)\b/i,
   /\b(is|are)\s+(this|we)\s+aligned\s+(with|to)\s+(the\s+)?(dream|vision|goal)\b/i,
   /\b(does|is)\s+this\s+(move|moving)\s+us\s+(toward|towards|to)\s+(the\s+)?(dream|vision|goal)\b/i,
-  /\b(are|r)\s+we\s+building\s+(the\s+)?(right|actual)\s+thing\b/i
+  /\b(are|r)\s+we\s+building\s+(the\s+)?(right|actual)\s+thing\b/i,
+  /\bif\s+aritenis\s+succeeds\b/i,
+  /\b(succeeds?|success|win|wins)\s+(beyond\s+our\s+expectations|beyond\s+expectations)\b/i,
+  /\bwhat\s+does\s+(the\s+)?world\s+look\s+like\b/i,
+  /\bwhat\s+(does|would)\s+success\s+look\s+like\b/i,
+  /\bwhat\s+happens\s+if\s+we\s+win\b/i
 ];
 
 const FOUNDER_QUESTION_PATTERNS = [
