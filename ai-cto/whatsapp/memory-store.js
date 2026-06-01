@@ -6,6 +6,9 @@ const {
   continuationPlan,
   buildOperationalIntelligence
 } = require('./semantic-memory');
+const {
+  updateRouteReinforcement
+} = require('./reinforcement-learning-layer');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const MEMORY_FILE = process.env.ARITENIS_WHATSAPP_MEMORY_FILE ||
@@ -66,6 +69,10 @@ const DEFAULT_MEMORY = {
   previousAgentAnswer: null,
   founderFeedback: [],
   lastFeedback: null,
+  routeScores: {},
+  reinforcementEvents: [],
+  lastRouteForReward: null,
+  lastReward: null,
   pendingAction: null,
   lastCommand: null,
   lastUpdatedAt: null
@@ -145,9 +152,11 @@ function updateMemory(command, state, details = {}) {
     memory.pendingAction ||
     null;
   const continuityEntry = buildFounderContinuityEntry(details);
+  const reinforcement = updateRouteReinforcement(memory, command, details);
 
   return writeMemory({
     ...memory,
+    ...reinforcement,
     lastCommand: command,
     recentMessages: rememberMessage(memory.recentMessages, {
       role: 'agent',
@@ -230,6 +239,10 @@ function readConversationMemory() {
     previousAgentAnswer: memory.previousAgentAnswer || null,
     founderFeedback: Array.isArray(memory.founderFeedback) ? memory.founderFeedback.slice(0, 50) : [],
     lastFeedback: memory.lastFeedback || null,
+    routeScores: memory.routeScores && typeof memory.routeScores === 'object' ? memory.routeScores : {},
+    reinforcementEvents: Array.isArray(memory.reinforcementEvents) ? memory.reinforcementEvents.slice(0, 80) : [],
+    lastRouteForReward: memory.lastRouteForReward || null,
+    lastReward: memory.lastReward || null,
     pendingAction: memory.pendingAction || memory.nextContinuationAction || null
   };
 }
@@ -256,8 +269,10 @@ function updateConversationMemory(route, state) {
   const nextContinuationAction = continuationPlan(state, semanticFounderState);
   const operationalIntelligence = buildOperationalIntelligence(state, semanticFounderState, memory);
   const continuityEntry = buildFounderContinuityEntry(route);
+  const reinforcement = updateRouteReinforcement(memory, route.command || route.intent || 'agent', route);
   const next = {
     ...memory,
+    ...reinforcement,
     lastAgentInteraction: route.agent || memory.lastAgentInteraction,
     lastFocusTopic: route.focusTopic || memory.lastFocusTopic,
     lastRequestedFocusArea: route.focusTopic || memory.lastRequestedFocusArea,

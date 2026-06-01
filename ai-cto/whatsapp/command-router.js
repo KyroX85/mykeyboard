@@ -36,6 +36,10 @@ const { routeFounderMindReconstruction } = require('./founder-mind-reconstructio
 const { routeFounderObjective } = require('./founder-objective-engine');
 const { routeHumanInteraction } = require('./human-interaction-layer');
 const { maybeRouteFounderFeedback } = require('./founder-feedback-learning-layer');
+const {
+  applyReinforcementToRoute,
+  shouldPreferReinforcedConversation
+} = require('./reinforcement-learning-layer');
 const { enforceAntiTemplateOnRoute } = require('./anti-template-layer');
 const {
   classifyConversationRoute,
@@ -167,6 +171,8 @@ function routeMessageInternal(message, state, memory = {}) {
   if (founderFeedback) return founderFeedback;
   const antiVanityBlock = maybeRouteAntiVanityBlock(normalized);
   if (antiVanityBlock) return antiVanityBlock;
+  const reinforcedConversation = maybeRouteReinforcedConversation(message, state, memory);
+  if (reinforcedConversation) return reinforcedConversation;
   const conversationRoute = maybeRouteFounderThinkingFirst(message, state, memory);
   if (conversationRoute) return conversationRoute;
   const founderMind = routeFounderMindReconstruction(message, { root: ROOT, state, memory });
@@ -1500,6 +1506,21 @@ function maybeRouteFounderThinkingFirst(message, state, memory = {}) {
   };
 }
 
+function maybeRouteReinforcedConversation(message, state, memory = {}) {
+  if (!shouldPreferReinforcedConversation(message, memory)) return null;
+  const founderMind = routeFounderMindReconstruction(message, { root: ROOT, state, memory });
+  if (!founderMind) return null;
+  return {
+    ...founderMind,
+    details: {
+      ...(founderMind.details || {}),
+      reinforcementPreferred: true,
+      reinforcementReason: 'historically successful founder conversation route',
+      skipExecutionSchema: true
+    }
+  };
+}
+
 function shouldUseGeneralFallback(normalized) {
   if (!normalized) return true;
   if (GREETING_WORDS.has(normalized)) return true;
@@ -1517,10 +1538,12 @@ module.exports = {
 
 function routeMessage(message, state, memory = {}) {
   const founderMemoryLayer = loadFounderMemoryLayer({ root: ROOT });
-  return enforceDeterministicResponse(enforceMemoryPolicyOnRoute(routeMessageInternal(message, state, {
+  const enrichedMemory = {
     ...memory,
     founderMemoryLayer
-  }), {
+  };
+  const routed = applyReinforcementToRoute(routeMessageInternal(message, state, enrichedMemory), enrichedMemory);
+  return enforceDeterministicResponse(enforceMemoryPolicyOnRoute(routed, {
     message,
     memory,
     founderMemoryLayer
