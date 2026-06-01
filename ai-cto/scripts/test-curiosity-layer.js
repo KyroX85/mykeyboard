@@ -43,6 +43,12 @@ assert.doesNotMatch(routed.response, /TASK_PLAN|APPROVE|Execution Plan|Health:\s
 const strategicDoubt = routeMessage("Something feels off with our direction.", {}, {});
 assert.strictEqual(strategicDoubt.command, 'founder_mind_reconstruction');
 assert(responseUsesRealCuriosity(strategicDoubt.response));
-assert.match(strategicDoubt.response, /killer user moment|infrastructure/i);
+assert.match(strategicDoubt.response, /product direction, user value, trust, or agent behavior/i);
+
+const broadDoubt = routeMessage('Something feels off.', {}, {});
+assert.strictEqual(broadDoubt.command, 'founder_mind_reconstruction');
+assert.strictEqual(broadDoubt.details.category, 'DOUBT');
+assert.match(broadDoubt.response, /product direction, user value, trust, or agent behavior/i);
+assert.doesNotMatch(broadDoubt.response, /What feature\?|please clarify|Health:\s*\d+|Momentum/i);
 
 console.log('Curiosity layer checks passed');

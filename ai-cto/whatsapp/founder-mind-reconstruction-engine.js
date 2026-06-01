@@ -163,7 +163,9 @@ function classifyMindQuestion(text = '', memory = {}) {
       text.includes('wrong direction') ||
       text.includes('misaligned') ||
       text.includes('direction') ||
-      text.includes('focus only');
+      text.includes('focus only') ||
+      text.includes('feels off') ||
+      text.includes('feel off');
     return {
       intent: isStrategicDoubt
         ? 'RECONSTRUCT_STRATEGIC_MISALIGNMENT_CONCERN'

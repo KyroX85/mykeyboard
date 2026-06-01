@@ -61,7 +61,7 @@ function classifyCuriosityDomain(text = '') {
 
 const CURIOSITY_QUESTIONS = {
   dissatisfaction: 'Is the issue capability, design, trust, or emotional reaction?',
-  strategic_doubt: 'Is your worry that we are building infrastructure instead of proving the killer user moment?',
+  strategic_doubt: 'Which axis feels off: product direction, user value, trust, or agent behavior?',
   vision_alignment: 'Are you asking whether today\'s work creates user leverage, or whether it only makes the system look more advanced?',
   agent_understanding: 'Do you want proof through better answers, better autonomous suggestions, or better shipped results?',
   phase2_explain: 'Is the uncertainty about user value, privacy safety, activation friction, or technical feasibility?',
