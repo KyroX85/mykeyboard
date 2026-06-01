@@ -197,6 +197,7 @@ class KeyboardService : InputMethodService() {
     private var speechRecognizer: SpeechRecognizer? = null
     private var isVoiceTypingActive = false
     private var isExecutionVoiceCommandActive = false
+    private var executionMicPulseRunnable: Runnable? = null
     private var voiceRecordingPulse = false
     private var lastVoicePartial = ""
     private var pendingSpaceCommit = false
@@ -488,13 +489,13 @@ class KeyboardService : InputMethodService() {
             orientation = LinearLayout.VERTICAL
             visibility = View.GONE
             gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(dp(18), dp(22), dp(18), dp(18))
-            background = lightBlueGlassDrawable(Color.argb(224, 132, 224, 255), dp(26), Color.argb(155, 238, 252, 255))
+            setPadding(dp(20), dp(30), dp(20), dp(24))
+            background = lightBlueGlassDrawable(Color.argb(218, 132, 224, 255), dp(30), Color.argb(150, 238, 252, 255))
         }
 
         val title = TextView(this).apply {
             text = "How can I help?"
-            textSize = 25f
+            textSize = 27f
             typeface = Typeface.DEFAULT_BOLD
             setTextColor(Color.rgb(8, 38, 55))
             gravity = Gravity.CENTER
@@ -507,31 +508,31 @@ class KeyboardService : InputMethodService() {
         executionLayer.addView(title)
 
         val subtitle = TextView(this).apply {
-            text = "Speak naturally. Aritenis listens, understands, then acts."
-            textSize = 13f
+            text = "Just speak naturally."
+            textSize = 15f
             gravity = Gravity.CENTER
             setTextColor(Color.rgb(24, 71, 96))
             setIncludeFontPadding(false)
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(38)
-            ).apply { topMargin = dp(8) }
+                dp(30)
+            ).apply { topMargin = dp(10) }
         }
         executionLayer.addView(subtitle)
 
         executionVoiceButton = TextView(this).apply {
             text = KEY_MIC
-            textSize = 38f
+            textSize = 44f
             typeface = Typeface.DEFAULT_BOLD
             setTextColor(Color.rgb(12, 54, 82))
             gravity = Gravity.CENTER
             setIncludeFontPadding(false)
-            background = lightBlueGlassDrawable(Color.argb(230, 246, 253, 255), dp(48), Color.argb(210, 255, 255, 255))
-            elevation = dp(3).toFloat()
+            background = lightBlueGlassDrawable(Color.argb(232, 246, 253, 255), dp(56), Color.argb(215, 255, 255, 255))
+            elevation = dp(5).toFloat()
             layoutParams = LinearLayout.LayoutParams(
-                dp(96),
-                dp(96)
-            ).apply { topMargin = dp(16) }
+                dp(112),
+                dp(112)
+            ).apply { topMargin = dp(22) }
             contentDescription = "Speak to Aritenis"
             setOnClickListener { startExecutionVoiceCommand() }
         }
@@ -546,41 +547,26 @@ class KeyboardService : InputMethodService() {
             setSingleLine(true)
             setIncludeFontPadding(false)
             setPadding(dp(16), 0, dp(16), 0)
-            background = lightBlueGlassDrawable(Color.argb(170, 238, 252, 255), dp(20), Color.argb(150, 255, 255, 255))
+            background = lightBlueGlassDrawable(Color.argb(132, 238, 252, 255), dp(20), Color.argb(122, 255, 255, 255))
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(48)
-            ).apply { topMargin = dp(18) }
+                dp(46)
+            ).apply { topMargin = dp(24) }
         }
         executionLayer.addView(executionCommandText)
 
         executionStatusText = TextView(this).apply {
-            text = "Tap the mic and say \"Open Instagram\"."
+            text = "Listening..."
             textSize = 12f
             setTextColor(Color.rgb(24, 71, 96))
             gravity = Gravity.CENTER
             setIncludeFontPadding(false)
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(32)
+                dp(30)
             ).apply { topMargin = dp(10) }
         }
         executionLayer.addView(executionStatusText)
-
-        val cancel = TextView(this).apply {
-            text = "Cancel"
-            textSize = 14f
-            setTextColor(Color.rgb(18, 45, 67))
-            gravity = Gravity.CENTER
-            setIncludeFontPadding(false)
-            background = lightBlueGlassDrawable(Color.argb(170, 246, 253, 255), dp(14), Color.argb(145, 255, 255, 255))
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(42)
-            ).apply { topMargin = dp(14) }
-            setOnClickListener { closeExecutionLayer() }
-        }
-        executionLayer.addView(cancel)
 
         root.addView(
             executionLayer,
@@ -659,8 +645,8 @@ class KeyboardService : InputMethodService() {
         val overlaySurface = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(dp(22), dp(26), dp(22), dp(20))
-            background = lightBlueGlassDrawable(Color.argb(214, 120, 225, 255), dp(30), Color.argb(180, 238, 252, 255))
+            setPadding(dp(24), dp(34), dp(24), dp(28))
+            background = lightBlueGlassDrawable(Color.argb(208, 120, 225, 255), dp(34), Color.argb(175, 238, 252, 255))
         }
 
         val title = TextView(this).apply {
@@ -678,31 +664,31 @@ class KeyboardService : InputMethodService() {
         overlaySurface.addView(title)
 
         val subtitle = TextView(this).apply {
-            text = "Speak naturally. Aritenis listens, understands, then acts."
-            textSize = 14f
+            text = "Just speak naturally."
+            textSize = 16f
             gravity = Gravity.CENTER
             setTextColor(Color.rgb(20, 69, 96))
             setIncludeFontPadding(false)
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(44)
-            ).apply { topMargin = dp(10) }
+                dp(32)
+            ).apply { topMargin = dp(12) }
         }
         overlaySurface.addView(subtitle)
 
         executionVoiceButton = TextView(this).apply {
             text = KEY_MIC
-            textSize = 42f
+            textSize = 48f
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
             setTextColor(Color.rgb(12, 54, 82))
             setIncludeFontPadding(false)
-            background = lightBlueGlassDrawable(Color.argb(232, 246, 253, 255), dp(52), Color.argb(220, 255, 255, 255))
-            elevation = dp(4).toFloat()
+            background = lightBlueGlassDrawable(Color.argb(232, 246, 253, 255), dp(60), Color.argb(220, 255, 255, 255))
+            elevation = dp(6).toFloat()
             layoutParams = LinearLayout.LayoutParams(
-                dp(104),
-                dp(104)
-            ).apply { topMargin = dp(18) }
+                dp(120),
+                dp(120)
+            ).apply { topMargin = dp(24) }
             contentDescription = "Speak to Aritenis"
             setOnClickListener { startExecutionVoiceCommand() }
         }
@@ -717,16 +703,16 @@ class KeyboardService : InputMethodService() {
             setIncludeFontPadding(false)
             setTextColor(Color.rgb(52, 87, 108))
             setPadding(dp(16), 0, dp(16), 0)
-            background = lightBlueGlassDrawable(Color.argb(178, 238, 252, 255), dp(22), Color.argb(170, 255, 255, 255))
+            background = lightBlueGlassDrawable(Color.argb(136, 238, 252, 255), dp(22), Color.argb(140, 255, 255, 255))
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(54)
-            ).apply { topMargin = dp(22) }
+                dp(52)
+            ).apply { topMargin = dp(26) }
         }
         overlaySurface.addView(executionCommandText)
 
         executionStatusText = TextView(this).apply {
-            text = "Tap the mic and say \"Open Instagram\"."
+            text = "Listening..."
             textSize = 12f
             setTextColor(Color.rgb(20, 69, 96))
             gravity = Gravity.CENTER
@@ -737,30 +723,6 @@ class KeyboardService : InputMethodService() {
             ).apply { topMargin = dp(12) }
         }
         overlaySurface.addView(executionStatusText)
-
-        val spacer = View(this).apply {
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                0,
-                1f
-            )
-        }
-        overlaySurface.addView(spacer)
-
-        val cancel = TextView(this).apply {
-            text = "Cancel"
-            textSize = 14f
-            gravity = Gravity.CENTER
-            setTextColor(Color.rgb(18, 45, 67))
-            setIncludeFontPadding(false)
-            background = lightBlueGlassDrawable(Color.argb(180, 246, 253, 255), dp(16), Color.argb(160, 255, 255, 255))
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(44)
-            )
-            setOnClickListener { closeExecutionLayer() }
-        }
-        overlaySurface.addView(cancel)
 
         overlayRoot.addView(
             overlaySurface,
@@ -805,6 +767,8 @@ class KeyboardService : InputMethodService() {
             }
             overlayRoot.animate().alpha(1f).setDuration(160L).start()
             renderExecutionCommand()
+            renderExecutionStatus("Listening...")
+            scheduleExecutionAutoListen()
         } catch (e: SecurityException) {
             executionOverlayRoot = null
             Log.w(LOG_TAG, "Execution overlay permission missing", e)
@@ -836,6 +800,8 @@ class KeyboardService : InputMethodService() {
         executionLayerOpen = true
         executionLayer.visibility = View.VISIBLE
         renderExecutionCommand()
+        renderExecutionStatus("Listening...")
+        scheduleExecutionAutoListen()
     }
 
     private fun closeExecutionLayer() {
@@ -844,6 +810,7 @@ class KeyboardService : InputMethodService() {
         }
         executionLayerOpen = false
         executionCommand.clear()
+        stopExecutionMicPulse()
         executionOverlayRoot?.let { overlay ->
             try {
                 val manager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
@@ -874,6 +841,14 @@ class KeyboardService : InputMethodService() {
         }
     }
 
+    private fun scheduleExecutionAutoListen() {
+        mainHandler.postDelayed({
+            if (executionLayerOpen && !isVoiceTypingActive && !isExecutionVoiceCommandActive) {
+                startExecutionVoiceCommand()
+            }
+        }, 220L)
+    }
+
     private fun renderExecutionVoiceButton() {
         executionVoiceButton?.let { button ->
             button.text = KEY_MIC
@@ -885,12 +860,56 @@ class KeyboardService : InputMethodService() {
                 dp(52),
                 if (isExecutionVoiceCommandActive) Color.argb(220, 118, 255, 190) else Color.argb(210, 255, 255, 255)
             )
-            button.animate()
-                .scaleX(if (isExecutionVoiceCommandActive) 1.06f else 1f)
-                .scaleY(if (isExecutionVoiceCommandActive) 1.06f else 1f)
-                .setDuration(140L)
-                .start()
+            if (isExecutionVoiceCommandActive) {
+                startExecutionMicPulse()
+            } else {
+                stopExecutionMicPulse()
+            }
         }
+    }
+
+    private fun startExecutionMicPulse() {
+        val button = executionVoiceButton ?: return
+        if (executionMicPulseRunnable != null) return
+        val pulse = object : Runnable {
+            override fun run() {
+                if (!isExecutionVoiceCommandActive || executionVoiceButton == null) {
+                    executionMicPulseRunnable = null
+                    executionVoiceButton?.animate()?.scaleX(1f)?.scaleY(1f)?.alpha(1f)?.setDuration(160L)?.start()
+                    return
+                }
+                button.animate()
+                    .scaleX(1.08f)
+                    .scaleY(1.08f)
+                    .alpha(0.92f)
+                    .setDuration(520L)
+                    .withEndAction {
+                        button.animate()
+                            .scaleX(1.01f)
+                            .scaleY(1.01f)
+                            .alpha(1f)
+                            .setDuration(520L)
+                            .withEndAction {
+                                mainHandler.postDelayed(this, 80L)
+                            }
+                            .start()
+                    }
+                    .start()
+            }
+        }
+        executionMicPulseRunnable = pulse
+        pulse.run()
+    }
+
+    private fun stopExecutionMicPulse() {
+        executionMicPulseRunnable?.let { mainHandler.removeCallbacks(it) }
+        executionMicPulseRunnable = null
+        executionVoiceButton?.animate()
+            ?.scaleX(1f)
+            ?.scaleY(1f)
+            ?.alpha(1f)
+            ?.setDuration(160L)
+            ?.start()
     }
 
     private fun setupNumberRow(sizing: KeyboardSizingProfile = currentKeyboardSizing()) {
@@ -2144,12 +2163,12 @@ class KeyboardService : InputMethodService() {
     private fun startExecutionVoiceCommand() {
         if (!executionLayerOpen) return
         if (!hasRecordAudioPermission()) {
-            renderExecutionStatus("Enable microphone permission, then try again.")
+            renderExecutionStatus("Microphone permission is needed to listen.")
             openMicrophonePermissionSettings()
             return
         }
         if (!SpeechRecognizer.isRecognitionAvailable(this)) {
-            renderExecutionStatus("Voice command is not available on this phone.")
+            renderExecutionStatus("Voice listening is not available on this phone.")
             return
         }
 
@@ -2172,7 +2191,7 @@ class KeyboardService : InputMethodService() {
             lastVoicePartial = ""
             executionCommand.clear()
             renderExecutionCommand()
-            renderExecutionStatus("Listening for app launch command.")
+            renderExecutionStatus("Listening...")
             renderExecutionVoiceButton()
             recognizer.startListening(intent)
         } catch (e: RuntimeException) {
@@ -2180,7 +2199,7 @@ class KeyboardService : InputMethodService() {
             isVoiceTypingActive = false
             voiceRecordingPulse = false
             renderExecutionVoiceButton()
-            renderExecutionStatus("Could not start voice command.")
+            renderExecutionStatus("Could not start listening.")
         }
     }
 
@@ -2243,7 +2262,7 @@ class KeyboardService : InputMethodService() {
         executionCommand.append(clean)
         lastVoicePartial = clean
         renderExecutionCommand()
-        renderExecutionStatus("Heard: $clean")
+        renderExecutionStatus("Understanding your request...")
     }
 
     private fun commitExecutionVoiceResult(spokenText: String) {
@@ -2256,15 +2275,17 @@ class KeyboardService : InputMethodService() {
         executionCommand.append(clean)
         lastVoicePartial = ""
         renderExecutionCommand()
+        renderExecutionStatus("Understanding your request...")
         executeExecutionCommand(clean)
     }
 
     private fun executeExecutionCommand(command: String) {
         val launchName = detectExecutionLaunchIntent(command)
         if (launchName == null) {
-            renderExecutionStatus("Try: Open Instagram, WhatsApp, Chrome, Camera, Settings, or any app name.")
+            renderExecutionStatus("Say it like: Open Instagram.")
             return
         }
+        renderExecutionStatus("Looking for ${launchName.replaceFirstChar { it.uppercase() }}...")
         launchExecutionApp(launchName)
     }
 
@@ -2284,15 +2305,15 @@ class KeyboardService : InputMethodService() {
         val requestStartedAt = SystemClock.elapsedRealtime()
         val target = resolveLaunchableApp(appName)
         if (target == null) {
-            renderExecutionStatus("Could not find $appName on this phone.")
+            renderExecutionStatus("I could not find $appName on this phone.")
             return
         }
         try {
-            renderExecutionStatus("Opening ${target.label}")
+            renderExecutionStatus("Opening ${target.label}...")
             target.intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             startActivity(target.intent)
             val elapsedMs = SystemClock.elapsedRealtime() - requestStartedAt
-            renderExecutionStatus("Opened ${target.label} in ${elapsedMs}ms.")
+            renderExecutionStatus("Opened ${target.label}.")
             Toast.makeText(this, "Opened ${target.label}", Toast.LENGTH_SHORT).show()
             mainHandler.postDelayed({ closeExecutionLayer() }, 450L)
         } catch (e: RuntimeException) {
