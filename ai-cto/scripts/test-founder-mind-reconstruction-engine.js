@@ -12,6 +12,7 @@ process.env.ARITENIS_WHATSAPP_MEMORY_FILE = path.join(os.tmpdir(), 'aritenis-fou
 const { routeMessage, routeMessageWithAi } = require('../whatsapp/command-router');
 const {
   reconstructFounderMind,
+  buildReflectionResponse,
   responseAnswersFounderMind,
   resolveContinuityReference
 } = require('../whatsapp/founder-mind-reconstruction-engine');
@@ -35,6 +36,7 @@ function assertMindRoute(text, requiredPattern) {
   assert(result.details.mindReconstruction.objective, text);
   assert(result.details.mindReconstruction.assumption, text);
   assert(result.details.mindReconstruction.concern, text);
+  assert(result.details.mindReconstruction.decision, text);
   assert(result.details.mindReconstruction.desiredOutcome, text);
   assert(result.details.mindReconstruction.actualQuestion, text);
   assert.match(body, requiredPattern, text);
@@ -99,7 +101,9 @@ updateMemory(wrongFocus.command, {}, {
 });
 const continuityMemory = readConversationMemory();
 assert(continuityMemory.lastFounderConcern);
+assert(continuityMemory.lastFounderConcern.decision);
 assert(continuityMemory.founderDoubts.length >= 1);
+assert(continuityMemory.founderDoubts[0].decision);
 const resolvedThat = resolveContinuityReference('Did we fix that?', continuityMemory);
 assert(resolvedThat);
 assert.match(resolvedThat.concern, /look operational|product moment|users would actually care/i);
@@ -124,6 +128,11 @@ assert.strictEqual(reconstructed.intent, 'RECONSTRUCT_FOUNDER_META_REASONING');
 assert(responseAnswersFounderMind(reconstructed));
 assert(reconstructed.report.uselessLiteralAnswer.includes('status'));
 assert(reconstructed.confidence <= 90);
+const normalReflection = buildReflectionResponse(reconstructed);
+const debugReflection = buildReflectionResponse(reconstructed, { debug: true });
+assert.doesNotMatch(normalReflection, /Mind reconstruction:|Decision:/i);
+assert.match(debugReflection, /Mind reconstruction:/i);
+assert.match(debugReflection, /Decision:/i);
 
 (async () => {
   const withAi = await routeMessageWithAi('Why am I asking this question?', {}, {});

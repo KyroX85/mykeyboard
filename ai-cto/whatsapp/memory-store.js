@@ -371,6 +371,7 @@ function buildFounderContinuityEntry(details = {}) {
     objective: mind.objective || null,
     assumption: mind.assumption || null,
     concern: mind.concern || null,
+    decision: mind.decision || null,
     desiredOutcome: mind.desiredOutcome || null,
     actualQuestion: mind.actualQuestion || null,
     founderMessage: details.founderMessage || null,

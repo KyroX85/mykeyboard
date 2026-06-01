@@ -199,6 +199,7 @@ function buildMindReport(kind, message, context = {}) {
       concern: reference && reference.concern
         ? reference.concern
         : 'The previous concern is not available with enough confidence.',
+      decision: 'Decide whether the previous concern is actually resolved or still needs follow-up work.',
       desiredOutcome: 'Answer whether the remembered concern has been addressed and what remains unresolved.',
       actualQuestion: reference && reference.actualQuestion
         ? `Did we address this previous concern: ${reference.actualQuestion}`
@@ -213,6 +214,7 @@ function buildMindReport(kind, message, context = {}) {
       objective: 'Check whether current work is moving toward the founder dream rather than becoming agent infrastructure for its own sake.',
       assumption: 'The founder suspects the system is improving governance and plumbing, but may still be far from the actual personal intelligence layer.',
       concern: 'Aritenis may be becoming operationally elaborate without yet delivering the magical user outcome: phone-operated help that understands and completes real tasks.',
+      decision: 'Decide whether to keep investing in infrastructure or shift attention toward the Explain/action-surface product proof.',
       desiredOutcome: 'An honest alignment judgment that separates useful infrastructure from the missing intelligence and execution experience.',
       actualQuestion: 'Are we building toward the long-term Aritenis dream, or just making the agents look busy?',
       uselessLiteralAnswer: 'A team-ready greeting, status block, health score, or task list.'
@@ -224,6 +226,7 @@ function buildMindReport(kind, message, context = {}) {
       objective: 'Explain the hidden product reason behind founder dissatisfaction.',
       assumption: 'The founder is testing whether technical completion equals real product value.',
       concern: 'The feature may work mechanically but fail to create a meaningful user outcome, emotional pull, or strategic differentiation.',
+      decision: 'Decide whether this feature deserves more refinement, should be reframed, or should be deprioritized.',
       desiredOutcome: 'A direct diagnosis of the feature-value gap and what evidence would make the feature feel worth keeping.',
       actualQuestion: 'Why does this feature fail to satisfy me even if it technically works?',
       uselessLiteralAnswer: 'A health score, momentum report, complexity warning, or generic progress update.'
@@ -235,6 +238,7 @@ function buildMindReport(kind, message, context = {}) {
       objective: 'Understand whether the founder believes current effort is aimed at the wrong strategic target.',
       assumption: 'The founder suspects the agents may be improving infrastructure, governance, or agent mechanics instead of moving closer to the killer feature.',
       concern: 'The company could spend time making the system look operational while delaying the product moment that users would actually care about.',
+      decision: 'Decide whether to continue current infrastructure work or redirect effort toward the highest-leverage product wedge.',
       desiredOutcome: 'A strategic conversation about possible misalignment, not an execution plan or file-change proposal.',
       actualQuestion: 'Are we focusing on work that moves Aritenis toward the founder objective, or are we optimizing the wrong layer?',
       uselessLiteralAnswer: 'A task plan, approve token, file list, validation command, risk block, or engineering report.'
@@ -246,6 +250,7 @@ function buildMindReport(kind, message, context = {}) {
       objective: 'Reconstruct the founder ambition behind the question instead of treating it as a status or task request.',
       assumption: 'The founder is testing whether the agents understand the real company dream beyond files, governance, and short-term tasks.',
       concern: 'The agents may know project facts but still miss the emotional and strategic ambition: building a personal intelligence layer people actually rely on.',
+      decision: 'Decide whether current work should be judged as company-building progress or just tooling progress.',
       desiredOutcome: 'A direct explanation of the founder ambition and how current work should be judged against it.',
       actualQuestion: 'What long-term outcome am I really chasing with Aritenis?',
       uselessLiteralAnswer: 'A team-ready response, health score, task plan, approval token, or execution update.'
@@ -257,6 +262,7 @@ function buildMindReport(kind, message, context = {}) {
       objective: 'Check whether the agents can reason from founder vision instead of repeating memory or templates.',
       assumption: 'The founder suspects the deployed agents may still be keyword routers with founder-memory retrieval attached.',
       concern: 'If the agents only summarize the project, they cannot be trusted to operate while the founder is absent.',
+      decision: 'Decide whether the agents are ready for more responsibility or need deeper reasoning fixes first.',
       desiredOutcome: 'A blunt assessment of actual understanding quality, including what would prove improvement.',
       actualQuestion: 'Do the agents understand the project deeply enough to answer the real concern behind my words?',
       uselessLiteralAnswer: 'A project summary or roadmap status block.'
@@ -268,6 +274,7 @@ function buildMindReport(kind, message, context = {}) {
       objective: 'Check whether the system is aware of context and can respond naturally without dumping status templates.',
       assumption: 'The founder may be testing whether casual conversation is still misrouted as operational status.',
       concern: 'The agents may sound busy while failing to understand what the founder is checking.',
+      decision: 'Decide whether the founder needs a natural awareness answer or an evidence-backed operational status answer.',
       desiredOutcome: 'A short answer that explains the likely context and offers evidence-backed status only if requested.',
       actualQuestion: 'Are you aware of what I am trying to check right now?',
       uselessLiteralAnswer: 'A health, momentum, or roadmap report without explaining the inferred concern.'
@@ -278,6 +285,7 @@ function buildMindReport(kind, message, context = {}) {
     objective: 'Understand the reason behind the founder question instead of answering the literal words.',
     assumption: 'The founder is testing whether the agent can reconstruct hidden intent before routing.',
     concern: 'The current agent may still be a template selector that misses worry, doubt, and evaluation pressure.',
+    decision: 'Decide what answer would help the founder make the next judgment instead of merely satisfying a keyword route.',
     desiredOutcome: 'A direct reconstruction of the hidden objective, assumption, concern, and satisfying answer.',
     actualQuestion: 'What am I really trying to learn by asking this?',
     uselessLiteralAnswer: 'A generic status, health, momentum, or roadmap response.'
@@ -374,6 +382,7 @@ function buildReflectionResponse(reconstruction, { debug = false } = {}) {
     lines.push(`Objective: ${reconstruction.report.objective}`);
     lines.push(`Assumption: ${reconstruction.report.assumption}`);
     lines.push(`Concern: ${reconstruction.report.concern}`);
+    lines.push(`Decision: ${reconstruction.report.decision}`);
     lines.push(`Desired Outcome: ${reconstruction.report.desiredOutcome}`);
     lines.push(`Actual Question: ${reconstruction.report.actualQuestion}`);
     lines.push(`Most useless literal answer: ${reconstruction.report.uselessLiteralAnswer}`);
@@ -388,7 +397,7 @@ function responseAnswersFounderMind(reconstruction = {}) {
   const answer = String((reconstruction.directAnswer || []).join(' '));
   if (!answer || FORBIDDEN_REFLECTION_OUTPUT.test(answer)) return false;
   const report = reconstruction.report || {};
-  if (!report.objective || !report.assumption || !report.concern || !report.desiredOutcome || !report.actualQuestion) {
+  if (!report.objective || !report.assumption || !report.concern || !report.decision || !report.desiredOutcome || !report.actualQuestion) {
     return false;
   }
   if (reconstruction.intent === 'ASSESS_AGENT_UNDERSTANDING_ANXIETY') {
