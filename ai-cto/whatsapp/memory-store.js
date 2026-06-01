@@ -66,6 +66,11 @@ const {
   estimateFounderMentalState,
   updateFounderMentalStateMemory
 } = require('../founder-mental-state-estimator');
+const {
+  shouldRequireEvidence,
+  evaluateEvidenceRequirement,
+  updateEvidenceRequirementMemory
+} = require('../evidence-requirement-layer');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const MEMORY_FILE = process.env.ARITENIS_WHATSAPP_MEMORY_FILE ||
@@ -142,6 +147,7 @@ const DEFAULT_MEMORY = {
   selfCritiqueMemory: null,
   routeEvolutionMemory: null,
   founderMentalStateMemory: null,
+  evidenceRequirementMemory: null,
   routeScores: {},
   reinforcementEvents: [],
   lastRouteForReward: null,
@@ -240,6 +246,10 @@ function updateMemory(command, state, details = {}) {
   const predictionMemory = updatePredictionIfNeeded(memory.predictionMemory, details);
   const selfCritiqueMemory = updateSelfCritiqueIfNeeded(memory.selfCritiqueMemory, details);
   const founderMentalStateMemory = updateFounderMentalStateIfNeeded(memory.founderMentalStateMemory, details);
+  const evidenceRequirementMemory = updateEvidenceRequirementIfNeeded(memory.evidenceRequirementMemory, {
+    ...details,
+    memory
+  });
   const routeEvolutionMemory = updateRouteEvolutionIfNeeded(memory.routeEvolutionMemory, {
     ...memory,
     ...reinforcement
@@ -285,6 +295,7 @@ function updateMemory(command, state, details = {}) {
     predictionMemory,
     selfCritiqueMemory,
     founderMentalStateMemory,
+    evidenceRequirementMemory,
     routeEvolutionMemory
   });
 }
@@ -358,6 +369,7 @@ function readConversationMemory() {
     selfCritiqueMemory: memory.selfCritiqueMemory || null,
     routeEvolutionMemory: memory.routeEvolutionMemory || null,
     founderMentalStateMemory: memory.founderMentalStateMemory || null,
+    evidenceRequirementMemory: memory.evidenceRequirementMemory || null,
     routeScores: memory.routeScores && typeof memory.routeScores === 'object' ? memory.routeScores : {},
     reinforcementEvents: Array.isArray(memory.reinforcementEvents) ? memory.reinforcementEvents.slice(0, 80) : [],
     lastRouteForReward: memory.lastRouteForReward || null,
@@ -403,6 +415,10 @@ function updateConversationMemory(route, state) {
   const predictionMemory = updatePredictionIfNeeded(memory.predictionMemory, route);
   const selfCritiqueMemory = updateSelfCritiqueIfNeeded(memory.selfCritiqueMemory, route);
   const founderMentalStateMemory = updateFounderMentalStateIfNeeded(memory.founderMentalStateMemory, route);
+  const evidenceRequirementMemory = updateEvidenceRequirementIfNeeded(memory.evidenceRequirementMemory, {
+    ...route,
+    memory
+  });
   const routeEvolutionMemory = updateRouteEvolutionIfNeeded(memory.routeEvolutionMemory, {
     ...memory,
     ...reinforcement
@@ -470,6 +486,7 @@ function updateConversationMemory(route, state) {
     predictionMemory,
     selfCritiqueMemory,
     founderMentalStateMemory,
+    evidenceRequirementMemory,
     routeEvolutionMemory,
     recentMessages: rememberMessage(memory.recentMessages, {
       role: 'agent',
@@ -665,6 +682,16 @@ function updateFounderMentalStateIfNeeded(existing, details = {}) {
   });
   if (!estimate || estimate.primaryState === 'UNKNOWN') return existing || null;
   return updateFounderMentalStateMemory(existing, estimate);
+}
+
+function updateEvidenceRequirementIfNeeded(existing, details = {}) {
+  if (details && details.evidenceRequirementCheck) {
+    return updateEvidenceRequirementMemory(existing, details.evidenceRequirementCheck);
+  }
+  const claim = details && (details.agentAnswer || details.response || details.claim);
+  if (!shouldRequireEvidence(claim, details)) return existing || null;
+  const check = evaluateEvidenceRequirement(claim, details);
+  return updateEvidenceRequirementMemory(existing, check);
 }
 
 function mergeContinuity(items, entry) {
