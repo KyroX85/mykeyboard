@@ -55,6 +55,9 @@ const {
 const {
   applyDreamDriftToRoute
 } = require('../dream-drift-detector');
+const {
+  applyKillerFeatureTrackerToRoute
+} = require('../killer-feature-tracker');
 const { enforceAntiTemplateOnRoute } = require('./anti-template-layer');
 const {
   classifyConversationRoute,
@@ -1588,7 +1591,8 @@ async function routeMessageWithAi(message, state, memory = {}, options = {}) {
 function enforceDeterministicResponse(route, message, state = {}) {
   const antiTemplateRoute = enforceAntiTemplateOnRoute(route, { message, state });
   const dreamDriftRoute = applyDreamDriftToRoute(antiTemplateRoute, { message });
-  const userValueRoute = applyUserValueJudgeToRoute(dreamDriftRoute, { message });
+  const killerFeatureRoute = applyKillerFeatureTrackerToRoute(dreamDriftRoute, { message });
+  const userValueRoute = applyUserValueJudgeToRoute(killerFeatureRoute, { message });
   const disagreementRoute = applyIntelligentDisagreementToRoute(userValueRoute, { message });
   const qualityRoute = enforceInternalAnswerQuality(disagreementRoute, { message });
   if (qualityRoute && qualityRoute.details && qualityRoute.details.skipExecutionSchema) {
