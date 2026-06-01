@@ -58,6 +58,10 @@ const {
   generateSelfCritique,
   updateSelfCritiqueMemory
 } = require('../self-critique-layer');
+const {
+  analyzeRouteEvolution,
+  updateRouteEvolutionMemory
+} = require('../route-evolution-layer');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const MEMORY_FILE = process.env.ARITENIS_WHATSAPP_MEMORY_FILE ||
@@ -132,6 +136,7 @@ const DEFAULT_MEMORY = {
   founderHypothesisTracker: null,
   predictionMemory: null,
   selfCritiqueMemory: null,
+  routeEvolutionMemory: null,
   routeScores: {},
   reinforcementEvents: [],
   lastRouteForReward: null,
@@ -229,6 +234,10 @@ function updateMemory(command, state, details = {}) {
   const founderHypothesisTracker = updateFounderHypothesisIfNeeded(memory.founderHypothesisTracker, details);
   const predictionMemory = updatePredictionIfNeeded(memory.predictionMemory, details);
   const selfCritiqueMemory = updateSelfCritiqueIfNeeded(memory.selfCritiqueMemory, details);
+  const routeEvolutionMemory = updateRouteEvolutionIfNeeded(memory.routeEvolutionMemory, {
+    ...memory,
+    ...reinforcement
+  }, details);
 
   return writeMemory({
     ...memory,
@@ -268,7 +277,8 @@ function updateMemory(command, state, details = {}) {
     truthOverAgreementMemory,
     founderHypothesisTracker,
     predictionMemory,
-    selfCritiqueMemory
+    selfCritiqueMemory,
+    routeEvolutionMemory
   });
 }
 
@@ -339,6 +349,7 @@ function readConversationMemory() {
     founderHypothesisTracker: memory.founderHypothesisTracker || null,
     predictionMemory: memory.predictionMemory || null,
     selfCritiqueMemory: memory.selfCritiqueMemory || null,
+    routeEvolutionMemory: memory.routeEvolutionMemory || null,
     routeScores: memory.routeScores && typeof memory.routeScores === 'object' ? memory.routeScores : {},
     reinforcementEvents: Array.isArray(memory.reinforcementEvents) ? memory.reinforcementEvents.slice(0, 80) : [],
     lastRouteForReward: memory.lastRouteForReward || null,
@@ -383,6 +394,10 @@ function updateConversationMemory(route, state) {
   const founderHypothesisTracker = updateFounderHypothesisIfNeeded(memory.founderHypothesisTracker, route);
   const predictionMemory = updatePredictionIfNeeded(memory.predictionMemory, route);
   const selfCritiqueMemory = updateSelfCritiqueIfNeeded(memory.selfCritiqueMemory, route);
+  const routeEvolutionMemory = updateRouteEvolutionIfNeeded(memory.routeEvolutionMemory, {
+    ...memory,
+    ...reinforcement
+  }, route);
   const next = {
     ...memory,
     ...reinforcement,
@@ -445,6 +460,7 @@ function updateConversationMemory(route, state) {
     founderHypothesisTracker,
     predictionMemory,
     selfCritiqueMemory,
+    routeEvolutionMemory,
     recentMessages: rememberMessage(memory.recentMessages, {
       role: 'agent',
       agent: route.agent || 'cto',
@@ -608,6 +624,21 @@ function updateSelfCritiqueIfNeeded(existing, details = {}) {
     context: details
   });
   return updateSelfCritiqueMemory(existing, critique);
+}
+
+function updateRouteEvolutionIfNeeded(existing, memory = {}, details = {}) {
+  if (details && details.routeEvolutionAnalysis) {
+    return updateRouteEvolutionMemory(existing, details.routeEvolutionAnalysis);
+  }
+  const hasRouteEvidence = memory.routeScores && Object.keys(memory.routeScores).length >= 2;
+  const hasClusterEvidence = memory.founderQuestionClusters &&
+    (
+      Object.keys(memory.founderQuestionClusters.clusters || {}).length > 0 ||
+      Array.isArray(memory.founderQuestionClusters.learnedClusters)
+    );
+  if (!hasRouteEvidence && !hasClusterEvidence) return existing || null;
+  const analysis = analyzeRouteEvolution(memory);
+  return updateRouteEvolutionMemory(existing, analysis);
 }
 
 function mergeContinuity(items, entry) {
