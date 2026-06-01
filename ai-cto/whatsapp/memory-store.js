@@ -67,6 +67,10 @@ const {
   updateFounderMentalStateMemory
 } = require('../founder-mental-state-estimator');
 const {
+  detectFounderState,
+  updateFounderStateMemory
+} = require('../founder-state-detection-layer');
+const {
   shouldRequireEvidence,
   evaluateEvidenceRequirement,
   updateEvidenceRequirementMemory
@@ -176,6 +180,7 @@ const DEFAULT_MEMORY = {
   selfCritiqueMemory: null,
   routeEvolutionMemory: null,
   founderMentalStateMemory: null,
+  founderStateMemory: null,
   evidenceRequirementMemory: null,
   metaLearningMemory: null,
   reinforcementPreferenceMemory: null,
@@ -290,6 +295,7 @@ function updateMemory(command, state, details = {}) {
   const predictionMemory = updatePredictionIfNeeded(memory.predictionMemory, details);
   const selfCritiqueMemory = updateSelfCritiqueIfNeeded(memory.selfCritiqueMemory, details);
   const founderMentalStateMemory = updateFounderMentalStateIfNeeded(memory.founderMentalStateMemory, details);
+  const founderStateMemory = updateFounderStateIfNeeded(memory.founderStateMemory, details);
   const evidenceRequirementMemory = updateEvidenceRequirementIfNeeded(memory.evidenceRequirementMemory, {
     ...details,
     memory
@@ -353,6 +359,7 @@ function updateMemory(command, state, details = {}) {
     predictionMemory,
     selfCritiqueMemory,
     founderMentalStateMemory,
+    founderStateMemory,
     evidenceRequirementMemory,
     metaLearningMemory,
     routeEvolutionMemory,
@@ -429,6 +436,7 @@ function readConversationMemory() {
     selfCritiqueMemory: memory.selfCritiqueMemory || null,
     routeEvolutionMemory: memory.routeEvolutionMemory || null,
     founderMentalStateMemory: memory.founderMentalStateMemory || null,
+    founderStateMemory: memory.founderStateMemory || null,
     evidenceRequirementMemory: memory.evidenceRequirementMemory || null,
     metaLearningMemory: memory.metaLearningMemory || null,
     reinforcementPreferenceMemory: memory.reinforcementPreferenceMemory || null,
@@ -489,6 +497,7 @@ function updateConversationMemory(route, state) {
   const predictionMemory = updatePredictionIfNeeded(memory.predictionMemory, route);
   const selfCritiqueMemory = updateSelfCritiqueIfNeeded(memory.selfCritiqueMemory, route);
   const founderMentalStateMemory = updateFounderMentalStateIfNeeded(memory.founderMentalStateMemory, route);
+  const founderStateMemory = updateFounderStateIfNeeded(memory.founderStateMemory, route);
   const evidenceRequirementMemory = updateEvidenceRequirementIfNeeded(memory.evidenceRequirementMemory, {
     ...route,
     memory
@@ -573,6 +582,7 @@ function updateConversationMemory(route, state) {
     predictionMemory,
     selfCritiqueMemory,
     founderMentalStateMemory,
+    founderStateMemory,
     evidenceRequirementMemory,
     metaLearningMemory,
     routeEvolutionMemory,
@@ -817,6 +827,32 @@ function updateFounderMentalStateIfNeeded(existing, details = {}) {
   });
   if (!estimate || estimate.primaryState === 'UNKNOWN') return existing || null;
   return updateFounderMentalStateMemory(existing, estimate);
+}
+
+function updateFounderStateIfNeeded(existing, details = {}) {
+  const directState = details && (details.founderState || (details.details && details.details.founderState));
+  if (directState && directState.state) {
+    return updateFounderStateMemory(existing, directState);
+  }
+
+  const message = details && (
+    details.founderMessage ||
+    details.agentAnswer ||
+    details.response ||
+    details.question ||
+    details.idea ||
+    details.proposal ||
+    (details.continuity && details.continuity.normalized)
+  );
+  if (!message) return existing || null;
+
+  const detected = detectFounderState(message, {
+    ...details,
+    founderStateMemory: existing,
+    previousFounderState: existing && existing.lastState
+  });
+  if (!detected || !detected.state) return existing || null;
+  return updateFounderStateMemory(existing, detected);
 }
 
 function updateEvidenceRequirementIfNeeded(existing, details = {}) {
