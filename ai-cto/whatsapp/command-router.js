@@ -37,6 +37,10 @@ const { routeFounderObjective } = require('./founder-objective-engine');
 const { routeHumanInteraction } = require('./human-interaction-layer');
 const { enforceAntiTemplateOnRoute } = require('./anti-template-layer');
 const {
+  classifyConversationRoute,
+  isFounderThinkingRoute
+} = require('./conversation-router-rewrite');
+const {
   buildScreenshotCaptureResponse,
   captureProductLabScreenshot,
   isProductLabScreenshotCommand
@@ -160,6 +164,8 @@ function routeMessageInternal(message, state, memory = {}) {
   if (preservationBlock) return preservationBlock;
   const antiVanityBlock = maybeRouteAntiVanityBlock(normalized);
   if (antiVanityBlock) return antiVanityBlock;
+  const conversationRoute = maybeRouteFounderThinkingFirst(message, state, memory);
+  if (conversationRoute) return conversationRoute;
   const founderMind = routeFounderMindReconstruction(message, { root: ROOT, state, memory });
   if (founderMind) return founderMind;
   const founderObjective = routeFounderObjective(message, { root: ROOT, state, memory });
@@ -430,6 +436,15 @@ async function routeMessageWithAiInternal(message, state, memory = {}, options =
       ...antiVanityBlock,
       usedAi: false,
       aiReason: 'anti_vanity_guard'
+    };
+  }
+
+  const conversationRoute = maybeRouteFounderThinkingFirst(message, state, memory);
+  if (conversationRoute) {
+    return {
+      ...conversationRoute,
+      usedAi: false,
+      aiReason: 'founder_mind_reconstruction'
     };
   }
 
@@ -1453,6 +1468,27 @@ function routeCommand(message, state, memory = {}) {
     command,
     details,
     response: generateResponse(command, state, memory, details)
+  };
+}
+
+function maybeRouteFounderThinkingFirst(message, state, memory = {}) {
+  const classification = classifyConversationRoute(message);
+  if (!isFounderThinkingRoute(classification)) return null;
+
+  const founderMind = routeFounderMindReconstruction(message, { root: ROOT, state, memory });
+  if (!founderMind) return null;
+
+  return {
+    ...founderMind,
+    details: {
+      ...(founderMind.details || {}),
+      conversationRoute: classification.route,
+      conversationRouteConfidence: classification.confidence,
+      conversationRouteReason: classification.reason,
+      choseSingleConversationRoute: true,
+      bypassedExecutionTemplates: true,
+      skipExecutionSchema: true
+    }
   };
 }
 
