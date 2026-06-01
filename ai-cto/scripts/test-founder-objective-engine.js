@@ -96,11 +96,12 @@ assertObjectiveRoute(
   /I am monitoring:/
 );
 
-assertObjectiveRoute(
-  'Do my agents understand the project?',
-  /EVALUATE_AGENT_PROJECT_UNDERSTANDING/,
-  /Not fully yet/
-);
+const mindUnderstanding = route('Do my agents understand the project?');
+assert.strictEqual(mindUnderstanding.command, 'founder_mind_reconstruction');
+assert.strictEqual(mindUnderstanding.matchedRoute, 'founder_mind_reconstruction');
+assert.match(response(mindUnderstanding), /not asking for a project summary/i);
+assert.match(response(mindUnderstanding), /understand fragments/i);
+assert.doesNotMatch(response(mindUnderstanding), /Current Foundation Health: protected|Recommended Next Step/i);
 
 assertObjectiveRoute(
   'Why did you answer that way?',

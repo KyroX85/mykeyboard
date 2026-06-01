@@ -32,6 +32,7 @@ const {
 const { formatRealityReconstruction } = require('../reality-reconstruction-layer');
 const { routeFounderMemoryIntent } = require('./founder-intent-classifier');
 const { routeFounderIntentUnderstanding } = require('./founder-intent-understanding-layer');
+const { routeFounderMindReconstruction } = require('./founder-mind-reconstruction-engine');
 const { routeFounderObjective } = require('./founder-objective-engine');
 const { routeHumanInteraction } = require('./human-interaction-layer');
 const {
@@ -158,6 +159,8 @@ function routeMessageInternal(message, state, memory = {}) {
   if (preservationBlock) return preservationBlock;
   const antiVanityBlock = maybeRouteAntiVanityBlock(normalized);
   if (antiVanityBlock) return antiVanityBlock;
+  const founderMind = routeFounderMindReconstruction(message, { root: ROOT, state, memory });
+  if (founderMind) return founderMind;
   const founderObjective = routeFounderObjective(message, { root: ROOT, state, memory });
   if (founderObjective) return founderObjective;
   const humanInteraction = routeHumanInteraction(message, state, memory);
@@ -426,6 +429,15 @@ async function routeMessageWithAiInternal(message, state, memory = {}, options =
       ...antiVanityBlock,
       usedAi: false,
       aiReason: 'anti_vanity_guard'
+    };
+  }
+
+  const founderMind = routeFounderMindReconstruction(message, { root: ROOT, state, memory });
+  if (founderMind) {
+    return {
+      ...founderMind,
+      usedAi: false,
+      aiReason: 'founder_mind_reconstruction'
     };
   }
 

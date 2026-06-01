@@ -11,17 +11,15 @@ assert(visionUnderstanding.objective.includes('deployed agents'));
 assert(visionUnderstanding.selfCheck.includes('answered'));
 
 const routedVision = routeMessage('Do the agents really understand my vision?', {}, {});
-assert.strictEqual(routedVision.matchedRoute, 'founder_objective_engine');
-assert(routedVision.response.includes('Not fully yet'));
-assert(routedVision.response.includes('Founder objective:'));
-assert(routedVision.response.includes('Self-check: answered'));
+assert.strictEqual(routedVision.matchedRoute, 'founder_mind_reconstruction');
+assert(routedVision.response.includes('not asking for a project summary') || routedVision.response.includes('understand fragments'));
 assert(!routedVision.response.includes('Current Foundation Health'));
 assert(!routedVision.response.includes('Recommended Next Step'));
 
 const templateFailure = routeMessage('Why did the agent give a keyword-triggered template response?', {}, {});
-assert.strictEqual(templateFailure.matchedRoute, 'founder_objective_engine');
-assert(templateFailure.response.includes('routing'));
-assert(templateFailure.response.includes('Founder objective'));
+assert.strictEqual(templateFailure.matchedRoute, 'founder_mind_reconstruction');
+assert(templateFailure.response.includes('template') || templateFailure.response.includes('keyword'));
+assert(!templateFailure.response.includes('Founder objective:'));
 
 const explainPain = routeMessage('What user pain does Explain solve?', {}, {});
 assert.strictEqual(explainPain.matchedRoute, 'founder_objective_engine');
@@ -37,9 +35,9 @@ assert.strictEqual(execution, null);
 
 (async () => {
   const withAi = await routeMessageWithAi('Do the agents really understand my vision?', {}, {});
-  assert.strictEqual(withAi.matchedRoute, 'founder_objective_engine');
+  assert.strictEqual(withAi.matchedRoute, 'founder_mind_reconstruction');
   assert.strictEqual(withAi.usedAi, false);
-  assert(withAi.response.includes('Not fully yet'));
+  assert(withAi.response.includes('understand fragments'));
   assert(!withAi.response.includes('Current Foundation Health'));
   console.log('Founder intent understanding layer checks passed');
 })().catch((error) => {
