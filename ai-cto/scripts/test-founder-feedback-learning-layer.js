@@ -16,7 +16,9 @@ const {
 } = require('../whatsapp/memory-store');
 const {
   classifyFounderFeedback,
-  findRelevantFounderFeedback
+  findRelevantFounderFeedback,
+  buildFounderFeedbackGuidance,
+  applyFounderFeedbackToResponse
 } = require('../whatsapp/founder-feedback-learning-layer');
 const { setMode } = require('../../governance/governance');
 
@@ -36,6 +38,9 @@ updateMemory(firstAnswer.command, {}, {
 });
 
 assert.strictEqual(classifyFounderFeedback('too generic').feedback, 'too_generic');
+const neutralFeedback = classifyFounderFeedback('mixed answer');
+assert.strictEqual(neutralFeedback.feedback, 'neutral_reaction');
+assert.strictEqual(neutralFeedback.polarity, 'neutral');
 const feedback = routeMessage('too generic', {}, readConversationMemory());
 assert.strictEqual(feedback.command, 'founder_feedback_recorded');
 assert.strictEqual(feedback.matchedRoute, 'founder_feedback_learning_layer');
@@ -52,6 +57,111 @@ assert(memoryAfterFeedback.founderFeedback[0].answerPattern);
 const relevant = findRelevantFounderFeedback('What am I actually chasing?', memoryAfterFeedback);
 assert(relevant.length >= 1);
 assert.strictEqual(relevant[0].feedback, 'too_generic');
+
+const repeatedStyleMemory = {
+  founderFeedback: [
+    {
+      timestamp: new Date().toISOString(),
+      feedback: 'too_much_cto_mode',
+      polarity: 'negative',
+      confidence: 86,
+      adaptation: 'stay_conversational',
+      sourceMessage: 'too much cto mode',
+      founderReaction: {
+        label: 'too_much_cto_mode',
+        polarity: 'negative',
+        confidence: 86,
+        sourceMessage: 'too much cto mode'
+      },
+      questionPattern: 'bro are we moving toward the dream',
+      answerPattern: 'health momentum task plan'
+    },
+    {
+      timestamp: new Date().toISOString(),
+      feedback: 'too_much_cto_mode',
+      polarity: 'negative',
+      confidence: 86,
+      adaptation: 'stay_conversational',
+      sourceMessage: 'too much report',
+      founderReaction: {
+        label: 'too_much_cto_mode',
+        polarity: 'negative',
+        confidence: 86,
+        sourceMessage: 'too much report'
+      },
+      questionPattern: 'are we moving toward the dream',
+      answerPattern: 'current foundation health protected recommended next step'
+    },
+    {
+      timestamp: new Date().toISOString(),
+      feedback: 'too_generic',
+      polarity: 'negative',
+      confidence: 86,
+      adaptation: 'add_specific_product_test',
+      sourceMessage: 'too generic',
+      founderReaction: {
+        label: 'too_generic',
+        polarity: 'negative',
+        confidence: 86,
+        sourceMessage: 'too generic'
+      },
+      questionPattern: 'what am i missing',
+      answerPattern: 'current foundation health protected recommended next step'
+    },
+    {
+      timestamp: new Date().toISOString(),
+      feedback: 'good_answer',
+      polarity: 'positive',
+      confidence: 88,
+      adaptation: 'preserve_direct_reasoning',
+      sourceMessage: 'good answer',
+      founderReaction: {
+        label: 'good_answer',
+        polarity: 'positive',
+        confidence: 88,
+        sourceMessage: 'good answer'
+      },
+      questionPattern: 'what would you disagree with',
+      answerPattern: 'direct strategic disagreement'
+    },
+    {
+      timestamp: new Date().toISOString(),
+      feedback: 'neutral_reaction',
+      polarity: 'neutral',
+      confidence: 70,
+      adaptation: 'watch_for_followup',
+      sourceMessage: 'mixed answer',
+      founderReaction: {
+        label: 'neutral_reaction',
+        polarity: 'neutral',
+        confidence: 70,
+        sourceMessage: 'mixed answer'
+      },
+      questionPattern: 'what is happening',
+      answerPattern: 'partial answer'
+    }
+  ]
+};
+const guidance = buildFounderFeedbackGuidance('What am I missing?', repeatedStyleMemory);
+assert(guidance.feedbackUsed.length >= 1);
+assert(guidance.rejectedStyles.includes('cto/report framing'));
+assert(guidance.rejectedStyles.includes('generic answer'));
+assert(guidance.preferredAdaptations.includes('stay_conversational'));
+assert(guidance.sourceCounts.negative >= 2);
+assert(guidance.sourceCounts.neutral >= 1);
+assert(guidance.confidence <= 90);
+
+const templated = [
+  'Current Foundation Health: protected.',
+  'Trust Risk: do not trade keyboard trust for features.',
+  'Recommended Next Step: continue.'
+].join('\n');
+const adaptedTemplate = applyFounderFeedbackToResponse(templated, {
+  message: 'What am I missing?',
+  memory: repeatedStyleMemory
+});
+assert.doesNotMatch(adaptedTemplate, /Current Foundation Health|Recommended Next Step|Trust Risk/i);
+assert.match(adaptedTemplate, /Concrete test|conversational/i);
 
 const secondAnswer = routeMessage('What am I actually chasing?', {}, memoryAfterFeedback);
 assert.strictEqual(secondAnswer.command, 'founder_mind_reconstruction');

@@ -69,6 +69,13 @@ const FEEDBACK_PATTERNS = [
     pattern: /\b(too philosophical|too abstract|too much philosophy|too theoretical)\b/i,
     confidence: 84,
     adaptation: 'ground_in_user_value'
+  },
+  {
+    feedback: 'neutral_reaction',
+    polarity: 'neutral',
+    pattern: /\b(mixed answer|not sure|maybe|unclear|partly|partially|somewhat|neutral)\b/i,
+    confidence: 70,
+    adaptation: 'watch_for_followup'
   }
 ];
 
@@ -142,6 +149,12 @@ function recordFounderFeedback(message = '', providedMemory = {}, classification
     confidence: classification.confidence,
     adaptation: classification.adaptation,
     sourceMessage: classification.sourceMessage,
+    founderReaction: {
+      label: classification.feedback,
+      polarity: classification.polarity,
+      confidence: classification.confidence,
+      sourceMessage: classification.sourceMessage
+    },
     questionPattern: normalizePattern(previous.question),
     answerPattern: normalizePattern(previous.answer),
     rawQuestionPreview: preview(previous.question),
@@ -167,20 +180,56 @@ function recordFounderFeedback(message = '', providedMemory = {}, classification
 }
 
 function applyFounderFeedbackToResponse(response = '', context = {}) {
-  const relevant = findRelevantFounderFeedback(context.message, context.memory);
-  if (!relevant.length) return response;
+  const guidance = buildFounderFeedbackGuidance(context.message, context.memory);
+  if (!guidance.feedbackUsed.length && !guidance.dominantNegativeStyles.length) return response;
 
-  const strongest = relevant[0];
+  const relevant = guidance.feedbackUsed;
+  const strongest = relevant[0] || guidance.dominantNegativeStyles[0];
   if (strongest.polarity === 'positive') {
     return response;
   }
 
+  const cleanedResponse = stripRejectedTemplateLines(response, guidance);
   const adaptationLine = buildAdaptationLine(strongest);
-  if (!adaptationLine || String(response).includes(adaptationLine)) {
-    return response;
+  if (!adaptationLine || String(cleanedResponse).includes(adaptationLine)) {
+    return cleanedResponse;
   }
 
-  return [String(response || '').trim(), '', adaptationLine].filter(Boolean).join('\n');
+  return [String(cleanedResponse || '').trim(), '', adaptationLine].filter(Boolean).join('\n');
+}
+
+function buildFounderFeedbackGuidance(message = '', memory = {}) {
+  const source = Array.isArray(memory && memory.founderFeedback)
+    ? memory.founderFeedback
+    : readConversationMemory().founderFeedback || [];
+  const relevant = findRelevantFounderFeedback(message, { founderFeedback: source });
+  const sourceCounts = countFeedbackPolarities(source);
+  const adaptationCounts = countBy(source.filter((entry) => entry && entry.polarity === 'negative'), 'adaptation');
+  const repeatedNegative = Object.entries(adaptationCounts)
+    .filter(([, count]) => count >= 2)
+    .map(([adaptation]) => source.find((entry) => entry && entry.adaptation === adaptation && entry.polarity === 'negative'))
+    .filter(Boolean);
+  const feedbackUsed = dedupeFeedback([...relevant, ...repeatedNegative]).slice(0, 5);
+  const rejectedStyles = unique(feedbackUsed
+    .filter((entry) => entry.polarity === 'negative')
+    .map((entry) => styleRejectedBy(entry))
+    .filter(Boolean));
+  const preferredAdaptations = unique(feedbackUsed
+    .map((entry) => entry.adaptation)
+    .filter(Boolean));
+  const averageConfidence = feedbackUsed.length
+    ? feedbackUsed.reduce((sum, entry) => sum + Number(entry.confidence || 0), 0) / feedbackUsed.length
+    : 0;
+
+  return {
+    version: '1.0',
+    feedbackUsed,
+    dominantNegativeStyles: repeatedNegative,
+    rejectedStyles,
+    preferredAdaptations,
+    sourceCounts,
+    confidence: Math.min(90, Math.round(averageConfidence || 0))
+  };
 }
 
 function findRelevantFounderFeedback(message = '', memory = {}) {
@@ -222,6 +271,94 @@ function feedbackRelevance(normalizedMessage, entry = {}) {
   const best = Math.max(tokenOverlap(normalizedMessage, question), tokenOverlap(normalizedMessage, answer));
   const recencyBoost = isRecent(entry.timestamp) ? 0.04 : 0;
   return Math.min(1, best + recencyBoost);
+}
+
+function countFeedbackPolarities(items = []) {
+  return items.reduce((counts, entry) => {
+    const polarity = entry && entry.polarity ? entry.polarity : 'unknown';
+    return {
+      ...counts,
+      [polarity]: (counts[polarity] || 0) + 1
+    };
+  }, { positive: 0, negative: 0, neutral: 0 });
+}
+
+function countBy(items = [], key = '') {
+  return items.reduce((counts, entry) => {
+    const value = entry && entry[key] ? entry[key] : 'unknown';
+    return {
+      ...counts,
+      [value]: (counts[value] || 0) + 1
+    };
+  }, {});
+}
+
+function dedupeFeedback(items = []) {
+  const seen = new Set();
+  return items.filter((entry) => {
+    if (!entry) return false;
+    const key = [
+      entry.feedback,
+      entry.adaptation,
+      entry.questionPattern,
+      entry.answerPattern,
+      entry.timestamp
+    ].join('|');
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function unique(items = []) {
+  return [...new Set(items.filter(Boolean))];
+}
+
+function styleRejectedBy(entry = {}) {
+  switch (entry.adaptation || entry.feedback) {
+    case 'stay_conversational':
+    case 'too_much_cto_mode':
+      return 'cto/report framing';
+    case 'add_specific_product_test':
+    case 'too_generic':
+      return 'generic answer';
+    case 'answer_actual_question_first':
+    case 'not_relevant':
+      return 'irrelevant answer';
+    case 'state_uncertainty_and_risk':
+    case 'too_optimistic':
+      return 'overconfident answer';
+    case 'ground_in_user_value':
+    case 'too_philosophical':
+      return 'abstract answer';
+    case 'raise_to_strategy':
+    case 'too_tactical':
+      return 'overly tactical answer';
+    default:
+      return null;
+  }
+}
+
+function stripRejectedTemplateLines(response = '', guidance = {}) {
+  const shouldAvoidReportFraming = (guidance.rejectedStyles || []).includes('cto/report framing');
+  const shouldAvoidGeneric = (guidance.rejectedStyles || []).includes('generic answer');
+  if (!shouldAvoidReportFraming && !shouldAvoidGeneric) return response;
+  const blocked = [
+    /^current foundation health:/i,
+    /^phase 2 opportunities:/i,
+    /^highest leverage differentiator:/i,
+    /^trust risk:/i,
+    /^recommended next step:/i,
+    /^health:\s*\d+/i,
+    /^momentum:/i,
+    /^risk:/i,
+    /^files:/i,
+    /^validation:/i
+  ];
+  const kept = String(response || '')
+    .split(/\r?\n/)
+    .filter((line) => !blocked.some((pattern) => pattern.test(line.trim())));
+  return kept.join('\n').trim();
 }
 
 function tokenOverlap(left = '', right = '') {
@@ -296,6 +433,8 @@ function buildAdaptationLine(entry = {}) {
       return 'I will keep this conversational and avoid status or CTO-report framing unless you explicitly ask for it.';
     case 'ground_in_user_value':
       return 'Grounding: the answer should tie back to a concrete user outcome, not just the idea behind it.';
+    case 'watch_for_followup':
+      return 'I will treat this as mixed feedback and watch the next founder reaction before changing the style strongly.';
     default:
       return null;
   }
@@ -331,6 +470,7 @@ module.exports = {
   maybeRouteFounderFeedback,
   recordFounderFeedback,
   applyFounderFeedbackToResponse,
+  buildFounderFeedbackGuidance,
   findRelevantFounderFeedback,
   normalizePattern,
   formatTasteProfile,
