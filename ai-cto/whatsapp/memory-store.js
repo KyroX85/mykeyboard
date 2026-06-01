@@ -79,6 +79,9 @@ const {
   buildReinforcementPreferences,
   updateReinforcementPreferenceMemory
 } = require('../reinforcement-preference-engine');
+const {
+  updateFounderPatternDiscovery
+} = require('../founder-pattern-discovery');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const MEMORY_FILE = process.env.ARITENIS_WHATSAPP_MEMORY_FILE ||
@@ -158,6 +161,7 @@ const DEFAULT_MEMORY = {
   evidenceRequirementMemory: null,
   metaLearningMemory: null,
   reinforcementPreferenceMemory: null,
+  founderPatternDiscovery: null,
   routeScores: {},
   reinforcementEvents: [],
   lastRouteForReward: null,
@@ -180,12 +184,13 @@ function readMemory() {
 }
 
 function writeMemory(memory) {
-  const next = compressFounderMemory({
+  const withPatternDiscovery = applyFounderPatternDiscovery({
     ...DEFAULT_MEMORY,
     ...memory,
     version: DEFAULT_MEMORY.version,
     lastUpdatedAt: new Date().toISOString()
   });
+  const next = compressFounderMemory(withPatternDiscovery);
 
   try {
     const tmp = `${MEMORY_FILE}.tmp`;
@@ -394,6 +399,7 @@ function readConversationMemory() {
     evidenceRequirementMemory: memory.evidenceRequirementMemory || null,
     metaLearningMemory: memory.metaLearningMemory || null,
     reinforcementPreferenceMemory: memory.reinforcementPreferenceMemory || null,
+    founderPatternDiscovery: memory.founderPatternDiscovery || null,
     routeScores: memory.routeScores && typeof memory.routeScores === 'object' ? memory.routeScores : {},
     reinforcementEvents: Array.isArray(memory.reinforcementEvents) ? memory.reinforcementEvents.slice(0, 80) : [],
     lastRouteForReward: memory.lastRouteForReward || null,
@@ -748,6 +754,14 @@ function updateReinforcementPreferenceIfNeeded(existing, memory = {}) {
   if (!hasFeedback && !hasRewards) return existing || null;
   const preferences = buildReinforcementPreferences(memory);
   return updateReinforcementPreferenceMemory(existing, preferences);
+}
+
+function applyFounderPatternDiscovery(memory = {}) {
+  const founderPatternDiscovery = updateFounderPatternDiscovery(memory.founderPatternDiscovery, memory);
+  return {
+    ...memory,
+    founderPatternDiscovery
+  };
 }
 
 function mergeContinuity(items, entry) {
