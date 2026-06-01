@@ -40,7 +40,7 @@ function enforceMemoryPolicyOnRoute(route = {}, {
       routeConfidence,
       ...(selfCritique ? { selfCritique } : {})
     },
-    response: maybeApplyCuriosity(responseWithConfidence, route, routeConfidence, { message })
+    response: maybeApplyCuriosity(responseWithConfidence, route, routeConfidence, { message, memory })
   };
 }
 

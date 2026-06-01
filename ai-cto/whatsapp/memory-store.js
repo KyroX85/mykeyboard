@@ -96,6 +96,10 @@ const {
   scoreKillerFeature,
   updateKillerFeatureMemory
 } = require('../killer-feature-tracker');
+const {
+  inferCuriosityFeedbackFromDetails,
+  updateAdaptiveCuriosityMemory
+} = require('../adaptive-curiosity-layer');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const MEMORY_FILE = process.env.ARITENIS_WHATSAPP_MEMORY_FILE ||
@@ -179,6 +183,7 @@ const DEFAULT_MEMORY = {
   intelligentDisagreementMemory: null,
   dreamDriftMemory: null,
   killerFeatureMemory: null,
+  adaptiveCuriosityMemory: null,
   routeScores: {},
   reinforcementEvents: [],
   lastRouteForReward: null,
@@ -280,6 +285,7 @@ function updateMemory(command, state, details = {}) {
   });
   const dreamDriftMemory = updateDreamDriftIfNeeded(memory.dreamDriftMemory, details);
   const killerFeatureMemory = updateKillerFeatureIfNeeded(memory.killerFeatureMemory, details);
+  const adaptiveCuriosityMemory = updateAdaptiveCuriosityIfNeeded(memory.adaptiveCuriosityMemory, details);
   const founderHypothesisTracker = updateFounderHypothesisIfNeeded(memory.founderHypothesisTracker, details);
   const predictionMemory = updatePredictionIfNeeded(memory.predictionMemory, details);
   const selfCritiqueMemory = updateSelfCritiqueIfNeeded(memory.selfCritiqueMemory, details);
@@ -342,6 +348,7 @@ function updateMemory(command, state, details = {}) {
     intelligentDisagreementMemory,
     dreamDriftMemory,
     killerFeatureMemory,
+    adaptiveCuriosityMemory,
     founderHypothesisTracker,
     predictionMemory,
     selfCritiqueMemory,
@@ -429,6 +436,7 @@ function readConversationMemory() {
     intelligentDisagreementMemory: memory.intelligentDisagreementMemory || null,
     dreamDriftMemory: memory.dreamDriftMemory || null,
     killerFeatureMemory: memory.killerFeatureMemory || null,
+    adaptiveCuriosityMemory: memory.adaptiveCuriosityMemory || null,
     routeScores: memory.routeScores && typeof memory.routeScores === 'object' ? memory.routeScores : {},
     reinforcementEvents: Array.isArray(memory.reinforcementEvents) ? memory.reinforcementEvents.slice(0, 80) : [],
     lastRouteForReward: memory.lastRouteForReward || null,
@@ -476,6 +484,7 @@ function updateConversationMemory(route, state) {
   });
   const dreamDriftMemory = updateDreamDriftIfNeeded(memory.dreamDriftMemory, route);
   const killerFeatureMemory = updateKillerFeatureIfNeeded(memory.killerFeatureMemory, route);
+  const adaptiveCuriosityMemory = updateAdaptiveCuriosityIfNeeded(memory.adaptiveCuriosityMemory, route);
   const founderHypothesisTracker = updateFounderHypothesisIfNeeded(memory.founderHypothesisTracker, route);
   const predictionMemory = updatePredictionIfNeeded(memory.predictionMemory, route);
   const selfCritiqueMemory = updateSelfCritiqueIfNeeded(memory.selfCritiqueMemory, route);
@@ -559,6 +568,7 @@ function updateConversationMemory(route, state) {
     intelligentDisagreementMemory,
     dreamDriftMemory,
     killerFeatureMemory,
+    adaptiveCuriosityMemory,
     founderHypothesisTracker,
     predictionMemory,
     selfCritiqueMemory,
@@ -742,6 +752,12 @@ function updateKillerFeatureIfNeeded(existing, details = {}) {
   if (!shouldTrackKillerFeature(feature)) return existing || null;
   const score = scoreKillerFeature(feature, details);
   return updateKillerFeatureMemory(existing, score);
+}
+
+function updateAdaptiveCuriosityIfNeeded(existing, details = {}) {
+  const event = inferCuriosityFeedbackFromDetails(details);
+  if (!event) return existing || null;
+  return updateAdaptiveCuriosityMemory(existing, event);
 }
 
 function updateFounderHypothesisIfNeeded(existing, details = {}) {

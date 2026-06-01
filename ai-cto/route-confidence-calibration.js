@@ -1,4 +1,5 @@
 const { buildCuriosityPrompt, formatCuriosityPrompt } = require('./curiosity-layer');
+const { applyAdaptiveCuriosityToPrompt } = require('./adaptive-curiosity-layer');
 
 const LOW_CONFIDENCE_THRESHOLD = 70;
 
@@ -89,18 +90,21 @@ function attachRouteConfidence(response = '', calibration = {}) {
 }
 
 function maybeApplyCuriosity(response = '', route = {}, calibration = {}, {
-  message = ''
+  message = '',
+  memory = {}
 } = {}) {
   const text = String(response || '');
   if (calibration.confidence >= LOW_CONFIDENCE_THRESHOLD) return text;
   if (isExecutionRoute(route)) return text;
   if (/Useful follow-up:/i.test(text)) return text;
 
-  const curiosity = buildCuriosityPrompt({
+  const curiosity = applyAdaptiveCuriosityToPrompt(buildCuriosityPrompt({
     message,
     category: route.details && route.details.category,
     intent: route.details && route.details.intent,
     confidence: calibration.confidence
+  }), {
+    memory: memory && memory.adaptiveCuriosityMemory
   });
   const formatted = formatCuriosityPrompt(curiosity);
   if (!formatted) return text;

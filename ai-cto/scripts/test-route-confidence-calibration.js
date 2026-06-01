@@ -11,7 +11,8 @@ process.env.ARITENIS_WHATSAPP_MEMORY_FILE = path.join(os.tmpdir(), `aritenis-rou
 
 const {
   calibrateRouteConfidence,
-  LOW_CONFIDENCE_THRESHOLD
+  LOW_CONFIDENCE_THRESHOLD,
+  maybeApplyCuriosity
 } = require('../route-confidence-calibration');
 const { enforceMemoryPolicyOnRoute } = require('../memory-policy-enforcer');
 const { routeMessage } = require('../whatsapp/command-router');
@@ -61,5 +62,27 @@ assert(founderRoute.details.routeConfidence);
 assert(founderRoute.details.routeConfidence.confidence <= 100);
 assert.match(founderRoute.response, /Route Confidence: \d+%/);
 assert.match(founderRoute.response, /Route Reason:/);
+
+const adaptiveCuriosity = maybeApplyCuriosity('Route Confidence: 55%\nRoute Reason: test\nAnswer.', {
+  command: 'conversational_fallback',
+  details: { category: 'dissatisfaction' }
+}, {
+  confidence: 55
+}, {
+  message: "I don't like this feature.",
+  memory: {
+    adaptiveCuriosityMemory: {
+      questionsByDomain: {
+        dissatisfaction: [{
+          question: 'Is this failing because users would not return to it, or because it feels untrustworthy?',
+          score: 12,
+          uses: 2
+        }]
+      },
+      recentEvents: []
+    }
+  }
+});
+assert.match(adaptiveCuriosity, /users would not return|untrustworthy/i);
 
 console.log('Route confidence calibration checks passed.');
