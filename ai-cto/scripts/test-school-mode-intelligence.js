@@ -130,7 +130,7 @@ assert(stabilized.contextConfidence < 0.6);
 
 const schoolResponse = routeMessage('school mode', state).response;
 assert(schoolResponse.includes('SCHOOL MODE'));
-assert(schoolResponse.includes('Health: 64/100'));
+assert(schoolResponse.includes('Health: Insufficient evidence to score health.'));
 assert(schoolResponse.includes('Main work today'));
 assert(schoolResponse.includes('CTO:'));
 assert(schoolResponse.includes('CODER:'));

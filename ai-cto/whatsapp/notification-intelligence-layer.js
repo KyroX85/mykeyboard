@@ -27,7 +27,7 @@ function evaluateProactiveNotification({
       now,
       founderLastSeenAt: memory.founderActivity && memory.founderActivity.lastSeenAt
     });
-  const dedupe = checkNotificationDuplicate(body, memory);
+  const dedupe = checkNotificationDuplicate(body, memory, { now });
   const rateLimit = checkNotificationRateLimit(memory, {
     priority: priorityResult.priority,
     type,

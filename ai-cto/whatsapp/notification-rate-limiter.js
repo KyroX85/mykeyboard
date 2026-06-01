@@ -6,28 +6,30 @@ function checkNotificationRateLimit(memory = {}, {
   if (priority === 'CRITICAL') return { allowed: true, reason: 'critical_bypass' };
 
   const notifications = Array.isArray(memory.notifications) ? memory.notifications : [];
-  const today = dayKey(now);
-  const sentToday = notifications.filter((item) =>
-    item.sent !== false &&
-    dayKey(new Date(item.timestamp || 0)) === today
-  );
 
-  if (type === 'normal_status') {
-    const lastStatus = [...notifications]
-      .reverse()
-      .find((item) => item.type === 'normal_status' && item.sent !== false);
-    if (lastStatus) {
-      const elapsedHours = (now.getTime() - new Date(lastStatus.timestamp).getTime()) / 36e5;
-      if (Number.isFinite(elapsedHours) && elapsedHours < 24) {
-        return { allowed: false, reason: 'normal_status_24h_limit' };
-      }
+  if (priority === 'LOW') return { allowed: false, reason: 'low_proactive_blocked' };
+
+  if (priority === 'MEDIUM' && !isDailyDigestType(type)) {
+    return { allowed: false, reason: 'medium_digest_only' };
+  }
+
+  if (priority === 'HIGH') {
+    const lastHigh = lastSentNotification(notifications, (item) =>
+      String(item.priority || '').toUpperCase() === 'HIGH'
+    );
+    if (lastHigh && elapsedHours(now, lastHigh.timestamp) < 6) {
+      return { allowed: false, reason: 'high_6h_limit' };
     }
   }
 
-  const counts = countByPriority(sentToday);
-  if (priority === 'HIGH' && counts.HIGH >= 3) return { allowed: false, reason: 'high_daily_limit' };
-  if (priority === 'MEDIUM' && counts.MEDIUM >= 1) return { allowed: false, reason: 'medium_daily_limit' };
-  if (priority === 'LOW') return { allowed: false, reason: 'low_proactive_blocked' };
+  if (priority === 'MEDIUM' || isDailyDigestType(type)) {
+    const lastDigest = lastSentNotification(notifications, (item) =>
+      isDailyDigestType(item.type) || String(item.priority || '').toUpperCase() === 'MEDIUM'
+    );
+    if (lastDigest && elapsedHours(now, lastDigest.timestamp) < 24) {
+      return { allowed: false, reason: 'daily_digest_24h_limit' };
+    }
+  }
 
   return { allowed: true, reason: 'within_limit' };
 }
@@ -45,7 +47,25 @@ function dayKey(value) {
   return Number.isFinite(date.getTime()) ? date.toISOString().slice(0, 10) : '';
 }
 
+function lastSentNotification(notifications = [], predicate = () => true) {
+  return [...notifications]
+    .reverse()
+    .find((item) => item.sent !== false && predicate(item));
+}
+
+function elapsedHours(now = new Date(), timestamp = null) {
+  const then = new Date(timestamp || 0);
+  const hours = (now.getTime() - then.getTime()) / 36e5;
+  return Number.isFinite(hours) ? hours : Infinity;
+}
+
+function isDailyDigestType(type = '') {
+  return ['daily_digest', 'normal_status', 'school_mode_digest'].includes(String(type || ''));
+}
+
 module.exports = {
   checkNotificationRateLimit,
-  countByPriority
+  countByPriority,
+  elapsedHours,
+  isDailyDigestType
 };

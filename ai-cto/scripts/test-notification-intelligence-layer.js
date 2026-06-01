@@ -93,9 +93,7 @@ try {
 
   const rateMemory = {
     notifications: [
-      { timestamp: '2026-05-31T01:00:00.000Z', priority: 'HIGH', type: 'approval_request', sent: true },
-      { timestamp: '2026-05-31T02:00:00.000Z', priority: 'HIGH', type: 'approval_request', sent: true },
-      { timestamp: '2026-05-31T03:00:00.000Z', priority: 'HIGH', type: 'approval_request', sent: true }
+      { timestamp: '2026-05-31T07:00:00.000Z', priority: 'HIGH', type: 'approval_request', sent: true }
     ]
   };
   assert.strictEqual(checkNotificationRateLimit(rateMemory, {
@@ -103,6 +101,11 @@ try {
     type: 'approval_request',
     now: new Date('2026-05-31T12:00:00.000Z')
   }).allowed, false);
+  assert.strictEqual(checkNotificationRateLimit(rateMemory, {
+    priority: 'HIGH',
+    type: 'approval_request',
+    now: new Date('2026-05-31T13:01:00.000Z')
+  }).allowed, true);
   assert.strictEqual(checkNotificationRateLimit(rateMemory, {
     priority: 'CRITICAL',
     type: 'build_failure',
@@ -119,6 +122,57 @@ try {
     type: 'normal_status',
     now: new Date('2026-05-31T12:00:00.000Z')
   }).allowed, false);
+  assert.strictEqual(checkNotificationRateLimit({ notifications: [] }, {
+    priority: 'MEDIUM',
+    type: 'vision_check',
+    now: new Date('2026-05-31T12:00:00.000Z')
+  }).reason, 'medium_digest_only');
+  assert.strictEqual(checkNotificationRateLimit({ notifications: [] }, {
+    priority: 'LOW',
+    type: 'vision_check',
+    now: new Date('2026-05-31T12:00:00.000Z')
+  }).allowed, false);
+
+  const repeatedIssueMemory = {
+    founderActivity: { lastSeenAt: '2026-05-31T10:30:00.000Z' },
+    notifications: [
+      {
+        timestamp: '2026-05-31T10:00:00.000Z',
+        priority: 'HIGH',
+        type: 'approval_request',
+        summary: 'Founder approval required for protected hot-path patch.',
+        summaryHash: 'same',
+        sent: true
+      }
+    ]
+  };
+  const repeatedWithin24 = checkNotificationDuplicate(
+    'Founder approval required for protected hot-path patch.',
+    repeatedIssueMemory,
+    { now: new Date('2026-06-01T09:59:00.000Z') }
+  );
+  assert.strictEqual(repeatedWithin24.duplicate, true);
+  assert.strictEqual(repeatedWithin24.reason, 'duplicate_24h');
+
+  const ignoredIssueMemory = {
+    founderActivity: { lastSeenAt: '2026-05-31T09:00:00.000Z' },
+    notifications: [
+      {
+        timestamp: '2026-05-31T10:00:00.000Z',
+        priority: 'HIGH',
+        type: 'approval_request',
+        summary: 'Founder approval required for protected hot-path patch.',
+        sent: true
+      }
+    ]
+  };
+  const ignoredRepeat = checkNotificationDuplicate(
+    'Founder approval required for protected hot-path patch.',
+    ignoredIssueMemory,
+    { now: new Date('2026-06-02T12:00:00.000Z') }
+  );
+  assert.strictEqual(ignoredRepeat.duplicate, true);
+  assert.strictEqual(ignoredRepeat.reason, 'founder_ignored_previous_issue');
 
   console.log('Notification intelligence layer checks passed.');
 } finally {

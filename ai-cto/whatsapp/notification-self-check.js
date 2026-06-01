@@ -11,7 +11,7 @@ function runNotificationSelfCheck({
     isUseful: priority !== 'LOW',
     evidenceAttached: Array.isArray(evidence) && evidence.length > 0,
     founderWouldCare: ['CRITICAL', 'HIGH'].includes(priority) ||
-      (priority === 'MEDIUM' && type === 'normal_status'),
+      (priority === 'MEDIUM' && isDailyDigestType(type)),
     metricsAreSourced: metricsAreSourced(body, evidence)
   };
 
@@ -46,6 +46,10 @@ function block(reason, answers) {
     reason,
     answers
   };
+}
+
+function isDailyDigestType(type = '') {
+  return ['daily_digest', 'normal_status', 'school_mode_digest'].includes(String(type || ''));
 }
 
 module.exports = {
