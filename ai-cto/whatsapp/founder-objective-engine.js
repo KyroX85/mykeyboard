@@ -2,6 +2,7 @@ const {
   loadFounderMemoryLayer,
   retrieveRelevantFounderMemories
 } = require('../founder-memory-layer');
+const { buildDreamAlignment, formatDreamAlignment } = require('../dream-model');
 
 function routeFounderObjective(message = '', {
   root,
@@ -247,6 +248,11 @@ function buildBaseContext({ root, state, memory, message }) {
     message,
     founderMemoryLayer,
     relevantFounderMemories,
+    dreamAlignment: buildDreamAlignment({
+      question: message,
+      root,
+      memoryLayer: founderMemoryLayer
+    }),
     evidence: buildEvidence({ state, founderMemoryLayer, relevantFounderMemories }),
     uncertainty: buildUncertainty({ state, memory })
   };
@@ -302,9 +308,12 @@ function buildObjectiveResponse(reconstruction) {
   const relevant = reconstruction.relevantFounderMemories && Array.isArray(reconstruction.relevantFounderMemories.items)
     ? reconstruction.relevantFounderMemories.items
     : [];
+  const dreamAlignment = reconstruction.dreamAlignment || null;
   return [
     reconstruction.directAnswer.join('\n'),
     '',
+    dreamAlignment ? formatDreamAlignment(dreamAlignment) : '',
+    dreamAlignment ? '' : '',
     'Objective reconstruction:',
     ...reconstruction.objectiveReconstruction.map((item) => `- ${item}`),
     '',

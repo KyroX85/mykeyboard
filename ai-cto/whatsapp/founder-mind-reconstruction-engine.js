@@ -8,6 +8,8 @@ const REFLECTION_PATTERNS = [
   /\bwhat\s+is\s+my\s+(hidden\s+)?(concern|objective|intent)\b/i
 ];
 
+const { buildDreamAlignment, formatDreamAlignment } = require('../dream-model');
+
 const VISION_PATTERNS = [
   /\b(are|r)\s+we\s+(even\s+)?(moving|going|heading)\s+(toward|towards|to)\s+(the\s+)?(dream|vision|goal)\b/i,
   /\b(is|are)\s+(this|we)\s+aligned\s+(with|to)\s+(the\s+)?(dream|vision|goal)\b/i,
@@ -90,12 +92,18 @@ function reconstructFounderMind(message = '', context = {}) {
   if (!kind) return null;
 
   const report = buildMindReport(kind, original, context);
+  const dreamAlignment = buildDreamAlignment({
+    question: original,
+    root: context.root,
+    memoryLayer: context.memory && context.memory.founderMemoryLayer
+  });
   const reconstruction = {
     mode: kind.mode,
     category: kind.category,
     intent: kind.intent,
     message: original,
     report,
+    dreamAlignment,
     directAnswer: buildDirectAnswer(kind, report),
     confidence: kind.confidence
   };
@@ -375,6 +383,11 @@ function buildDirectAnswer(kind, report) {
 
 function buildReflectionResponse(reconstruction, { debug = false } = {}) {
   const lines = [...reconstruction.directAnswer];
+
+  if (reconstruction.dreamAlignment) {
+    lines.push('');
+    lines.push(formatDreamAlignment(reconstruction.dreamAlignment));
+  }
 
   if (debug) {
     lines.push('');
