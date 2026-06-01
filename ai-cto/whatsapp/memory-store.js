@@ -19,6 +19,10 @@ const {
   extractFounderBeliefShift,
   updateFounderBeliefTracker
 } = require('../founder-belief-tracker');
+const {
+  detectFounderContradiction,
+  updateFounderContradictions
+} = require('../founder-contradiction-detector');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const MEMORY_FILE = process.env.ARITENIS_WHATSAPP_MEMORY_FILE ||
@@ -85,6 +89,7 @@ const DEFAULT_MEMORY = {
   compressedFounderInsights: [],
   memoryCompression: null,
   founderBeliefTracker: null,
+  founderContradictions: null,
   routeScores: {},
   reinforcementEvents: [],
   lastRouteForReward: null,
@@ -171,6 +176,10 @@ function updateMemory(command, state, details = {}) {
   const reinforcement = updateRouteReinforcement(memory, command, details);
   const founderQuestionClusters = updateQuestionClustersIfNeeded(memory.founderQuestionClusters, details);
   const founderBeliefTracker = updateBeliefTrackerIfNeeded(memory.founderBeliefTracker, details);
+  const founderContradictions = updateContradictionsIfNeeded(memory.founderContradictions, {
+    ...details,
+    founderBeliefTracker: details.founderBeliefTracker || memory.founderBeliefTracker
+  });
 
   return writeMemory({
     ...memory,
@@ -202,7 +211,8 @@ function updateMemory(command, state, details = {}) {
     founderDecisions: boundedContinuity(memory.founderDecisions),
     lastFounderConcern: continuityEntry || memory.lastFounderConcern || null,
     founderQuestionClusters,
-    founderBeliefTracker
+    founderBeliefTracker,
+    founderContradictions
   });
 }
 
@@ -265,6 +275,7 @@ function readConversationMemory() {
     compressedFounderInsights: Array.isArray(memory.compressedFounderInsights) ? memory.compressedFounderInsights.slice(0, 5) : [],
     memoryCompression: memory.memoryCompression || null,
     founderBeliefTracker: memory.founderBeliefTracker || null,
+    founderContradictions: memory.founderContradictions || null,
     routeScores: memory.routeScores && typeof memory.routeScores === 'object' ? memory.routeScores : {},
     reinforcementEvents: Array.isArray(memory.reinforcementEvents) ? memory.reinforcementEvents.slice(0, 80) : [],
     lastRouteForReward: memory.lastRouteForReward || null,
@@ -298,6 +309,10 @@ function updateConversationMemory(route, state) {
   const reinforcement = updateRouteReinforcement(memory, route.command || route.intent || 'agent', route);
   const founderQuestionClusters = updateQuestionClustersIfNeeded(memory.founderQuestionClusters, route);
   const founderBeliefTracker = updateBeliefTrackerIfNeeded(memory.founderBeliefTracker, route);
+  const founderContradictions = updateContradictionsIfNeeded(memory.founderContradictions, {
+    ...route,
+    founderBeliefTracker: route.founderBeliefTracker || memory.founderBeliefTracker
+  });
   const next = {
     ...memory,
     ...reinforcement,
@@ -352,6 +367,7 @@ function updateConversationMemory(route, state) {
     nextContinuationAction,
     founderQuestionClusters,
     founderBeliefTracker,
+    founderContradictions,
     recentMessages: rememberMessage(memory.recentMessages, {
       role: 'agent',
       agent: route.agent || 'cto',
@@ -446,6 +462,19 @@ function updateBeliefTrackerIfNeeded(existing, details = {}) {
   const shift = extractFounderBeliefShift(details);
   if (!shift) return existing || null;
   return updateFounderBeliefTracker(existing, shift);
+}
+
+function updateContradictionsIfNeeded(existing, details = {}) {
+  if (!details || !details.founderMessage) return existing || null;
+  const contradiction = detectFounderContradiction({
+    founderMessage: details.founderMessage,
+    details,
+    memory: {
+      founderBeliefTracker: details.founderBeliefTracker
+    }
+  });
+  if (!contradiction) return existing || null;
+  return updateFounderContradictions(existing, contradiction);
 }
 
 function mergeContinuity(items, entry) {
