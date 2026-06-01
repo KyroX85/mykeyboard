@@ -43,6 +43,9 @@ const {
 const {
   applyReinforcementPreferencesToRoute
 } = require('../reinforcement-preference-engine');
+const {
+  enforceInternalAnswerQuality
+} = require('../internal-answer-scoring');
 const { enforceAntiTemplateOnRoute } = require('./anti-template-layer');
 const {
   classifyConversationRoute,
@@ -1575,11 +1578,12 @@ async function routeMessageWithAi(message, state, memory = {}, options = {}) {
 
 function enforceDeterministicResponse(route, message, state = {}) {
   const antiTemplateRoute = enforceAntiTemplateOnRoute(route, { message, state });
-  if (antiTemplateRoute && antiTemplateRoute.details && antiTemplateRoute.details.skipExecutionSchema) {
-    return antiTemplateRoute;
+  const qualityRoute = enforceInternalAnswerQuality(antiTemplateRoute, { message });
+  if (qualityRoute && qualityRoute.details && qualityRoute.details.skipExecutionSchema) {
+    return qualityRoute;
   }
-  return enforceExecutionSchemaOnRoute(antiTemplateRoute, {
+  return enforceExecutionSchemaOnRoute(qualityRoute, {
     message,
-    memorySources: memorySourcesFromResponse(antiTemplateRoute && antiTemplateRoute.response)
+    memorySources: memorySourcesFromResponse(qualityRoute && qualityRoute.response)
   });
 }
