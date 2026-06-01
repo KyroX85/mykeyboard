@@ -53,6 +53,11 @@ const {
   generateActionPrediction,
   updatePredictionMemory
 } = require('../prediction-engine');
+const {
+  shouldSelfCritiqueAnswer,
+  generateSelfCritique,
+  updateSelfCritiqueMemory
+} = require('../self-critique-layer');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const MEMORY_FILE = process.env.ARITENIS_WHATSAPP_MEMORY_FILE ||
@@ -126,6 +131,7 @@ const DEFAULT_MEMORY = {
   truthOverAgreementMemory: null,
   founderHypothesisTracker: null,
   predictionMemory: null,
+  selfCritiqueMemory: null,
   routeScores: {},
   reinforcementEvents: [],
   lastRouteForReward: null,
@@ -222,6 +228,7 @@ function updateMemory(command, state, details = {}) {
   const truthOverAgreementMemory = updateTruthOverAgreementIfNeeded(memory.truthOverAgreementMemory, details);
   const founderHypothesisTracker = updateFounderHypothesisIfNeeded(memory.founderHypothesisTracker, details);
   const predictionMemory = updatePredictionIfNeeded(memory.predictionMemory, details);
+  const selfCritiqueMemory = updateSelfCritiqueIfNeeded(memory.selfCritiqueMemory, details);
 
   return writeMemory({
     ...memory,
@@ -260,7 +267,8 @@ function updateMemory(command, state, details = {}) {
     opportunityCostMemory,
     truthOverAgreementMemory,
     founderHypothesisTracker,
-    predictionMemory
+    predictionMemory,
+    selfCritiqueMemory
   });
 }
 
@@ -330,6 +338,7 @@ function readConversationMemory() {
     truthOverAgreementMemory: memory.truthOverAgreementMemory || null,
     founderHypothesisTracker: memory.founderHypothesisTracker || null,
     predictionMemory: memory.predictionMemory || null,
+    selfCritiqueMemory: memory.selfCritiqueMemory || null,
     routeScores: memory.routeScores && typeof memory.routeScores === 'object' ? memory.routeScores : {},
     reinforcementEvents: Array.isArray(memory.reinforcementEvents) ? memory.reinforcementEvents.slice(0, 80) : [],
     lastRouteForReward: memory.lastRouteForReward || null,
@@ -373,6 +382,7 @@ function updateConversationMemory(route, state) {
   const truthOverAgreementMemory = updateTruthOverAgreementIfNeeded(memory.truthOverAgreementMemory, route);
   const founderHypothesisTracker = updateFounderHypothesisIfNeeded(memory.founderHypothesisTracker, route);
   const predictionMemory = updatePredictionIfNeeded(memory.predictionMemory, route);
+  const selfCritiqueMemory = updateSelfCritiqueIfNeeded(memory.selfCritiqueMemory, route);
   const next = {
     ...memory,
     ...reinforcement,
@@ -434,6 +444,7 @@ function updateConversationMemory(route, state) {
     truthOverAgreementMemory,
     founderHypothesisTracker,
     predictionMemory,
+    selfCritiqueMemory,
     recentMessages: rememberMessage(memory.recentMessages, {
       role: 'agent',
       agent: route.agent || 'cto',
@@ -583,6 +594,20 @@ function updatePredictionIfNeeded(existing, details = {}) {
   if (!shouldPredictActionOutcome(action, details)) return existing || null;
   const prediction = generateActionPrediction(action, details);
   return updatePredictionMemory(existing, prediction);
+}
+
+function updateSelfCritiqueIfNeeded(existing, details = {}) {
+  if (details && details.selfCritique) {
+    return updateSelfCritiqueMemory(existing, details.selfCritique);
+  }
+  const answer = details && details.agentAnswer;
+  if (!shouldSelfCritiqueAnswer(answer, details)) return existing || null;
+  const critique = generateSelfCritique({
+    founderMessage: details.founderMessage || '',
+    agentAnswer: answer || '',
+    context: details
+  });
+  return updateSelfCritiqueMemory(existing, critique);
 }
 
 function mergeContinuity(items, entry) {

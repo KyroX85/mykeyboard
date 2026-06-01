@@ -12,6 +12,10 @@ const {
   attachRouteConfidence,
   maybeApplyCuriosity
 } = require('./route-confidence-calibration');
+const {
+  shouldSelfCritiqueAnswer,
+  generateSelfCritique
+} = require('./self-critique-layer');
 
 function enforceMemoryPolicyOnRoute(route = {}, {
   message = '',
@@ -28,11 +32,13 @@ function enforceMemoryPolicyOnRoute(route = {}, {
     executionRelevant: executionRelevant || isExecutionRoute(route)
   });
   const responseWithConfidence = attachRouteConfidence(responseWithMemory, routeConfidence);
+  const selfCritique = maybeGenerateSelfCritique(message, responseWithConfidence, route);
   return {
     ...route,
     details: {
       ...(route.details || {}),
-      routeConfidence
+      routeConfidence,
+      ...(selfCritique ? { selfCritique } : {})
     },
     response: maybeApplyCuriosity(responseWithConfidence, route, routeConfidence, { message })
   };
@@ -125,6 +131,17 @@ function isFounderContextQuestion(message = '') {
   return /\b(project|founder|company|vision|phase|stage|roadmap|final goal|north star|memory audit|what are we building|what product)\b/i.test(
     String(message || '')
   );
+}
+
+function maybeGenerateSelfCritique(message = '', response = '', route = {}) {
+  if (!shouldSelfCritiqueAnswer(response, { founderMessage: message, route })) return null;
+  return generateSelfCritique({
+    founderMessage: message,
+    agentAnswer: response,
+    context: {
+      route
+    }
+  });
 }
 
 module.exports = {

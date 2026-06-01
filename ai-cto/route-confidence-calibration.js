@@ -72,6 +72,15 @@ function calibrateRouteConfidence(route = {}, {
 function attachRouteConfidence(response = '', calibration = {}) {
   const text = String(response || '').trim();
   if (/^Route Confidence:\s*\d+%/im.test(text)) return text;
+  if (/^Memory Sources Used:\s*/i.test(text)) {
+    const lines = text.split('\n');
+    return [
+      lines[0],
+      `Route Confidence: ${calibration.confidence}%`,
+      `Route Reason: ${calibration.reason}`,
+      ...lines.slice(1)
+    ].filter(Boolean).join('\n');
+  }
   return [
     `Route Confidence: ${calibration.confidence}%`,
     `Route Reason: ${calibration.reason}`,
