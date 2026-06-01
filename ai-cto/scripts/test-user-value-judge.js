@@ -12,7 +12,8 @@ process.env.ARITENIS_WHATSAPP_MEMORY_FILE = path.join(os.tmpdir(), `aritenis-use
 const {
   judgeUserValue,
   shouldJudgeIdea,
-  updateUserValueJudgments
+  updateUserValueJudgments,
+  applyUserValueJudgeToRoute
 } = require('../user-value-judge');
 const {
   updateMemory,
@@ -57,5 +58,27 @@ const stored = readConversationMemory();
 assert(stored.userValueJudgments);
 assert.strictEqual(stored.userValueJudgments.lastJudgment.verdict, 'LOW_USER_VALUE');
 assert(stored.userValueJudgments.lastJudgment.infrastructureRisk >= 70);
+
+const weakRoute = applyUserValueJudgeToRoute({
+  command: 'founder_mind_reconstruction',
+  details: { skipExecutionSchema: true },
+  response: 'This could be interesting to explore.'
+}, {
+  message: 'Should we build a modern scalable multi-agent orchestration dashboard?'
+});
+assert.match(weakRoute.response, /Weak leverage/i);
+assert.match(weakRoute.response, /Would users care/i);
+assert.match(weakRoute.response, /Would users pay/i);
+assert.strictEqual(weakRoute.details.userValueJudgment.verdict, 'LOW_USER_VALUE');
+
+const strongRoute = applyUserValueJudgeToRoute({
+  command: 'founder_mind_reconstruction',
+  details: { skipExecutionSchema: true },
+  response: 'Explain could reduce confusion inside the typing flow.'
+}, {
+  message: 'Should we build Explain for confusing screenshots and bills?'
+});
+assert.doesNotMatch(strongRoute.response, /Weak leverage/i);
+assert.strictEqual(strongRoute.details.userValueJudgment.verdict, 'HIGH_USER_VALUE');
 
 console.log('User value judge checks passed.');

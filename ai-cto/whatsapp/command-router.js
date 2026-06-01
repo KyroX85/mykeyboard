@@ -49,6 +49,9 @@ const {
 const {
   applyIntelligentDisagreementToRoute
 } = require('../intelligent-disagreement-layer');
+const {
+  applyUserValueJudgeToRoute
+} = require('../user-value-judge');
 const { enforceAntiTemplateOnRoute } = require('./anti-template-layer');
 const {
   classifyConversationRoute,
@@ -1581,7 +1584,8 @@ async function routeMessageWithAi(message, state, memory = {}, options = {}) {
 
 function enforceDeterministicResponse(route, message, state = {}) {
   const antiTemplateRoute = enforceAntiTemplateOnRoute(route, { message, state });
-  const disagreementRoute = applyIntelligentDisagreementToRoute(antiTemplateRoute, { message });
+  const userValueRoute = applyUserValueJudgeToRoute(antiTemplateRoute, { message });
+  const disagreementRoute = applyIntelligentDisagreementToRoute(userValueRoute, { message });
   const qualityRoute = enforceInternalAnswerQuality(disagreementRoute, { message });
   if (qualityRoute && qualityRoute.details && qualityRoute.details.skipExecutionSchema) {
     return qualityRoute;

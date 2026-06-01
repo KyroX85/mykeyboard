@@ -58,6 +58,64 @@ function updateUserValueJudgments(existing = {}, judgment = null) {
   };
 }
 
+function applyUserValueJudgeToRoute(route = {}, { message = '', context = {} } = {}) {
+  if (!route || !route.response || !shouldApplyToRoute(route)) return route;
+  if (!shouldJudgeIdea(message)) return route;
+
+  const judgment = judgeUserValue(message, {
+    ...(context || {}),
+    routeCommand: route.command,
+    routeDetails: route.details || {}
+  });
+  const details = {
+    ...(route.details || {}),
+    userValueJudgment: judgment
+  };
+
+  if (judgment.verdict !== 'LOW_USER_VALUE') {
+    return {
+      ...route,
+      details
+    };
+  }
+
+  return {
+    ...route,
+    details,
+    response: appendWeakLeverageFlag(route.response, judgment)
+  };
+}
+
+function shouldApplyToRoute(route = {}) {
+  const command = String(route.command || route.details && route.details.intent || '');
+  const blocked = /\b(build|scan|screenshot|commit|push|approval|approve|execution|preservation|product_lab)\b/i;
+  if (blocked.test(command)) return false;
+  const details = route.details || {};
+  if (details.skipUserValueJudge) return false;
+  return true;
+}
+
+function appendWeakLeverageFlag(response = '', judgment = {}) {
+  if (String(response || '').includes('Weak leverage:')) return response;
+  const questions = judgment.questions || {};
+  const compact = [
+    `Would users care: ${scoreOf(questions.wouldUserCare)}`,
+    `Would users pay: ${scoreOf(questions.wouldUserPay)}`,
+    `Would users return: ${scoreOf(questions.wouldUserReturn)}`,
+    `Would users notice if removed: ${scoreOf(questions.wouldUserNotice)}`
+  ].join('; ');
+  return [
+    response,
+    '',
+    `Weak leverage: users may not care enough yet. ${compact}.`,
+    `Product focus: ${judgment.recommendation || 'Do not prioritize until user value is clearer.'}`
+  ].join('\n');
+}
+
+function scoreOf(value = {}) {
+  return Number.isFinite(value.score) ? `${value.score}/100` : 'unknown';
+}
+
 function normalizeUserValueJudgments(value = {}) {
   return {
     version: '1.0',
@@ -191,5 +249,6 @@ module.exports = {
   shouldJudgeIdea,
   judgeUserValue,
   updateUserValueJudgments,
-  normalizeUserValueJudgments
+  normalizeUserValueJudgments,
+  applyUserValueJudgeToRoute
 };
