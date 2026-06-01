@@ -82,6 +82,10 @@ const {
 const {
   updateFounderPatternDiscovery
 } = require('../founder-pattern-discovery');
+const {
+  generateStrongestDisagreement,
+  updateIntelligentDisagreementMemory
+} = require('../intelligent-disagreement-layer');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const MEMORY_FILE = process.env.ARITENIS_WHATSAPP_MEMORY_FILE ||
@@ -162,6 +166,7 @@ const DEFAULT_MEMORY = {
   metaLearningMemory: null,
   reinforcementPreferenceMemory: null,
   founderPatternDiscovery: null,
+  intelligentDisagreementMemory: null,
   routeScores: {},
   reinforcementEvents: [],
   lastRouteForReward: null,
@@ -257,6 +262,10 @@ function updateMemory(command, state, details = {}) {
   const premortemMemory = updatePremortemIfNeeded(memory.premortemMemory, details);
   const opportunityCostMemory = updateOpportunityCostIfNeeded(memory.opportunityCostMemory, details);
   const truthOverAgreementMemory = updateTruthOverAgreementIfNeeded(memory.truthOverAgreementMemory, details);
+  const intelligentDisagreementMemory = updateIntelligentDisagreementIfNeeded(memory.intelligentDisagreementMemory, {
+    ...memory,
+    ...details
+  });
   const founderHypothesisTracker = updateFounderHypothesisIfNeeded(memory.founderHypothesisTracker, details);
   const predictionMemory = updatePredictionIfNeeded(memory.predictionMemory, details);
   const selfCritiqueMemory = updateSelfCritiqueIfNeeded(memory.selfCritiqueMemory, details);
@@ -316,6 +325,7 @@ function updateMemory(command, state, details = {}) {
     premortemMemory,
     opportunityCostMemory,
     truthOverAgreementMemory,
+    intelligentDisagreementMemory,
     founderHypothesisTracker,
     predictionMemory,
     selfCritiqueMemory,
@@ -400,6 +410,7 @@ function readConversationMemory() {
     metaLearningMemory: memory.metaLearningMemory || null,
     reinforcementPreferenceMemory: memory.reinforcementPreferenceMemory || null,
     founderPatternDiscovery: memory.founderPatternDiscovery || null,
+    intelligentDisagreementMemory: memory.intelligentDisagreementMemory || null,
     routeScores: memory.routeScores && typeof memory.routeScores === 'object' ? memory.routeScores : {},
     reinforcementEvents: Array.isArray(memory.reinforcementEvents) ? memory.reinforcementEvents.slice(0, 80) : [],
     lastRouteForReward: memory.lastRouteForReward || null,
@@ -441,6 +452,10 @@ function updateConversationMemory(route, state) {
   const premortemMemory = updatePremortemIfNeeded(memory.premortemMemory, route);
   const opportunityCostMemory = updateOpportunityCostIfNeeded(memory.opportunityCostMemory, route);
   const truthOverAgreementMemory = updateTruthOverAgreementIfNeeded(memory.truthOverAgreementMemory, route);
+  const intelligentDisagreementMemory = updateIntelligentDisagreementIfNeeded(memory.intelligentDisagreementMemory, {
+    ...memory,
+    ...route
+  });
   const founderHypothesisTracker = updateFounderHypothesisIfNeeded(memory.founderHypothesisTracker, route);
   const predictionMemory = updatePredictionIfNeeded(memory.predictionMemory, route);
   const selfCritiqueMemory = updateSelfCritiqueIfNeeded(memory.selfCritiqueMemory, route);
@@ -521,6 +536,7 @@ function updateConversationMemory(route, state) {
     premortemMemory,
     opportunityCostMemory,
     truthOverAgreementMemory,
+    intelligentDisagreementMemory,
     founderHypothesisTracker,
     predictionMemory,
     selfCritiqueMemory,
@@ -664,6 +680,26 @@ function updateTruthOverAgreementIfNeeded(existing, details = {}) {
   if (!shouldEvaluateTruthOverAgreement(message, details)) return existing || null;
   const truthCheck = evaluateTruthOverAgreement(message, details);
   return updateTruthOverAgreementMemory(existing, truthCheck);
+}
+
+function updateIntelligentDisagreementIfNeeded(existing, details = {}) {
+  if (details && details.intelligentDisagreement && details.intelligentDisagreement.shouldDisagree) {
+    const check = {
+      version: '1.0',
+      timestamp: new Date().toISOString(),
+      message: String(details.founderMessage || '').slice(0, 260),
+      kind: details.intelligentDisagreement.kind,
+      shouldDisagree: details.intelligentDisagreement.shouldDisagree,
+      disagreement: details.agentAnswer || '',
+      evidence: details.intelligentDisagreement.evidence || [],
+      confidence: details.intelligentDisagreement.confidence || 0
+    };
+    return updateIntelligentDisagreementMemory(existing, check);
+  }
+  const message = details && (details.founderMessage || details.idea || details.proposal || details.decision || details.agentAnswer);
+  if (!message) return existing || null;
+  const disagreement = generateStrongestDisagreement(message, details);
+  return updateIntelligentDisagreementMemory(existing, disagreement);
 }
 
 function updateFounderHypothesisIfNeeded(existing, details = {}) {
