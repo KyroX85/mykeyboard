@@ -75,6 +75,10 @@ const {
   analyzeMetaLearning,
   updateMetaLearningMemory
 } = require('../meta-learning-layer');
+const {
+  buildReinforcementPreferences,
+  updateReinforcementPreferenceMemory
+} = require('../reinforcement-preference-engine');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const MEMORY_FILE = process.env.ARITENIS_WHATSAPP_MEMORY_FILE ||
@@ -153,6 +157,7 @@ const DEFAULT_MEMORY = {
   founderMentalStateMemory: null,
   evidenceRequirementMemory: null,
   metaLearningMemory: null,
+  reinforcementPreferenceMemory: null,
   routeScores: {},
   reinforcementEvents: [],
   lastRouteForReward: null,
@@ -265,6 +270,10 @@ function updateMemory(command, state, details = {}) {
     ...memory,
     ...reinforcement
   }, details);
+  const reinforcementPreferenceMemory = updateReinforcementPreferenceIfNeeded(memory.reinforcementPreferenceMemory, {
+    ...memory,
+    ...reinforcement
+  });
 
   return writeMemory({
     ...memory,
@@ -308,7 +317,8 @@ function updateMemory(command, state, details = {}) {
     founderMentalStateMemory,
     evidenceRequirementMemory,
     metaLearningMemory,
-    routeEvolutionMemory
+    routeEvolutionMemory,
+    reinforcementPreferenceMemory
   });
 }
 
@@ -383,6 +393,7 @@ function readConversationMemory() {
     founderMentalStateMemory: memory.founderMentalStateMemory || null,
     evidenceRequirementMemory: memory.evidenceRequirementMemory || null,
     metaLearningMemory: memory.metaLearningMemory || null,
+    reinforcementPreferenceMemory: memory.reinforcementPreferenceMemory || null,
     routeScores: memory.routeScores && typeof memory.routeScores === 'object' ? memory.routeScores : {},
     reinforcementEvents: Array.isArray(memory.reinforcementEvents) ? memory.reinforcementEvents.slice(0, 80) : [],
     lastRouteForReward: memory.lastRouteForReward || null,
@@ -441,6 +452,10 @@ function updateConversationMemory(route, state) {
     ...memory,
     ...reinforcement
   }, route);
+  const reinforcementPreferenceMemory = updateReinforcementPreferenceIfNeeded(memory.reinforcementPreferenceMemory, {
+    ...memory,
+    ...reinforcement
+  });
   const next = {
     ...memory,
     ...reinforcement,
@@ -507,6 +522,7 @@ function updateConversationMemory(route, state) {
     evidenceRequirementMemory,
     metaLearningMemory,
     routeEvolutionMemory,
+    reinforcementPreferenceMemory,
     recentMessages: rememberMessage(memory.recentMessages, {
       role: 'agent',
       agent: route.agent || 'cto',
@@ -724,6 +740,14 @@ function updateMetaLearningIfNeeded(existing, memory = {}, details = {}) {
   if (!hasFeedback && !hasRouteEvidence && !hasWrongAnswerEvidence && !hasEvidenceChecks) return existing || null;
   const analysis = analyzeMetaLearning(memory);
   return updateMetaLearningMemory(existing, analysis);
+}
+
+function updateReinforcementPreferenceIfNeeded(existing, memory = {}) {
+  const hasFeedback = Array.isArray(memory.founderFeedback) && memory.founderFeedback.length > 0;
+  const hasRewards = Array.isArray(memory.reinforcementEvents) && memory.reinforcementEvents.length > 0;
+  if (!hasFeedback && !hasRewards) return existing || null;
+  const preferences = buildReinforcementPreferences(memory);
+  return updateReinforcementPreferenceMemory(existing, preferences);
 }
 
 function mergeContinuity(items, entry) {

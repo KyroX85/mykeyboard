@@ -40,6 +40,9 @@ const {
   applyReinforcementToRoute,
   shouldPreferReinforcedConversation
 } = require('./reinforcement-learning-layer');
+const {
+  applyReinforcementPreferencesToRoute
+} = require('../reinforcement-preference-engine');
 const { enforceAntiTemplateOnRoute } = require('./anti-template-layer');
 const {
   classifyConversationRoute,
@@ -1542,7 +1545,10 @@ function routeMessage(message, state, memory = {}) {
     ...memory,
     founderMemoryLayer
   };
-  const routed = applyReinforcementToRoute(routeMessageInternal(message, state, enrichedMemory), enrichedMemory);
+  const routed = applyReinforcementPreferencesToRoute(
+    applyReinforcementToRoute(routeMessageInternal(message, state, enrichedMemory), enrichedMemory),
+    enrichedMemory
+  );
   return enforceDeterministicResponse(enforceMemoryPolicyOnRoute(routed, {
     message,
     memory,
@@ -1556,7 +1562,11 @@ async function routeMessageWithAi(message, state, memory = {}, options = {}) {
     ...memory,
     founderMemoryLayer
   }, options);
-  return enforceDeterministicResponse(enforceMemoryPolicyOnRoute(route, {
+  const preferenceAdjusted = applyReinforcementPreferencesToRoute(route, {
+    ...memory,
+    founderMemoryLayer
+  });
+  return enforceDeterministicResponse(enforceMemoryPolicyOnRoute(preferenceAdjusted, {
     message,
     memory,
     founderMemoryLayer
