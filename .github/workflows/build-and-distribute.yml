@@ -212,9 +212,14 @@ jobs:
           $uri = "https://api.twilio.com/2010-04-01/Accounts/$env:TWILIO_ACCOUNT_SID/Messages.json"
           $pair = "$($env:TWILIO_ACCOUNT_SID):$($env:TWILIO_AUTH_TOKEN)"
           $auth = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes($pair))
-          Invoke-RestMethod -Method Post -Uri $uri -Headers @{ Authorization = "Basic $auth" } -Body @{
-            From = $env:TWILIO_WHATSAPP_FROM
-            To = $env:FOUNDER_WHATSAPP_NUMBER
-            Body = $body.Trim()
-          } | Out-Null
-          "WHATSAPP_NOTIFICATION_SENT=true" | Add-Content -Path $env:GITHUB_STEP_SUMMARY
+          try {
+            Invoke-RestMethod -Method Post -Uri $uri -Headers @{ Authorization = "Basic $auth" } -Body @{
+              From = $env:TWILIO_WHATSAPP_FROM
+              To = $env:FOUNDER_WHATSAPP_NUMBER
+              Body = $body.Trim()
+            } | Out-Null
+            "WHATSAPP_NOTIFICATION_SENT=true" | Add-Content -Path $env:GITHUB_STEP_SUMMARY
+          } catch {
+            "WhatsApp notification failed after Firebase upload: $($_.Exception.Message)" | Add-Content -Path $env:GITHUB_STEP_SUMMARY
+            exit 0
+          }
