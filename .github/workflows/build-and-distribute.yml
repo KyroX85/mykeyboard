@@ -58,9 +58,9 @@ jobs:
           } elseif ($eventName -eq "schedule") {
             $shouldBuild = $true
             $reason = "weekly scheduled build"
-          } elseif ($message -match "(?i)\b(agent|fix|fixed|stabilize|security|health|validation|build)\b") {
+          } elseif ($message -match "(?i)\b(agent|feat|feature|fix|fixed|stabilize|security|health|validation|build|apk|release|jarvis|personal)\b") {
             $shouldBuild = $true
-            $reason = "agent/fix commit message"
+            $reason = "feature/fix/release commit message"
           }
 
           if (Test-Path "ai-cto/.brain_state.json") {
@@ -88,7 +88,7 @@ jobs:
             $_.created_at -like "$today*" -and $_.event -ne "workflow_dispatch"
           }).Count
 
-          if ($todayCount -ge 3 -and -not $force -and $eventName -ne "workflow_dispatch") {
+          if ($todayCount -ge 3 -and -not $force -and $eventName -eq "schedule") {
             $shouldBuild = $false
             $reason = "daily auto build cap reached ($todayCount/3)"
           }
