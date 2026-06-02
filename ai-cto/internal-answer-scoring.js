@@ -220,6 +220,7 @@ function scoreStrategicDepth(response = '') {
   if (/\bbecause\b|\bmeans\b|\bif\b|\btherefore\b|\bthe gap\b|\btradeoff\b/i.test(response)) score += 3;
   if (/\buser\b|\bvalue\b|\btrust\b|\bevidence\b|\bretention\b|\bdream\b|\bstrategy\b/i.test(response)) score += 3;
   if (/\breason behind\b|\bassumption being tested\b|\bworry underneath\b|\bhidden concern\b|\bdesired outcome\b/i.test(response)) score += 4;
+  if (/Strongest case for:|Strongest case against:|Likely reality:/i.test(response)) score += 3;
   if (response.split(/\s+/).length >= 24) score += 1;
   if (containsRejectedStatus(response)) score -= 3;
   return clamp(score, 1, 10);

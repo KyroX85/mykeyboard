@@ -32,6 +32,10 @@ const {
   formatStrategicThinking
 } = require('../strategic-thinking-layer');
 const {
+  buildContrarianReasoning,
+  formatContrarianReasoning
+} = require('../contrarian-reasoning-layer');
+const {
   buildCuriosityPrompt,
   formatCuriosityPrompt
 } = require('../curiosity-layer');
@@ -211,6 +215,12 @@ function reconstructFounderMind(message = '', context = {}) {
     dreamAlignment,
     directAnswer: buildDirectAnswer(kind, report),
     strategicThinking: buildStrategicThinking({
+      message: original,
+      category: kind.category,
+      intent: kind.intent,
+      directAnswer: buildDirectAnswer(kind, report)
+    }),
+    contrarianReasoning: buildContrarianReasoning({
       message: original,
       category: kind.category,
       intent: kind.intent,
@@ -1082,6 +1092,11 @@ function buildReflectionResponse(reconstruction, { debug = false } = {}) {
   if (!directReflection && reconstruction.strategicThinking) {
     lines.push('');
     lines.push(formatStrategicThinking(reconstruction.strategicThinking));
+  }
+
+  if (!directReflection && reconstruction.contrarianReasoning) {
+    lines.push('');
+    lines.push(formatContrarianReasoning(reconstruction.contrarianReasoning));
   }
 
   const curiosity = directReflection ? '' : formatCuriosityPrompt(reconstruction.curiosityPrompt);

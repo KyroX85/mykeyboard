@@ -7,6 +7,10 @@ const {
   buildStrategicThinking,
   formatStrategicThinking
 } = require('../strategic-thinking-layer');
+const {
+  buildContrarianReasoning,
+  formatContrarianReasoning
+} = require('../contrarian-reasoning-layer');
 
 function routeFounderObjective(message = '', {
   root,
@@ -319,6 +323,12 @@ function buildObjectiveResponse(reconstruction) {
     dreamAlignment ? formatDreamAlignment(dreamAlignment) : '',
     dreamAlignment ? '' : '',
     formatStrategicThinking(buildStrategicThinking({
+      message: reconstruction.message,
+      intent: reconstruction.intent,
+      directAnswer: reconstruction.directAnswer
+    })),
+    '',
+    formatContrarianReasoning(buildContrarianReasoning({
       message: reconstruction.message,
       intent: reconstruction.intent,
       directAnswer: reconstruction.directAnswer
