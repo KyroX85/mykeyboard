@@ -217,6 +217,23 @@ assert.match(failurePremortem.response, /Most likely failure:|Hidden failure:|Ig
 assert.match(failurePremortem.details.mindReconstruction.actualQuestion, /fails in 3 years|strategic mistake/i);
 assert.doesNotMatch(String(failurePremortem.response || ''), /CLARIFICATION_REQUEST|NOISE|LOW INFORMATION|AMBIGUOUS INTENT|TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan/i);
 
+const whatKillsUs = assertMindRoute(
+  'What kills us?',
+  /kills us|infrastructure|user habit|optional|killer feature|distribution/i
+);
+assert.strictEqual(whatKillsUs.details.category, 'FOUNDER_STRATEGY');
+assert.strictEqual(whatKillsUs.details.intent, 'RECONSTRUCT_COMPANY_KILL_RISK');
+assert(responseUsesPremortemAnalysis(whatKillsUs.response));
+assert.doesNotMatch(String(whatKillsUs.response || ''), /CLARIFICATION_REQUEST|TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan/i);
+
+const freedomJarvisContradiction = assertMindRoute(
+  'I want humans to be free, but I want Jarvis to do everything. What contradiction do you see?',
+  /freedom|dependency|humans choose direction|AI executes|outsourcing judgment|contradiction/i
+);
+assert.strictEqual(freedomJarvisContradiction.details.category, 'FOUNDER_STRATEGY');
+assert.strictEqual(freedomJarvisContradiction.details.intent, 'RECONSTRUCT_FREEDOM_JARVIS_CONTRADICTION');
+assert.doesNotMatch(String(freedomJarvisContradiction.response || ''), /CLARIFICATION_REQUEST|TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan/i);
+
 const behaviorOptimization = assertMindRoute(
   'Forget what I say.\n\nBased on my behavior, what am I optimizing for?',
   /product truth|stress-testing the agents|fake progress|leverage|useful breakthrough|trustworthy/i

@@ -113,6 +113,11 @@ const DOUBT_PATTERNS = [
 ];
 
 const STRATEGIC_CHALLENGE_PATTERNS = [
+  /\bwhat\s+kills\s+us\b/i,
+  /\bwhat\s+could\s+kill\s+us\b/i,
+  /\bwhat\s+(is\s+the\s+)?contradiction\s+do\s+you\s+see\b/i,
+  /\bi\s+want\s+humans\s+to\s+be\s+free\b.*\bjarvis\b/i,
+  /\bjarvis\b.*\b(do\s+everything|everything)\b.*\b(free|freedom|dependency)\b/i,
   /\bwhat\s+(am\s+i|i\s+am)\s+missing\b/i,
   /\bwhat'?s\s+the\s+most\s+dangerous\s+assumption\b/i,
   /\bwhat\s+is\s+the\s+most\s+dangerous\s+assumption\b/i,
@@ -491,6 +496,25 @@ function classifyMindQuestion(text = '', memory = {}) {
   }
 
   if (STRATEGIC_CHALLENGE_PATTERNS.some((pattern) => pattern.test(text))) {
+    if (/\bwhat\s+kills\s+us\b/i.test(text) || /\bwhat\s+could\s+kill\s+us\b/i.test(text)) {
+      return {
+        intent: 'RECONSTRUCT_COMPANY_KILL_RISK',
+        category: 'FOUNDER_STRATEGY',
+        archetype: 'company_kill_risk',
+        mode: 'FOUNDER_CONVERSATION_MODE',
+        confidence: 84
+      };
+    }
+    if ((/\bi\s+want\s+humans\s+to\s+be\s+free\b/i.test(text) && /\bjarvis\b/i.test(text)) ||
+      /\bjarvis\b.*\b(do\s+everything|everything)\b.*\b(free|freedom|dependency)\b/i.test(text)) {
+      return {
+        intent: 'RECONSTRUCT_FREEDOM_JARVIS_CONTRADICTION',
+        category: 'FOUNDER_STRATEGY',
+        archetype: 'freedom_jarvis_contradiction',
+        mode: 'FOUNDER_CONVERSATION_MODE',
+        confidence: 86
+      };
+    }
     if (/\bwhat\s+(am\s+i|i\s+am)\s+missing\b/i.test(text)) {
       return {
         intent: 'RECONSTRUCT_MISSING_BLIND_SPOT',
@@ -660,6 +684,18 @@ function buildMindReport(kind, message, context = {}) {
     };
   }
 
+  if (kind.archetype === 'company_kill_risk') {
+    return {
+      objective: 'Name the strategic failure mode most likely to kill Aritenis.',
+      assumption: 'The founder is not asking for generic risk; he is testing whether the agents can see the company-level danger behind current work.',
+      concern: 'Aritenis may build impressive agents, memory, routing, and infrastructure without proving a repeated user habit strong enough to survive.',
+      decision: 'Decide whether current work is creating user pull or only making the operating system around the product more elaborate.',
+      desiredOutcome: 'A blunt premortem-style answer about what kills the company and what that implies for focus.',
+      actualQuestion: 'What failure mode destroys Aritenis even if the technology keeps improving?',
+      uselessLiteralAnswer: 'A clarification request, health report, momentum update, task plan, or motivational answer.'
+    };
+  }
+
   if (kind.archetype === 'dangerous_assumption') {
     return {
       objective: 'Name the assumption most likely to make Aritenis impressive but not useful.',
@@ -669,6 +705,18 @@ function buildMindReport(kind, message, context = {}) {
       desiredOutcome: 'A direct warning about the riskiest assumption and what evidence would weaken it.',
       actualQuestion: 'What assumption could make the current strategy fail even if execution is good?',
       uselessLiteralAnswer: 'A CTO status template, health score, task plan, or complexity report.'
+    };
+  }
+
+  if (kind.archetype === 'freedom_jarvis_contradiction') {
+    return {
+      objective: 'Explain the contradiction between human freedom and a Jarvis that does everything.',
+      assumption: 'The founder is stress-testing the moral and product boundary of the dream, not asking for execution work.',
+      concern: 'A Jarvis that removes all burden can accidentally remove agency if it starts deciding direction instead of only executing chosen direction.',
+      decision: 'Define the product boundary between useful automation and dependency-creating control.',
+      desiredOutcome: 'A direct strategic answer that preserves the active vision: humans choose direction; AI executes.',
+      actualQuestion: 'Where does the dream become dependency instead of freedom?',
+      uselessLiteralAnswer: 'A task plan, CTO status, keyboard advice, health score, or route diagnostic.'
     };
   }
 
@@ -971,6 +1019,16 @@ function buildDirectAnswer(kind, report) {
     ];
   }
 
+  if (kind.archetype === 'company_kill_risk') {
+    return [
+      'What kills us is building something impressive that never becomes a user habit.',
+      'The most likely version: we keep improving agents, memory, routing, and infrastructure, but users still do not feel a daily reason to choose Aritenis.',
+      'The hidden version: Explain works in demos but stays too optional in real life, so it never becomes the killer feature.',
+      'The founder-caused version: intensity turns into more system-building before enough user proof exists.',
+      'The strategic danger is distribution without pull: the keyboard gives us a place to live, but not automatically a reason users return.'
+    ];
+  }
+
   if (kind.archetype === 'dangerous_assumption') {
     return [
       'The most dangerous assumption is that users will care about Explain just because confusion is real.',
@@ -978,6 +1036,16 @@ function buildDirectAnswer(kind, report) {
       'A second dangerous assumption is that better agents equal better product. They only matter if they create a user-visible completed action.',
       'So the core risk is daily habit: Explain must prove users would open it repeatedly during real messaging, screenshots, forms, bills, or notices.',
       'The evidence needed is simple: repeated use, faster understanding, and less app-switching than the user’s current workflow.'
+    ];
+  }
+
+  if (kind.archetype === 'freedom_jarvis_contradiction') {
+    return [
+      'The contradiction is this: you want humans to be free, but if Jarvis does everything, freedom can turn into dependency.',
+      'The clean version of the vision is not "AI replaces human direction." It is "humans choose direction; AI executes."',
+      'Jarvis should reduce burden, not outsource judgment.',
+      'If it starts deciding what people should want, it becomes control disguised as help.',
+      'So the product line is: automate the doing, preserve agency. That is the difference between freedom and dependency.'
     ];
   }
 
@@ -1231,13 +1299,13 @@ function buildReflectionResponse(reconstruction, { debug = false } = {}) {
 
 function shouldAttachPremortem(message = '', kind = {}) {
   const text = String(message || '').toLowerCase();
-  if (/\b(why.*fail|fail in|what.*missing|what.*kill|could kill|dangerous assumption|premortem)\b/.test(text)) {
+  if (/\b(why.*fail|fail in|what.*missing|what.*kill|what kills us|could kill|dangerous assumption|premortem)\b/.test(text)) {
     return true;
   }
   return shouldRunPremortem(message, {
     intent: kind.intent,
     category: kind.category
-  }) && /MISSING|DANGEROUS|FAILURE|PREMORTEM/.test(String(kind.intent || ''));
+  }) && /MISSING|DANGEROUS|FAILURE|PREMORTEM|COMPANY_KILL/.test(String(kind.intent || ''));
 }
 
 function responseAnswersFounderMind(reconstruction = {}) {
@@ -1271,8 +1339,14 @@ function responseAnswersFounderMind(reconstruction = {}) {
   if (reconstruction.intent === 'RECONSTRUCT_MISSING_BLIND_SPOT') {
     return /missing|blind spot|proof of user pull|killer feature|Explain|evidence/i.test(answer);
   }
+  if (reconstruction.intent === 'RECONSTRUCT_COMPANY_KILL_RISK') {
+    return /kills us|user habit|infrastructure|optional|killer feature|distribution without pull|reason users return/i.test(answer);
+  }
   if (reconstruction.intent === 'RECONSTRUCT_DANGEROUS_ASSUMPTION') {
     return /dangerous assumption|users will care|Explain|daily habit|evidence needed/i.test(answer);
+  }
+  if (reconstruction.intent === 'RECONSTRUCT_FREEDOM_JARVIS_CONTRADICTION') {
+    return /freedom|dependency|humans choose direction|AI executes|outsource judgment|automate the doing, preserve agency/i.test(answer);
   }
   if (reconstruction.intent === 'RECONSTRUCT_IMPRESSIVE_NOT_USEFUL_FEAR') {
     return /fear is valid|impressive and still fail|real user struggle|understand confusing content|faster, clearer, or more confident/i.test(answer);
