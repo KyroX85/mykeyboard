@@ -120,6 +120,7 @@ function maybeRouteFounderFeedback(message = '', memory = {}) {
       feedback: entry.feedback,
       polarity: entry.polarity,
       confidence: entry.confidence,
+      feedbackLearningApplied: true,
       skipExecutionSchema: true
     },
     response: [
@@ -141,6 +142,7 @@ function recordFounderFeedback(message = '', providedMemory = {}, classification
     ...providedMemory
   };
   const previous = resolvePreviousExchange(memory);
+  const routeUsed = resolvePreviousRoute(memory);
   const current = readMemory();
   const entry = {
     timestamp: new Date().toISOString(),
@@ -157,26 +159,48 @@ function recordFounderFeedback(message = '', providedMemory = {}, classification
     },
     questionPattern: normalizePattern(previous.question),
     answerPattern: normalizePattern(previous.answer),
+    routeUsed,
     rawQuestionPreview: preview(previous.question),
     rawAnswerPreview: preview(previous.answer)
   };
 
   const wrongAnswerAnalysis = analyzeWrongAnswer(entry);
-  const analyzedEntry = wrongAnswerAnalysis
-    ? { ...entry, wrongAnswerAnalysis }
-    : entry;
+  const analyzedEntry = enrichFeedbackOutcome(entry, wrongAnswerAnalysis);
   const existing = Array.isArray(current.founderFeedback) ? current.founderFeedback : [];
   const nextFeedback = [analyzedEntry, ...existing].slice(0, MAX_FEEDBACK_ITEMS);
   const founderTasteModel = updateFounderTasteModel(current.founderTasteModel, analyzedEntry);
   const wrongAnswerMemory = updateWrongAnswerMemory(current.wrongAnswerAnalysis, wrongAnswerAnalysis);
+  const routeScores = updateRouteScoresFromFeedback(current.routeScores, analyzedEntry);
+  const reinforcementEvents = updateReinforcementEventsFromFeedback(current.reinforcementEvents, routeScores, analyzedEntry);
+  const questionPatternRouteScores = updateQuestionPatternRouteScores(current.questionPatternRouteScores, analyzedEntry);
   writeMemory({
     ...current,
+    routeScores,
+    reinforcementEvents,
+    questionPatternRouteScores,
     founderFeedback: nextFeedback,
     lastFeedback: analyzedEntry,
     founderTasteModel,
     wrongAnswerAnalysis: wrongAnswerMemory
   });
   return analyzedEntry;
+}
+
+function enrichFeedbackOutcome(entry = {}, wrongAnswerAnalysis = null) {
+  if (entry.polarity === 'positive') {
+    return {
+      ...entry,
+      successReason: buildSuccessReason(entry)
+    };
+  }
+  if (entry.polarity === 'negative') {
+    return {
+      ...entry,
+      wrongAnswerAnalysis,
+      failureReason: buildFailureReason(entry, wrongAnswerAnalysis)
+    };
+  }
+  return entry;
 }
 
 function applyFounderFeedbackToResponse(response = '', context = {}) {
@@ -263,6 +287,150 @@ function resolvePreviousExchange(memory = {}) {
     question: item && item.founderMessage ? item.founderMessage : null,
     answer: item && item.agentAnswer ? item.agentAnswer : null
   };
+}
+
+function resolvePreviousRoute(memory = {}) {
+  const target = memory.lastRouteForReward || {};
+  const recent = Array.isArray(memory.recentMessages) ? memory.recentMessages : [];
+  const recentRoute = recent.find((entry) => entry && (entry.intent || entry.agent));
+  const key = target.key || routeKeyFromRecent(recentRoute);
+  if (!key) {
+    return {
+      key: 'unknown',
+      command: null,
+      matchedRoute: null,
+      intent: null,
+      category: null
+    };
+  }
+  return {
+    key,
+    command: target.command || (recentRoute && recentRoute.intent) || null,
+    matchedRoute: target.matchedRoute || null,
+    intent: target.intent || (recentRoute && recentRoute.intent) || null,
+    category: target.category || null
+  };
+}
+
+function routeKeyFromRecent(recentRoute = null) {
+  if (!recentRoute) return null;
+  if (recentRoute.intent === 'founder_mind_reconstruction') return 'founder_mind_reconstruction';
+  if (recentRoute.agent && recentRoute.intent) return `agent:${recentRoute.agent}:${recentRoute.intent}`;
+  return recentRoute.intent || null;
+}
+
+function updateQuestionPatternRouteScores(existing = {}, entry = {}) {
+  const questionPattern = entry && entry.questionPattern;
+  const routeKey = entry && entry.routeUsed && entry.routeUsed.key;
+  if (!questionPattern || !routeKey || routeKey === 'unknown') {
+    return existing && typeof existing === 'object' && !Array.isArray(existing) ? existing : {};
+  }
+  const source = existing && typeof existing === 'object' && !Array.isArray(existing) ? existing : {};
+  const patternMemory = source[questionPattern] && typeof source[questionPattern] === 'object'
+    ? source[questionPattern]
+    : { routes: {}, examples: [] };
+  const routes = patternMemory.routes && typeof patternMemory.routes === 'object' ? patternMemory.routes : {};
+  const nextRoutes = {
+    ...routes,
+    [routeKey]: updateScore(routes[routeKey], entry)
+  };
+  const rankedRoutes = Object.entries(nextRoutes)
+    .sort((a, b) => Number(b[1].score || 0) - Number(a[1].score || 0));
+  return {
+    ...source,
+    [questionPattern]: {
+      questionPattern,
+      preferredRoute: rankedRoutes[0] ? rankedRoutes[0][0] : null,
+      routes: nextRoutes,
+      examples: [
+        {
+          timestamp: entry.timestamp,
+          polarity: entry.polarity,
+          feedback: entry.feedback,
+          routeKey,
+          reason: entry.successReason || entry.failureReason || null
+        },
+        ...(Array.isArray(patternMemory.examples) ? patternMemory.examples : [])
+      ].slice(0, 6),
+      lastUpdatedAt: new Date().toISOString()
+    }
+  };
+}
+
+function updateRouteScoresFromFeedback(existing = {}, entry = {}) {
+  const routeKey = entry && entry.routeUsed && entry.routeUsed.key;
+  if (!routeKey || routeKey === 'unknown') return existing && typeof existing === 'object' && !Array.isArray(existing) ? existing : {};
+  const current = existing && typeof existing === 'object' && !Array.isArray(existing) ? existing : {};
+  return {
+    ...current,
+    [routeKey]: updateScore(current[routeKey], entry)
+  };
+}
+
+function updateReinforcementEventsFromFeedback(existing = [], routeScores = {}, entry = {}) {
+  const routeKey = entry && entry.routeUsed && entry.routeUsed.key;
+  if (!routeKey || routeKey === 'unknown') {
+    return Array.isArray(existing) ? existing.slice(0, 80) : [];
+  }
+  const score = routeScores && routeScores[routeKey] ? routeScores[routeKey].score : 0;
+  const reward = entry.polarity === 'positive' ? 2 : entry.polarity === 'negative' ? -2 : 0;
+  if (!reward) return Array.isArray(existing) ? existing.slice(0, 80) : [];
+  return [
+    {
+      timestamp: new Date().toISOString(),
+      routeKey,
+      routeCommand: entry.routeUsed.command || null,
+      matchedRoute: entry.routeUsed.matchedRoute || null,
+      reward,
+      rewardLabel: `feedback_${entry.feedback || entry.polarity}`,
+      founderMessage: preview(entry.sourceMessage),
+      answerPattern: preview(entry.answerPattern),
+      scoreAfter: score
+    },
+    ...(Array.isArray(existing) ? existing : [])
+  ].slice(0, 80);
+}
+
+function updateScore(existing = null, entry = {}) {
+  const current = existing && typeof existing === 'object'
+    ? existing
+    : { score: 0, positive: 0, negative: 0, neutral: 0, confidence: 0, examples: [] };
+  const delta = entry.polarity === 'positive' ? 2 : entry.polarity === 'negative' ? -2 : 0;
+  const positive = Number(current.positive || 0) + (entry.polarity === 'positive' ? 1 : 0);
+  const negative = Number(current.negative || 0) + (entry.polarity === 'negative' ? 1 : 0);
+  const neutral = Number(current.neutral || 0) + (entry.polarity === 'neutral' ? 1 : 0);
+  const total = positive + negative + neutral;
+  return {
+    score: clamp(Number(current.score || 0) + delta, -10, 10),
+    positive,
+    negative,
+    neutral,
+    confidence: Number(Math.min(0.95, 0.35 + total * 0.08).toFixed(2)),
+    lastFeedback: entry.feedback || null,
+    lastUpdatedAt: new Date().toISOString(),
+    examples: [
+      {
+        timestamp: entry.timestamp,
+        polarity: entry.polarity,
+        feedback: entry.feedback,
+        founderMessage: preview(entry.sourceMessage),
+        reason: entry.successReason || entry.failureReason || null
+      },
+      ...(Array.isArray(current.examples) ? current.examples : [])
+    ].slice(0, 6)
+  };
+}
+
+function buildSuccessReason(entry = {}) {
+  const route = entry.routeUsed && entry.routeUsed.key ? entry.routeUsed.key : 'previous route';
+  return `founder approved ${route} for this question pattern`;
+}
+
+function buildFailureReason(entry = {}, wrongAnswerAnalysis = null) {
+  if (wrongAnswerAnalysis && wrongAnswerAnalysis.primaryFailureReason) {
+    return wrongAnswerAnalysis.primaryFailureReason;
+  }
+  return `negative feedback: ${String(entry.feedback || 'founder rejected answer').replace(/_/g, ' ')}`;
 }
 
 function feedbackRelevance(normalizedMessage, entry = {}) {
@@ -394,6 +562,10 @@ function isRecent(timestamp) {
   const value = Date.parse(timestamp || '');
   if (!Number.isFinite(value)) return false;
   return Date.now() - value < 14 * 24 * 60 * 60 * 1000;
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, Number(value || 0)));
 }
 
 function formatAdaptation(adaptation = '') {

@@ -48,7 +48,7 @@ const NON_REWARDABLE_COMMANDS = new Set([
 function updateRouteReinforcement(memory = {}, command = '', details = {}) {
   const route = buildRouteDescriptor(command, details);
   const feedbackReward = rewardFromDetails(details);
-  const textReward = rewardFromMessage(details.founderMessage);
+  const textReward = details.feedbackLearningApplied ? null : rewardFromMessage(details.founderMessage);
   const reward = feedbackReward || textReward || continuedDiscussionReward(memory, route, details);
   const priorTarget = memory.lastRouteForReward || null;
   let nextScores = normalizeRouteScores(memory.routeScores);
@@ -119,6 +119,10 @@ function rankRoutesWithReinforcement(memory = {}, routeKeys = []) {
 function shouldPreferReinforcedConversation(message = '', memory = {}) {
   const normalized = String(message || '').toLowerCase().trim();
   if (!normalized || isExplicitExecution(normalized)) return false;
+  const patternPreference = preferredRouteForQuestionPattern(normalized, memory);
+  if (patternPreference && patternPreference.routeKey === 'founder_mind_reconstruction') {
+    return true;
+  }
   if (!/\b(bro|think|feel|why|what|how|dream|wrong|off|satisfied|users|care)\b/i.test(normalized)) {
     return false;
   }
@@ -132,8 +136,43 @@ function shouldPreferReinforcedConversation(message = '', memory = {}) {
   return Boolean(top && top.key === 'founder_mind_reconstruction' && top.score > 0.5);
 }
 
+function preferredRouteForQuestionPattern(message = '', memory = {}) {
+  const patterns = memory.questionPatternRouteScores && typeof memory.questionPatternRouteScores === 'object'
+    ? memory.questionPatternRouteScores
+    : {};
+  const normalized = normalizePattern(message);
+  let best = null;
+  for (const [questionPattern, item] of Object.entries(patterns)) {
+    const relevance = tokenOverlap(normalized, questionPattern);
+    if (relevance < 0.34) continue;
+    const routes = item && item.routes && typeof item.routes === 'object' ? item.routes : {};
+    const routeKey = item && item.preferredRoute ? item.preferredRoute : bestRouteKey(routes);
+    const routeScore = routeKey && routes ? routes[routeKey] : null;
+    if (!routeKey || !routeScore || Number(routeScore.score || 0) <= 0) continue;
+    const candidate = {
+      routeKey,
+      score: Number(routeScore.score || 0),
+      confidence: Number(routeScore.confidence || 0),
+      relevance
+    };
+    if (!best ||
+      candidate.relevance > best.relevance ||
+      (candidate.relevance === best.relevance && candidate.score > best.score)) {
+      best = candidate;
+    }
+  }
+  return best;
+}
+
+function bestRouteKey(routes = {}) {
+  const ranked = Object.entries(routes)
+    .sort((a, b) => Number(b[1].score || 0) - Number(a[1].score || 0));
+  return ranked[0] ? ranked[0][0] : null;
+}
+
 function rewardFromDetails(details = {}) {
   if (!details || details.intent !== 'founder_feedback') return null;
+  if (details.feedbackLearningApplied) return null;
   if (details.polarity === 'positive') {
     return { label: `feedback_${details.feedback || 'positive'}`, value: 2 };
   }
@@ -237,6 +276,31 @@ function preview(value = '') {
   return String(value || '').replace(/\s+/g, ' ').trim().slice(0, 220) || null;
 }
 
+function normalizePattern(value = '') {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 240);
+}
+
+function tokenOverlap(left = '', right = '') {
+  const leftTokens = importantTokens(left);
+  const rightTokens = importantTokens(right);
+  if (!leftTokens.length || !rightTokens.length) return 0;
+  const rightSet = new Set(rightTokens);
+  const shared = leftTokens.filter((token) => rightSet.has(token)).length;
+  return shared / Math.max(leftTokens.length, rightTokens.length);
+}
+
+function importantTokens(value = '') {
+  return normalizePattern(value)
+    .split(' ')
+    .filter((token) => token.length > 3)
+    .filter((token) => !STOP_WORDS.has(token));
+}
+
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
@@ -246,7 +310,33 @@ module.exports = {
   applyReinforcementToRoute,
   rankRoutesWithReinforcement,
   shouldPreferReinforcedConversation,
+  preferredRouteForQuestionPattern,
   routeKeyFor,
   rewardFromMessage,
   rewardFromDetails
 };
+
+const STOP_WORDS = new Set([
+  'what',
+  'when',
+  'where',
+  'which',
+  'about',
+  'this',
+  'that',
+  'with',
+  'from',
+  'your',
+  'youre',
+  'founder',
+  'answer',
+  'question',
+  'would',
+  'should',
+  'could',
+  'have',
+  'were',
+  'been',
+  'they',
+  'them'
+]);

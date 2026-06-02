@@ -164,6 +164,7 @@ const DEFAULT_MEMORY = {
   previousAgentAnswer: null,
   founderFeedback: [],
   lastFeedback: null,
+  questionPatternRouteScores: {},
   founderTasteModel: null,
   founderQuestionClusters: null,
   wrongAnswerAnalysis: null,
@@ -420,6 +421,9 @@ function readConversationMemory() {
     previousAgentAnswer: memory.previousAgentAnswer || null,
     founderFeedback: Array.isArray(memory.founderFeedback) ? memory.founderFeedback.slice(0, 50) : [],
     lastFeedback: memory.lastFeedback || null,
+    questionPatternRouteScores: memory.questionPatternRouteScores && typeof memory.questionPatternRouteScores === 'object'
+      ? memory.questionPatternRouteScores
+      : {},
     founderTasteModel: memory.founderTasteModel || null,
     founderQuestionClusters: memory.founderQuestionClusters || null,
     wrongAnswerAnalysis: memory.wrongAnswerAnalysis || null,

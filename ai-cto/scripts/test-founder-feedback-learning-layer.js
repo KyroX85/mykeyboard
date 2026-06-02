@@ -53,6 +53,10 @@ assert.strictEqual(memoryAfterFeedback.founderFeedback[0].feedback, 'too_generic
 assert.strictEqual(memoryAfterFeedback.founderFeedback[0].polarity, 'negative');
 assert.match(memoryAfterFeedback.founderFeedback[0].questionPattern, /chasing/);
 assert(memoryAfterFeedback.founderFeedback[0].answerPattern);
+assert.strictEqual(memoryAfterFeedback.founderFeedback[0].routeUsed.key, 'founder_mind_reconstruction');
+assert.match(memoryAfterFeedback.founderFeedback[0].failureReason, /wrong_depth|wrong_abstraction_level|negative feedback/i);
+assert(memoryAfterFeedback.questionPatternRouteScores[memoryAfterFeedback.founderFeedback[0].questionPattern]);
+assert(memoryAfterFeedback.questionPatternRouteScores[memoryAfterFeedback.founderFeedback[0].questionPattern].routes.founder_mind_reconstruction.negative >= 1);
 
 const relevant = findRelevantFounderFeedback('What am I actually chasing?', memoryAfterFeedback);
 assert(relevant.length >= 1);
@@ -178,6 +182,14 @@ const positive = routeMessage('good answer', {}, readConversationMemory());
 assert.strictEqual(positive.command, 'founder_feedback_recorded');
 assert.match(positive.response, /preserve direct reasoning|No execution started/i);
 assert.doesNotMatch(positive.response, forbidden);
+const memoryAfterPositive = readConversationMemory();
+const positiveFeedback = memoryAfterPositive.founderFeedback.find((entry) => entry.feedback === 'good_answer');
+assert(positiveFeedback);
+assert.strictEqual(positiveFeedback.polarity, 'positive');
+assert.strictEqual(positiveFeedback.routeUsed.key, 'founder_mind_reconstruction');
+assert.match(positiveFeedback.successReason, /founder approved/i);
+assert(memoryAfterPositive.questionPatternRouteScores[positiveFeedback.questionPattern]);
+assert(memoryAfterPositive.questionPatternRouteScores[positiveFeedback.questionPattern].routes.founder_mind_reconstruction.positive >= 1);
 
 routeMessageWithAi('not relevant', {}, readConversationMemory()).then((withAi) => {
   assert.strictEqual(withAi.command, 'founder_feedback_recorded');

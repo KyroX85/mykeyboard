@@ -70,6 +70,9 @@ persist(negative, 'too generic');
 memory = readConversationMemory();
 assert(memory.routeScores.founder_mind_reconstruction.negative >= 1);
 assert(memory.routeScores.founder_mind_reconstruction.score < 2.25);
+const negativeFeedback = memory.founderFeedback.find((entry) => entry.feedback === 'too_generic');
+const negativePatternScore = memory.questionPatternRouteScores[negativeFeedback.questionPattern];
+assert(negativePatternScore.routes.founder_mind_reconstruction.negative >= 1);
 
 const scoreBeforeFix = memory.routeScores.founder_mind_reconstruction.score;
 const fixReward = rewardFromMessage('fix');
@@ -82,5 +85,22 @@ updateMemory('execution_fix', {}, {
 memory = readConversationMemory();
 assert(memory.routeScores.founder_mind_reconstruction.score < scoreBeforeFix);
 assert(memory.lastReward.rewardLabel === 'founder_fix_request');
+
+const patternPositiveMemory = {
+  questionPatternRouteScores: {
+    'bro what do you think im actually chasing': {
+      routes: {
+        founder_mind_reconstruction: {
+          score: 2,
+          positive: 1,
+          negative: 0,
+          confidence: 0.45
+        }
+      }
+    }
+  },
+  routeScores: {}
+};
+assert(shouldPreferReinforcedConversation("Bro what do you think I'm actually chasing?", patternPositiveMemory));
 
 console.log('Reinforcement learning layer checks passed.');
