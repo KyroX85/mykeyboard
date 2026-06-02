@@ -26,12 +26,29 @@ class PersonalJarvisIsolationGuardrailsTest {
             .joinToString("\n") { it.readText() }
         val manifest = sourceFile("app/src/main/AndroidManifest.xml").readText()
 
-        assertFalse(personalSources.contains("OkHttpClient"))
         assertFalse(personalSources.contains("Supabase"))
         assertFalse(personalSources.contains("http://"))
         assertFalse(personalSources.contains("https://"))
         assertFalse(personalSources.contains("AccessibilityService"))
         assertFalse(manifest.contains("android.permission.BIND_ACCESSIBILITY_SERVICE"))
+    }
+
+    @Test
+    fun personalJarvisDelegatesQuestionsToFounderBrainOnly() {
+        val connector = sourceFile("app/src/main/java/com/example/mykeyboard/personal/JarvisBrainConnector.kt").readText()
+        val listener = sourceFile("app/src/main/java/com/example/mykeyboard/personal/JarvisNotificationListenerService.kt").readText()
+        val personalSources = sourceFiles("app/src/main/java/com/example/mykeyboard/personal")
+            .joinToString("\n") { it.readText() }
+
+        assertTrue(connector.contains("founderBrainQuestionEndpoint()"))
+        assertTrue(connector.contains("Authorization"))
+        assertTrue(connector.contains("voiceSummary"))
+        assertTrue(listener.contains("JarvisQuestionDetector.extractQuestion"))
+        assertTrue(listener.contains("speaker.speak(spoken)"))
+        assertFalse(personalSources.contains("routeMessageWithAi"))
+        assertFalse(personalSources.contains("answerFounderBrainQuestion"))
+        assertFalse(personalSources.contains(".brain_state.json"))
+        assertFalse(personalSources.contains("rawReasoning"))
     }
 
     private fun sourceFile(relativePath: String): File {

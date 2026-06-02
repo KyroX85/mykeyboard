@@ -1,6 +1,8 @@
 package com.example.mykeyboard.personal
 
 import android.app.Notification
+import android.os.Handler
+import android.os.Looper
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
@@ -8,6 +10,8 @@ import android.util.Log
 class JarvisNotificationListenerService : NotificationListenerService() {
     private lateinit var speaker: JarvisSpeaker
     private lateinit var notificationCenter: JarvisNotificationCenter
+    private lateinit var brainConnector: JarvisBrainConnector
+    private val mainHandler = Handler(Looper.getMainLooper())
     private var lastAlertKey = ""
     private var lastAlertAtMs = 0L
 
@@ -15,11 +19,15 @@ class JarvisNotificationListenerService : NotificationListenerService() {
         super.onCreate()
         speaker = JarvisSpeaker(this)
         notificationCenter = JarvisNotificationCenter(this)
+        brainConnector = JarvisBrainConnector()
     }
 
     override fun onDestroy() {
         if (::speaker.isInitialized) {
             speaker.shutdown()
+        }
+        if (::brainConnector.isInitialized) {
+            brainConnector.shutdown()
         }
         super.onDestroy()
     }
@@ -27,12 +35,38 @@ class JarvisNotificationListenerService : NotificationListenerService() {
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
         if (!PersonalJarvisConfig.isEnabled || sbn == null) return
         val snapshot = sbn.toSnapshot()
+        val question = JarvisQuestionDetector.extractQuestion(snapshot)
+        if (question != null) {
+            askFounderBrain(sbn.key, question)
+            return
+        }
+
         val signal = JarvisReleaseDetector.detect(snapshot) ?: return
         if (isDuplicate(sbn.key)) return
 
         Log.i(TAG, "Personal Jarvis release signal: ${signal.priority}")
         speaker.speak(signal.speech)
         notificationCenter.showReleaseAlert(signal, sbn.notification.contentIntent)
+    }
+
+    private fun askFounderBrain(notificationKey: String, question: String) {
+        if (isDuplicate("brain:$notificationKey")) return
+        speaker.speak("Sir, checking the Founder Brain.")
+        brainConnector.askQuestion(
+            question = question,
+            onAnswer = { answer ->
+                mainHandler.post {
+                    val spoken = answer.voiceSummary.ifBlank { answer.summary }
+                    speaker.speak(spoken)
+                    notificationCenter.showBrainAnswer(answer)
+                }
+            },
+            onFailure = { reason ->
+                mainHandler.post {
+                    speaker.speak(reason)
+                }
+            }
+        )
     }
 
     private fun isDuplicate(key: String): Boolean {

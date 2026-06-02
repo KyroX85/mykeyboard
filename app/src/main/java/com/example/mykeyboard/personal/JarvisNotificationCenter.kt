@@ -43,6 +43,27 @@ class JarvisNotificationCenter(private val context: Context) {
         }
     }
 
+    fun showBrainAnswer(answer: JarvisBrainAnswer) {
+        ensureChannel()
+        val manager = appContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val message = answer.summary.ifBlank { answer.voiceSummary }
+        val notification = notificationBuilder()
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentTitle("Founder Brain")
+            .setContentText(message)
+            .setStyle(Notification.BigTextStyle().bigText(message))
+            .setAutoCancel(true)
+            .setPriority(Notification.PRIORITY_HIGH)
+            .setCategory(Notification.CATEGORY_MESSAGE)
+            .setContentIntent(notificationSettingsIntent())
+            .build()
+        try {
+            manager.notify(PersonalJarvisConfig.BRAIN_ANSWER_NOTIFICATION_ID, notification)
+        } catch (e: SecurityException) {
+            Log.w(TAG, "Jarvis brain answer notification permission missing", e)
+        }
+    }
+
     fun showReminder(title: String, message: String) {
         ensureChannel()
         val manager = appContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
