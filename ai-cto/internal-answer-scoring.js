@@ -32,6 +32,7 @@ function enforceInternalAnswerQuality(route = {}, {
   memory = {}
 } = {}) {
   if (!route || typeof route.response !== 'string') return route;
+  if (route.details && route.details.suppressSelfCritique) return route;
   if (!shouldScoreRoute(route)) return route;
 
   const initial = scoreInternalAnswer({

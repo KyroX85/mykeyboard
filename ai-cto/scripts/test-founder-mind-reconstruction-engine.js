@@ -200,6 +200,33 @@ assert.strictEqual(behaviorOptimization.details.intent, 'RECONSTRUCT_FOUNDER_BEH
 assert.match(behaviorOptimization.details.mindReconstruction.actualQuestion, /behavior.*optimize|repeated behavior/i);
 assert.doesNotMatch(String(behaviorOptimization.response || ''), /CLARIFICATION_REQUEST|NOISE|LOW INFORMATION|AMBIGUOUS INTENT|TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan/i);
 
+const avoidingReflection = assertMindRoute(
+  "Bro what do you think I'm avoiding right now?",
+  /avoiding|uncomfortable|killer feature|user proof|hard question|truth/i
+);
+assert.strictEqual(avoidingReflection.details.category, 'REFLECTION');
+assert.strictEqual(avoidingReflection.details.intent, 'RECONSTRUCT_FOUNDER_AVOIDANCE');
+assert.match(avoidingReflection.details.mindReconstruction.actualQuestion, /avoiding|not wanting to face/i);
+assert.doesNotMatch(String(avoidingReflection.response || ''), /keyboard|product implementation|previous answer|self[-\s]?evaluation|route|diagnostic|CLARIFICATION_REQUEST|NOISE|LOW INFORMATION|AMBIGUOUS INTENT|TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan/i);
+
+const notSeeingReflection = assertMindRoute(
+  'What am I not seeing?',
+  /not seeing|blind spot|users|care|dream|proof/i
+);
+assert.strictEqual(notSeeingReflection.details.category, 'REFLECTION');
+assert.strictEqual(notSeeingReflection.details.intent, 'RECONSTRUCT_FOUNDER_NOT_SEEING');
+assert.match(notSeeingReflection.details.mindReconstruction.actualQuestion, /not seeing|blind spot/i);
+assert.doesNotMatch(String(notSeeingReflection.response || ''), /keyboard|product implementation|previous answer|self[-\s]?evaluation|route|diagnostic|CLARIFICATION_REQUEST|NOISE|LOW INFORMATION|AMBIGUOUS INTENT|TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan/i);
+
+const scaredQuestionReflection = assertMindRoute(
+  "What's the question I'm scared to ask?",
+  /scared|question|what if|users|care|dream|wrong/i
+);
+assert.strictEqual(scaredQuestionReflection.details.category, 'REFLECTION');
+assert.strictEqual(scaredQuestionReflection.details.intent, 'RECONSTRUCT_SCARED_FOUNDER_QUESTION');
+assert.match(scaredQuestionReflection.details.mindReconstruction.actualQuestion, /scared to ask|question/i);
+assert.doesNotMatch(String(scaredQuestionReflection.response || ''), /keyboard|product implementation|previous answer|self[-\s]?evaluation|route|diagnostic|CLARIFICATION_REQUEST|NOISE|LOW INFORMATION|AMBIGUOUS INTENT|TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan/i);
+
 const dreamValidity = assertMindRoute(
   'Bro, what if my dream itself is wrong?',
   /dream might be wrong|underlying desire|keyboard is automatically the right vehicle|Explain is the current smallest test|user behavior decide/i

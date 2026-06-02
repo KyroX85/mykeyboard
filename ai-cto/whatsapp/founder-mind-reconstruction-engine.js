@@ -1,4 +1,9 @@
 const REFLECTION_PATTERNS = [
+  /\bwhat\s+do\s+you\s+think\s+(i'?m|i\s+am)\s+avoiding\s+(right\s+now|now|lately|recently)?\b/i,
+  /\bwhat\s+(am\s+i|i\s+am)\s+avoiding\s+(right\s+now|now|lately|recently)?\b/i,
+  /\bwhat\s+(am\s+i|i\s+am)\s+not\s+seeing\b/i,
+  /\bwhat'?s\s+the\s+question\s+(i'?m|i\s+am)\s+scared\s+to\s+ask\b/i,
+  /\bwhat\s+is\s+the\s+question\s+(i'?m|i\s+am)\s+scared\s+to\s+ask\b/i,
   /\bbased\s+on\s+my\s+behavior\b.*\bwhat\s+(am\s+i|i\s+am)\s+optimizing\s+for\b/i,
   /\bwhat\s+(am\s+i|i\s+am)\s+optimizing\s+for\b/i,
   /\bforget\s+what\s+i\s+say\b.*\bbased\s+on\s+my\s+behavior\b/i,
@@ -152,6 +157,8 @@ function routeFounderMindReconstruction(message = '', context = {}) {
       questionCluster,
       mindReconstruction: reconstruction.report,
       selfCheck: reconstruction.selfCheck,
+      suppressRouteConfidence: reconstruction.category === 'REFLECTION',
+      suppressSelfCritique: reconstruction.category === 'REFLECTION',
       skipExecutionSchema: true
     },
     response
@@ -262,6 +269,33 @@ function classifyMindQuestion(text = '', memory = {}) {
   }
 
   if (REFLECTION_PATTERNS.some((pattern) => pattern.test(text))) {
+    if (/\bavoiding\b/i.test(text)) {
+      return {
+        intent: 'RECONSTRUCT_FOUNDER_AVOIDANCE',
+        category: 'REFLECTION',
+        archetype: 'founder_avoidance',
+        mode: 'REFLECTION_MODE',
+        confidence: 84
+      };
+    }
+    if (/\bnot\s+seeing\b/i.test(text)) {
+      return {
+        intent: 'RECONSTRUCT_FOUNDER_NOT_SEEING',
+        category: 'REFLECTION',
+        archetype: 'founder_not_seeing',
+        mode: 'REFLECTION_MODE',
+        confidence: 83
+      };
+    }
+    if (/\bquestion\b.*\bscared\s+to\s+ask\b/i.test(text)) {
+      return {
+        intent: 'RECONSTRUCT_SCARED_FOUNDER_QUESTION',
+        category: 'REFLECTION',
+        archetype: 'scared_founder_question',
+        mode: 'REFLECTION_MODE',
+        confidence: 84
+      };
+    }
     if (/\bchanged\s+my\s+mind\b/i.test(text) || /\bwhat\s+belief\s+have\s+i\b/i.test(text)) {
       return {
         intent: 'RECONSTRUCT_RECENT_BELIEF_SHIFT',
@@ -551,6 +585,42 @@ function buildMindReport(kind, message, context = {}) {
     };
   }
 
+  if (kind.archetype === 'founder_avoidance') {
+    return {
+      objective: 'Name the uncomfortable truth the founder may be postponing instead of turning the question into product advice.',
+      assumption: 'The founder suspects their urgency around agents may be covering a harder product judgment.',
+      concern: 'The founder may be avoiding the possibility that impressive agent progress still has not proven the killer feature, user pull, or daily habit.',
+      decision: 'Decide whether the next honest move is more building, or admitting which core assumption still lacks proof.',
+      desiredOutcome: 'A direct, slightly uncomfortable reflection about the avoided truth.',
+      actualQuestion: 'What am I avoiding or not wanting to face right now?',
+      uselessLiteralAnswer: 'Keyboard advice, implementation guidance, route diagnostics, self-evaluation, task plans, health, momentum, or status.'
+    };
+  }
+
+  if (kind.archetype === 'founder_not_seeing') {
+    return {
+      objective: 'Identify the founder blind spot without converting the question into project planning.',
+      assumption: 'The founder is asking for an outside read of what their own obsession may be hiding.',
+      concern: 'The founder may not be seeing that proving users care matters more than making the agent system feel closer to the dream.',
+      decision: 'Decide which blind spot should change the founder’s next judgment.',
+      desiredOutcome: 'A specific reflection about the blind spot, not a product roadmap answer.',
+      actualQuestion: 'What am I not seeing or what blind spot is shaping my decisions?',
+      uselessLiteralAnswer: 'Implementation advice, product templates, previous-answer critique, route diagnostics, task plans, health, momentum, or status.'
+    };
+  }
+
+  if (kind.archetype === 'scared_founder_question') {
+    return {
+      objective: 'Surface the question the founder may be afraid to ask directly.',
+      assumption: 'The founder wants the agent to name the deeper fear instead of reassuring them.',
+      concern: 'The founder may be scared to ask whether users care enough, whether the dream is wrong, or whether the current work is impressive but not useful.',
+      decision: 'Decide which hidden question deserves to be faced now.',
+      desiredOutcome: 'A direct founder-facing question that feels personal and strategically uncomfortable.',
+      actualQuestion: 'What is the question I am scared to ask myself?',
+      uselessLiteralAnswer: 'Self-evaluation, route diagnostics, task plans, product implementation advice, health, momentum, or status.'
+    };
+  }
+
   if (kind.archetype === 'recent_belief_shift') {
     return {
       objective: 'Identify the founder’s recent belief change from repeated decisions and corrections.',
@@ -742,6 +812,36 @@ function buildDirectAnswer(kind, report) {
     ];
   }
 
+  if (kind.archetype === 'founder_avoidance') {
+    return [
+      'You may be avoiding the hardest truth: the system is getting more capable, but the killer user proof is still not nailed.',
+      'That is uncomfortable because it means more agent intelligence may still not equal company progress.',
+      'You might also be avoiding the question of whether Explain is strong enough to become a daily habit, or whether it only feels aligned with the dream because the dream is yours.',
+      'The direct read: you are probably not avoiding work. You are avoiding the moment where the work has to face user proof.',
+      'The hard question is: if users do not care, would you be willing to cut impressive pieces and narrow the dream?'
+    ];
+  }
+
+  if (kind.archetype === 'founder_not_seeing') {
+    return [
+      'What you may not be seeing is how much of the current pressure is coming from needing the dream to feel real soon.',
+      'That can make infrastructure progress feel reassuring even when it does not yet prove user pull.',
+      'The blind spot is probably this: the agents can become smarter and still not answer the market question.',
+      'Users will not reward the system for understanding your vision. They will reward it only if it removes a repeated pain they already feel.',
+      'So the thing to watch is not whether Aritenis is becoming impressive. It is whether one use case becomes painfully obvious to keep.'
+    ];
+  }
+
+  if (kind.archetype === 'scared_founder_question') {
+    return [
+      'The question you may be scared to ask is: what if users do not care enough?',
+      'A second version is: what if the dream is directionally right, but this first wedge is not the wedge that proves it?',
+      'That question is scary because it threatens months of effort and the emotional pull of building a Jarvis-like system.',
+      'But asking it is useful. It forces the company back to proof: repeated pain, repeated use, and a user outcome people would miss.',
+      'So the uncomfortable question is not "can we build it?" It is "would anyone return to it without being convinced by us?"'
+    ];
+  }
+
   if (kind.archetype === 'recent_belief_shift') {
     return [
       'You seem to have changed your mind about what makes Aritenis valuable.',
@@ -794,17 +894,19 @@ function buildDirectAnswer(kind, report) {
 function buildReflectionResponse(reconstruction, { debug = false } = {}) {
   const lines = [...reconstruction.directAnswer];
 
-  if (reconstruction.dreamAlignment) {
+  const directReflection = reconstruction.category === 'REFLECTION';
+
+  if (!directReflection && reconstruction.dreamAlignment) {
     lines.push('');
     lines.push(formatDreamAlignment(reconstruction.dreamAlignment));
   }
 
-  if (reconstruction.strategicThinking) {
+  if (!directReflection && reconstruction.strategicThinking) {
     lines.push('');
     lines.push(formatStrategicThinking(reconstruction.strategicThinking));
   }
 
-  const curiosity = formatCuriosityPrompt(reconstruction.curiosityPrompt);
+  const curiosity = directReflection ? '' : formatCuriosityPrompt(reconstruction.curiosityPrompt);
   if (curiosity) {
     lines.push('');
     lines.push(curiosity);
@@ -875,6 +977,15 @@ function responseAnswersFounderMind(reconstruction = {}) {
   }
   if (reconstruction.intent === 'RECONSTRUCT_FOUNDER_BEHAVIOR_OPTIMIZATION') {
     return /product truth|stress-testing the agents|fake progress|leverage|useful breakthrough|trustworthy/i.test(answer);
+  }
+  if (reconstruction.intent === 'RECONSTRUCT_FOUNDER_AVOIDANCE') {
+    return /avoiding|uncomfortable|killer user proof|daily habit|hard question|users do not care/i.test(answer);
+  }
+  if (reconstruction.intent === 'RECONSTRUCT_FOUNDER_NOT_SEEING') {
+    return /not be seeing|blind spot|users will not reward|repeated pain|use case/i.test(answer);
+  }
+  if (reconstruction.intent === 'RECONSTRUCT_SCARED_FOUNDER_QUESTION') {
+    return /scared to ask|what if users do not care|dream|proof|would anyone return/i.test(answer);
   }
   if (reconstruction.intent === 'RECONSTRUCT_RECENT_BELIEF_SHIFT') {
     return /changed your mind|makes Aritenis valuable|advanced agents only matter|real user leverage|repeatable product moment|Explain/i.test(answer);

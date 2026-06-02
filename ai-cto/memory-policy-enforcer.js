@@ -31,8 +31,13 @@ function enforceMemoryPolicyOnRoute(route = {}, {
     founderMemoryLayer,
     executionRelevant: executionRelevant || isExecutionRoute(route)
   });
-  const responseWithConfidence = attachRouteConfidence(responseWithMemory, routeConfidence);
-  const selfCritique = maybeGenerateSelfCritique(message, responseWithConfidence, route);
+  const suppressRouteConfidence = Boolean(route.details && route.details.suppressRouteConfidence);
+  const responseWithConfidence = suppressRouteConfidence
+    ? responseWithMemory
+    : attachRouteConfidence(responseWithMemory, routeConfidence);
+  const selfCritique = route.details && route.details.suppressSelfCritique
+    ? null
+    : maybeGenerateSelfCritique(message, responseWithConfidence, route);
   return {
     ...route,
     details: {
