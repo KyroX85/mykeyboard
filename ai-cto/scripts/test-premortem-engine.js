@@ -12,6 +12,8 @@ process.env.ARITENIS_WHATSAPP_MEMORY_FILE = path.join(os.tmpdir(), `aritenis-pre
 const {
   shouldRunPremortem,
   generatePremortem,
+  formatPremortemAnalysis,
+  responseUsesPremortemAnalysis,
   updatePremortemMemory
 } = require('../premortem-engine');
 const {
@@ -20,11 +22,18 @@ const {
 } = require('../whatsapp/memory-store');
 
 assert.strictEqual(shouldRunPremortem('Build Explain for confusing screenshots and bills inside keyboard'), true);
+assert.strictEqual(shouldRunPremortem('If we fail in 3 years, why do we fail?'), true);
+assert.strictEqual(shouldRunPremortem('What could kill this?'), true);
 assert.strictEqual(shouldRunPremortem('hi bro'), false);
 
 const explain = generatePremortem('Build Explain for confusing screenshots and bills inside keyboard');
 assert.strictEqual(explain.decisionClass, 'PHASE2_EXPLAIN');
 assert(explain.failureModes.length > 0);
+assert.match(explain.mostLikelyFailure, /habit|daily/i);
+assert.match(explain.hiddenFailure, /existing|workflow|familiar/i);
+assert.match(explain.ignoredFailure, /permission|privacy|latency/i);
+assert.match(explain.founderCausedFailure, /broaden|companion|repeatable/i);
+assert(responseUsesPremortemAnalysis(formatPremortemAnalysis(explain)));
 assert(explain.blindSpots.length > 0);
 assert(explain.executionRisks.length > 0);
 assert(explain.trustRisks.length > 0);
@@ -57,5 +66,6 @@ const stored = readConversationMemory();
 assert(stored.premortemMemory);
 assert.strictEqual(stored.premortemMemory.lastPremortem.decisionClass, 'PHASE2_EXPLAIN');
 assert(stored.premortemMemory.lastPremortem.failureModes.length > 0);
+assert(stored.premortemMemory.lastPremortem.mostLikelyFailure);
 
 console.log('Premortem engine checks passed.');

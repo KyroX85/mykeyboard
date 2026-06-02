@@ -40,6 +40,11 @@ const {
   formatReflectionDepth
 } = require('../reflection-depth-layer');
 const {
+  generatePremortem,
+  formatPremortemAnalysis,
+  shouldRunPremortem
+} = require('../premortem-engine');
+const {
   buildCuriosityPrompt,
   formatCuriosityPrompt
 } = require('../curiosity-layer');
@@ -238,6 +243,13 @@ function reconstructFounderMind(message = '', context = {}) {
       intent: kind.intent,
       directAnswer: buildDirectAnswer(kind, report)
     }),
+    premortemAnalysis: shouldAttachPremortem(original, kind)
+      ? generatePremortem(original, {
+        intent: kind.intent,
+        category: kind.category,
+        founderMessage: original
+      })
+      : null,
     curiosityPrompt: buildCuriosityPrompt({
       message: original,
       category: kind.category,
@@ -1112,6 +1124,11 @@ function buildReflectionResponse(reconstruction, { debug = false } = {}) {
     lines.push(formatContrarianReasoning(reconstruction.contrarianReasoning));
   }
 
+  if (!directReflection && reconstruction.premortemAnalysis) {
+    lines.push('');
+    lines.push(formatPremortemAnalysis(reconstruction.premortemAnalysis));
+  }
+
   const curiosity = directReflection ? '' : formatCuriosityPrompt(reconstruction.curiosityPrompt);
   if (curiosity) {
     lines.push('');
@@ -1133,6 +1150,17 @@ function buildReflectionResponse(reconstruction, { debug = false } = {}) {
   }
 
   return lines.join('\n');
+}
+
+function shouldAttachPremortem(message = '', kind = {}) {
+  const text = String(message || '').toLowerCase();
+  if (/\b(why.*fail|fail in|what.*missing|what.*kill|could kill|dangerous assumption|premortem)\b/.test(text)) {
+    return true;
+  }
+  return shouldRunPremortem(message, {
+    intent: kind.intent,
+    category: kind.category
+  }) && /MISSING|DANGEROUS|FAILURE|PREMORTEM/.test(String(kind.intent || ''));
 }
 
 function responseAnswersFounderMind(reconstruction = {}) {

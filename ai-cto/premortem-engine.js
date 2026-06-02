@@ -4,7 +4,7 @@ function shouldRunPremortem(decision = '', context = {}) {
   const text = decisionText(decision, context).toLowerCase();
   if (!text.trim()) return false;
   if (/\b(hi|hello|thanks|ok bro|how are you|memory audit|status only)\b/.test(text)) return false;
-  return /\b(decision|build|create|add|ship|implement|design|rewrite|feature|proposal|should we|what if|phase 2|explain|execution layer|screenshot|prediction|swipe|keyboardservice|hot path|architecture|infrastructure|orchestration|governance|framework)\b/.test(text);
+  return /\b(decision|build|create|add|ship|implement|design|rewrite|feature|proposal|should we|what if|phase 2|explain|execution layer|screenshot|prediction|swipe|keyboardservice|hot path|architecture|infrastructure|orchestration|governance|framework|why.*fail|fail in|what.*missing|what.*kill|could kill|dangerous assumption|premortem)\b/.test(text);
 }
 
 function generatePremortem(decision = '', context = {}) {
@@ -31,6 +31,7 @@ function generatePremortem(decision = '', context = {}) {
     'The work may make Aritenis feel heavier if it adds friction before clear value.',
     ...classTrustRisks(decisionClass)
   ]);
+  const failureAnalysis = buildFailureAnalysis(decisionClass);
 
   return {
     version: '1.0',
@@ -38,6 +39,10 @@ function generatePremortem(decision = '', context = {}) {
     decision: text.slice(0, 260),
     decisionClass,
     failureModes,
+    mostLikelyFailure: failureAnalysis.mostLikelyFailure,
+    hiddenFailure: failureAnalysis.hiddenFailure,
+    ignoredFailure: failureAnalysis.ignoredFailure,
+    founderCausedFailure: failureAnalysis.founderCausedFailure,
     blindSpots,
     executionRisks,
     trustRisks,
@@ -45,6 +50,24 @@ function generatePremortem(decision = '', context = {}) {
     recommendation: recommendationFor(decisionClass),
     confidence: confidenceFor(signals, decisionClass)
   };
+}
+
+function formatPremortemAnalysis(premortem = {}) {
+  return [
+    'Premortem:',
+    `- Most likely failure: ${premortem.mostLikelyFailure || 'unknown'}`,
+    `- Hidden failure: ${premortem.hiddenFailure || 'unknown'}`,
+    `- Ignored failure: ${premortem.ignoredFailure || 'unknown'}`,
+    `- Founder-caused failure: ${premortem.founderCausedFailure || 'unknown'}`
+  ].join('\n');
+}
+
+function responseUsesPremortemAnalysis(response = '') {
+  const text = String(response || '');
+  return /Most likely failure:/i.test(text) &&
+    /Hidden failure:/i.test(text) &&
+    /Ignored failure:/i.test(text) &&
+    /Founder-caused failure:/i.test(text);
 }
 
 function updatePremortemMemory(existing = {}, premortem = null) {
@@ -197,6 +220,39 @@ function classTrustRisks(decisionClass) {
   return ['Trust may fall if the decision is framed as progress without evidence.'];
 }
 
+function buildFailureAnalysis(decisionClass) {
+  if (decisionClass === 'PHASE2_EXPLAIN') {
+    return {
+      mostLikelyFailure: 'Explain is useful in demos but does not become a repeated daily habit.',
+      hiddenFailure: 'Users may prefer their existing app-switching workflow because it feels more familiar and lower-risk.',
+      ignoredFailure: 'Screenshot permission, privacy anxiety, or answer latency may be enough to stop use even if the explanation is good.',
+      founderCausedFailure: 'The founder may broaden Explain into a large companion surface before proving one narrow repeatable moment.'
+    };
+  }
+  if (decisionClass === 'INFRASTRUCTURE_HEAVY') {
+    return {
+      mostLikelyFailure: 'The system becomes more impressive internally while user-facing value stays unproven.',
+      hiddenFailure: 'Better agents create a feeling of progress that delays testing the actual killer feature.',
+      ignoredFailure: 'Maintenance cost and routing complexity may quietly reduce execution quality.',
+      founderCausedFailure: 'The founder may keep asking for smarter infrastructure because it feels controllable compared with uncertain user demand.'
+    };
+  }
+  if (decisionClass === 'HOT_PATH_KEYBOARD') {
+    return {
+      mostLikelyFailure: 'A protected keyboard foundation regresses while chasing smarter behavior.',
+      hiddenFailure: 'Small latency, correction, or swipe confidence losses may not show in tests but can erode daily trust.',
+      ignoredFailure: 'Rollback may be emotionally hard if the change looks technically advanced.',
+      founderCausedFailure: 'The founder may overvalue intelligence improvements and underestimate how quickly users punish typing instability.'
+    };
+  }
+  return {
+    mostLikelyFailure: 'The idea solves an internal concern instead of a repeated user problem.',
+    hiddenFailure: 'The team may confuse founder urgency with market urgency.',
+    ignoredFailure: 'The opportunity cost may be higher than the visible implementation cost.',
+    founderCausedFailure: 'The founder may chase the version that feels strategically elegant before evidence proves users care.'
+  };
+}
+
 function severityFor(decisionClass) {
   if (decisionClass === 'HOT_PATH_KEYBOARD') return 'HIGH';
   if (decisionClass === 'INFRASTRUCTURE_HEAVY') return 'MEDIUM_HIGH';
@@ -243,6 +299,8 @@ function clamp(value, min, max) {
 module.exports = {
   shouldRunPremortem,
   generatePremortem,
+  formatPremortemAnalysis,
+  responseUsesPremortemAnalysis,
   updatePremortemMemory,
   normalizePremortemMemory
 };

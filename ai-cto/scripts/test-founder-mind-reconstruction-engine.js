@@ -10,6 +10,7 @@ process.env.ARITENIS_GOVERNANCE_STATE_FILE = path.join(os.tmpdir(), 'aritenis-fo
 process.env.ARITENIS_WHATSAPP_MEMORY_FILE = path.join(os.tmpdir(), 'aritenis-founder-mind-whatsapp-memory.json');
 
 const { routeMessage, routeMessageWithAi } = require('../whatsapp/command-router');
+const { responseUsesPremortemAnalysis } = require('../premortem-engine');
 const {
   reconstructFounderMind,
   buildReflectionResponse,
@@ -179,6 +180,7 @@ const missingBlindSpot = assertMindRoute(
 );
 assert.strictEqual(missingBlindSpot.details.category, 'FOUNDER_STRATEGY');
 assert.strictEqual(missingBlindSpot.details.intent, 'RECONSTRUCT_MISSING_BLIND_SPOT');
+assert(responseUsesPremortemAnalysis(missingBlindSpot.response));
 assert.doesNotMatch(String(missingBlindSpot.response || ''), /CLARIFICATION_REQUEST|TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan/i);
 
 const dangerousAssumption = assertMindRoute(
@@ -187,6 +189,7 @@ const dangerousAssumption = assertMindRoute(
 );
 assert.strictEqual(dangerousAssumption.details.category, 'FOUNDER_STRATEGY');
 assert.strictEqual(dangerousAssumption.details.intent, 'RECONSTRUCT_DANGEROUS_ASSUMPTION');
+assert(responseUsesPremortemAnalysis(dangerousAssumption.response));
 assert.doesNotMatch(String(dangerousAssumption.response || ''), /CLARIFICATION_REQUEST|TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan/i);
 
 const impressiveFear = assertMindRoute(
@@ -204,6 +207,8 @@ const failurePremortem = assertMindRoute(
 );
 assert.strictEqual(failurePremortem.details.category, 'FOUNDER_STRATEGY');
 assert.strictEqual(failurePremortem.details.intent, 'RECONSTRUCT_LONG_TERM_FAILURE_PREMORTEM');
+assert(responseUsesPremortemAnalysis(failurePremortem.response));
+assert.match(failurePremortem.response, /Most likely failure:|Hidden failure:|Ignored failure:|Founder-caused failure:/i);
 assert.match(failurePremortem.details.mindReconstruction.actualQuestion, /fails in 3 years|strategic mistake/i);
 assert.doesNotMatch(String(failurePremortem.response || ''), /CLARIFICATION_REQUEST|NOISE|LOW INFORMATION|AMBIGUOUS INTENT|TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan/i);
 
