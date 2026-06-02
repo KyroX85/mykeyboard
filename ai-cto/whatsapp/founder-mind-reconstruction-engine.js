@@ -36,6 +36,10 @@ const {
   formatContrarianReasoning
 } = require('../contrarian-reasoning-layer');
 const {
+  buildReflectionDepth,
+  formatReflectionDepth
+} = require('../reflection-depth-layer');
+const {
   buildCuriosityPrompt,
   formatCuriosityPrompt
 } = require('../curiosity-layer');
@@ -214,6 +218,14 @@ function reconstructFounderMind(message = '', context = {}) {
     report,
     dreamAlignment,
     directAnswer: buildDirectAnswer(kind, report),
+    reflectionDepth: kind.category === 'REFLECTION'
+      ? buildReflectionDepth({
+        message: original,
+        archetype: kind.archetype,
+        report,
+        directAnswer: buildDirectAnswer(kind, report)
+      })
+      : null,
     strategicThinking: buildStrategicThinking({
       message: original,
       category: kind.category,
@@ -1080,9 +1092,10 @@ function buildDirectAnswer(kind, report) {
 }
 
 function buildReflectionResponse(reconstruction, { debug = false } = {}) {
-  const lines = [...reconstruction.directAnswer];
-
   const directReflection = reconstruction.category === 'REFLECTION';
+  const lines = directReflection && reconstruction.reflectionDepth
+    ? [formatReflectionDepth(reconstruction.reflectionDepth)]
+    : [...reconstruction.directAnswer];
 
   if (!directReflection && reconstruction.dreamAlignment) {
     lines.push('');
