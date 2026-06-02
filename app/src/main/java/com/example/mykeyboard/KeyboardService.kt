@@ -1947,7 +1947,7 @@ class KeyboardService : InputMethodService() {
         if (repeatingSpace != null) return
         repeatingSpace = object : Runnable {
             override fun run() {
-                commitSpace()
+                moveCursorForwardFromSpaceHold()
                 mainHandler.postDelayed(this, SPACE_REPEAT_INTERVAL_MS)
             }
         }.also {
@@ -2008,6 +2008,20 @@ class KeyboardService : InputMethodService() {
 
     private fun resetSpaceHoldState() {
         pendingSpaceCommit = false
+    }
+
+    private fun moveCursorForwardFromSpaceHold() {
+        val ic = currentInputConnection ?: return
+        sendKeyEventSafely(
+            ic,
+            KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_RIGHT),
+            "space-hold-cursor-right-down"
+        )
+        sendKeyEventSafely(
+            ic,
+            KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DPAD_RIGHT),
+            "space-hold-cursor-right-up"
+        )
     }
 
     private fun deleteOneCharacter() {

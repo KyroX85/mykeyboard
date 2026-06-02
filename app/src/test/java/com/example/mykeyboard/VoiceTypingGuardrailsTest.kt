@@ -81,23 +81,23 @@ class VoiceTypingGuardrailsTest {
     }
 
     @Test
-    fun spacebarLongPressRepeatsSpacesUntilRelease() {
+    fun spacebarLongPressMovesCursorForwardWithoutRepeatingSpaces() {
         val source = sourceFile("app/src/main/java/com/example/mykeyboard/KeyboardService.kt").readText()
         val handleSpaceDown = methodBody(source, "handleSpaceDown")
         val handleSpaceUp = methodBody(source, "handleSpaceUp")
         val startRepeatingSpace = methodBody(source, "startRepeatingSpace")
         val stopRepeatingSpace = methodBody(source, "stopRepeatingSpace")
+        val moveCursorForward = methodBody(source, "moveCursorForwardFromSpaceHold")
 
         assertTrue(source.contains("SPACE_REPEAT_INITIAL_DELAY_MS"))
-        assertTrue(source.contains("SPACE_REPEAT_INTERVAL_MS"))
         assertFalse(handleSpaceDown.contains("commitSpace()"))
         assertTrue(handleSpaceUp.contains("commitSpace()"))
         assertTrue(handleSpaceDown.contains("startRepeatingSpace()"))
-        assertTrue(startRepeatingSpace.contains("commitSpace()"))
-        assertTrue(startRepeatingSpace.contains("SPACE_REPEAT_INTERVAL_MS"))
+        assertFalse(startRepeatingSpace.contains("commitSpace()"))
+        assertTrue(startRepeatingSpace.contains("postDelayed(this, SPACE_REPEAT_INTERVAL_MS)"))
+        assertTrue(moveCursorForward.contains("KEYCODE_DPAD_RIGHT"))
+        assertFalse(moveCursorForward.contains("KEYCODE_DPAD_LEFT"))
         assertTrue(stopRepeatingSpace.contains("removeCallbacks"))
-        assertFalse(source.contains("KEYCODE_DPAD_RIGHT"))
-        assertFalse(source.contains("KEYCODE_DPAD_LEFT"))
     }
 
     private fun sourceFile(relativePath: String): File {
