@@ -69,9 +69,12 @@ Authorization: Bearer <private-token>
 
 - `summary` is compact text for chat UI.
 - `rawReasoning` is the full founder-brain answer.
-- `voiceSummary` is short enough for voice/Jarvis-style playback.
+- `summary` is capped at roughly 50 words by the Strategic Compression Layer.
+- `rawReasoning` is capped at roughly 500 words so deep reasoning remains available without flooding clients.
+- `voiceSummary` is capped at roughly 15 words and is the only field Jarvis-style voice surfaces should speak.
 - `confidence` is capped at `0.9` to avoid false certainty.
 - `sources` lists the reasoning systems used.
+- `compression` records the active word limits for reasoning, chat summary, and voice summary.
 
 ## Safety
 

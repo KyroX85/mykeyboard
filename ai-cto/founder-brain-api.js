@@ -3,6 +3,11 @@ const { routeMessageWithAi } = require('./whatsapp/command-router');
 const { loadEngineeringState } = require('./whatsapp/state-reader');
 const { readConversationMemory } = require('./whatsapp/memory-store');
 const { workflowFreshness } = require('./whatsapp/diagnostics');
+const {
+  compressStrategicAnswer,
+  buildVoiceSummary,
+  stripOperationalNoise
+} = require('./strategic-compression-layer');
 
 const ROOT = path.resolve(__dirname, '..');
 const MAX_CONFIDENCE = 0.9;
@@ -38,15 +43,16 @@ async function answerFounderBrainQuestion({
     publicBaseUrl
   });
   const rawReasoning = String(route && route.response ? route.response : '').trim();
-  const summary = summarizeAnswer(rawReasoning);
+  const compressed = compressStrategicAnswer(rawReasoning);
   const confidence = extractConfidence(route, rawReasoning);
 
   return {
     type: classifyBrainAnswerType(route, normalizedQuestion),
-    summary,
+    summary: compressed.summary,
     confidence,
-    rawReasoning,
-    voiceSummary: toVoiceSummary(summary),
+    rawReasoning: compressed.rawReasoning,
+    voiceSummary: compressed.voiceSummary,
+    compression: compressed.limits,
     sources: buildSources(route),
     route: {
       command: route && route.command ? route.command : null,
@@ -78,25 +84,11 @@ function classifyBrainAnswerType(route = {}, question = '') {
 }
 
 function summarizeAnswer(answer = '') {
-  const cleaned = stripOperationalHeaders(answer);
-  const paragraphs = cleaned
-    .split(/\n{2,}/)
-    .map((part) => part.trim())
-    .filter(Boolean);
-  const first = paragraphs[0] || cleaned;
-  return first.slice(0, 420).trim();
+  return compressStrategicAnswer(answer).summary;
 }
 
 function stripOperationalHeaders(answer = '') {
-  return String(answer || '')
-    .split('\n')
-    .filter((line) => !/^Memory Sources Used:/i.test(line))
-    .filter((line) => !/^Route Confidence:/i.test(line))
-    .filter((line) => !/^Route Reason:/i.test(line))
-    .filter((line) => !/^type:\s*(AUDIT_REPORT|TASK_PLAN|EXECUTION_RESULT|CLARIFICATION_REQUEST)/i.test(line))
-    .filter((line) => !/^intent:/i.test(line))
-    .join('\n')
-    .trim();
+  return stripOperationalNoise(answer).trim();
 }
 
 function extractConfidence(route = {}, answer = '') {
@@ -115,9 +107,9 @@ function extractConfidence(route = {}, answer = '') {
 }
 
 function toVoiceSummary(summary = '', maxLength = 240) {
-  const cleaned = String(summary || '').replace(/\s+/g, ' ').trim();
-  if (cleaned.length <= maxLength) return cleaned;
-  return `${cleaned.slice(0, Math.max(0, maxLength - 3)).trim().replace(/[.?!,;:]+$/, '')}...`;
+  const voiceSummary = buildVoiceSummary(summary);
+  if (voiceSummary.length <= maxLength) return voiceSummary;
+  return `${voiceSummary.slice(0, Math.max(0, maxLength - 3)).trim().replace(/[.?!,;:]+$/, '')}...`;
 }
 
 function buildSources(route = {}) {

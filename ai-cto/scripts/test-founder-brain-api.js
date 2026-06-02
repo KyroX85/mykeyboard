@@ -31,7 +31,10 @@ const sampleState = {
   assert(reflection.confidence > 0);
   assert(reflection.confidence <= 0.9);
   assert(reflection.rawReasoning.length > reflection.summary.length);
-  assert(reflection.voiceSummary.length <= 240);
+  assert(reflection.summary.split(/\s+/).length <= 50);
+  assert(reflection.voiceSummary.split(/\s+/).length <= 15);
+  assert.strictEqual(reflection.compression.summaryWords, 50);
+  assert.strictEqual(reflection.compression.voiceWords, 15);
   assert(reflection.sources.includes('founder_memory'));
   assert(reflection.sources.includes('whatsapp_router'));
 
