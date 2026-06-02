@@ -239,7 +239,8 @@ function reconstructFounderMind(message = '', context = {}) {
     question: original,
     root: context.root,
     memoryLayer: context.memory && context.memory.founderMemoryLayer,
-    visionMemory: context.memory && context.memory.visionMemory
+    visionMemory: context.memory && context.memory.visionMemory,
+    founderWorldModel: context.memory && context.memory.founderWorldModel
   });
   const reconstruction = {
     mode: kind.mode,

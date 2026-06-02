@@ -114,6 +114,7 @@ function toVoiceSummary(summary = '', maxLength = 240) {
 
 function buildSources(route = {}) {
   const sources = new Set(['founder_memory', 'session_memory', 'whatsapp_router']);
+  if (route && route.response && /Current Founder Worldview:/i.test(route.response)) sources.add('founder_world_model');
   if (route && route.matchedRoute) sources.add(route.matchedRoute);
   if (route && route.details && route.details.founderState) sources.add('founder_state_detection');
   return [...sources];

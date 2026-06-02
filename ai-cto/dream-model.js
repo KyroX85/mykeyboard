@@ -3,6 +3,10 @@ const {
   retrieveActiveVision,
   formatVisionMemoryForResponse
 } = require('./vision-memory-engine');
+const {
+  retrieveFounderWorldModel,
+  formatFounderWorldModelForResponse
+} = require('./founder-world-model-engine');
 
 const DREAM_MODEL = {
   longTermVision: 'Aritenis becomes a trusted phone-native intelligence layer that helps people understand and act inside daily workflows.',
@@ -23,13 +27,15 @@ function buildDreamAlignment({
   task = '',
   root,
   memoryLayer = loadFounderMemoryLayer({ root }),
-  visionMemory = null
+  visionMemory = null,
+  founderWorldModel = null
 } = {}) {
   const currentTask = inferCurrentTask(question || task);
   const retrieval = retrieveRelevantFounderMemories(question || task, memoryLayer, { limit: 5 });
   const projectGoal = 'Protect the trusted keyboard foundation while proving Explain: understanding confusing content before typing.';
   const activeVision = retrieveActiveVision(visionMemory);
-  const founderDream = activeVision.currentFounderVision || DREAM_MODEL.longTermVision;
+  const worldModel = retrieveFounderWorldModel(founderWorldModel, { visionMemory });
+  const founderDream = worldModel.currentMission || activeVision.currentFounderVision || DREAM_MODEL.longTermVision;
   const alignment = classifyAlignment(currentTask, retrieval);
 
   return {
@@ -37,6 +43,7 @@ function buildDreamAlignment({
     projectGoal,
     founderDream,
     activeVision,
+    founderWorldModel: worldModel,
     alignment,
     dreamModel: DREAM_MODEL,
     relevantMemories: retrieval.items,
@@ -56,6 +63,11 @@ function formatDreamAlignment(alignment = {}) {
   if (vision) {
     lines.push('');
     lines.push(vision);
+  }
+  const worldModel = formatFounderWorldModelForResponse(alignment.founderWorldModel);
+  if (worldModel) {
+    lines.push('');
+    lines.push(worldModel);
   }
   return lines.join('\n');
 }
