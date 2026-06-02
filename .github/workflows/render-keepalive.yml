@@ -14,4 +14,9 @@ jobs:
     timeout-minutes: 2
     steps:
       - name: Ping Render health endpoint
-        run: curl -fsSL --max-time 30 https://mykeyboard-8bx0.onrender.com/health
+        run: |
+          status="$(curl -sS --max-time 30 -o /dev/null -w '%{http_code}' https://mykeyboard-8bx0.onrender.com/health)"
+          echo "Render keepalive HTTP status: ${status}"
+          if [ "${status}" = "000" ] || [ "${status}" -ge 500 ]; then
+            exit 1
+          fi
