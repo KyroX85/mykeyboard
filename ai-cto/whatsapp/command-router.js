@@ -1571,7 +1571,7 @@ function routeMessage(message, state, memory = {}) {
     message,
     memory,
     founderMemoryLayer
-  }), message, state);
+  }), message, state, enrichedMemory);
 }
 
 async function routeMessageWithAi(message, state, memory = {}, options = {}) {
@@ -1588,17 +1588,20 @@ async function routeMessageWithAi(message, state, memory = {}, options = {}) {
     message,
     memory,
     founderMemoryLayer
-  }), message, state);
+  }), message, state, {
+    ...memory,
+    founderMemoryLayer
+  });
 }
 
-function enforceDeterministicResponse(route, message, state = {}) {
+function enforceDeterministicResponse(route, message, state = {}, memory = {}) {
   const antiTemplateRoute = enforceAntiTemplateOnRoute(route, { message, state });
   const founderStateRoute = applyFounderStateToRoute(antiTemplateRoute, { message });
   const dreamDriftRoute = applyDreamDriftToRoute(founderStateRoute, { message });
   const killerFeatureRoute = applyKillerFeatureTrackerToRoute(dreamDriftRoute, { message });
   const userValueRoute = applyUserValueJudgeToRoute(killerFeatureRoute, { message });
   const disagreementRoute = applyIntelligentDisagreementToRoute(userValueRoute, { message });
-  const qualityRoute = enforceInternalAnswerQuality(disagreementRoute, { message });
+  const qualityRoute = enforceInternalAnswerQuality(disagreementRoute, { message, memory });
   if (qualityRoute && qualityRoute.details && qualityRoute.details.skipExecutionSchema) {
     return qualityRoute;
   }

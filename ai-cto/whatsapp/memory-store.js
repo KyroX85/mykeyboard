@@ -104,6 +104,9 @@ const {
   inferCuriosityFeedbackFromDetails,
   updateAdaptiveCuriosityMemory
 } = require('../adaptive-curiosity-layer');
+const {
+  updateAnswerQualityMemory
+} = require('../internal-answer-scoring');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const MEMORY_FILE = process.env.ARITENIS_WHATSAPP_MEMORY_FILE ||
@@ -190,6 +193,7 @@ const DEFAULT_MEMORY = {
   dreamDriftMemory: null,
   killerFeatureMemory: null,
   adaptiveCuriosityMemory: null,
+  answerQualityMemory: null,
   routeScores: {},
   reinforcementEvents: [],
   lastRouteForReward: null,
@@ -293,6 +297,7 @@ function updateMemory(command, state, details = {}) {
   const dreamDriftMemory = updateDreamDriftIfNeeded(memory.dreamDriftMemory, details);
   const killerFeatureMemory = updateKillerFeatureIfNeeded(memory.killerFeatureMemory, details);
   const adaptiveCuriosityMemory = updateAdaptiveCuriosityIfNeeded(memory.adaptiveCuriosityMemory, details);
+  const answerQualityMemory = updateAnswerQualityIfNeeded(latestMemory.answerQualityMemory, details);
   const founderHypothesisTracker = updateFounderHypothesisIfNeeded(memory.founderHypothesisTracker, details);
   const predictionMemory = updatePredictionIfNeeded(memory.predictionMemory, details);
   const selfCritiqueMemory = updateSelfCritiqueIfNeeded(memory.selfCritiqueMemory, details);
@@ -357,6 +362,7 @@ function updateMemory(command, state, details = {}) {
     dreamDriftMemory,
     killerFeatureMemory,
     adaptiveCuriosityMemory,
+    answerQualityMemory,
     founderHypothesisTracker,
     predictionMemory,
     selfCritiqueMemory,
@@ -450,6 +456,7 @@ function readConversationMemory() {
     dreamDriftMemory: memory.dreamDriftMemory || null,
     killerFeatureMemory: memory.killerFeatureMemory || null,
     adaptiveCuriosityMemory: memory.adaptiveCuriosityMemory || null,
+    answerQualityMemory: memory.answerQualityMemory || null,
     routeScores: memory.routeScores && typeof memory.routeScores === 'object' ? memory.routeScores : {},
     reinforcementEvents: Array.isArray(memory.reinforcementEvents) ? memory.reinforcementEvents.slice(0, 80) : [],
     lastRouteForReward: memory.lastRouteForReward || null,
@@ -498,6 +505,7 @@ function updateConversationMemory(route, state) {
   const dreamDriftMemory = updateDreamDriftIfNeeded(memory.dreamDriftMemory, route);
   const killerFeatureMemory = updateKillerFeatureIfNeeded(memory.killerFeatureMemory, route);
   const adaptiveCuriosityMemory = updateAdaptiveCuriosityIfNeeded(memory.adaptiveCuriosityMemory, route);
+  const answerQualityMemory = updateAnswerQualityIfNeeded(memory.answerQualityMemory, route);
   const founderHypothesisTracker = updateFounderHypothesisIfNeeded(memory.founderHypothesisTracker, route);
   const predictionMemory = updatePredictionIfNeeded(memory.predictionMemory, route);
   const selfCritiqueMemory = updateSelfCritiqueIfNeeded(memory.selfCritiqueMemory, route);
@@ -583,6 +591,7 @@ function updateConversationMemory(route, state) {
     dreamDriftMemory,
     killerFeatureMemory,
     adaptiveCuriosityMemory,
+    answerQualityMemory,
     founderHypothesisTracker,
     predictionMemory,
     selfCritiqueMemory,
@@ -773,6 +782,18 @@ function updateAdaptiveCuriosityIfNeeded(existing, details = {}) {
   const event = inferCuriosityFeedbackFromDetails(details);
   if (!event) return existing || null;
   return updateAdaptiveCuriosityMemory(existing, event);
+}
+
+function updateAnswerQualityIfNeeded(existing, details = {}) {
+  const scoring = details && (details.internalAnswerScoring || (details.details && details.details.internalAnswerScoring));
+  const response = details && (details.agentAnswer || details.response);
+  if (!scoring || !response) return existing || null;
+  return updateAnswerQualityMemory(existing, {
+    message: details.founderMessage || (details.continuity && details.continuity.normalized) || '',
+    response,
+    route: details,
+    scoring
+  });
 }
 
 function updateFounderHypothesisIfNeeded(existing, details = {}) {

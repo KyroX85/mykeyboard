@@ -11,9 +11,15 @@ process.env.ARITENIS_WHATSAPP_MEMORY_FILE = path.join(os.tmpdir(), `aritenis-ans
 
 const {
   scoreInternalAnswer,
-  enforceInternalAnswerQuality
+  enforceInternalAnswerQuality,
+  updateAnswerQualityMemory,
+  selectHighScoringAnswerExamples
 } = require('../internal-answer-scoring');
 const { routeMessage } = require('../whatsapp/command-router');
+const {
+  readConversationMemory,
+  updateMemory
+} = require('../whatsapp/memory-store');
 const { setMode } = require('../../governance/governance');
 
 setMode('ACTIVE', 'internal answer scoring test');
@@ -26,8 +32,12 @@ const weak = scoreInternalAnswer({
 
 assert(weak.total < 25);
 assert.strictEqual(weak.shouldRegenerate, true);
-assert(weak.scores.relevance <= 4);
-assert(weak.scores.founderAlignment <= 4);
+assert(weak.scores.founderRelevance <= 4);
+assert(weak.scores.templateContamination <= 3);
+assert(weak.scores.specificity <= 4);
+assert(weak.scores.truthfulness <= 5);
+assert(weak.scores.usefulness <= 4);
+assert(weak.scores.strategicDepth <= 4);
 
 const repaired = enforceInternalAnswerQuality({
   command: 'agent',
@@ -40,6 +50,12 @@ const repaired = enforceInternalAnswerQuality({
 
 assert.strictEqual(repaired.details.internalAnswerScoring.regenerated, true);
 assert(repaired.details.internalAnswerScoring.total >= 25);
+assert(repaired.details.internalAnswerScoring.scores.specificity >= 5);
+assert(repaired.details.internalAnswerScoring.scores.founderRelevance >= 5);
+assert(repaired.details.internalAnswerScoring.scores.truthfulness >= 5);
+assert(repaired.details.internalAnswerScoring.scores.usefulness >= 5);
+assert(repaired.details.internalAnswerScoring.scores.strategicDepth >= 5);
+assert(repaired.details.internalAnswerScoring.scores.templateContamination >= 8);
 assert.match(repaired.response, /dream|user value|current direction/i);
 assert.doesNotMatch(repaired.response, /Health 30|Momentum|Team is ready/i);
 
@@ -55,9 +71,47 @@ const strong = enforceInternalAnswerQuality({
 assert.strictEqual(strong.details.internalAnswerScoring.regenerated, false);
 assert.match(strong.response, /Partially/);
 
+let answerQualityMemory = updateAnswerQualityMemory(null, {
+  message: 'Bro are we moving toward the dream?',
+  response: strong.response,
+  route: strong,
+  scoring: strong.details.internalAnswerScoring
+});
+answerQualityMemory = updateAnswerQualityMemory(answerQualityMemory, {
+  message: 'Bro are we moving toward the dream?',
+  response: 'Current Foundation Health: protected.\nRecommended Next Step: continue.',
+  route: { command: 'founder_mind_reconstruction' },
+  scoring: scoreInternalAnswer({
+    message: 'Bro are we moving toward the dream?',
+    response: 'Current Foundation Health: protected.\nRecommended Next Step: continue.',
+    route: { command: 'founder_mind_reconstruction' }
+  })
+});
+assert(answerQualityMemory.history.length >= 2);
+assert(answerQualityMemory.bestExamples.length >= 1);
+assert.strictEqual(answerQualityMemory.bestExamples[0].routeKey, 'founder_mind_reconstruction');
+assert.match(answerQualityMemory.bestExamples[0].responsePreview, /Partially|Explain|proof/i);
+
+const examples = selectHighScoringAnswerExamples('Are we moving toward the dream?', {
+  answerQualityMemory
+});
+assert(examples.length >= 1);
+assert.match(examples[0].responsePreview, /Partially|Explain|proof/i);
+
 const routed = routeMessage('Bro are we moving toward the dream?', {}, {});
 assert(routed.details.internalAnswerScoring);
 assert(routed.details.internalAnswerScoring.total >= 25);
 assert.doesNotMatch(routed.response, /Health\s*:?\s*\d{1,3}|Momentum|Team is ready/i);
+
+updateMemory(routed.command, {}, {
+  ...(routed.details || {}),
+  founderMessage: 'Bro are we moving toward the dream?',
+  agentAnswer: routed.response
+});
+const storedMemory = readConversationMemory();
+assert(storedMemory.answerQualityMemory);
+assert(storedMemory.answerQualityMemory.history.length >= 1);
+assert(storedMemory.answerQualityMemory.bestExamples.length >= 1);
+assert.match(storedMemory.answerQualityMemory.bestExamples[0].responsePreview, /dream|Explain|user/i);
 
 console.log('Internal answer scoring checks passed.');
