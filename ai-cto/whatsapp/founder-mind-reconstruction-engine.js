@@ -1,5 +1,6 @@
 const REFLECTION_PATTERNS = [
   /\bwhat\s+motivates\s+me\s+more\s+than\s+money\b/i,
+  /\bwhat\s+motivates\s+me\b/i,
   /\bwhat\s+do\s+you\s+think\s+(i'?m|i\s+am)\s+avoiding(?:\s+(right\s+now|now|lately|recently))?\b/i,
   /\bwhat\s+(am\s+i|i\s+am)\s+avoiding(?:\s+(right\s+now|now|lately|recently))?\b/i,
   /\bwhat\s+(am\s+i|i\s+am)\s+not\s+seeing\b/i,
@@ -13,8 +14,11 @@ const REFLECTION_PATTERNS = [
   /\bwhat\s+(am\s+i|i\s+am)\s+optimizing\s+for\b/i,
   /\bforget\s+what\s+i\s+say\b.*\bbased\s+on\s+my\s+behavior\b/i,
   /\bwhat\s+belief\s+have\s+i\s+changed\s+my\s+mind\s+about\b/i,
+  /\bwhat\s+belief\s+changed\b/i,
   /\bwhat\s+have\s+i\s+changed\s+my\s+mind\s+about\b/i,
   /\bchanged\s+my\s+mind\b.*\b(recently|lately|now)\b/i,
+  /\bwho\s+(am\s+i|i\s+am)\s+becoming\b/i,
+  /\bwhat\s+kind\s+of\s+founder\s+(am\s+i|i\s+am)\s+becoming\b/i,
   /\b(am|was)\s+i\s+the\s+same\s+founder\b/i,
   /\b(founder|i)\b.*\b(same|changed|evolved|different)\b.*\b(months?|weeks?|ago|before|now)\b/i,
   /\bwhy\s+(am\s+i|did\s+i)\s+(asking|ask)\b/i,
@@ -44,6 +48,11 @@ const {
   retrieveEvolvedBelief,
   formatEvolvedBeliefForResponse
 } = require('../belief-evolution-engine');
+const {
+  shouldReconstructFounderIdentity,
+  reconstructFounderIdentity,
+  formatFounderIdentityTrajectory
+} = require('../founder-identity-reconstruction-engine');
 const {
   buildReflectionDepth,
   formatReflectionDepth
@@ -278,6 +287,12 @@ function reconstructFounderMind(message = '', context = {}) {
       })
       : null,
     evolvedBelief: retrieveEvolvedBelief(original, context.memory && context.memory.beliefEvolution),
+    founderIdentity: shouldReconstructFounderIdentity(original, kind.intent)
+      ? reconstructFounderIdentity({
+        question: original,
+        memory: context.memory || {}
+      })
+      : null,
     curiosityPrompt: buildCuriosityPrompt({
       message: original,
       category: kind.category,
@@ -368,7 +383,7 @@ function classifyMindQuestion(text = '', memory = {}) {
   }
 
   if (REFLECTION_PATTERNS.some((pattern) => pattern.test(text))) {
-    if (/\bmotivates\s+me\s+more\s+than\s+money\b/i.test(text)) {
+    if (/\bmotivates\s+me\s+more\s+than\s+money\b/i.test(text) || /\bwhat\s+motivates\s+me\b/i.test(text)) {
       return {
         intent: 'RECONSTRUCT_FOUNDER_MOTIVATION',
         category: 'REFLECTION',
@@ -440,13 +455,23 @@ function classifyMindQuestion(text = '', memory = {}) {
         confidence: 83
       };
     }
-    if (/\bchanged\s+my\s+mind\b/i.test(text) || /\bwhat\s+belief\s+have\s+i\b/i.test(text)) {
+    if (/\bchanged\s+my\s+mind\b/i.test(text) || /\bwhat\s+belief\s+have\s+i\b/i.test(text) || /\bwhat\s+belief\s+changed\b/i.test(text)) {
       return {
         intent: 'RECONSTRUCT_RECENT_BELIEF_SHIFT',
         category: 'REFLECTION',
         archetype: 'recent_belief_shift',
         mode: 'REFLECTION_MODE',
         confidence: 83
+      };
+    }
+    if (/\bwho\s+(am\s+i|i\s+am)\s+becoming\b/i.test(text) ||
+      /\bwhat\s+kind\s+of\s+founder\s+(am\s+i|i\s+am)\s+becoming\b/i.test(text)) {
+      return {
+        intent: 'RECONSTRUCT_FOUNDER_IDENTITY_TRAJECTORY',
+        category: 'REFLECTION',
+        archetype: 'founder_identity_trajectory',
+        mode: 'REFLECTION_MODE',
+        confidence: 84
       };
     }
     if (/\boptimizing\s+for\b/i.test(text) || /\bbased\s+on\s+my\s+behavior\b/i.test(text)) {
@@ -889,6 +914,18 @@ function buildMindReport(kind, message, context = {}) {
     };
   }
 
+  if (kind.archetype === 'founder_identity_trajectory') {
+    return {
+      objective: 'Reconstruct founder evolution as a trajectory instead of a single answer.',
+      assumption: 'The founder is asking who they are becoming across repeated belief, vision, principle, and contradiction changes.',
+      concern: 'The system may answer from isolated memories and miss the founder’s deeper identity shift.',
+      decision: 'Decide which founder identity should guide future strategic answers.',
+      desiredOutcome: 'A clear old identity, emerging identity, and current identity grounded in memory evidence.',
+      actualQuestion: 'Who am I becoming as a founder?',
+      uselessLiteralAnswer: 'A motivational answer, status report, task plan, or one-off personality guess.'
+    };
+  }
+
   if (kind.archetype === 'agent_value_belief') {
     return {
       objective: 'Judge whether agent intelligence itself creates company value, using the newest founder belief instead of older infrastructure optimism.',
@@ -1190,6 +1227,16 @@ function buildDirectAnswer(kind, report) {
     ];
   }
 
+  if (kind.archetype === 'founder_identity_trajectory') {
+    return [
+      'You are becoming less of a founder trying to prove that advanced agents can exist, and more of a founder trying to prove that useful intelligence can create human leverage without stealing agency.',
+      'The old identity was builder-survival: stabilize the keyboard, make agents work, and prove the system can keep moving.',
+      'The emerging identity is product-truth: reject fake progress, question impressive systems, and force every idea through user value.',
+      'The current identity is closer to a trust-and-leverage founder: humans choose direction, AI reduces burden, and Aritenis must become useful enough that people would miss it.',
+      'That is a sharper founder, but also a less easily satisfied one.'
+    ];
+  }
+
   if (kind.archetype === 'agent_value_belief') {
     return [
       'No. Smarter agents do not automatically make the company more valuable.',
@@ -1279,6 +1326,11 @@ function buildReflectionResponse(reconstruction, { debug = false } = {}) {
   if (curiosity) {
     lines.push('');
     lines.push(curiosity);
+  }
+
+  if (directReflection && reconstruction.founderIdentity) {
+    lines.push('');
+    lines.push(formatFounderIdentityTrajectory(reconstruction.founderIdentity));
   }
 
   if (debug) {
@@ -1390,6 +1442,9 @@ function responseAnswersFounderMind(reconstruction = {}) {
   }
   if (reconstruction.intent === 'RECONSTRUCT_RECENT_BELIEF_SHIFT') {
     return /changed your mind|makes Aritenis valuable|advanced agents only matter|real user leverage|repeatable product moment|Explain/i.test(answer);
+  }
+  if (reconstruction.intent === 'RECONSTRUCT_FOUNDER_IDENTITY_TRAJECTORY') {
+    return /becoming|old identity|emerging identity|current identity|human leverage|agency|product-truth/i.test(answer);
   }
   if (reconstruction.intent === 'RECONSTRUCT_AGENT_VALUE_BELIEF') {
     return /smarter agents do not automatically make the company more valuable|only matter if they create user leverage|older belief|newer belief|repeated user pull/i.test(answer);
