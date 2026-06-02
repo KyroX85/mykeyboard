@@ -5,6 +5,8 @@ const DEFAULT_TASTE_MODEL = {
   observations: [],
   likedPatterns: [],
   rejectedPatterns: [],
+  repeatedLikes: [],
+  repeatedRejects: [],
   profile: {
     preferredDepthLevel: 'unknown',
     preferredTone: 'unknown',
@@ -33,6 +35,8 @@ function updateFounderTasteModel(existing = {}, feedbackEntry = {}) {
     observations,
     likedPatterns,
     rejectedPatterns,
+    repeatedLikes: inferRepeatedTastePatterns(likedPatterns, 'positive'),
+    repeatedRejects: inferRepeatedTastePatterns(rejectedPatterns, 'negative'),
     profile: inferTasteProfile(likedPatterns, rejectedPatterns),
     lastUpdatedAt: new Date().toISOString()
   };
@@ -44,9 +48,10 @@ function applyFounderTasteToResponse(response = '', context = {}) {
 
   const answerTaste = analyzeAnswerTaste(response);
   const guidance = buildTasteGuidance(model.profile, answerTaste);
-  if (!guidance || String(response).includes(guidance)) return response;
+  const cleaned = stripRejectedTasteContent(response, model);
+  if (!guidance || String(cleaned).includes(guidance)) return cleaned;
 
-  return [String(response || '').trim(), '', guidance].filter(Boolean).join('\n');
+  return [String(cleaned || '').trim(), '', guidance].filter(Boolean).join('\n');
 }
 
 function buildTasteObservation(feedbackEntry = {}) {
@@ -62,7 +67,8 @@ function buildTasteObservation(feedbackEntry = {}) {
     depthLevel: answerTaste.depthLevel,
     tone: answerTaste.tone,
     strategicDensity: answerTaste.strategicDensity,
-    skepticismLevel: answerTaste.skepticismLevel
+    skepticismLevel: answerTaste.skepticismLevel,
+    tastePatterns: detectTastePatterns(feedbackEntry.rawAnswerPreview || feedbackEntry.answerPattern || '')
   };
 }
 
@@ -141,6 +147,53 @@ function buildTasteGuidance(profile = {}, answerTaste = {}) {
   return `Founder taste calibration: ${guidance.join('; ')}.`;
 }
 
+function inferRepeatedTastePatterns(items = [], polarity = 'positive') {
+  const counts = {};
+  for (const item of items.filter(Boolean)) {
+    for (const pattern of item.tastePatterns || detectTastePatterns(item.answerPattern || '')) {
+      counts[pattern] = (counts[pattern] || 0) + 1;
+    }
+  }
+  const threshold = polarity === 'positive' ? 1 : 1;
+  return Object.entries(counts)
+    .filter(([, count]) => count >= threshold)
+    .sort((a, b) => b[1] - a[1])
+    .map(([pattern]) => pattern);
+}
+
+function detectTastePatterns(answer = '') {
+  const text = String(answer || '').toLowerCase();
+  const patterns = [];
+  if (/\bdisagree|push back|if i had to disagree|against you\b/.test(text)) patterns.push('strategic_disagreement');
+  if (/\bbrutal truth|honest|hard truth|uncomfortable|real risk|risk|unproven|could fail|fail\b/.test(text)) patterns.push('brutal_truth');
+  if (/\bleverage|wedge|high[-\s]?leverage|user-facing leverage\b/.test(text)) patterns.push('leverage');
+  if (/\buser value|user proof|user pain|users care|useful|habit|return\b/.test(text)) patterns.push('user_value');
+  if (/\bpremortem|failure mode|we fail|fails if|if we fail\b/.test(text)) patterns.push('premortem');
+  if (/\bblindspot|blind spot|missing|not seeing|assumption\b/.test(text)) patterns.push('blindspot_discovery');
+  if (/\bhealth\s*:?\s*\d+|health \d+|current foundation health\b/.test(text)) patterns.push('status_reports');
+  if (/\bmomentum|stalled\b/.test(text)) patterns.push('momentum_reports');
+  if (/\btask plan|execution plan|approve|files:|validation:\b/.test(text)) patterns.push('task_plans');
+  if (/\bcto:|team ready|team is ready|recommended next step|phase 2 opportunities|highest leverage differentiator|trust risk:\b/.test(text)) patterns.push('generic_cto_language');
+  return [...new Set(patterns)];
+}
+
+function stripRejectedTasteContent(response = '', model = {}) {
+  const rejects = new Set(model.repeatedRejects || []);
+  if (!rejects.size) return response;
+  const blocked = [];
+  if (rejects.has('status_reports')) blocked.push(/^health\b/i, /^current foundation health:/i, /health\s*:?\s*\d+/i);
+  if (rejects.has('momentum_reports')) blocked.push(/^momentum\b/i, /momentum\s*:?\s*stalled/i);
+  if (rejects.has('task_plans')) blocked.push(/^task plan:/i, /^execution plan/i, /^approve\b/i, /^files:/i, /^validation:/i);
+  if (rejects.has('generic_cto_language')) {
+    blocked.push(/^cto:/i, /^phase 2 opportunities:/i, /^highest leverage differentiator:/i, /^trust risk:/i, /^recommended next step:/i);
+  }
+  if (!blocked.length) return response;
+  const kept = String(response || '')
+    .split(/\r?\n/)
+    .filter((line) => !blocked.some((pattern) => pattern.test(line.trim())));
+  return kept.join('\n').trim();
+}
+
 function normalizeTasteModel(value = {}) {
   return {
     ...DEFAULT_TASTE_MODEL,
@@ -148,6 +201,8 @@ function normalizeTasteModel(value = {}) {
     observations: Array.isArray(value && value.observations) ? value.observations : [],
     likedPatterns: Array.isArray(value && value.likedPatterns) ? value.likedPatterns : [],
     rejectedPatterns: Array.isArray(value && value.rejectedPatterns) ? value.rejectedPatterns : [],
+    repeatedLikes: Array.isArray(value && value.repeatedLikes) ? value.repeatedLikes : [],
+    repeatedRejects: Array.isArray(value && value.repeatedRejects) ? value.repeatedRejects : [],
     profile: {
       ...DEFAULT_TASTE_MODEL.profile,
       ...((value && value.profile) || {})
