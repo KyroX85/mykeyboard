@@ -24,6 +24,10 @@ const {
   updateFounderContradictions
 } = require('../founder-contradiction-detector');
 const {
+  detectContradiction,
+  updateContradictionMemory
+} = require('../contradiction-engine');
+const {
   shouldJudgeIdea,
   judgeUserValue,
   updateUserValueJudgments
@@ -185,6 +189,7 @@ const DEFAULT_MEMORY = {
   founderBeliefTracker: null,
   beliefEvolution: null,
   founderContradictions: null,
+  contradictionEngine: null,
   userValueJudgments: null,
   premortemMemory: null,
   opportunityCostMemory: null,
@@ -299,6 +304,7 @@ function updateMemory(command, state, details = {}) {
     ...details,
     founderBeliefTracker: details.founderBeliefTracker || memory.founderBeliefTracker
   });
+  const contradictionEngine = updateContradictionEngineIfNeeded(memory.contradictionEngine, details, memory);
   const userValueJudgments = updateUserValueIfNeeded(memory.userValueJudgments, details);
   const premortemMemory = updatePremortemIfNeeded(memory.premortemMemory, details);
   const opportunityCostMemory = updateOpportunityCostIfNeeded(memory.opportunityCostMemory, details);
@@ -353,6 +359,7 @@ function updateMemory(command, state, details = {}) {
     founderBeliefTracker,
     beliefEvolution,
     founderContradictions,
+    contradictionEngine,
     userValueJudgments,
     premortemMemory,
     opportunityCostMemory,
@@ -405,7 +412,9 @@ function updateMemory(command, state, details = {}) {
     lastFounderConcern: continuityEntry || memory.lastFounderConcern || null,
     founderQuestionClusters,
     founderBeliefTracker,
+    beliefEvolution,
     founderContradictions,
+    contradictionEngine,
     userValueJudgments,
     premortemMemory,
     opportunityCostMemory,
@@ -493,6 +502,7 @@ function readConversationMemory() {
     founderBeliefTracker: memory.founderBeliefTracker || null,
     beliefEvolution: memory.beliefEvolution || null,
     founderContradictions: memory.founderContradictions || null,
+    contradictionEngine: memory.contradictionEngine || null,
     userValueJudgments: memory.userValueJudgments || null,
     premortemMemory: memory.premortemMemory || null,
     opportunityCostMemory: memory.opportunityCostMemory || null,
@@ -551,6 +561,7 @@ function updateConversationMemory(route, state) {
     ...route,
     founderBeliefTracker: route.founderBeliefTracker || memory.founderBeliefTracker
   });
+  const contradictionEngine = updateContradictionEngineIfNeeded(memory.contradictionEngine, route, memory);
   const userValueJudgments = updateUserValueIfNeeded(memory.userValueJudgments, route);
   const premortemMemory = updatePremortemIfNeeded(memory.premortemMemory, route);
   const opportunityCostMemory = updateOpportunityCostIfNeeded(memory.opportunityCostMemory, route);
@@ -679,6 +690,7 @@ function updateConversationMemory(route, state) {
     founderBeliefTracker,
     beliefEvolution,
     founderContradictions,
+    contradictionEngine,
     userValueJudgments,
     premortemMemory,
     opportunityCostMemory,
@@ -805,6 +817,22 @@ function updateContradictionsIfNeeded(existing, details = {}) {
   });
   if (!contradiction) return existing || null;
   return updateFounderContradictions(existing, contradiction);
+}
+
+function updateContradictionEngineIfNeeded(existing, details = {}, memory = {}) {
+  if (!details || !details.founderMessage) return existing || null;
+  const contradiction = detectContradiction({
+    founderMessage: details.founderMessage,
+    details,
+    memory: {
+      ...memory,
+      founderBeliefTracker: details.founderBeliefTracker || memory.founderBeliefTracker,
+      founderGoals: details.founderGoals || memory.founderGoals,
+      founderVision: details.founderVision || memory.founderVision
+    }
+  });
+  if (!contradiction) return existing || null;
+  return updateContradictionMemory(existing, contradiction);
 }
 
 function updateUserValueIfNeeded(existing, details = {}) {
