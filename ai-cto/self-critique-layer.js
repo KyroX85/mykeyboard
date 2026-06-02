@@ -4,6 +4,7 @@ function shouldSelfCritiqueAnswer(answer = '', context = {}) {
   const text = answerText(answer, context).toLowerCase();
   if (!text.trim()) return false;
   if (/^(ok|yes|no|thanks|done)$/i.test(text.trim())) return false;
+  if (isOperationalReadiness(text, context)) return false;
   return text.length >= 30 ||
     /\b(explain|daily habit|users|market|trust|evidence|phase 2|keyboard|prediction|infrastructure|orchestration|governance|strategy|dream)\b/.test(text);
 }
@@ -51,6 +52,22 @@ function updateSelfCritiqueMemory(existing = {}, critique = null) {
   };
 }
 
+function reviseAnswerWithSelfCritique({
+  founderMessage = '',
+  agentAnswer = '',
+  critique = null
+} = {}) {
+  const answer = String(agentAnswer || '').trim();
+  const activeCritique = critique || generateSelfCritique({ founderMessage, agentAnswer: answer });
+  if (!answer || !activeCritique) return answer;
+
+  const softened = softenUnsupportedCertainty(answer, activeCritique);
+  const caveat = buildRevisionCaveat(activeCritique);
+  if (!caveat || includesEquivalentCaveat(softened, caveat)) return softened;
+
+  return [softened, caveat].filter(Boolean).join('\n');
+}
+
 function normalizeSelfCritiqueMemory(value = {}) {
   const recentCritiques = Array.isArray(value && value.recentCritiques) ? value.recentCritiques : [];
   return {
@@ -72,6 +89,15 @@ function answerText(answer, context = {}) {
     context.founderMessage ||
     ''
   );
+}
+
+function isOperationalReadiness(text = '', context = {}) {
+  const route = context.route || {};
+  const routeText = `${route.command || ''} ${route.matchedRoute || ''} ${route.intent || ''}`.toLowerCase();
+  if (/\b(agent|team|status|health|momentum|cto_summary|weekly_summary)\b/.test(routeText)) return true;
+  return /\bteam is ready\b/.test(text) &&
+    /\bcoder:\s*ready\b/.test(text) &&
+    /\breviewer:\s*standing by\b/.test(text);
 }
 
 function extractSignals(text = '') {
@@ -202,6 +228,42 @@ function confidenceFor(signals, answerClass) {
   return clamp(base + signalCount * 4, 45, 88);
 }
 
+function softenUnsupportedCertainty(answer = '', critique = {}) {
+  const hasWeakEvidence = Array.isArray(critique.missingEvidence) && critique.missingEvidence.length > 0;
+  if (!hasWeakEvidence) return answer;
+  return String(answer || '')
+    .replace(/\bdefinitely\b/gi, 'could')
+    .replace(/\balways\b/gi, 'often')
+    .replace(/\bproven\b/gi, 'suggested')
+    .replace(/\bclearly\b/gi, 'probably');
+}
+
+function buildRevisionCaveat(critique = {}) {
+  const wrong = firstUseful(critique.whyMightBeWrong);
+  const assumption = firstUseful(critique.assumptions);
+  const missing = firstUseful(critique.missingEvidence);
+  if (!wrong && !assumption && !missing) return '';
+
+  if (critique.answerClass === 'PHASE2_EXPLAIN') {
+    return `A smarter critic would say this is not proven yet: ${wrong || assumption}. Weak evidence: ${missing}.`;
+  }
+  if (critique.answerClass === 'INFRASTRUCTURE_OR_INTERNAL') {
+    return `A smarter critic would ask whether this creates user-visible value. Weak evidence: ${missing || assumption || wrong}.`;
+  }
+  if (critique.answerClass === 'HOT_PATH_OR_FOUNDATION') {
+    return `A smarter critic would worry about typing trust regression. Weak evidence: ${missing || assumption || wrong}.`;
+  }
+  return `This could be wrong because ${wrong || assumption}. Weak evidence: ${missing || 'the main claim is not externally proven yet'}.`;
+}
+
+function includesEquivalentCaveat(answer = '') {
+  return /\b(could be wrong|weak evidence|not proven|smarter critic|assumption)\b/i.test(String(answer || ''));
+}
+
+function firstUseful(items = []) {
+  return Array.isArray(items) ? items.find((item) => String(item || '').trim()) : null;
+}
+
 function countByClass(items = []) {
   return items.reduce((counts, item) => {
     const key = item && item.answerClass ? item.answerClass : 'UNKNOWN';
@@ -221,6 +283,7 @@ function clamp(value, min, max) {
 module.exports = {
   shouldSelfCritiqueAnswer,
   generateSelfCritique,
+  reviseAnswerWithSelfCritique,
   updateSelfCritiqueMemory,
   normalizeSelfCritiqueMemory
 };

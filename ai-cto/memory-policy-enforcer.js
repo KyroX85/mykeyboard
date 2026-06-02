@@ -14,7 +14,8 @@ const {
 } = require('./route-confidence-calibration');
 const {
   shouldSelfCritiqueAnswer,
-  generateSelfCritique
+  generateSelfCritique,
+  reviseAnswerWithSelfCritique
 } = require('./self-critique-layer');
 
 function enforceMemoryPolicyOnRoute(route = {}, {
@@ -41,6 +42,13 @@ function enforceMemoryPolicyOnRoute(route = {}, {
   const selfCritique = route.details && route.details.suppressSelfCritique
     ? null
     : maybeGenerateSelfCritique(message, responseWithConfidence, route);
+  const revisedResponse = selfCritique
+    ? reviseAnswerWithSelfCritique({
+        founderMessage: message,
+        agentAnswer: responseWithConfidence,
+        critique: selfCritique
+      })
+    : responseWithConfidence;
   return {
     ...route,
     details: {
@@ -48,7 +56,7 @@ function enforceMemoryPolicyOnRoute(route = {}, {
       routeConfidence,
       ...(selfCritique ? { selfCritique } : {})
     },
-    response: maybeApplyCuriosity(responseWithConfidence, route, routeConfidence, { message, memory })
+    response: maybeApplyCuriosity(revisedResponse, route, routeConfidence, { message, memory })
   };
 }
 

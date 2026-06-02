@@ -12,6 +12,7 @@ process.env.ARITENIS_WHATSAPP_MEMORY_FILE = path.join(os.tmpdir(), `aritenis-sel
 const {
   shouldSelfCritiqueAnswer,
   generateSelfCritique,
+  reviseAnswerWithSelfCritique,
   updateSelfCritiqueMemory
 } = require('../self-critique-layer');
 const {
@@ -41,6 +42,14 @@ const infraCritique = generateSelfCritique({
 assert(infraCritique.whyMightBeWrong.some((item) => /user-visible|infrastructure|useful/i.test(item)));
 assert(infraCritique.missingEvidence.some((item) => /user|product|leverage/i.test(item)));
 
+const revised = reviseAnswerWithSelfCritique({
+  founderMessage: 'Will Explain become daily habit?',
+  agentAnswer: 'Explain will definitely become a daily habit because users hate confusion.',
+  critique
+});
+assert.match(revised, /could be wrong|weak evidence|assumption|not proven|smarter critic/i);
+assert.doesNotMatch(revised, /\bdefinitely\b/i);
+
 let memory = updateSelfCritiqueMemory(null, critique);
 memory = updateSelfCritiqueMemory(memory, infraCritique);
 assert.strictEqual(memory.recentCritiques.length, 2);
@@ -57,6 +66,7 @@ assert(routed.details.selfCritique);
 assert(routed.details.selfCritique.whyMightBeWrong.length > 0);
 assert(routed.response.includes('Memory Sources Used:'));
 assert(!routed.response.includes('Why might this answer be wrong?'));
+assert.match(routed.response, /could be wrong|weak evidence|assumption|not proven|smarter critic/i);
 
 updateMemory('founder_mind_reconstruction', {}, {
   founderMessage: 'Will Explain become daily habit?',
