@@ -1,9 +1,14 @@
 const REFLECTION_PATTERNS = [
-  /\bwhat\s+do\s+you\s+think\s+(i'?m|i\s+am)\s+avoiding\s+(right\s+now|now|lately|recently)?\b/i,
-  /\bwhat\s+(am\s+i|i\s+am)\s+avoiding\s+(right\s+now|now|lately|recently)?\b/i,
+  /\bwhat\s+motivates\s+me\s+more\s+than\s+money\b/i,
+  /\bwhat\s+do\s+you\s+think\s+(i'?m|i\s+am)\s+avoiding(?:\s+(right\s+now|now|lately|recently))?\b/i,
+  /\bwhat\s+(am\s+i|i\s+am)\s+avoiding(?:\s+(right\s+now|now|lately|recently))?\b/i,
   /\bwhat\s+(am\s+i|i\s+am)\s+not\s+seeing\b/i,
+  /\bwhat\s+should\s+i\s+be\s+asking\b/i,
+  /\bwhat\s+is\s+the\s+most\s+important\s+thing\s+i\s+haven'?t\s+realized\b/i,
   /\bwhat'?s\s+the\s+question\s+(i'?m|i\s+am)\s+scared\s+to\s+ask\b/i,
   /\bwhat\s+is\s+the\s+question\s+(i'?m|i\s+am)\s+scared\s+to\s+ask\b/i,
+  /\bif\s+users?\s+never\s+use\s+this\s+product\b.*\bwhy\b/i,
+  /\bif\s+you\s+had\s+to\s+bet\s+against\s+me\b.*\bwhere\s+would\s+you\s+bet\b/i,
   /\bbased\s+on\s+my\s+behavior\b.*\bwhat\s+(am\s+i|i\s+am)\s+optimizing\s+for\b/i,
   /\bwhat\s+(am\s+i|i\s+am)\s+optimizing\s+for\b/i,
   /\bforget\s+what\s+i\s+say\b.*\bbased\s+on\s+my\s+behavior\b/i,
@@ -116,6 +121,17 @@ const CONTINUITY_PATTERNS = [
 ];
 
 const FORBIDDEN_REFLECTION_OUTPUT = /(Current Foundation Health|Momentum:\s*STALLED|Health:\s*\d+|Recommended Next Step|roadmap priority|Phase 1 foundation is protected|Team is ready|complexity report|Task Plan|Review Gate|TASK_PLAN|APPROVE|Execution Plan|Execution\b)/i;
+const FOUNDER_REFLECTION_FIREWALL_ARCHETYPES = new Set([
+  'founder_motivation',
+  'founder_avoidance',
+  'founder_not_seeing',
+  'founder_should_ask',
+  'founder_unrealized_truth',
+  'scared_founder_question',
+  'user_adoption_failure_reflection',
+  'bet_against_founder',
+  'founder_behavior_optimization'
+]);
 
 function routeFounderMindReconstruction(message = '', context = {}) {
   const feedbackRoute = maybeRouteFounderFeedback(message, context.memory || {});
@@ -138,7 +154,8 @@ function routeFounderMindReconstruction(message = '', context = {}) {
     category: reconstruction.category,
     intent: reconstruction.intent
   });
-  const response = applyFounderTasteToResponse(feedbackAdjustedResponse, {
+  const firewall = isFounderReflectionFirewall(reconstruction);
+  const response = firewall ? feedbackAdjustedResponse : applyFounderTasteToResponse(feedbackAdjustedResponse, {
     message,
     memory: context.memory || {},
     category: reconstruction.category,
@@ -157,8 +174,14 @@ function routeFounderMindReconstruction(message = '', context = {}) {
       questionCluster,
       mindReconstruction: reconstruction.report,
       selfCheck: reconstruction.selfCheck,
-      suppressRouteConfidence: reconstruction.category === 'REFLECTION',
-      suppressSelfCritique: reconstruction.category === 'REFLECTION',
+      founderReflectionFirewall: firewall,
+      suppressMemorySources: firewall,
+      suppressRouteConfidence: firewall || reconstruction.category === 'REFLECTION',
+      suppressSelfCritique: firewall || reconstruction.category === 'REFLECTION',
+      skipDreamDriftDetector: firewall,
+      skipKillerFeatureTracker: firewall,
+      skipUserValueJudge: firewall,
+      skipFounderStateDetection: firewall,
       skipExecutionSchema: true
     },
     response
@@ -269,6 +292,15 @@ function classifyMindQuestion(text = '', memory = {}) {
   }
 
   if (REFLECTION_PATTERNS.some((pattern) => pattern.test(text))) {
+    if (/\bmotivates\s+me\s+more\s+than\s+money\b/i.test(text)) {
+      return {
+        intent: 'RECONSTRUCT_FOUNDER_MOTIVATION',
+        category: 'REFLECTION',
+        archetype: 'founder_motivation',
+        mode: 'REFLECTION_MODE',
+        confidence: 84
+      };
+    }
     if (/\bavoiding\b/i.test(text)) {
       return {
         intent: 'RECONSTRUCT_FOUNDER_AVOIDANCE',
@@ -287,6 +319,24 @@ function classifyMindQuestion(text = '', memory = {}) {
         confidence: 83
       };
     }
+    if (/\bwhat\s+should\s+i\s+be\s+asking\b/i.test(text)) {
+      return {
+        intent: 'RECONSTRUCT_FOUNDER_SHOULD_ASK',
+        category: 'REFLECTION',
+        archetype: 'founder_should_ask',
+        mode: 'REFLECTION_MODE',
+        confidence: 84
+      };
+    }
+    if (/\bhaven'?t\s+realized\b/i.test(text)) {
+      return {
+        intent: 'RECONSTRUCT_FOUNDER_UNREALIZED_TRUTH',
+        category: 'REFLECTION',
+        archetype: 'founder_unrealized_truth',
+        mode: 'REFLECTION_MODE',
+        confidence: 83
+      };
+    }
     if (/\bquestion\b.*\bscared\s+to\s+ask\b/i.test(text)) {
       return {
         intent: 'RECONSTRUCT_SCARED_FOUNDER_QUESTION',
@@ -294,6 +344,24 @@ function classifyMindQuestion(text = '', memory = {}) {
         archetype: 'scared_founder_question',
         mode: 'REFLECTION_MODE',
         confidence: 84
+      };
+    }
+    if (/\busers?\s+never\s+use\s+this\s+product\b/i.test(text)) {
+      return {
+        intent: 'RECONSTRUCT_USER_ADOPTION_FAILURE_REFLECTION',
+        category: 'REFLECTION',
+        archetype: 'user_adoption_failure_reflection',
+        mode: 'REFLECTION_MODE',
+        confidence: 84
+      };
+    }
+    if (/\bbet\s+against\s+me\b/i.test(text)) {
+      return {
+        intent: 'RECONSTRUCT_BET_AGAINST_FOUNDER',
+        category: 'REFLECTION',
+        archetype: 'bet_against_founder',
+        mode: 'REFLECTION_MODE',
+        confidence: 83
       };
     }
     if (/\bchanged\s+my\s+mind\b/i.test(text) || /\bwhat\s+belief\s+have\s+i\b/i.test(text)) {
@@ -597,6 +665,18 @@ function buildMindReport(kind, message, context = {}) {
     };
   }
 
+  if (kind.archetype === 'founder_motivation') {
+    return {
+      objective: 'Reflect on the founder motivation beneath the work without turning it into company status.',
+      assumption: 'The founder is asking for a personal read, not a financial or roadmap answer.',
+      concern: 'The founder may be driven more by freedom, proof, and building something real than by money alone.',
+      decision: 'Decide what motivation should guide the next judgment when money is not the only target.',
+      desiredOutcome: 'A direct personal reflection about what likely motivates the founder.',
+      actualQuestion: 'What motivates me more than money?',
+      uselessLiteralAnswer: 'Status, repo, task, health, momentum, files, or risk language.'
+    };
+  }
+
   if (kind.archetype === 'founder_not_seeing') {
     return {
       objective: 'Identify the founder blind spot without converting the question into project planning.',
@@ -609,6 +689,30 @@ function buildMindReport(kind, message, context = {}) {
     };
   }
 
+  if (kind.archetype === 'founder_should_ask') {
+    return {
+      objective: 'Name the sharper question the founder should face now.',
+      assumption: 'The founder wants a better question, not a task list.',
+      concern: 'The founder may be asking around the real issue instead of asking whether users will return without persuasion.',
+      decision: 'Decide which question would expose the most important uncertainty.',
+      desiredOutcome: 'A direct question that cuts through comfort and points at proof.',
+      actualQuestion: 'What should I be asking?',
+      uselessLiteralAnswer: 'A report, implementation plan, role label, health score, or route explanation.'
+    };
+  }
+
+  if (kind.archetype === 'founder_unrealized_truth') {
+    return {
+      objective: 'Name the important truth the founder may not have fully accepted.',
+      assumption: 'The founder is asking for a personal strategic blind spot.',
+      concern: 'The founder may not have realized that usefulness beats impressive progress even when the impressive work feels emotionally satisfying.',
+      decision: 'Decide which realization should change future choices.',
+      desiredOutcome: 'A direct reflection that is uncomfortable but useful.',
+      actualQuestion: 'What is the most important thing I have not realized?',
+      uselessLiteralAnswer: 'Repo, status, task, file, blocker, diagnostic, or CTO output.'
+    };
+  }
+
   if (kind.archetype === 'scared_founder_question') {
     return {
       objective: 'Surface the question the founder may be afraid to ask directly.',
@@ -618,6 +722,30 @@ function buildMindReport(kind, message, context = {}) {
       desiredOutcome: 'A direct founder-facing question that feels personal and strategically uncomfortable.',
       actualQuestion: 'What is the question I am scared to ask myself?',
       uselessLiteralAnswer: 'Self-evaluation, route diagnostics, task plans, product implementation advice, health, momentum, or status.'
+    };
+  }
+
+  if (kind.archetype === 'user_adoption_failure_reflection') {
+    return {
+      objective: 'Reflect on the founder-side reason users might never adopt the product.',
+      assumption: 'The founder is testing whether the dream can fail even if the system is built.',
+      concern: 'Users may never use it if the product is optional, unclear, or not tied to a repeated pain.',
+      decision: 'Decide which adoption risk should be faced before more work.',
+      desiredOutcome: 'A blunt reflection on why users might not return.',
+      actualQuestion: 'If users never use this product, why?',
+      uselessLiteralAnswer: 'Status, files, task plan, risk report, health, momentum, or implementation advice.'
+    };
+  }
+
+  if (kind.archetype === 'bet_against_founder') {
+    return {
+      objective: 'Name the founder weakness or strategic failure point someone would bet against.',
+      assumption: 'The founder wants honest personal pushback, not reassurance.',
+      concern: 'The likely bet against the founder is focus drift: building impressive systems before proving user pull.',
+      decision: 'Decide which personal pattern is most dangerous if left unchecked.',
+      desiredOutcome: 'A direct, friendly but uncomfortable bet-against answer.',
+      actualQuestion: 'If you had to bet against me, where would you bet?',
+      uselessLiteralAnswer: 'Diagnostics, task plans, status, files, role output, or reviewer language.'
     };
   }
 
@@ -822,6 +950,16 @@ function buildDirectAnswer(kind, report) {
     ];
   }
 
+  if (kind.archetype === 'founder_motivation') {
+    return [
+      'Money is probably not the main thing pulling you.',
+      'You seem more motivated by freedom, proof, and the feeling that you can build something real from almost nothing.',
+      'There is also a personal edge here: you want Aritenis to prove that your taste and persistence can turn into a product people actually rely on.',
+      'The danger is that this motivation can make impressive progress feel satisfying even before users prove they care.',
+      'So the clean read is: money matters, but being right about the dream matters more to you.'
+    ];
+  }
+
   if (kind.archetype === 'founder_not_seeing') {
     return [
       'What you may not be seeing is how much of the current pressure is coming from needing the dream to feel real soon.',
@@ -832,6 +970,26 @@ function buildDirectAnswer(kind, report) {
     ];
   }
 
+  if (kind.archetype === 'founder_should_ask') {
+    return [
+      'You should probably be asking: what would make a normal user come back without me explaining the dream?',
+      'That question is sharper than asking whether the system is advanced enough.',
+      'It forces the answer toward proof: repeated pain, repeated use, and a clear reason to return.',
+      'You should also ask what you would cut if users do not care.',
+      'That is the question that protects you from building something impressive but optional.'
+    ];
+  }
+
+  if (kind.archetype === 'founder_unrealized_truth') {
+    return [
+      'The most important thing you may not have fully realized is that useful beats impressive every time.',
+      'You already know this intellectually, but your urgency can still pull you toward systems that feel powerful before they prove user pull.',
+      'Aritenis does not need to look like the dream immediately.',
+      'It needs one small moment users would repeat because it helps them now.',
+      'That proof matters more than how advanced the agent architecture feels.'
+    ];
+  }
+
   if (kind.archetype === 'scared_founder_question') {
     return [
       'The question you may be scared to ask is: what if users do not care enough?',
@@ -839,6 +997,26 @@ function buildDirectAnswer(kind, report) {
       'That question is scary because it threatens months of effort and the emotional pull of building a Jarvis-like system.',
       'But asking it is useful. It forces the company back to proof: repeated pain, repeated use, and a user outcome people would miss.',
       'So the uncomfortable question is not "can we build it?" It is "would anyone return to it without being convinced by us?"'
+    ];
+  }
+
+  if (kind.archetype === 'user_adoption_failure_reflection') {
+    return [
+      'If users never use this product, it is probably because it stayed optional.',
+      'It may have looked smart, but it did not remove a painful enough moment from their day.',
+      'People already have keyboards and AI apps, so Aritenis has to win by being easier at the exact moment of confusion.',
+      'If the pain is not frequent, the habit will not form.',
+      'The uncomfortable version is: users might admire the idea and still never need it.'
+    ];
+  }
+
+  if (kind.archetype === 'bet_against_founder') {
+    return [
+      'If I had to bet against you, I would bet on focus drift.',
+      'You can move very fast, but that speed can pull you into building more system before the user proof is strong enough.',
+      'I would also bet that your belief in the dream could make weak signals feel stronger than they are.',
+      'Your advantage is intensity; your risk is turning intensity into infrastructure instead of usefulness.',
+      'The counter is simple: keep forcing every idea to prove user pull.'
     ];
   }
 
@@ -978,14 +1156,29 @@ function responseAnswersFounderMind(reconstruction = {}) {
   if (reconstruction.intent === 'RECONSTRUCT_FOUNDER_BEHAVIOR_OPTIMIZATION') {
     return /product truth|stress-testing the agents|fake progress|leverage|useful breakthrough|trustworthy/i.test(answer);
   }
+  if (reconstruction.intent === 'RECONSTRUCT_FOUNDER_MOTIVATION') {
+    return /money|freedom|proof|build something real|dream/i.test(answer);
+  }
   if (reconstruction.intent === 'RECONSTRUCT_FOUNDER_AVOIDANCE') {
     return /avoiding|uncomfortable|killer user proof|daily habit|hard question|users do not care/i.test(answer);
   }
   if (reconstruction.intent === 'RECONSTRUCT_FOUNDER_NOT_SEEING') {
     return /not be seeing|blind spot|users will not reward|repeated pain|use case/i.test(answer);
   }
+  if (reconstruction.intent === 'RECONSTRUCT_FOUNDER_SHOULD_ASK') {
+    return /asking|normal user|come back|proof|cut if users do not care/i.test(answer);
+  }
+  if (reconstruction.intent === 'RECONSTRUCT_FOUNDER_UNREALIZED_TRUTH') {
+    return /realized|useful beats impressive|user pull|repeat|advanced/i.test(answer);
+  }
   if (reconstruction.intent === 'RECONSTRUCT_SCARED_FOUNDER_QUESTION') {
     return /scared to ask|what if users do not care|dream|proof|would anyone return/i.test(answer);
+  }
+  if (reconstruction.intent === 'RECONSTRUCT_USER_ADOPTION_FAILURE_REFLECTION') {
+    return /users never use|optional|painful enough|moment of confusion|habit/i.test(answer);
+  }
+  if (reconstruction.intent === 'RECONSTRUCT_BET_AGAINST_FOUNDER') {
+    return /bet against|focus drift|user proof|infrastructure|user pull/i.test(answer);
   }
   if (reconstruction.intent === 'RECONSTRUCT_RECENT_BELIEF_SHIFT') {
     return /changed your mind|makes Aritenis valuable|advanced agents only matter|real user leverage|repeatable product moment|Explain/i.test(answer);
@@ -997,6 +1190,25 @@ function responseAnswersFounderMind(reconstruction = {}) {
     return /most likely refers|previous concern|partially addressed|what remains/i.test(answer);
   }
   return /reason behind your words|assumption being tested|worry underneath/i.test(answer);
+}
+
+function isFounderReflectionFirewall(reconstruction = {}) {
+  return reconstruction.category === 'REFLECTION' &&
+    FOUNDER_REFLECTION_FIREWALL_ARCHETYPES.has(archetypeFromIntent(reconstruction.intent));
+}
+
+function archetypeFromIntent(intent = '') {
+  const value = String(intent || '');
+  if (value === 'RECONSTRUCT_FOUNDER_MOTIVATION') return 'founder_motivation';
+  if (value === 'RECONSTRUCT_FOUNDER_AVOIDANCE') return 'founder_avoidance';
+  if (value === 'RECONSTRUCT_FOUNDER_NOT_SEEING') return 'founder_not_seeing';
+  if (value === 'RECONSTRUCT_FOUNDER_SHOULD_ASK') return 'founder_should_ask';
+  if (value === 'RECONSTRUCT_FOUNDER_UNREALIZED_TRUTH') return 'founder_unrealized_truth';
+  if (value === 'RECONSTRUCT_SCARED_FOUNDER_QUESTION') return 'scared_founder_question';
+  if (value === 'RECONSTRUCT_USER_ADOPTION_FAILURE_REFLECTION') return 'user_adoption_failure_reflection';
+  if (value === 'RECONSTRUCT_BET_AGAINST_FOUNDER') return 'bet_against_founder';
+  if (value === 'RECONSTRUCT_FOUNDER_BEHAVIOR_OPTIMIZATION') return 'founder_behavior_optimization';
+  return '';
 }
 
 function resolveContinuityReference(message = '', memory = {}) {

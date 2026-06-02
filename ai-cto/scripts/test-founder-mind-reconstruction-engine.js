@@ -22,6 +22,7 @@ const { setMode } = require('../../governance/governance');
 setMode('ACTIVE', 'founder mind reconstruction test');
 
 const forbiddenTemplates = /(Current Foundation Health|Recommended Next Step|Momentum:\s*STALLED|Health:\s*\d+|roadmap priority|Team is ready|Team Ready|complexity report|Task Plan|Review Gate|TASK_PLAN|APPROVE|Execution Plan|Files:|Validation:|Risk:\s*(LOW|MEDIUM|HIGH|CRITICAL)|Scope:)/i;
+const reflectionFirewallForbidden = /(Memory Sources Used|Route Confidence|Route Reason|CTO:|CODER|REVIEWER|AUDITOR|repo scan|health|momentum|task plan|blockers|files:|risk report|commits?|auditor output|reviewer output|CTO status|diagnostic|previous answer|self[-\s]?evaluation|keyboard implementation|product implementation|TASK_PLAN|APPROVE|Execution Plan)/i;
 
 function route(text) {
   return routeMessage(text, {}, {});
@@ -43,6 +44,21 @@ function assertMindRoute(text, requiredPattern) {
   assert.doesNotMatch(body, forbiddenTemplates, text);
   assert.doesNotMatch(body, /Mind reconstruction:\nObjective:/, text);
   assert.doesNotMatch(body, /NOISE|AMBIGUOUS INTENT|LOW INFORMATION/, text);
+  return result;
+}
+
+function assertReflectionFirewall(text, requiredPattern) {
+  const result = assertMindRoute(text, requiredPattern);
+  const body = String(result.response || '');
+  assert.strictEqual(result.details.founderReflectionFirewall, true, text);
+  assert.strictEqual(result.details.suppressMemorySources, true, text);
+  assert.doesNotMatch(body, reflectionFirewallForbidden, text);
+  const sentences = body
+    .replace(/\n+/g, ' ')
+    .split(/[.!?]+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  assert(sentences.length >= 3 && sentences.length <= 8, `${text}: sentence count ${sentences.length}`);
   return result;
 }
 
@@ -226,6 +242,41 @@ assert.strictEqual(scaredQuestionReflection.details.category, 'REFLECTION');
 assert.strictEqual(scaredQuestionReflection.details.intent, 'RECONSTRUCT_SCARED_FOUNDER_QUESTION');
 assert.match(scaredQuestionReflection.details.mindReconstruction.actualQuestion, /scared to ask|question/i);
 assert.doesNotMatch(String(scaredQuestionReflection.response || ''), /keyboard|product implementation|previous answer|self[-\s]?evaluation|route|diagnostic|CLARIFICATION_REQUEST|NOISE|LOW INFORMATION|AMBIGUOUS INTENT|TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan/i);
+
+assertReflectionFirewall(
+  'What motivates me more than money?',
+  /freedom|prove|build|control|money/i
+);
+
+assertReflectionFirewall(
+  'What am I avoiding?',
+  /avoiding|user proof|hard question|users do not care/i
+);
+
+assertReflectionFirewall(
+  'What am I not seeing?',
+  /not seeing|blind spot|users|proof/i
+);
+
+assertReflectionFirewall(
+  'What should I be asking?',
+  /asking|user|care|return|proof/i
+);
+
+assertReflectionFirewall(
+  "What is the most important thing I haven't realized?",
+  /realized|important|useful|impressive|proof/i
+);
+
+assertReflectionFirewall(
+  'If users never use this product, why?',
+  /users|never use|optional|habit|pain/i
+);
+
+assertReflectionFirewall(
+  'If you had to bet against me, where would you bet?',
+  /bet against|focus|infrastructure|user proof|useful/i
+);
 
 const dreamValidity = assertMindRoute(
   'Bro, what if my dream itself is wrong?',

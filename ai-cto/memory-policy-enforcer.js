@@ -25,12 +25,15 @@ function enforceMemoryPolicyOnRoute(route = {}, {
 } = {}) {
   if (!route || typeof route !== 'object') return route;
   const routeConfidence = calibrateRouteConfidence(route, { message, memory });
-  const responseWithMemory = enforceMemoryPolicyOnResponse(route.response, {
-    message,
-    memory,
-    founderMemoryLayer,
-    executionRelevant: executionRelevant || isExecutionRoute(route)
-  });
+  const suppressMemorySources = Boolean(route.details && route.details.suppressMemorySources);
+  const responseWithMemory = suppressMemorySources
+    ? repairUnsupportedRecallClaims(route.response)
+    : enforceMemoryPolicyOnResponse(route.response, {
+        message,
+        memory,
+        founderMemoryLayer,
+        executionRelevant: executionRelevant || isExecutionRoute(route)
+      });
   const suppressRouteConfidence = Boolean(route.details && route.details.suppressRouteConfidence);
   const responseWithConfidence = suppressRouteConfidence
     ? responseWithMemory
