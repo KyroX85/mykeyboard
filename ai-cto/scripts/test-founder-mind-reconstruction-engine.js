@@ -11,6 +11,7 @@ process.env.ARITENIS_WHATSAPP_MEMORY_FILE = path.join(os.tmpdir(), 'aritenis-fou
 
 const { routeMessage, routeMessageWithAi } = require('../whatsapp/command-router');
 const { responseUsesPremortemAnalysis } = require('../premortem-engine');
+const { responseUsesAdvisorMode } = require('../advisor-mode');
 const {
   reconstructFounderMind,
   buildReflectionResponse,
@@ -95,6 +96,7 @@ const dream = assertMindRoute(
 assert.strictEqual(dream.details.category, 'VISION');
 assert.strictEqual(dream.details.mode, 'FOUNDER_CONVERSATION_MODE');
 assert.match(dream.details.mindReconstruction.actualQuestion, /long-term Aritenis dream|agents look busy/i);
+assert(responseUsesAdvisorMode(dream.response));
 
 const dissatisfaction = assertMindRoute(
   'Bro why am I not satisfied with this feature?',
@@ -111,6 +113,7 @@ assert.strictEqual(wrongFocus.details.category, 'DOUBT');
 assert.strictEqual(wrongFocus.details.mode, 'FOUNDER_CONVERSATION_MODE');
 assert.match(wrongFocus.details.mindReconstruction.concern, /look operational|product moment|users would actually care/i);
 assert.doesNotMatch(String(wrongFocus.response || ''), /TASK_PLAN|APPROVE|Execution Plan|Files:|Validation:|Risk:|Scope:/i);
+assert(responseUsesAdvisorMode(wrongFocus.response));
 updateMemory(wrongFocus.command, {}, {
   ...(wrongFocus.details || {}),
   founderMessage: "Bro I think we're focusing on the wrong thing.",
@@ -147,6 +150,7 @@ assert.strictEqual(disagreement.details.category, 'FOUNDER_STRATEGY');
 assert.strictEqual(disagreement.details.intent, 'RECONSTRUCT_STRATEGIC_DISAGREEMENT');
 assert.match(disagreement.details.mindReconstruction.concern, /infrastructure|user-facing product proof/i);
 assert.doesNotMatch(String(disagreement.response || ''), /TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan|Files:|Validation:|Scope:/i);
+assert(responseUsesAdvisorMode(disagreement.response));
 
 const founderEvolution = assertMindRoute(
   'Am I the same founder I was 3 months ago?',
@@ -190,6 +194,7 @@ const dangerousAssumption = assertMindRoute(
 assert.strictEqual(dangerousAssumption.details.category, 'FOUNDER_STRATEGY');
 assert.strictEqual(dangerousAssumption.details.intent, 'RECONSTRUCT_DANGEROUS_ASSUMPTION');
 assert(responseUsesPremortemAnalysis(dangerousAssumption.response));
+assert(responseUsesAdvisorMode(dangerousAssumption.response));
 assert.doesNotMatch(String(dangerousAssumption.response || ''), /CLARIFICATION_REQUEST|TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan/i);
 
 const impressiveFear = assertMindRoute(

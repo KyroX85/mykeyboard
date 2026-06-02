@@ -32,6 +32,11 @@ const {
   formatStrategicThinking
 } = require('../strategic-thinking-layer');
 const {
+  shouldUseAdvisorMode,
+  buildAdvisorMode,
+  formatAdvisorMode
+} = require('../advisor-mode');
+const {
   buildContrarianReasoning,
   formatContrarianReasoning
 } = require('../contrarian-reasoning-layer');
@@ -260,6 +265,20 @@ function reconstructFounderMind(message = '', context = {}) {
     }),
     confidence: kind.confidence
   };
+
+  reconstruction.advisorMode = shouldUseAdvisorMode({
+    message: original,
+    category: kind.category,
+    intent: kind.intent
+  })
+    ? buildAdvisorMode({
+      message: original,
+      category: kind.category,
+      intent: kind.intent,
+      strategicThinking: reconstruction.strategicThinking,
+      directAnswer: reconstruction.directAnswer
+    })
+    : null;
 
   return {
     ...reconstruction,
@@ -1117,6 +1136,11 @@ function buildReflectionResponse(reconstruction, { debug = false } = {}) {
   if (!directReflection && reconstruction.strategicThinking) {
     lines.push('');
     lines.push(formatStrategicThinking(reconstruction.strategicThinking));
+  }
+
+  if (!directReflection && reconstruction.advisorMode) {
+    lines.push('');
+    lines.push(formatAdvisorMode(reconstruction.advisorMode));
   }
 
   if (!directReflection && reconstruction.contrarianReasoning) {
