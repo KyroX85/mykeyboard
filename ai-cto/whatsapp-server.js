@@ -27,6 +27,7 @@ const {
   evaluateProactiveNotification,
   recordNotificationDecision
 } = require('./whatsapp/notification-intelligence-layer');
+const { answerFounderBrainQuestion } = require('./founder-brain-api');
 const { enforceMemoryPolicyOnResponse } = require('./memory-policy-enforcer');
 const { enforceExecutionSchemaOnRoute } = require('./execution-schema-enforcer');
 
@@ -235,6 +236,18 @@ function validateMetaSignature(req) {
   return { valid, skipped: false, reason: valid ? 'signature_valid' : 'signature_mismatch' };
 }
 
+function validateBrainApiAuth(req) {
+  const token = process.env.BRAIN_API_TOKEN || '';
+  if (!token) return { ok: false, reason: 'BRAIN_API_TOKEN is required' };
+  const authorization = req.get('Authorization') || '';
+  const expected = `Bearer ${token}`;
+  const providedBuffer = Buffer.from(authorization);
+  const expectedBuffer = Buffer.from(expected);
+  const ok = providedBuffer.length === expectedBuffer.length &&
+    crypto.timingSafeEqual(providedBuffer, expectedBuffer);
+  return { ok, reason: ok ? 'valid' : 'invalid_token' };
+}
+
 function extractMetaMessages(body = {}) {
   const messages = [];
   const entries = Array.isArray(body.entry) ? body.entry : [];
@@ -373,6 +386,18 @@ function createApp() {
   });
 
   app.post('/metrics/ingest', createMetricsIngestHandler({ root: REPO_ROOT }));
+
+  app.post('/brain/question', async (req, res) => {
+    const auth = validateBrainApiAuth(req);
+    if (!auth.ok) return res.status(401).json({ ok: false, reason: auth.reason });
+    const question = req.body && typeof req.body.question === 'string' ? req.body.question : '';
+    const answer = await answerFounderBrainQuestion({
+      question,
+      root: REPO_ROOT,
+      publicBaseUrl: PUBLIC_BASE_URL
+    });
+    return res.status(200).json(answer);
+  });
 
   app.get('/meta/whatsapp', (req, res) => {
     const verification = verifyMetaChallenge(req.query || {});
@@ -995,6 +1020,7 @@ module.exports = {
   validateTwilioSignature,
   verifyMetaChallenge,
   validateMetaSignature,
+  validateBrainApiAuth,
   extractMetaMessages,
   twiml,
   twimlMessages,
