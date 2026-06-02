@@ -113,6 +113,9 @@ const {
 const {
   updateStrategicMemory
 } = require('../strategic-memory-layer');
+const {
+  recordBeliefEvolutionFromTracker
+} = require('../belief-evolution-engine');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const MEMORY_FILE = process.env.ARITENIS_WHATSAPP_MEMORY_FILE ||
@@ -180,6 +183,7 @@ const DEFAULT_MEMORY = {
   compressedFounderInsights: [],
   memoryCompression: null,
   founderBeliefTracker: null,
+  beliefEvolution: null,
   founderContradictions: null,
   userValueJudgments: null,
   premortemMemory: null,
@@ -312,10 +316,12 @@ function updateMemory(command, state, details = {}) {
   const selfCritiqueMemory = updateSelfCritiqueIfNeeded(memory.selfCritiqueMemory, details);
   const effectiveFounderHypothesisTracker = founderHypothesisTracker || details.founderHypothesisTracker || memory.founderHypothesisTracker;
   const effectiveFounderBeliefTracker = founderBeliefTracker || details.founderBeliefTracker || memory.founderBeliefTracker;
+  const beliefEvolution = recordBeliefEvolutionFromTracker(memory.beliefEvolution, effectiveFounderBeliefTracker);
   const strategicMemory = updateStrategicMemory(memory.strategicMemory, {
     ...details,
     founderHypothesisTracker: effectiveFounderHypothesisTracker,
     founderBeliefTracker: effectiveFounderBeliefTracker,
+    beliefEvolution,
     selfCritiqueMemory,
     premortemMemory,
     userValueJudgments,
@@ -345,6 +351,7 @@ function updateMemory(command, state, details = {}) {
     ...memory,
     founderQuestionClusters,
     founderBeliefTracker,
+    beliefEvolution,
     founderContradictions,
     userValueJudgments,
     premortemMemory,
@@ -484,6 +491,7 @@ function readConversationMemory() {
     compressedFounderInsights: Array.isArray(memory.compressedFounderInsights) ? memory.compressedFounderInsights.slice(0, 5) : [],
     memoryCompression: memory.memoryCompression || null,
     founderBeliefTracker: memory.founderBeliefTracker || null,
+    beliefEvolution: memory.beliefEvolution || null,
     founderContradictions: memory.founderContradictions || null,
     userValueJudgments: memory.userValueJudgments || null,
     premortemMemory: memory.premortemMemory || null,
@@ -560,10 +568,12 @@ function updateConversationMemory(route, state) {
   const selfCritiqueMemory = updateSelfCritiqueIfNeeded(memory.selfCritiqueMemory, route);
   const effectiveFounderHypothesisTracker = founderHypothesisTracker || route.founderHypothesisTracker || memory.founderHypothesisTracker;
   const effectiveFounderBeliefTracker = founderBeliefTracker || route.founderBeliefTracker || memory.founderBeliefTracker;
+  const beliefEvolution = recordBeliefEvolutionFromTracker(memory.beliefEvolution, effectiveFounderBeliefTracker);
   const strategicMemory = updateStrategicMemory(memory.strategicMemory, {
     ...route,
     founderHypothesisTracker: effectiveFounderHypothesisTracker,
     founderBeliefTracker: effectiveFounderBeliefTracker,
+    beliefEvolution,
     selfCritiqueMemory,
     premortemMemory,
     userValueJudgments,
@@ -667,6 +677,7 @@ function updateConversationMemory(route, state) {
     nextContinuationAction,
     founderQuestionClusters,
     founderBeliefTracker,
+    beliefEvolution,
     founderContradictions,
     userValueJudgments,
     premortemMemory,

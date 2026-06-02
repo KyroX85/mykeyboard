@@ -41,6 +41,10 @@ const {
   formatContrarianReasoning
 } = require('../contrarian-reasoning-layer');
 const {
+  retrieveEvolvedBelief,
+  formatEvolvedBeliefForResponse
+} = require('../belief-evolution-engine');
+const {
   buildReflectionDepth,
   formatReflectionDepth
 } = require('../reflection-depth-layer');
@@ -83,7 +87,9 @@ const FOUNDER_QUESTION_PATTERNS = [
   /\bwhat\s+do\s+you\s+think\s+(i'?m|i\s+am)\s+(actually\s+)?(chasing|trying\s+to\s+build|trying\s+to\s+achieve|after)\b/i,
   /\bwhat\s+(am\s+i|i\s+am)\s+(actually\s+)?(chasing|trying\s+to\s+build|trying\s+to\s+achieve|after)\b/i,
   /\bwhat\s+is\s+my\s+(real\s+)?(ambition|dream|goal|vision)\b/i,
-  /\bwhat\s+do\s+you\s+think\s+my\s+(real\s+)?(ambition|dream|goal|vision)\s+is\b/i
+  /\bwhat\s+do\s+you\s+think\s+my\s+(real\s+)?(ambition|dream|goal|vision)\s+is\b/i,
+  /\b(do|does)\s+smarter\s+agents?\s+make\s+the\s+company\s+more\s+valuable\b/i,
+  /\b(do|does)\s+(better|smarter|more\s+advanced)\s+agents?\s+(create|make|produce)\s+(value|company\s+value)\b/i
 ];
 
 const DOUBT_PATTERNS = [
@@ -255,6 +261,7 @@ function reconstructFounderMind(message = '', context = {}) {
         founderMessage: original
       })
       : null,
+    evolvedBelief: retrieveEvolvedBelief(original, context.memory && context.memory.beliefEvolution),
     curiosityPrompt: buildCuriosityPrompt({
       message: original,
       category: kind.category,
@@ -511,6 +518,15 @@ function classifyMindQuestion(text = '', memory = {}) {
   }
 
   if (FOUNDER_QUESTION_PATTERNS.some((pattern) => pattern.test(text))) {
+    if (/\bagents?\b.*\b(value|valuable|company)\b/i.test(text) || /\bsmarter\s+agents?\b/i.test(text)) {
+      return {
+        intent: 'RECONSTRUCT_AGENT_VALUE_BELIEF',
+        category: 'FOUNDER_STRATEGY',
+        archetype: 'agent_value_belief',
+        mode: 'FOUNDER_CONVERSATION_MODE',
+        confidence: 82
+      };
+    }
     return {
       intent: 'RECONSTRUCT_FOUNDER_AMBITION',
       category: 'FOUNDER_QUESTION',
@@ -814,6 +830,18 @@ function buildMindReport(kind, message, context = {}) {
     };
   }
 
+  if (kind.archetype === 'agent_value_belief') {
+    return {
+      objective: 'Judge whether agent intelligence itself creates company value, using the newest founder belief instead of older infrastructure optimism.',
+      assumption: 'The founder is testing whether better agents are enough, or whether only user leverage matters.',
+      concern: 'The company may keep treating smarter agents as progress even when users cannot feel the value.',
+      decision: 'Decide whether to keep investing in agent sophistication or redirect effort toward user-visible leverage.',
+      desiredOutcome: 'A direct answer that newer founder belief should override the older assumption that better agents automatically create value.',
+      actualQuestion: 'Do smarter agents make Aritenis more valuable, or only if they create user leverage?',
+      uselessLiteralAnswer: 'A status update, agent capability list, or generic claim that smarter agents are always better.'
+    };
+  }
+
   if (kind.archetype === 'founder_evolution') {
     return {
       objective: 'Compare the founder’s current judgment and priorities against the earlier founder state.',
@@ -1083,6 +1111,16 @@ function buildDirectAnswer(kind, report) {
     ];
   }
 
+  if (kind.archetype === 'agent_value_belief') {
+    return [
+      'No. Smarter agents do not automatically make the company more valuable.',
+      'They only matter if they create user leverage that a normal person can feel: less confusion, faster understanding, better action completion, or a habit they would miss.',
+      'The older belief was that better agents create value by becoming more capable.',
+      'The newer belief is sharper: capability is only valuable when it turns into repeated user pull.',
+      'So the test is not whether the agents are smarter. The test is whether users get a result they would return for.'
+    ];
+  }
+
   if (kind.archetype === 'founder_evolution') {
     return [
       'No. You are not the same founder you were 3 months ago.',
@@ -1136,6 +1174,11 @@ function buildReflectionResponse(reconstruction, { debug = false } = {}) {
   if (!directReflection && reconstruction.strategicThinking) {
     lines.push('');
     lines.push(formatStrategicThinking(reconstruction.strategicThinking));
+  }
+
+  if (!directReflection && reconstruction.evolvedBelief && reconstruction.evolvedBelief.matched) {
+    lines.push('');
+    lines.push(formatEvolvedBeliefForResponse(reconstruction.evolvedBelief));
   }
 
   if (!directReflection && reconstruction.advisorMode) {
@@ -1262,6 +1305,9 @@ function responseAnswersFounderMind(reconstruction = {}) {
   }
   if (reconstruction.intent === 'RECONSTRUCT_RECENT_BELIEF_SHIFT') {
     return /changed your mind|makes Aritenis valuable|advanced agents only matter|real user leverage|repeatable product moment|Explain/i.test(answer);
+  }
+  if (reconstruction.intent === 'RECONSTRUCT_AGENT_VALUE_BELIEF') {
+    return /smarter agents do not automatically make the company more valuable|only matter if they create user leverage|older belief|newer belief|repeated user pull/i.test(answer);
   }
   if (reconstruction.intent === 'RECONSTRUCT_FOUNDER_EVOLUTION') {
     return /not the same founder|3 months ago|sharper|fake progress|product-truth mode|user-facing breakthrough/i.test(answer);
