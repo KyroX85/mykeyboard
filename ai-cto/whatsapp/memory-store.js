@@ -87,6 +87,9 @@ const {
   updateFounderPatternDiscovery
 } = require('../founder-pattern-discovery');
 const {
+  updateFounderBlindspotMemory
+} = require('../founder-blindspot-detector');
+const {
   generateStrongestDisagreement,
   updateIntelligentDisagreementMemory
 } = require('../intelligent-disagreement-layer');
@@ -189,6 +192,7 @@ const DEFAULT_MEMORY = {
   metaLearningMemory: null,
   reinforcementPreferenceMemory: null,
   founderPatternDiscovery: null,
+  founderBlindspotDetector: null,
   intelligentDisagreementMemory: null,
   dreamDriftMemory: null,
   killerFeatureMemory: null,
@@ -222,7 +226,8 @@ function writeMemory(memory) {
     version: DEFAULT_MEMORY.version,
     lastUpdatedAt: new Date().toISOString()
   });
-  const next = compressFounderMemory(withPatternDiscovery);
+  const withBlindspots = applyFounderBlindspotDetection(withPatternDiscovery);
+  const next = compressFounderMemory(withBlindspots);
 
   try {
     const tmp = `${MEMORY_FILE}.tmp`;
@@ -321,6 +326,30 @@ function updateMemory(command, state, details = {}) {
     ...memory,
     ...reinforcement
   });
+  const founderBlindspotDetector = updateFounderBlindspotIfNeeded(memory.founderBlindspotDetector, {
+    ...memory,
+    founderQuestionClusters,
+    founderBeliefTracker,
+    founderContradictions,
+    userValueJudgments,
+    premortemMemory,
+    opportunityCostMemory,
+    truthOverAgreementMemory,
+    intelligentDisagreementMemory,
+    dreamDriftMemory,
+    killerFeatureMemory,
+    adaptiveCuriosityMemory,
+    answerQualityMemory,
+    founderHypothesisTracker,
+    predictionMemory,
+    selfCritiqueMemory,
+    founderMentalStateMemory,
+    founderStateMemory,
+    evidenceRequirementMemory,
+    metaLearningMemory,
+    routeEvolutionMemory,
+    reinforcementPreferenceMemory
+  });
 
   return writeMemory({
     ...latestMemory,
@@ -371,7 +400,8 @@ function updateMemory(command, state, details = {}) {
     evidenceRequirementMemory,
     metaLearningMemory,
     routeEvolutionMemory,
-    reinforcementPreferenceMemory
+    reinforcementPreferenceMemory,
+    founderBlindspotDetector
   });
 }
 
@@ -452,6 +482,7 @@ function readConversationMemory() {
     metaLearningMemory: memory.metaLearningMemory || null,
     reinforcementPreferenceMemory: memory.reinforcementPreferenceMemory || null,
     founderPatternDiscovery: memory.founderPatternDiscovery || null,
+    founderBlindspotDetector: memory.founderBlindspotDetector || null,
     intelligentDisagreementMemory: memory.intelligentDisagreementMemory || null,
     dreamDriftMemory: memory.dreamDriftMemory || null,
     killerFeatureMemory: memory.killerFeatureMemory || null,
@@ -528,6 +559,30 @@ function updateConversationMemory(route, state) {
     ...memory,
     ...reinforcement
   });
+  const founderBlindspotDetector = updateFounderBlindspotIfNeeded(memory.founderBlindspotDetector, {
+    ...memory,
+    founderQuestionClusters,
+    founderBeliefTracker,
+    founderContradictions,
+    userValueJudgments,
+    premortemMemory,
+    opportunityCostMemory,
+    truthOverAgreementMemory,
+    intelligentDisagreementMemory,
+    dreamDriftMemory,
+    killerFeatureMemory,
+    adaptiveCuriosityMemory,
+    answerQualityMemory,
+    founderHypothesisTracker,
+    predictionMemory,
+    selfCritiqueMemory,
+    founderMentalStateMemory,
+    founderStateMemory,
+    evidenceRequirementMemory,
+    metaLearningMemory,
+    routeEvolutionMemory,
+    reinforcementPreferenceMemory
+  });
   const next = {
     ...memory,
     ...reinforcement,
@@ -601,6 +656,7 @@ function updateConversationMemory(route, state) {
     metaLearningMemory,
     routeEvolutionMemory,
     reinforcementPreferenceMemory,
+    founderBlindspotDetector,
     recentMessages: rememberMessage(memory.recentMessages, {
       role: 'agent',
       agent: route.agent || 'cto',
@@ -912,11 +968,23 @@ function updateReinforcementPreferenceIfNeeded(existing, memory = {}) {
   return updateReinforcementPreferenceMemory(existing, preferences);
 }
 
+function updateFounderBlindspotIfNeeded(existing, memory = {}) {
+  return updateFounderBlindspotMemory(existing, memory);
+}
+
 function applyFounderPatternDiscovery(memory = {}) {
   const founderPatternDiscovery = updateFounderPatternDiscovery(memory.founderPatternDiscovery, memory);
   return {
     ...memory,
     founderPatternDiscovery
+  };
+}
+
+function applyFounderBlindspotDetection(memory = {}) {
+  const founderBlindspotDetector = updateFounderBlindspotMemory(memory.founderBlindspotDetector, memory);
+  return {
+    ...memory,
+    founderBlindspotDetector
   };
 }
 

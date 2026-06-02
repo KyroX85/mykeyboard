@@ -128,7 +128,10 @@ function applyWrongAnswerEvidence(scores, wrongAnswerAnalysis = {}) {
 }
 
 function applyEvidenceRequirement(scores, evidenceRequirementMemory = {}) {
-  for (const item of array(evidenceRequirementMemory.recentChecks)) {
+  const source = evidenceRequirementMemory && typeof evidenceRequirementMemory === 'object'
+    ? evidenceRequirementMemory
+    : {};
+  for (const item of array(source.recentChecks)) {
     const key = inferLayerFromText(item.claimPreview || '');
     ensureScore(scores, key);
     if (item.status === 'EVIDENCE_SUPPORTED') {
