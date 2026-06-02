@@ -159,6 +159,7 @@ function recordFounderFeedback(message = '', providedMemory = {}, classification
     },
     questionPattern: normalizePattern(previous.question),
     answerPattern: normalizePattern(previous.answer),
+    answerStyle: extractAnswerStyle(previous.answer),
     routeUsed,
     rawQuestionPreview: preview(previous.question),
     rawAnswerPreview: preview(previous.answer)
@@ -205,15 +206,20 @@ function enrichFeedbackOutcome(entry = {}, wrongAnswerAnalysis = null) {
 
 function applyFounderFeedbackToResponse(response = '', context = {}) {
   const guidance = buildFounderFeedbackGuidance(context.message, context.memory);
-  if (!guidance.feedbackUsed.length && !guidance.dominantNegativeStyles.length) return response;
-
-  const relevant = guidance.feedbackUsed;
-  const strongest = relevant[0] || guidance.dominantNegativeStyles[0];
-  if (strongest.polarity === 'positive') {
+  if (!guidance.feedbackUsed.length &&
+    !guidance.dominantNegativeStyles.length &&
+    !guidance.preferredAnswerStyles.length &&
+    !guidance.avoidedAnswerStyles.length) {
     return response;
   }
 
-  const cleanedResponse = stripRejectedTemplateLines(response, guidance);
+  const relevant = guidance.feedbackUsed;
+  const strongest = relevant[0] || guidance.dominantNegativeStyles[0];
+  if (!strongest || strongest.polarity === 'positive') {
+    return applyPreferredAnswerStyle(response, guidance);
+  }
+
+  const cleanedResponse = applyPreferredAnswerStyle(stripRejectedTemplateLines(response, guidance), guidance);
   const adaptationLine = buildAdaptationLine(strongest);
   if (!adaptationLine || String(cleanedResponse).includes(adaptationLine)) {
     return cleanedResponse;
@@ -233,10 +239,22 @@ function buildFounderFeedbackGuidance(message = '', memory = {}) {
     .filter(([, count]) => count >= 2)
     .map(([adaptation]) => source.find((entry) => entry && entry.adaptation === adaptation && entry.polarity === 'negative'))
     .filter(Boolean);
+  const successfulStyleExamples = source
+    .filter((entry) => entry && entry.polarity === 'positive')
+    .filter((entry) => labelsFromFeedbackEntry(entry).length)
+    .slice(0, 5);
   const feedbackUsed = dedupeFeedback([...relevant, ...repeatedNegative]).slice(0, 5);
   const rejectedStyles = unique(feedbackUsed
     .filter((entry) => entry.polarity === 'negative')
     .map((entry) => styleRejectedBy(entry))
+    .filter(Boolean));
+  const preferredAnswerStyles = unique([...feedbackUsed, ...successfulStyleExamples]
+    .filter((entry) => entry.polarity === 'positive')
+    .flatMap((entry) => labelsFromFeedbackEntry(entry))
+    .filter(Boolean));
+  const avoidedAnswerStyles = unique(feedbackUsed
+    .filter((entry) => entry.polarity === 'negative')
+    .flatMap((entry) => labelsFromFeedbackEntry(entry))
     .filter(Boolean));
   const preferredAdaptations = unique(feedbackUsed
     .map((entry) => entry.adaptation)
@@ -250,6 +268,8 @@ function buildFounderFeedbackGuidance(message = '', memory = {}) {
     feedbackUsed,
     dominantNegativeStyles: repeatedNegative,
     rejectedStyles,
+    preferredAnswerStyles,
+    avoidedAnswerStyles,
     preferredAdaptations,
     sourceCounts,
     confidence: Math.min(90, Math.round(averageConfidence || 0))
@@ -423,7 +443,8 @@ function updateScore(existing = null, entry = {}) {
 
 function buildSuccessReason(entry = {}) {
   const route = entry.routeUsed && entry.routeUsed.key ? entry.routeUsed.key : 'previous route';
-  return `founder approved ${route} for this question pattern`;
+  const style = labelsFromAnswerStyle(entry.answerStyle).join(', ') || 'answer style';
+  return `founder approved ${route} with ${style} for this question pattern`;
 }
 
 function buildFailureReason(entry = {}, wrongAnswerAnalysis = null) {
@@ -431,6 +452,57 @@ function buildFailureReason(entry = {}, wrongAnswerAnalysis = null) {
     return wrongAnswerAnalysis.primaryFailureReason;
   }
   return `negative feedback: ${String(entry.feedback || 'founder rejected answer').replace(/_/g, ' ')}`;
+}
+
+function extractAnswerStyle(answer = '') {
+  const text = String(answer || '').trim();
+  const normalized = text.toLowerCase();
+  const words = text.split(/\s+/).filter(Boolean).length;
+  const labels = [];
+  const hasExecutionArtifacts = /\b(TASK_PLAN|APPROVE|Execution Plan|Files:|Validation:|Health:\s*\d+|Momentum|Team is ready|Current Foundation Health|Recommended Next Step)\b/i.test(text);
+
+  if (/\b(you are|you may|you seem|the honest read|direct read|your behavior|your concern|you keep)\b/i.test(text)) {
+    labels.push('direct_founder_reflection');
+  }
+  if (/\b(user|users|pain|value|useful|habit|care|proof|return|daily)\b/i.test(normalized)) {
+    labels.push('user_value_grounded');
+  }
+  if (/\b(tradeoff|opportunity cost|strategic|assumption|risk|disagree|premortem|failure)\b/i.test(normalized)) {
+    labels.push('strategic_tradeoff');
+  }
+  if (/\b(uncertain|unproven|evidence|missing|not proved|not proven)\b/i.test(normalized)) {
+    labels.push('uncertainty_honest');
+  }
+  if (hasExecutionArtifacts) {
+    labels.push('status_report');
+  }
+  if (/\b(Current Foundation Health|Highest Leverage Differentiator|Recommended Next Step|Phase 2 Opportunities)\b/i.test(text)) {
+    labels.push('generic_template');
+  }
+  if (!labels.length) {
+    labels.push(words <= 35 ? 'short_direct_answer' : 'unclassified_answer_style');
+  }
+
+  return {
+    labels: unique(labels),
+    length: words <= 45 ? 'concise' : words <= 110 ? 'moderate' : 'long',
+    wordCount: words,
+    hasExecutionArtifacts,
+    hasFounderAddress: labels.includes('direct_founder_reflection'),
+    hasUserValueGrounding: labels.includes('user_value_grounded'),
+    hasStrategicTradeoff: labels.includes('strategic_tradeoff'),
+    hasUncertainty: labels.includes('uncertainty_honest')
+  };
+}
+
+function labelsFromAnswerStyle(style = {}) {
+  return Array.isArray(style && style.labels) ? style.labels.filter(Boolean) : [];
+}
+
+function labelsFromFeedbackEntry(entry = {}) {
+  const direct = labelsFromAnswerStyle(entry.answerStyle);
+  if (direct.length) return direct;
+  return labelsFromAnswerStyle(extractAnswerStyle(entry.answerPattern || entry.rawAnswerPreview || ''));
 }
 
 function feedbackRelevance(normalizedMessage, entry = {}) {
@@ -508,8 +580,10 @@ function styleRejectedBy(entry = {}) {
 }
 
 function stripRejectedTemplateLines(response = '', guidance = {}) {
-  const shouldAvoidReportFraming = (guidance.rejectedStyles || []).includes('cto/report framing');
-  const shouldAvoidGeneric = (guidance.rejectedStyles || []).includes('generic answer');
+  const shouldAvoidReportFraming = (guidance.rejectedStyles || []).includes('cto/report framing') ||
+    (guidance.avoidedAnswerStyles || []).includes('status_report');
+  const shouldAvoidGeneric = (guidance.rejectedStyles || []).includes('generic answer') ||
+    (guidance.avoidedAnswerStyles || []).includes('generic_template');
   if (!shouldAvoidReportFraming && !shouldAvoidGeneric) return response;
   const blocked = [
     /^current foundation health:/i,
@@ -527,6 +601,22 @@ function stripRejectedTemplateLines(response = '', guidance = {}) {
     .split(/\r?\n/)
     .filter((line) => !blocked.some((pattern) => pattern.test(line.trim())));
   return kept.join('\n').trim();
+}
+
+function applyPreferredAnswerStyle(response = '', guidance = {}) {
+  const preferred = guidance.preferredAnswerStyles || [];
+  const avoided = guidance.avoidedAnswerStyles || [];
+  let next = stripRejectedTemplateLines(response, {
+    ...guidance,
+    avoidedAnswerStyles: unique([...avoided, 'status_report', 'generic_template'])
+  });
+  if (preferred.includes('direct_founder_reflection') && !/\b(direct|you are|you may|you seem|the honest read)\b/i.test(next)) {
+    next = `Direct read: ${next}`;
+  }
+  if (preferred.includes('user_value_grounded') && !/\b(user|proof|useful|value|habit|care)\b/i.test(next)) {
+    next = `${next}\n\nUser-value check: this only matters if it proves repeated user pain or stronger product pull.`;
+  }
+  return next;
 }
 
 function tokenOverlap(left = '', right = '') {

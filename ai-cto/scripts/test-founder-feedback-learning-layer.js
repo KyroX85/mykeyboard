@@ -54,6 +54,8 @@ assert.strictEqual(memoryAfterFeedback.founderFeedback[0].polarity, 'negative');
 assert.match(memoryAfterFeedback.founderFeedback[0].questionPattern, /chasing/);
 assert(memoryAfterFeedback.founderFeedback[0].answerPattern);
 assert.strictEqual(memoryAfterFeedback.founderFeedback[0].routeUsed.key, 'founder_mind_reconstruction');
+assert(memoryAfterFeedback.founderFeedback[0].answerStyle);
+assert(memoryAfterFeedback.founderFeedback[0].answerStyle.labels.length >= 1);
 assert.match(memoryAfterFeedback.founderFeedback[0].failureReason, /wrong_depth|wrong_abstraction_level|negative feedback/i);
 assert(memoryAfterFeedback.questionPatternRouteScores[memoryAfterFeedback.founderFeedback[0].questionPattern]);
 assert(memoryAfterFeedback.questionPatternRouteScores[memoryAfterFeedback.founderFeedback[0].questionPattern].routes.founder_mind_reconstruction.negative >= 1);
@@ -126,7 +128,13 @@ const repeatedStyleMemory = {
         sourceMessage: 'good answer'
       },
       questionPattern: 'what would you disagree with',
-      answerPattern: 'direct strategic disagreement'
+      answerPattern: 'direct strategic disagreement',
+      answerStyle: {
+        labels: ['direct_founder_reflection', 'strategic_tradeoff'],
+        length: 'concise',
+        hasExecutionArtifacts: false
+      },
+      successReason: 'founder approved direct founder reflection'
     },
     {
       timestamp: new Date().toISOString(),
@@ -151,6 +159,8 @@ assert(guidance.feedbackUsed.length >= 1);
 assert(guidance.rejectedStyles.includes('cto/report framing'));
 assert(guidance.rejectedStyles.includes('generic answer'));
 assert(guidance.preferredAdaptations.includes('stay_conversational'));
+assert(guidance.preferredAnswerStyles.includes('direct_founder_reflection'));
+assert(guidance.avoidedAnswerStyles.includes('status_report'));
 assert(guidance.sourceCounts.negative >= 2);
 assert(guidance.sourceCounts.neutral >= 1);
 assert(guidance.confidence <= 90);
@@ -187,9 +197,19 @@ const positiveFeedback = memoryAfterPositive.founderFeedback.find((entry) => ent
 assert(positiveFeedback);
 assert.strictEqual(positiveFeedback.polarity, 'positive');
 assert.strictEqual(positiveFeedback.routeUsed.key, 'founder_mind_reconstruction');
+assert(positiveFeedback.answerStyle.labels.includes('direct_founder_reflection'));
 assert.match(positiveFeedback.successReason, /founder approved/i);
 assert(memoryAfterPositive.questionPatternRouteScores[positiveFeedback.questionPattern]);
 assert(memoryAfterPositive.questionPatternRouteScores[positiveFeedback.questionPattern].routes.founder_mind_reconstruction.positive >= 1);
+
+const styleAdjusted = applyFounderFeedbackToResponse('Current Foundation Health: protected.\nYou are probably testing whether the work is getting closer to the dream.', {
+  message: 'What would you disagree with?',
+  memory: {
+    founderFeedback: [positiveFeedback]
+  }
+});
+assert.doesNotMatch(styleAdjusted, /Current Foundation Health/i);
+assert.match(styleAdjusted, /dream|user|proof|direct/i);
 
 routeMessageWithAi('not relevant', {}, readConversationMemory()).then((withAi) => {
   assert.strictEqual(withAi.command, 'founder_feedback_recorded');

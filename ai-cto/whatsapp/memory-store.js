@@ -260,6 +260,7 @@ function recoverCorruptMemory(error) {
 
 function updateMemory(command, state, details = {}) {
   const memory = readMemory();
+  const latestMemory = details && details.feedbackLearningApplied ? readMemory() : memory;
   const sections = state.sections || {};
   const latestUnresolvedIssue =
     first(sections.unresolved) ||
@@ -317,7 +318,7 @@ function updateMemory(command, state, details = {}) {
   });
 
   return writeMemory({
-    ...memory,
+    ...latestMemory,
     ...reinforcement,
     lastCommand: command,
     recentMessages: rememberMessage(memory.recentMessages, {
