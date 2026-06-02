@@ -10,6 +10,10 @@ const {
   analyzeWrongAnswer,
   updateWrongAnswerMemory
 } = require('../wrong-answer-analyzer');
+const {
+  updatePrincipleMemory,
+  formatPrinciplesForResponse
+} = require('../principle-extraction-engine');
 
 const MAX_FEEDBACK_ITEMS = 50;
 
@@ -111,6 +115,7 @@ function maybeRouteFounderFeedback(message = '', memory = {}) {
 
   const entry = recordFounderFeedback(message, memory, classification);
   const founderTasteModel = readConversationMemory().founderTasteModel;
+  const founderPrinciples = readConversationMemory().founderPrinciples;
   return {
     command: 'founder_feedback_recorded',
     matchedRoute: 'founder_feedback_learning_layer',
@@ -128,6 +133,7 @@ function maybeRouteFounderFeedback(message = '', memory = {}) {
       `Learned: ${formatAdaptation(entry.adaptation)}.`,
       formatFailureAnalysis(entry.wrongAnswerAnalysis),
       `Taste profile: ${formatTasteProfile(founderTasteModel)}.`,
+      formatPrinciplesForResponse(founderPrinciples),
       `Applies to: ${entry.questionPattern || 'previous founder exchange unavailable'}.`,
       'No execution started.'
     ].join('\n')
@@ -170,6 +176,7 @@ function recordFounderFeedback(message = '', providedMemory = {}, classification
   const existing = Array.isArray(current.founderFeedback) ? current.founderFeedback : [];
   const nextFeedback = [analyzedEntry, ...existing].slice(0, MAX_FEEDBACK_ITEMS);
   const founderTasteModel = updateFounderTasteModel(current.founderTasteModel, analyzedEntry);
+  const founderPrinciples = updatePrincipleMemory(current.founderPrinciples, nextFeedback);
   const wrongAnswerMemory = updateWrongAnswerMemory(current.wrongAnswerAnalysis, wrongAnswerAnalysis);
   const routeScores = updateRouteScoresFromFeedback(current.routeScores, analyzedEntry);
   const reinforcementEvents = updateReinforcementEventsFromFeedback(current.reinforcementEvents, routeScores, analyzedEntry);
@@ -181,6 +188,7 @@ function recordFounderFeedback(message = '', providedMemory = {}, classification
     questionPatternRouteScores,
     founderFeedback: nextFeedback,
     lastFeedback: analyzedEntry,
+    founderPrinciples,
     founderTasteModel,
     wrongAnswerAnalysis: wrongAnswerMemory
   });

@@ -182,6 +182,7 @@ const DEFAULT_MEMORY = {
   lastFeedback: null,
   questionPatternRouteScores: {},
   founderTasteModel: null,
+  founderPrinciples: null,
   founderQuestionClusters: null,
   wrongAnswerAnalysis: null,
   compressedFounderInsights: [],
@@ -495,6 +496,7 @@ function readConversationMemory() {
       ? memory.questionPatternRouteScores
       : {},
     founderTasteModel: memory.founderTasteModel || null,
+    founderPrinciples: memory.founderPrinciples || null,
     founderQuestionClusters: memory.founderQuestionClusters || null,
     wrongAnswerAnalysis: memory.wrongAnswerAnalysis || null,
     compressedFounderInsights: Array.isArray(memory.compressedFounderInsights) ? memory.compressedFounderInsights.slice(0, 5) : [],

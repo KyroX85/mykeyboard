@@ -65,6 +65,9 @@ const {
   applyFounderTasteToResponse
 } = require('../founder-taste-model');
 const {
+  applyFounderPrinciplesToResponse
+} = require('../principle-extraction-engine');
+const {
   classifyFounderQuestionCluster
 } = require('../founder-question-clustering');
 
@@ -179,7 +182,13 @@ function routeFounderMindReconstruction(message = '', context = {}) {
     intent: reconstruction.intent
   });
   const firewall = isFounderReflectionFirewall(reconstruction);
-  const response = firewall ? feedbackAdjustedResponse : applyFounderTasteToResponse(feedbackAdjustedResponse, {
+  const tasteAdjustedResponse = firewall ? feedbackAdjustedResponse : applyFounderTasteToResponse(feedbackAdjustedResponse, {
+    message,
+    memory: context.memory || {},
+    category: reconstruction.category,
+    intent: reconstruction.intent
+  });
+  const response = applyFounderPrinciplesToResponse(tasteAdjustedResponse, {
     message,
     memory: context.memory || {},
     category: reconstruction.category,
