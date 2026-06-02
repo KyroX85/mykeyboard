@@ -17,6 +17,10 @@ const {
   generateSelfCritique,
   reviseAnswerWithSelfCritique
 } = require('./self-critique-layer');
+const {
+  retrieveRelevantStrategicMemory,
+  formatStrategicMemoryForResponse
+} = require('./strategic-memory-layer');
 
 function enforceMemoryPolicyOnRoute(route = {}, {
   message = '',
@@ -26,6 +30,7 @@ function enforceMemoryPolicyOnRoute(route = {}, {
 } = {}) {
   if (!route || typeof route !== 'object') return route;
   const routeConfidence = calibrateRouteConfidence(route, { message, memory });
+  const strategicMemoryRetrieval = retrieveRelevantStrategicMemory(message, memory.strategicMemory, { limit: 3 });
   const suppressMemorySources = Boolean(route.details && route.details.suppressMemorySources);
   const responseWithMemory = suppressMemorySources
     ? repairUnsupportedRecallClaims(route.response)
@@ -33,7 +38,8 @@ function enforceMemoryPolicyOnRoute(route = {}, {
         message,
         memory,
         founderMemoryLayer,
-        executionRelevant: executionRelevant || isExecutionRoute(route)
+        executionRelevant: executionRelevant || isExecutionRoute(route),
+        strategicMemoryRetrieval
       });
   const suppressRouteConfidence = Boolean(route.details && route.details.suppressRouteConfidence);
   const responseWithConfidence = suppressRouteConfidence
@@ -54,6 +60,7 @@ function enforceMemoryPolicyOnRoute(route = {}, {
     details: {
       ...(route.details || {}),
       routeConfidence,
+      strategicMemoryRetrieval,
       ...(selfCritique ? { selfCritique } : {})
     },
     response: maybeApplyCuriosity(revisedResponse, route, routeConfidence, { message, memory })
@@ -64,13 +71,18 @@ function enforceMemoryPolicyOnResponse(response = '', {
   message = '',
   memory = {},
   founderMemoryLayer = null,
-  executionRelevant = false
+  executionRelevant = false,
+  strategicMemoryRetrieval = null
 } = {}) {
   const original = String(response || '').trim();
   const repaired = repairUnsupportedRecallClaims(original);
   if (hasMemorySourceDeclaration(repaired)) return repaired;
+  const strategicLine = formatStrategicMemoryForResponse(
+    strategicMemoryRetrieval || retrieveRelevantStrategicMemory(message, memory.strategicMemory, { limit: 3 })
+  );
   return [
-    `Memory Sources Used: ${buildMemorySources({ message, memory, founderMemoryLayer, executionRelevant }).join(', ')}`,
+    `Memory Sources Used: ${buildMemorySources({ message, memory, founderMemoryLayer, executionRelevant, strategicMemoryRetrieval }).join(', ')}`,
+    strategicLine,
     repaired
   ].filter(Boolean).join('\n');
 }
@@ -79,13 +91,15 @@ function buildMemorySources({
   message = '',
   memory = {},
   founderMemoryLayer = null,
-  executionRelevant = false
+  executionRelevant = false,
+  strategicMemoryRetrieval = null
 } = {}) {
   const sources = ['current message'];
   if (hasShortTermContext(memory)) sources.push('short-term context');
   if (hasSessionSummary(memory)) sources.push('session memory');
   else sources.push('session memory unavailable');
   if (founderMemoryLayer || isFounderContextQuestion(message)) sources.push('persistent founder memory');
+  if (hasStrategicMemory(memory, strategicMemoryRetrieval)) sources.push('strategic memory');
   if (executionRelevant || hasExecutionMemory(memory)) sources.push('execution memory');
   return Array.from(new Set(sources));
 }
@@ -137,6 +151,17 @@ function hasExecutionMemory(memory = {}) {
   );
 }
 
+function hasStrategicMemory(memory = {}, retrieval = null) {
+  if (retrieval && Array.isArray(retrieval.items) && retrieval.items.length > 0) return true;
+  const strategic = memory && memory.strategicMemory;
+  return Boolean(strategic && (
+    (Array.isArray(strategic.lessonsLearned) && strategic.lessonsLearned.length) ||
+    (Array.isArray(strategic.failedHypotheses) && strategic.failedHypotheses.length) ||
+    (Array.isArray(strategic.successfulHypotheses) && strategic.successfulHypotheses.length) ||
+    (Array.isArray(strategic.founderBeliefChanges) && strategic.founderBeliefChanges.length)
+  ));
+}
+
 function isExecutionRoute(route = {}) {
   return /\b(execution|fix|commit|build|vision_command|approval|product_lab_screenshot_workflow)\b/i.test(
     `${route.command || ''} ${route.matchedRoute || ''}`
@@ -165,5 +190,6 @@ module.exports = {
   enforceMemoryPolicyOnResponse,
   enforceMemoryPolicyOnRoute,
   hasMemorySourceDeclaration,
-  memorySourcesFromResponse
+  memorySourcesFromResponse,
+  hasStrategicMemory
 };

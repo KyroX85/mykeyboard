@@ -110,6 +110,9 @@ const {
 const {
   updateAnswerQualityMemory
 } = require('../internal-answer-scoring');
+const {
+  updateStrategicMemory
+} = require('../strategic-memory-layer');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const MEMORY_FILE = process.env.ARITENIS_WHATSAPP_MEMORY_FILE ||
@@ -198,6 +201,7 @@ const DEFAULT_MEMORY = {
   killerFeatureMemory: null,
   adaptiveCuriosityMemory: null,
   answerQualityMemory: null,
+  strategicMemory: null,
   routeScores: {},
   reinforcementEvents: [],
   lastRouteForReward: null,
@@ -306,6 +310,17 @@ function updateMemory(command, state, details = {}) {
   const founderHypothesisTracker = updateFounderHypothesisIfNeeded(memory.founderHypothesisTracker, details);
   const predictionMemory = updatePredictionIfNeeded(memory.predictionMemory, details);
   const selfCritiqueMemory = updateSelfCritiqueIfNeeded(memory.selfCritiqueMemory, details);
+  const effectiveFounderHypothesisTracker = founderHypothesisTracker || details.founderHypothesisTracker || memory.founderHypothesisTracker;
+  const effectiveFounderBeliefTracker = founderBeliefTracker || details.founderBeliefTracker || memory.founderBeliefTracker;
+  const strategicMemory = updateStrategicMemory(memory.strategicMemory, {
+    ...details,
+    founderHypothesisTracker: effectiveFounderHypothesisTracker,
+    founderBeliefTracker: effectiveFounderBeliefTracker,
+    selfCritiqueMemory,
+    premortemMemory,
+    userValueJudgments,
+    truthOverAgreementMemory
+  });
   const founderMentalStateMemory = updateFounderMentalStateIfNeeded(memory.founderMentalStateMemory, details);
   const founderStateMemory = updateFounderStateIfNeeded(memory.founderStateMemory, details);
   const evidenceRequirementMemory = updateEvidenceRequirementIfNeeded(memory.evidenceRequirementMemory, {
@@ -343,6 +358,7 @@ function updateMemory(command, state, details = {}) {
     founderHypothesisTracker,
     predictionMemory,
     selfCritiqueMemory,
+    strategicMemory,
     founderMentalStateMemory,
     founderStateMemory,
     evidenceRequirementMemory,
@@ -395,6 +411,7 @@ function updateMemory(command, state, details = {}) {
     founderHypothesisTracker,
     predictionMemory,
     selfCritiqueMemory,
+    strategicMemory,
     founderMentalStateMemory,
     founderStateMemory,
     evidenceRequirementMemory,
@@ -488,6 +505,7 @@ function readConversationMemory() {
     killerFeatureMemory: memory.killerFeatureMemory || null,
     adaptiveCuriosityMemory: memory.adaptiveCuriosityMemory || null,
     answerQualityMemory: memory.answerQualityMemory || null,
+    strategicMemory: memory.strategicMemory || null,
     routeScores: memory.routeScores && typeof memory.routeScores === 'object' ? memory.routeScores : {},
     reinforcementEvents: Array.isArray(memory.reinforcementEvents) ? memory.reinforcementEvents.slice(0, 80) : [],
     lastRouteForReward: memory.lastRouteForReward || null,
@@ -540,6 +558,17 @@ function updateConversationMemory(route, state) {
   const founderHypothesisTracker = updateFounderHypothesisIfNeeded(memory.founderHypothesisTracker, route);
   const predictionMemory = updatePredictionIfNeeded(memory.predictionMemory, route);
   const selfCritiqueMemory = updateSelfCritiqueIfNeeded(memory.selfCritiqueMemory, route);
+  const effectiveFounderHypothesisTracker = founderHypothesisTracker || route.founderHypothesisTracker || memory.founderHypothesisTracker;
+  const effectiveFounderBeliefTracker = founderBeliefTracker || route.founderBeliefTracker || memory.founderBeliefTracker;
+  const strategicMemory = updateStrategicMemory(memory.strategicMemory, {
+    ...route,
+    founderHypothesisTracker: effectiveFounderHypothesisTracker,
+    founderBeliefTracker: effectiveFounderBeliefTracker,
+    selfCritiqueMemory,
+    premortemMemory,
+    userValueJudgments,
+    truthOverAgreementMemory
+  });
   const founderMentalStateMemory = updateFounderMentalStateIfNeeded(memory.founderMentalStateMemory, route);
   const founderStateMemory = updateFounderStateIfNeeded(memory.founderStateMemory, route);
   const evidenceRequirementMemory = updateEvidenceRequirementIfNeeded(memory.evidenceRequirementMemory, {
@@ -576,6 +605,7 @@ function updateConversationMemory(route, state) {
     founderHypothesisTracker,
     predictionMemory,
     selfCritiqueMemory,
+    strategicMemory,
     founderMentalStateMemory,
     founderStateMemory,
     evidenceRequirementMemory,

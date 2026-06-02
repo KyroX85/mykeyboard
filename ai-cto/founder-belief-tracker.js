@@ -98,6 +98,14 @@ function extractExplicitShift(text = '') {
 }
 
 function extractShiftFromAnswer(answer = '') {
+  const usedToNow = String(answer || '').match(/\bused\s+to\s+(.+?)(?:;|,|\.)\s+now\s+(?:you\s+are|you'?re|you|the\s+belief\s+is)?\s*(.+?)(?:\.|\n)/i);
+  if (usedToNow) {
+    return {
+      beforeBelief: cleanBelief(usedToNow[1]),
+      afterBelief: cleanBelief(usedToNow[2])
+    };
+  }
+
   const before = String(answer || '').match(/\bEarlier,?\s+the\s+belief\s+was\s+closer\s+to\s*:?\s*(.+?)(?:\.|\n)/i) ||
     String(answer || '').match(/\bbefore\s*:?\s*(.+?)(?:\.|\n)/i);
   const after = String(answer || '').match(/\bRecently,?\s+[^:]*belief\s*:?\s*(.+?)(?:\.|\n)/i) ||
