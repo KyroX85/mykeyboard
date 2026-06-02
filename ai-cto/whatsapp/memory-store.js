@@ -120,6 +120,9 @@ const {
 const {
   recordBeliefEvolutionFromTracker
 } = require('../belief-evolution-engine');
+const {
+  updateVisionMemory
+} = require('../vision-memory-engine');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const MEMORY_FILE = process.env.ARITENIS_WHATSAPP_MEMORY_FILE ||
@@ -183,6 +186,7 @@ const DEFAULT_MEMORY = {
   questionPatternRouteScores: {},
   founderTasteModel: null,
   founderPrinciples: null,
+  visionMemory: null,
   founderQuestionClusters: null,
   wrongAnswerAnalysis: null,
   compressedFounderInsights: [],
@@ -300,6 +304,7 @@ function updateMemory(command, state, details = {}) {
   const continuityEntry = buildFounderContinuityEntry(details);
   const reinforcement = updateRouteReinforcement(memory, command, details);
   const founderQuestionClusters = updateQuestionClustersIfNeeded(memory.founderQuestionClusters, details);
+  const visionMemory = updateVisionMemory(memory.visionMemory, details);
   const founderBeliefTracker = updateBeliefTrackerIfNeeded(memory.founderBeliefTracker, details);
   const founderContradictions = updateContradictionsIfNeeded(memory.founderContradictions, {
     ...details,
@@ -411,6 +416,7 @@ function updateMemory(command, state, details = {}) {
       : boundedContinuity(memory.founderGoals),
     founderDecisions: boundedContinuity(memory.founderDecisions),
     lastFounderConcern: continuityEntry || memory.lastFounderConcern || null,
+    visionMemory,
     founderQuestionClusters,
     founderBeliefTracker,
     beliefEvolution,
@@ -497,6 +503,7 @@ function readConversationMemory() {
       : {},
     founderTasteModel: memory.founderTasteModel || null,
     founderPrinciples: memory.founderPrinciples || null,
+    visionMemory: memory.visionMemory || null,
     founderQuestionClusters: memory.founderQuestionClusters || null,
     wrongAnswerAnalysis: memory.wrongAnswerAnalysis || null,
     compressedFounderInsights: Array.isArray(memory.compressedFounderInsights) ? memory.compressedFounderInsights.slice(0, 5) : [],
@@ -558,6 +565,7 @@ function updateConversationMemory(route, state) {
   const continuityEntry = buildFounderContinuityEntry(route);
   const reinforcement = updateRouteReinforcement(memory, route.command || route.intent || 'agent', route);
   const founderQuestionClusters = updateQuestionClustersIfNeeded(memory.founderQuestionClusters, route);
+  const visionMemory = updateVisionMemory(memory.visionMemory, route);
   const founderBeliefTracker = updateBeliefTrackerIfNeeded(memory.founderBeliefTracker, route);
   const founderContradictions = updateContradictionsIfNeeded(memory.founderContradictions, {
     ...route,
@@ -688,6 +696,7 @@ function updateConversationMemory(route, state) {
     founderDecisions: boundedContinuity(memory.founderDecisions),
     lastFounderConcern: continuityEntry || memory.lastFounderConcern || null,
     nextContinuationAction,
+    visionMemory,
     founderQuestionClusters,
     founderBeliefTracker,
     beliefEvolution,

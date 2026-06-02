@@ -233,7 +233,8 @@ function reconstructFounderMind(message = '', context = {}) {
   const dreamAlignment = buildDreamAlignment({
     question: original,
     root: context.root,
-    memoryLayer: context.memory && context.memory.founderMemoryLayer
+    memoryLayer: context.memory && context.memory.founderMemoryLayer,
+    visionMemory: context.memory && context.memory.visionMemory
   });
   const reconstruction = {
     mode: kind.mode,

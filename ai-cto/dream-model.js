@@ -1,4 +1,8 @@
 const { loadFounderMemoryLayer, retrieveRelevantFounderMemories } = require('./founder-memory-layer');
+const {
+  retrieveActiveVision,
+  formatVisionMemoryForResponse
+} = require('./vision-memory-engine');
 
 const DREAM_MODEL = {
   longTermVision: 'Aritenis becomes a trusted phone-native intelligence layer that helps people understand and act inside daily workflows.',
@@ -18,18 +22,21 @@ function buildDreamAlignment({
   question = '',
   task = '',
   root,
-  memoryLayer = loadFounderMemoryLayer({ root })
+  memoryLayer = loadFounderMemoryLayer({ root }),
+  visionMemory = null
 } = {}) {
   const currentTask = inferCurrentTask(question || task);
   const retrieval = retrieveRelevantFounderMemories(question || task, memoryLayer, { limit: 5 });
   const projectGoal = 'Protect the trusted keyboard foundation while proving Explain: understanding confusing content before typing.';
-  const founderDream = DREAM_MODEL.longTermVision;
+  const activeVision = retrieveActiveVision(visionMemory);
+  const founderDream = activeVision.currentFounderVision || DREAM_MODEL.longTermVision;
   const alignment = classifyAlignment(currentTask, retrieval);
 
   return {
     currentTask,
     projectGoal,
     founderDream,
+    activeVision,
     alignment,
     dreamModel: DREAM_MODEL,
     relevantMemories: retrieval.items,
@@ -38,13 +45,19 @@ function buildDreamAlignment({
 }
 
 function formatDreamAlignment(alignment = {}) {
-  return [
+  const lines = [
     'Dream alignment:',
     `- Current task: ${alignment.currentTask || 'unknown'}`,
     `- Project goal: ${alignment.projectGoal || 'unknown'}`,
     `- Founder dream: ${alignment.founderDream || 'unknown'}`,
     `- Alignment: ${alignment.alignment || 'unknown'}`
-  ].join('\n');
+  ];
+  const vision = formatVisionMemoryForResponse(alignment.activeVision);
+  if (vision) {
+    lines.push('');
+    lines.push(vision);
+  }
+  return lines.join('\n');
 }
 
 function inferCurrentTask(text = '') {
