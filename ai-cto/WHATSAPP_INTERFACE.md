@@ -193,6 +193,7 @@ Environment variables:
 - `NODE_ENV=production`
 - `PORT` is provided by Render
 - `PUBLIC_BASE_URL=https://<render-service-name>.onrender.com`
+- `WHATSAPP_PROACTIVE_MESSAGES_ENABLED=false` to pause automatic outbound messages and protect quota
 - `TWILIO_AUTH_TOKEN=<twilio-auth-token>`
 - `TWILIO_ACCOUNT_SID=<twilio-account-sid>`
 - `TWILIO_WHATSAPP_FROM=whatsapp:+<twilio-sender>`
@@ -210,6 +211,22 @@ Environment variables:
 - `WHATSAPP_ABUSE_MAX=8`
 
 Do not set `ALLOW_UNVERIFIED_WHATSAPP=true` in production.
+
+## Temporarily Pausing Proactive Messages
+
+To avoid Twilio/Meta quota exhaustion, leave this unset or set it to `false`:
+
+```text
+WHATSAPP_PROACTIVE_MESSAGES_ENABLED=false
+```
+
+This blocks scheduled school-mode/proactive reports and the Render proactive vision steward. It does not block direct founder replies, requested screenshots, or requested command responses.
+
+To re-enable proactive messages later:
+
+```text
+WHATSAPP_PROACTIVE_MESSAGES_ENABLED=true
+```
 
 ## Security Risks
 

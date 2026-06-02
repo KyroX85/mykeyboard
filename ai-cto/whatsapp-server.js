@@ -933,7 +933,8 @@ function runDeferredProductLabScreenshotDelivery({ requestId, incoming, publicBa
 function startProactiveVisionSteward({
   root = REPO_ROOT,
   intervalMs = Number(process.env.CTO_PROACTIVE_STEWARD_INTERVAL_MS || 60 * 60 * 1000),
-  enabled = process.env.CTO_PROACTIVE_STEWARD_ENABLED !== 'false',
+  enabled = process.env.WHATSAPP_PROACTIVE_MESSAGES_ENABLED === 'true' &&
+    process.env.CTO_PROACTIVE_STEWARD_ENABLED !== 'false',
   sendImpl = sendWhatsAppMessageWithFallback
 } = {}) {
   if (!enabled) {

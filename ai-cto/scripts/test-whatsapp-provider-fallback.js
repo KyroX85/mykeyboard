@@ -113,12 +113,18 @@ assert.strictEqual(metaPayload.text.body, 'Aritenis report');
     return response(200, JSON.stringify({ messages: [{ id: 'wamid.scheduled.meta' }] }));
   };
   delete require.cache[require.resolve('./send-whatsapp-report')];
-  const { buildMessage, sendDailyWhatsAppMessage } = require('./send-whatsapp-report');
+  const { buildMessage, sendDailyWhatsAppMessage, proactiveMessagesEnabled } = require('./send-whatsapp-report');
   assert.strictEqual(buildMessage({}), 'Exact school mode confirmation');
+  assert.strictEqual(proactiveMessagesEnabled(), false);
   calls.length = 0;
+  const disabledReport = await sendDailyWhatsAppMessage('Disabled proactive report');
+  assert.strictEqual(disabledReport.skipped, true);
+  assert.strictEqual(calls.length, 0);
+  process.env.WHATSAPP_PROACTIVE_MESSAGES_ENABLED = 'true';
   const reportResult = await sendDailyWhatsAppMessage('Meta-only scheduled report');
   assert.strictEqual(reportResult.provider, 'meta');
   assert.strictEqual(calls.length, 1);
+  delete process.env.WHATSAPP_PROACTIVE_MESSAGES_ENABLED;
   global.fetch = originalFetch;
   delete process.env.META_WHATSAPP_TO;
   delete process.env.META_WHATSAPP_ACCESS_TOKEN;
@@ -127,6 +133,7 @@ assert.strictEqual(metaPayload.text.body, 'Aritenis report');
   delete process.env.CTO_WHATSAPP_BODY;
   delete require.cache[require.resolve('./send-whatsapp-report')];
   const strictSender = require('./send-whatsapp-report');
+  process.env.WHATSAPP_PROACTIVE_MESSAGES_ENABLED = 'true';
   await assert.rejects(
     () => strictSender.sendDailyWhatsAppMessage('must not silently skip'),
     /FOUNDER_WHATSAPP_NUMBER or META_WHATSAPP_TO is required/
@@ -135,6 +142,7 @@ assert.strictEqual(metaPayload.text.body, 'Aritenis report');
   const skipped = await strictSender.sendDailyWhatsAppMessage('explicitly allowed skip');
   assert.strictEqual(skipped.skipped, true);
   delete process.env.CTO_WHATSAPP_ALLOW_SKIP;
+  delete process.env.WHATSAPP_PROACTIVE_MESSAGES_ENABLED;
 
   console.log('WhatsApp provider fallback checks passed');
 })().catch((error) => {

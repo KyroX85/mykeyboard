@@ -12,6 +12,7 @@ const {
 } = require('../whatsapp/vision-steward');
 const { routeMessage } = require('../whatsapp/command-router');
 const { buildMessage } = require('./send-whatsapp-report');
+const { startProactiveVisionSteward } = require('../whatsapp-server');
 
 const state = {
   healthScore: 82,
@@ -59,6 +60,14 @@ assert(routed.response.includes('no code change started'));
 const daily = buildMessage(state);
 assert(daily.includes('Founder, one vision check.'));
 assert(daily.includes('Immediate alerts:'));
+
+const disabledTimer = startProactiveVisionSteward({
+  enabled: process.env.WHATSAPP_PROACTIVE_MESSAGES_ENABLED === 'true',
+  sendImpl: async () => {
+    throw new Error('disabled proactive steward must not send');
+  }
+});
+assert.strictEqual(disabledTimer, null);
 
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'vision-steward-'));
 try {

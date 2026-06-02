@@ -13,6 +13,10 @@ const authToken = process.env.TWILIO_AUTH_TOKEN || '';
 const from = process.env.TWILIO_WHATSAPP_FROM || '';
 const to = process.env.FOUNDER_WHATSAPP_NUMBER || process.env.META_WHATSAPP_TO || '';
 
+function proactiveMessagesEnabled() {
+  return process.env.WHATSAPP_PROACTIVE_MESSAGES_ENABLED === 'true';
+}
+
 function buildMessage(state) {
   if (process.env.CTO_WHATSAPP_BODY) {
     return String(process.env.CTO_WHATSAPP_BODY).slice(0, 1500);
@@ -30,6 +34,9 @@ function buildMessage(state) {
 }
 
 async function sendDailyWhatsAppMessage(body) {
+  if (!proactiveMessagesEnabled()) {
+    return { skipped: true, reason: 'Proactive WhatsApp messages disabled.' };
+  }
   if (!to) {
     if (process.env.CTO_WHATSAPP_ALLOW_SKIP === 'true') {
       return { skipped: true, reason: 'FOUNDER_WHATSAPP_NUMBER or META_WHATSAPP_TO is not configured.' };
@@ -102,5 +109,6 @@ if (require.main === module) {
 
 module.exports = {
   buildMessage,
-  sendDailyWhatsAppMessage
+  sendDailyWhatsAppMessage,
+  proactiveMessagesEnabled
 };
