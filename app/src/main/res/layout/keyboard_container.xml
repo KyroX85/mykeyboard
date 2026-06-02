@@ -42,7 +42,7 @@
                     android:id="@+id/suggestionBar"
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
-                    android:background="#FF171C23"
+                    android:background="#FF0B0B0D"
                     android:gravity="center_vertical"
                     android:paddingLeft="8dp"
                     android:paddingRight="8dp"
@@ -77,14 +77,14 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
-        android:background="#FF0E1117"
+        android:background="#FF0B0B0D"
         android:orientation="vertical"
         android:visibility="gone">
 
         <HorizontalScrollView
             android:layout_width="match_parent"
             android:layout_height="34dp"
-            android:background="#FF161B22"
+            android:background="#FF111113"
             android:fillViewport="true"
             android:scrollbars="none">
 
@@ -108,7 +108,7 @@
             android:id="@+id/backToKeyboard"
             android:layout_width="match_parent"
             android:layout_height="34dp"
-            android:background="#FF2A2F38"
+            android:background="#FF1C1C1E"
             android:textColor="#FFFFFFFF"
             android:text="ABC" />
 

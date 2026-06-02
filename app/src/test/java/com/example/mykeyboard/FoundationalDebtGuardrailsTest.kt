@@ -113,18 +113,18 @@ class FoundationalDebtGuardrailsTest {
         val action = sourceFile("app/src/main/res/drawable/key_bg_action.xml").readText(Charsets.UTF_8)
         val panel = sourceFile("app/src/main/res/drawable/keyboard_container_bg.xml").readText(Charsets.UTF_8)
 
-        assertTrue(alpha.contains("#70000000"))
-        assertTrue(alpha.contains("#FF4A5663"))
-        assertTrue(alpha.contains("#FF6A7888"))
-        assertTrue(modifier.contains("#68000000"))
-        assertTrue(modifier.contains("#FF37414D"))
-        assertTrue(modifier.contains("#FF505C6A"))
-        assertTrue(space.contains("#FF46515E"))
-        assertTrue(space.contains("#FF677586"))
-        assertTrue(action.contains("#70000000"))
-        assertTrue(action.contains("#FF4D6975"))
-        assertTrue(action.contains("#FF6F8993"))
-        assertTrue(panel.contains("<solid android:color=\"#FF171C23\""))
+        assertTrue(alpha.contains("#8A000000"))
+        assertTrue(alpha.contains("#FF2C2C2E"))
+        assertTrue(alpha.contains("#FF3A3A3C"))
+        assertTrue(modifier.contains("#8A000000"))
+        assertTrue(modifier.contains("#FF1C1C1E"))
+        assertTrue(modifier.contains("#FF3A3A3C"))
+        assertTrue(space.contains("#FF2C2C2E"))
+        assertTrue(space.contains("#FF3A3A3C"))
+        assertTrue(action.contains("#8A000000"))
+        assertTrue(action.contains("#FF303033"))
+        assertTrue(action.contains("#FF4A4A4D"))
+        assertTrue(panel.contains("<solid android:color=\"#FF0B0B0D\""))
         assertFalse(panel.contains("<gradient"))
     }
 
@@ -135,12 +135,12 @@ class FoundationalDebtGuardrailsTest {
         val action = sourceFile("app/src/main/res/drawable/key_bg_action.xml").readText(Charsets.UTF_8)
         val space = sourceFile("app/src/main/res/drawable/key_bg_space.xml").readText(Charsets.UTF_8)
 
-        assertTrue(alpha.contains("#FF4A5663"))
-        assertTrue(modifier.contains("#FF37414D"))
-        assertTrue(action.contains("#FF4D6975"))
-        assertTrue(space.contains("#FF46515E"))
-        assertTrue(alpha.contains("#70000000"))
-        assertTrue(modifier.contains("#68000000"))
+        assertTrue(alpha.contains("#FF2C2C2E"))
+        assertTrue(modifier.contains("#FF1C1C1E"))
+        assertTrue(action.contains("#FF303033"))
+        assertTrue(space.contains("#FF2C2C2E"))
+        assertTrue(alpha.contains("#8A000000"))
+        assertTrue(modifier.contains("#8A000000"))
     }
 
     @Test
@@ -148,9 +148,9 @@ class FoundationalDebtGuardrailsTest {
         val layout = sourceFile("app/src/main/res/layout/keyboard_container.xml").readText(Charsets.UTF_8)
         val panel = sourceFile("app/src/main/res/drawable/keyboard_container_bg.xml").readText(Charsets.UTF_8)
 
-        assertTrue(panel.contains("#FF171C23"))
+        assertTrue(panel.contains("#FF0B0B0D"))
         assertTrue(layout.contains("android:id=\"@+id/suggestionBar\""))
-        assertTrue(layout.contains("android:background=\"#FF171C23\""))
+        assertTrue(layout.contains("android:background=\"#FF0B0B0D\""))
     }
 
     @Test
