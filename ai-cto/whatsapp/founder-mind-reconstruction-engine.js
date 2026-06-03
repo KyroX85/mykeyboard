@@ -99,6 +99,8 @@ const VISION_PATTERNS = [
 ];
 
 const FOUNDER_QUESTION_PATTERNS = [
+  /\b(diamond|diamonds?)\b.*\b(bronze)\b/i,
+  /\b(bronze)\b.*\b(diamond|diamonds?)\b/i,
   /\bwhat\s+do\s+you\s+think\s+(i'?m|i\s+am)\s+(actually\s+)?(chasing|trying\s+to\s+build|trying\s+to\s+achieve|after)\b/i,
   /\bwhat\s+(am\s+i|i\s+am)\s+(actually\s+)?(chasing|trying\s+to\s+build|trying\s+to\s+achieve|after)\b/i,
   /\bwhat\s+is\s+my\s+(real\s+)?(ambition|dream|goal|vision)\b/i,
@@ -619,6 +621,15 @@ function classifyMindQuestion(text = '', memory = {}) {
   }
 
   if (FOUNDER_QUESTION_PATTERNS.some((pattern) => pattern.test(text))) {
+    if (/\b(diamond|diamonds?)\b.*\b(bronze)\b/i.test(text) || /\b(bronze)\b.*\b(diamond|diamonds?)\b/i.test(text)) {
+      return {
+        intent: 'RECONSTRUCT_DIAMOND_BRONZE_METAPHOR',
+        category: 'FOUNDER_QUESTION',
+        archetype: 'diamond_bronze_metaphor',
+        mode: 'FOUNDER_CONVERSATION_MODE',
+        confidence: 83
+      };
+    }
     if (/\bagents?\b.*\b(value|valuable|company)\b/i.test(text) || /\bsmarter\s+agents?\b/i.test(text)) {
       return {
         intent: 'RECONSTRUCT_AGENT_VALUE_BELIEF',
@@ -844,6 +855,18 @@ function buildMindReport(kind, message, context = {}) {
       desiredOutcome: 'A direct explanation of the founder ambition and how current work should be judged against it.',
       actualQuestion: 'What long-term outcome am I really chasing with Aritenis?',
       uselessLiteralAnswer: 'A team-ready response, health score, task plan, approval token, or execution update.'
+    };
+  }
+
+  if (kind.archetype === 'diamond_bronze_metaphor') {
+    return {
+      objective: 'Evaluate whether the founder is undervaluing the core vision while searching for lower-leverage validation.',
+      assumption: 'The founder is testing whether the current dream already contains the high-value wedge, and whether he is getting distracted by smaller proof or infrastructure.',
+      concern: 'Aritenis may already have the diamond in the form of the deeper Jarvis/Explain vision, but the founder may keep searching for safer, more concrete, lower-leverage work because the diamond feels harder to trust.',
+      decision: 'Decide whether to protect and sharpen the core vision instead of downgrading it into minor agent, governance, or keyboard-side improvements.',
+      desiredOutcome: 'A direct judgment on the metaphor that separates what is truly valuable from what merely feels easier to build or validate.',
+      actualQuestion: 'Am I ignoring the most valuable vision while chasing smaller, less important work?',
+      uselessLiteralAnswer: 'A named-agent status, health score, task plan, or literal discussion of Claude instead of the founder concern.'
     };
   }
 
@@ -1214,6 +1237,16 @@ function buildDirectAnswer(kind, report) {
     ];
   }
 
+  if (kind.archetype === 'diamond_bronze_metaphor') {
+    return [
+      'Mostly yes, but with one correction.',
+      'The diamond is probably not the agent system itself. The diamond is the founder vision underneath it: reducing the burden humans carry alone while keeping human agency intact.',
+      'The bronze is the safer work that feels measurable: more routing fixes, more governance, more agent polish, more internal machinery.',
+      'You may be searching for bronze because bronze is easier to verify and less emotionally risky than trusting the diamond.',
+      'So Claude is right if he means you already have the high-value direction. He is wrong if he means you can skip proof. The diamond still has to be cut into one product moment users actually repeat.'
+    ];
+  }
+
   if (kind.archetype === 'strategic_disagreement') {
     return [
       'I would disagree with the idea that making the agents more elaborate automatically moves Aritenis closer to the dream.',
@@ -1524,6 +1557,9 @@ function responseAnswersFounderMind(reconstruction = {}) {
   if (reconstruction.intent === 'RECONSTRUCT_FOUNDER_AMBITION') {
     return /personal intelligence layer|phone|keyboard|screenshots|trust|leverage|miss if it disappeared/i.test(answer);
   }
+  if (reconstruction.intent === 'RECONSTRUCT_DIAMOND_BRONZE_METAPHOR') {
+    return /mostly yes|diamond is.*founder vision|bronze is.*routing fixes|easier to verify|product moment users actually repeat/i.test(answer);
+  }
   if (reconstruction.intent === 'RECONSTRUCT_STRATEGIC_DISAGREEMENT') {
     return /disagree|agent sophistication|user-facing product moment|Phase 2 wedge|Explain|progress report/i.test(answer);
   }
@@ -1582,7 +1618,8 @@ function isFounderReflectionFirewall(reconstruction = {}) {
 
 function isDirectFounderVisionQuestion(reconstruction = {}) {
   return reconstruction.intent === 'RECONSTRUCT_JARVIS_BUILD_REASON' ||
-    reconstruction.intent === 'RECONSTRUCT_JARVIS_VISION_ROLE';
+    reconstruction.intent === 'RECONSTRUCT_JARVIS_VISION_ROLE' ||
+    reconstruction.intent === 'RECONSTRUCT_DIAMOND_BRONZE_METAPHOR';
 }
 
 function archetypeFromIntent(intent = '') {

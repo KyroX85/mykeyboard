@@ -162,6 +162,16 @@ assert.strictEqual(jarvisVisionRole.details.directFounderVision, true);
 assert.match(jarvisVisionRole.details.mindReconstruction.actualQuestion, /job does Jarvis perform|Aritenis vision/i);
 assert.doesNotMatch(String(jarvisVisionRole.response || ''), /Memory Sources Used|Route Confidence|Dream alignment|Dream drift alert|Advisor Mode|Strategic read|CLARIFICATION_REQUEST|TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan|conversational_fallback/i);
 
+const diamondBronze = assertMindRoute(
+  "Claude says I already have the diamond and I'm searching for bronze. Is he right?",
+  /mostly yes|diamond is.*founder vision|bronze is.*routing fixes|easier to verify|product moment users actually repeat/i
+);
+assert.strictEqual(diamondBronze.details.category, 'FOUNDER_QUESTION');
+assert.strictEqual(diamondBronze.details.intent, 'RECONSTRUCT_DIAMOND_BRONZE_METAPHOR');
+assert.strictEqual(diamondBronze.details.directFounderVision, true);
+assert.match(diamondBronze.details.mindReconstruction.actualQuestion, /valuable vision|smaller, less important work/i);
+assert.doesNotMatch(String(diamondBronze.response || ''), /Memory Sources Used|Route Confidence|Dream alignment|Advisor Mode|Strategic read|COMMAND: agent|TASK_PLAN|planning_request|Health|Momentum|Team Ready|Execution Plan|Attempted:|Blocked:|Next:/i);
+
 const disagreement = assertMindRoute(
   'Bro, if you had to disagree with me right now, what would you disagree with?',
   /disagree|agent sophistication|user-facing product moment|Phase 2 wedge|Explain/i
