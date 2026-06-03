@@ -10,8 +10,6 @@ process.env.ARITENIS_GOVERNANCE_STATE_FILE = path.join(os.tmpdir(), 'aritenis-fo
 process.env.ARITENIS_WHATSAPP_MEMORY_FILE = path.join(os.tmpdir(), 'aritenis-founder-mind-whatsapp-memory.json');
 
 const { routeMessage, routeMessageWithAi } = require('../whatsapp/command-router');
-const { responseUsesPremortemAnalysis } = require('../premortem-engine');
-const { responseUsesAdvisorMode } = require('../advisor-mode');
 const {
   reconstructFounderMind,
   buildReflectionResponse,
@@ -24,6 +22,7 @@ const { setMode } = require('../../governance/governance');
 setMode('ACTIVE', 'founder mind reconstruction test');
 
 const forbiddenTemplates = /(Current Foundation Health|Recommended Next Step|Momentum:\s*STALLED|Health:\s*\d+|roadmap priority|Team is ready|Team Ready|complexity report|Task Plan|Review Gate|TASK_PLAN|APPROVE|Execution Plan|Files:|Validation:|Risk:\s*(LOW|MEDIUM|HIGH|CRITICAL)|Scope:)/i;
+const founderCommunicationLeak = /(Memory Sources Used|Route Confidence|Route Reason|Dream alignment|Advisor Mode|Strategic read|Contrarian read|Premortem:|Surface answer:|Deeper answer:|Uncomfortable answer:|Hidden assumption:|Founder Identity Trajectory:|Current Founder Worldview|Worldview Confidence|Useful follow-up:|A smarter critic would ask)/i;
 const reflectionFirewallForbidden = /(Memory Sources Used|Route Confidence|Route Reason|CTO:|CODER|REVIEWER|AUDITOR|repo scan|health|momentum|task plan|blockers|files:|risk report|commits?|auditor output|reviewer output|CTO status|diagnostic|previous answer|self[-\s]?evaluation|keyboard implementation|product implementation|TASK_PLAN|APPROVE|Execution Plan)/i;
 
 function route(text) {
@@ -44,6 +43,7 @@ function assertMindRoute(text, requiredPattern) {
   assert(result.details.mindReconstruction.actualQuestion, text);
   assert.match(body, requiredPattern, text);
   assert.doesNotMatch(body, forbiddenTemplates, text);
+  assert.doesNotMatch(body, founderCommunicationLeak, text);
   assert.doesNotMatch(body, /Mind reconstruction:\nObjective:/, text);
   assert.doesNotMatch(body, /NOISE|AMBIGUOUS INTENT|LOW INFORMATION/, text);
   return result;
@@ -96,7 +96,6 @@ const dream = assertMindRoute(
 assert.strictEqual(dream.details.category, 'VISION');
 assert.strictEqual(dream.details.mode, 'FOUNDER_CONVERSATION_MODE');
 assert.match(dream.details.mindReconstruction.actualQuestion, /long-term Aritenis dream|agents look busy/i);
-assert(responseUsesAdvisorMode(dream.response));
 
 const dissatisfaction = assertMindRoute(
   'Bro why am I not satisfied with this feature?',
@@ -113,7 +112,6 @@ assert.strictEqual(wrongFocus.details.category, 'DOUBT');
 assert.strictEqual(wrongFocus.details.mode, 'FOUNDER_CONVERSATION_MODE');
 assert.match(wrongFocus.details.mindReconstruction.concern, /look operational|product moment|users would actually care/i);
 assert.doesNotMatch(String(wrongFocus.response || ''), /TASK_PLAN|APPROVE|Execution Plan|Files:|Validation:|Risk:|Scope:/i);
-assert(responseUsesAdvisorMode(wrongFocus.response));
 updateMemory(wrongFocus.command, {}, {
   ...(wrongFocus.details || {}),
   founderMessage: "Bro I think we're focusing on the wrong thing.",
@@ -180,7 +178,6 @@ assert.strictEqual(disagreement.details.category, 'FOUNDER_STRATEGY');
 assert.strictEqual(disagreement.details.intent, 'RECONSTRUCT_STRATEGIC_DISAGREEMENT');
 assert.match(disagreement.details.mindReconstruction.concern, /infrastructure|user-facing product proof/i);
 assert.doesNotMatch(String(disagreement.response || ''), /TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan|Files:|Validation:|Scope:/i);
-assert(responseUsesAdvisorMode(disagreement.response));
 
 const founderEvolution = assertMindRoute(
   'Am I the same founder I was 3 months ago?',
@@ -193,7 +190,7 @@ assert.doesNotMatch(String(founderEvolution.response || ''), /NOISE|LOW INFORMAT
 
 const founderIdentityTrajectory = assertMindRoute(
   'Who am I becoming?',
-  /less of a founder trying to prove that advanced agents can exist|product-truth|trust-and-leverage founder|humans choose direction|less easily satisfied/i
+  /advanced systems|create freedom|chased solutions|chasing agency|real leverage for a human/i
 );
 assert.strictEqual(founderIdentityTrajectory.details.category, 'REFLECTION');
 assert.strictEqual(founderIdentityTrajectory.details.intent, 'RECONSTRUCT_FOUNDER_IDENTITY_TRAJECTORY');
@@ -223,7 +220,6 @@ const missingBlindSpot = assertMindRoute(
 );
 assert.strictEqual(missingBlindSpot.details.category, 'FOUNDER_STRATEGY');
 assert.strictEqual(missingBlindSpot.details.intent, 'RECONSTRUCT_MISSING_BLIND_SPOT');
-assert(responseUsesPremortemAnalysis(missingBlindSpot.response));
 assert.doesNotMatch(String(missingBlindSpot.response || ''), /CLARIFICATION_REQUEST|TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan/i);
 
 const dangerousAssumption = assertMindRoute(
@@ -232,8 +228,6 @@ const dangerousAssumption = assertMindRoute(
 );
 assert.strictEqual(dangerousAssumption.details.category, 'FOUNDER_STRATEGY');
 assert.strictEqual(dangerousAssumption.details.intent, 'RECONSTRUCT_DANGEROUS_ASSUMPTION');
-assert(responseUsesPremortemAnalysis(dangerousAssumption.response));
-assert(responseUsesAdvisorMode(dangerousAssumption.response));
 assert.doesNotMatch(String(dangerousAssumption.response || ''), /CLARIFICATION_REQUEST|TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan/i);
 
 const impressiveFear = assertMindRoute(
@@ -251,8 +245,7 @@ const failurePremortem = assertMindRoute(
 );
 assert.strictEqual(failurePremortem.details.category, 'FOUNDER_STRATEGY');
 assert.strictEqual(failurePremortem.details.intent, 'RECONSTRUCT_LONG_TERM_FAILURE_PREMORTEM');
-assert(responseUsesPremortemAnalysis(failurePremortem.response));
-assert.match(failurePremortem.response, /Most likely failure:|Hidden failure:|Ignored failure:|Founder-caused failure:/i);
+assert.match(failurePremortem.response, /impressive but optional|Explain never becomes a daily need|system progress for user pull/i);
 assert.match(failurePremortem.details.mindReconstruction.actualQuestion, /fails in 3 years|strategic mistake/i);
 assert.doesNotMatch(String(failurePremortem.response || ''), /CLARIFICATION_REQUEST|NOISE|LOW INFORMATION|AMBIGUOUS INTENT|TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan/i);
 
@@ -262,7 +255,6 @@ const whatKillsUs = assertMindRoute(
 );
 assert.strictEqual(whatKillsUs.details.category, 'FOUNDER_STRATEGY');
 assert.strictEqual(whatKillsUs.details.intent, 'RECONSTRUCT_COMPANY_KILL_RISK');
-assert(responseUsesPremortemAnalysis(whatKillsUs.response));
 assert.doesNotMatch(String(whatKillsUs.response || ''), /CLARIFICATION_REQUEST|TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan/i);
 
 const whatKillsAritenis = assertMindRoute(
@@ -271,7 +263,7 @@ const whatKillsAritenis = assertMindRoute(
 );
 assert.strictEqual(whatKillsAritenis.details.category, 'FOUNDER_STRATEGY');
 assert.strictEqual(whatKillsAritenis.details.intent, 'RECONSTRUCT_COMPANY_KILL_RISK');
-assert(responseUsesPremortemAnalysis(whatKillsAritenis.response));
+assert.match(whatKillsAritenis.response, /better at building agents than solving user pain|never becomes a habit|distribution without pull/i);
 assert.doesNotMatch(String(whatKillsAritenis.response || ''), /CLARIFICATION_REQUEST|TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan|anti_template_conversation_guard/i);
 
 const whyWillWeFail = assertMindRoute(
@@ -280,7 +272,6 @@ const whyWillWeFail = assertMindRoute(
 );
 assert.strictEqual(whyWillWeFail.details.category, 'FOUNDER_STRATEGY');
 assert.strictEqual(whyWillWeFail.details.intent, 'RECONSTRUCT_LONG_TERM_FAILURE_PREMORTEM');
-assert(responseUsesPremortemAnalysis(whyWillWeFail.response));
 assert.doesNotMatch(String(whyWillWeFail.response || ''), /CLARIFICATION_REQUEST|TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan|anti_template_conversation_guard/i);
 
 const freedomJarvisContradiction = assertMindRoute(

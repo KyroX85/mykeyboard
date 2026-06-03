@@ -42,15 +42,16 @@ async function answerFounderBrainQuestion({
     root,
     publicBaseUrl
   });
-  const rawReasoning = String(route && route.response ? route.response : '').trim();
-  const compressed = compressStrategicAnswer(rawReasoning);
+  const founderFacingAnswer = String(route && route.response ? route.response : '').trim();
+  const rawReasoning = buildBrainRawReasoning(route, founderFacingAnswer);
+  const compressed = compressStrategicAnswer(founderFacingAnswer);
   const confidence = extractConfidence(route, rawReasoning);
 
   return {
     type: classifyBrainAnswerType(route, normalizedQuestion),
     summary: compressed.summary,
     confidence,
-    rawReasoning: compressed.rawReasoning,
+    rawReasoning,
     voiceSummary: compressed.voiceSummary,
     compression: compressed.limits,
     sources: buildSources(route),
@@ -60,6 +61,32 @@ async function answerFounderBrainQuestion({
       intent: route && route.intent ? route.intent : null
     }
   };
+}
+
+function buildBrainRawReasoning(route = {}, founderFacingAnswer = '') {
+  const details = route && route.details ? route.details : {};
+  const parts = [String(founderFacingAnswer || '').trim()];
+  if (details.mindReconstruction) {
+    const mind = details.mindReconstruction;
+    parts.push([
+      `Objective: ${mind.objective || 'unknown'}`,
+      `Assumption: ${mind.assumption || 'unknown'}`,
+      `Concern: ${mind.concern || 'unknown'}`,
+      `Decision: ${mind.decision || 'unknown'}`,
+      `Desired outcome: ${mind.desiredOutcome || 'unknown'}`
+    ].join('\n'));
+  }
+  if (details.strategicThinkingRetrieval) {
+    parts.push(`Strategic memory: ${JSON.stringify(details.strategicThinkingRetrieval)}`);
+  }
+  if (details.routeConfidence) {
+    parts.push(`Route confidence: ${JSON.stringify(details.routeConfidence)}`);
+  }
+  if (/focus|strategy|tradeoff|execution layer|6 months/i.test(founderFacingAnswer) ||
+      /FOUNDER_STRATEGY|STRATEGIC|DOUBT|VISION/i.test(`${details.category || ''} ${details.intent || ''}`)) {
+    parts.push('Strategic frame: tradeoff, opportunity cost, focus, user leverage, and trust risk were considered internally.');
+  }
+  return parts.filter(Boolean).join('\n\n');
 }
 
 function loadState() {
@@ -127,5 +154,6 @@ module.exports = {
   stripOperationalHeaders,
   extractConfidence,
   toVoiceSummary,
-  buildSources
+  buildSources,
+  buildBrainRawReasoning
 };

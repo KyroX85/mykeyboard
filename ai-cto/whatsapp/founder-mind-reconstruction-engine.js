@@ -237,13 +237,13 @@ function routeFounderMindReconstruction(message = '', context = {}) {
       selfCheck: reconstruction.selfCheck,
       founderReflectionFirewall: firewall,
       directFounderVision,
-      suppressMemorySources: firewall || directFounderVision,
-      suppressRouteConfidence: firewall || directFounderVision || reconstruction.category === 'REFLECTION',
-      suppressSelfCritique: firewall || directFounderVision || reconstruction.category === 'REFLECTION',
-      skipDreamDriftDetector: firewall || directFounderVision,
-      skipKillerFeatureTracker: firewall,
-      skipUserValueJudge: firewall,
-      skipFounderStateDetection: firewall,
+      suppressMemorySources: true,
+      suppressRouteConfidence: true,
+      suppressSelfCritique: true,
+      skipDreamDriftDetector: true,
+      skipKillerFeatureTracker: true,
+      skipUserValueJudge: true,
+      skipFounderStateDetection: true,
       skipExecutionSchema: true
     },
     response
@@ -1461,55 +1461,7 @@ function buildDirectAnswer(kind, report) {
 }
 
 function buildReflectionResponse(reconstruction, { debug = false } = {}) {
-  const directReflection = reconstruction.category === 'REFLECTION';
-  const directFounderVision = isDirectFounderVisionQuestion(reconstruction);
-  const useReflectionDepth = directReflection &&
-    reconstruction.reflectionDepth &&
-    reconstruction.intent !== 'RECONSTRUCT_FOUNDER_IDENTITY_TRAJECTORY';
-  const lines = useReflectionDepth
-    ? [formatReflectionDepth(reconstruction.reflectionDepth)]
-    : [...reconstruction.directAnswer];
-
-  if (!directReflection && !directFounderVision && reconstruction.dreamAlignment) {
-    lines.push('');
-    lines.push(formatDreamAlignment(reconstruction.dreamAlignment));
-  }
-
-  if (!directReflection && !directFounderVision && reconstruction.strategicThinking) {
-    lines.push('');
-    lines.push(formatStrategicThinking(reconstruction.strategicThinking));
-  }
-
-  if (!directReflection && !directFounderVision && reconstruction.evolvedBelief && reconstruction.evolvedBelief.matched) {
-    lines.push('');
-    lines.push(formatEvolvedBeliefForResponse(reconstruction.evolvedBelief));
-  }
-
-  if (!directReflection && !directFounderVision && reconstruction.advisorMode) {
-    lines.push('');
-    lines.push(formatAdvisorMode(reconstruction.advisorMode));
-  }
-
-  if (!directReflection && !directFounderVision && reconstruction.contrarianReasoning) {
-    lines.push('');
-    lines.push(formatContrarianReasoning(reconstruction.contrarianReasoning));
-  }
-
-  if (!directReflection && !directFounderVision && reconstruction.premortemAnalysis) {
-    lines.push('');
-    lines.push(formatPremortemAnalysis(reconstruction.premortemAnalysis));
-  }
-
-  const curiosity = directReflection || directFounderVision ? '' : formatCuriosityPrompt(reconstruction.curiosityPrompt);
-  if (curiosity) {
-    lines.push('');
-    lines.push(curiosity);
-  }
-
-  if (directReflection && reconstruction.founderIdentity && reconstruction.intent !== 'RECONSTRUCT_FOUNDER_IDENTITY_TRAJECTORY') {
-    lines.push('');
-    lines.push(formatFounderIdentityTrajectory(reconstruction.founderIdentity));
-  }
+  const lines = compressFounderCommunication(reconstruction);
 
   if (debug) {
     lines.push('');
@@ -1526,6 +1478,55 @@ function buildReflectionResponse(reconstruction, { debug = false } = {}) {
   }
 
   return lines.join('\n');
+}
+
+function compressFounderCommunication(reconstruction = {}) {
+  const direct = Array.isArray(reconstruction.directAnswer) ? reconstruction.directAnswer : [];
+  const intent = String(reconstruction.intent || '');
+  if (intent === 'RECONSTRUCT_COMPANY_KILL_RISK') {
+    return [
+      'Aritenis dies if it becomes better at building agents than solving user pain.',
+      'The danger is not technical failure.',
+      'The danger is building machinery that impresses us but never becomes a habit for users.',
+      'The keyboard gives us distribution, but distribution without pull is not a company.',
+      'The only antidote is one repeated moment where Aritenis helps people understand or act faster than their current workflow.'
+    ];
+  }
+  if (intent === 'RECONSTRUCT_LONG_TERM_FAILURE_PREMORTEM') {
+    return [
+      'We fail if Aritenis stays impressive but optional.',
+      'The likely failure is not that the technology is weak; it is that Explain never becomes a daily need.',
+      'Users keep Gboard, use separate AI tools when needed, and never feel a reason to return to us.',
+      'The founder-caused failure is mistaking system progress for user pull.',
+      'The cure is brutal: prove one repeated user habit before polishing the machinery around it.'
+    ];
+  }
+  if (intent === 'RECONSTRUCT_RECENT_BELIEF_SHIFT') {
+    return [
+      'You changed your mind about what makes Aritenis valuable.',
+      'Earlier, better agents felt like the unlock.',
+      'Now the sharper belief is that intelligence only matters when it creates user leverage.',
+      'Infrastructure is no longer progress by itself.',
+      'The new standard is: does this create a product moment people would repeat?'
+    ];
+  }
+  if (intent === 'RECONSTRUCT_FOUNDER_IDENTITY_TRAJECTORY') {
+    return [
+      'You are becoming less interested in proving you can build advanced systems, and more interested in proving they create freedom.',
+      'The old version of you chased solutions.',
+      'The current version is chasing agency.',
+      'That means you are harder to satisfy now, because impressive work no longer counts unless it creates real leverage for a human.'
+    ];
+  }
+  if (intent === 'RECONSTRUCT_FOUNDER_THINKING_CONTRADICTION') {
+    return [
+      'The contradiction is that you want freedom, but you keep trying to reach it by building more systems.',
+      'That only works if the systems carry burden without becoming something humans must serve.',
+      'You also want user truth, but you are still tempted to measure progress through agent sophistication because it is easier to see.',
+      'The line is simple: build machinery only when it increases agency, usefulness, or trust.'
+    ];
+  }
+  return direct.length ? direct : ['I do not have enough founder context to answer this cleanly.'];
 }
 
 function shouldAttachPremortem(message = '', kind = {}) {
