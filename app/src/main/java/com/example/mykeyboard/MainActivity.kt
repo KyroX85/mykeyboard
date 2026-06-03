@@ -1,5 +1,6 @@
 package com.example.mykeyboard
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -41,6 +42,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.mykeyboard.personal.JarvisWakePermissionHelper
+import com.example.mykeyboard.personal.JarvisWakeWordService
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -64,14 +67,14 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         const val EXTRA_REQUEST_MIC_PERMISSION = "com.example.mykeyboard.REQUEST_MIC_PERMISSION"
-        private const val REQUEST_RECORD_AUDIO_PERMISSION = 4102
+        private const val REQUEST_JARVIS_WAKE_PERMISSIONS = 4103
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent { AppScreen() }
         if (intent.getBooleanExtra(EXTRA_REQUEST_MIC_PERMISSION, false)) {
-            requestMicrophonePermissionIfNeeded()
+            requestJarvisWakePermissionsIfNeeded()
         }
     }
 
@@ -79,7 +82,7 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         if (intent.getBooleanExtra(EXTRA_REQUEST_MIC_PERMISSION, false)) {
-            requestMicrophonePermissionIfNeeded()
+            requestJarvisWakePermissionsIfNeeded()
         }
     }
 
@@ -101,10 +104,20 @@ class MainActivity : ComponentActivity() {
         return current?.contains(packageName) == true
     }
 
-    private fun requestMicrophonePermissionIfNeeded() {
+    private fun requestJarvisWakePermissionsIfNeeded() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
-        if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) return
-        requestPermissions(arrayOf(android.Manifest.permission.RECORD_AUDIO), REQUEST_RECORD_AUDIO_PERMISSION)
+        val permissions = mutableListOf<String>()
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            permissions += Manifest.permission.RECORD_AUDIO
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            permissions += Manifest.permission.POST_NOTIFICATIONS
+        }
+        if (permissions.isNotEmpty()) {
+            requestPermissions(permissions.toTypedArray(), REQUEST_JARVIS_WAKE_PERMISSIONS)
+        }
     }
 }
 
@@ -170,6 +183,10 @@ fun AppScreen() {
                 AnimatedVisibility(visible = show,
                     enter = fadeIn(tween(400, 600)) + slideInVertically(tween(400, 600)) { it / 2 }
                 ) { QuickSetupSection(enabled = enabled, selected = selected) }
+
+                AnimatedVisibility(visible = show,
+                    enter = fadeIn(tween(400, 680)) + slideInVertically(tween(400, 680)) { it / 2 }
+                ) { JarvisWakeWordCard() }
 
                 AnimatedVisibility(visible = show,
                     enter = fadeIn(tween(400, 750)) + slideInVertically(tween(400, 750)) { it / 2 }
@@ -462,6 +479,90 @@ fun QuickSetupSection(enabled: Boolean, selected: Boolean) {
         SetupStep("2", "Set as Default",  "Select Aritenis AI as your default keyboard",   selected, AccentPurple)
         Spacer(Modifier.height(8.dp))
         SetupStep("3", "Start Typing",    "Type naturally & help improve your experience", false,    AccentBlue)
+    }
+}
+
+@Composable
+fun JarvisWakeWordCard() {
+    val context = LocalContext.current
+    var listening by remember { mutableStateOf(false) }
+    val permissionsReady = JarvisWakePermissionHelper.hasMicrophonePermission(context) &&
+        JarvisWakePermissionHelper.hasNotificationPermission(context)
+    val batteryReady = JarvisWakePermissionHelper.isIgnoringBatteryOptimizations(context)
+
+    Card(
+        modifier = Modifier.fillMaxWidth().border(1.dp, AccentCyan.copy(alpha = 0.3f), RoundedCornerShape(16.dp)),
+        colors = CardDefaults.cardColors(BgCard),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(0.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier.size(42.dp)
+                        .background(AccentCyan.copy(alpha = 0.12f), CircleShape)
+                        .border(1.dp, AccentCyan.copy(alpha = 0.45f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) { Text("J", color = AccentCyan, fontWeight = FontWeight.Bold, fontSize = 18.sp) }
+
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text("Jarvis Wake Word", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text(
+                        if (listening) "Listening for Hey Jarvis" else "Foreground listener only",
+                        color = TextSecondary,
+                        fontSize = 11.sp
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                WakeActionButton(
+                    label = if (listening) "Listening" else "Start",
+                    accentColor = AccentCyan,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    if (!permissionsReady) {
+                        context.startActivity(
+                            Intent(context, MainActivity::class.java)
+                                .putExtra(MainActivity.EXTRA_REQUEST_MIC_PERMISSION, true)
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        )
+                        return@WakeActionButton
+                    }
+                    if (!batteryReady) {
+                        JarvisWakePermissionHelper.openBatteryOptimizationPrompt(context)
+                    }
+                    JarvisWakeWordService.start(context)
+                    listening = true
+                }
+
+                WakeActionButton(
+                    label = "Stop",
+                    accentColor = TextMuted,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    JarvisWakeWordService.stop(context)
+                    listening = false
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun WakeActionButton(label: String, accentColor: Color, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Box(
+        modifier = modifier.height(44.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(accentColor.copy(alpha = 0.14f))
+            .border(1.dp, accentColor.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+            .clickable { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        Text(label, color = accentColor, fontWeight = FontWeight.Bold, fontSize = 13.sp)
     }
 }
 

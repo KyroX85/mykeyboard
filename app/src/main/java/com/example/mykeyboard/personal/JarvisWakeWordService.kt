@@ -1,0 +1,213 @@
+package com.example.mykeyboard.personal
+
+import android.Manifest
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.app.Service
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
+import android.os.Bundle
+import android.os.Handler
+import android.os.IBinder
+import android.os.Looper
+import android.os.PowerManager
+import android.speech.RecognitionListener
+import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
+import android.util.Log
+import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
+import com.example.mykeyboard.MainActivity
+import com.example.mykeyboard.R
+import java.util.Locale
+
+class JarvisWakeWordService : Service(), RecognitionListener {
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private var recognizer: SpeechRecognizer? = null
+    private var listening = false
+    private var wakeLock: PowerManager.WakeLock? = null
+
+    override fun onCreate() {
+        super.onCreate()
+        createNotificationChannel()
+        startForeground(
+            PersonalJarvisConfig.WAKE_WORD_NOTIFICATION_ID,
+            buildNotification("Listening for Hey Jarvis")
+        )
+        acquireWakeLock()
+        startListeningLoop()
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        when (intent?.action) {
+            ACTION_STOP -> {
+                stopSelf()
+                return START_NOT_STICKY
+            }
+            else -> startListeningLoop()
+        }
+        return START_STICKY
+    }
+
+    override fun onDestroy() {
+        listening = false
+        mainHandler.removeCallbacksAndMessages(null)
+        recognizer?.destroy()
+        recognizer = null
+        releaseWakeLock()
+        super.onDestroy()
+    }
+
+    override fun onBind(intent: Intent?): IBinder? = null
+
+    private fun startListeningLoop() {
+        if (listening) return
+        if (!hasMicrophonePermission()) {
+            Log.w(TAG, "Wake word service missing RECORD_AUDIO permission")
+            stopSelf()
+            return
+        }
+        if (!SpeechRecognizer.isRecognitionAvailable(this)) {
+            Log.w(TAG, "Wake word service unavailable: SpeechRecognizer not available")
+            stopSelf()
+            return
+        }
+
+        listening = true
+        ensureRecognizer()
+        recognizer?.startListening(buildRecognizerIntent())
+        Log.d(TAG, "Wake word listener started")
+    }
+
+    private fun restartListening(delayMs: Long = RESTART_DELAY_MS) {
+        listening = false
+        mainHandler.removeCallbacksAndMessages(null)
+        mainHandler.postDelayed({ startListeningLoop() }, delayMs)
+    }
+
+    private fun ensureRecognizer() {
+        if (recognizer != null) return
+        recognizer = SpeechRecognizer.createSpeechRecognizer(this).also {
+            it.setRecognitionListener(this)
+        }
+    }
+
+    private fun buildRecognizerIntent(): Intent =
+        Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
+            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
+            putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, packageName)
+        }
+
+    private fun inspectResults(results: Bundle?) {
+        val phrases = results
+            ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+            .orEmpty()
+        phrases.forEach { phrase ->
+            Log.d(TAG, "Wake word heard candidate: $phrase")
+            if (JarvisWakeWordDetector.containsWakeWord(phrase)) {
+                Log.i(TAG, "Wake word detected")
+            }
+        }
+    }
+
+    override fun onReadyForSpeech(params: Bundle?) {
+        Log.d(TAG, "Wake word ready for speech")
+    }
+
+    override fun onBeginningOfSpeech() = Unit
+    override fun onRmsChanged(rmsdB: Float) = Unit
+    override fun onBufferReceived(buffer: ByteArray?) = Unit
+    override fun onEndOfSpeech() = Unit
+    override fun onPartialResults(partialResults: Bundle?) = inspectResults(partialResults)
+    override fun onResults(results: Bundle?) {
+        inspectResults(results)
+        restartListening()
+    }
+
+    override fun onError(error: Int) {
+        Log.w(TAG, "Wake word listener error: $error")
+        restartListening(if (error == SpeechRecognizer.ERROR_RECOGNIZER_BUSY) BUSY_RESTART_DELAY_MS else RESTART_DELAY_MS)
+    }
+
+    override fun onEvent(eventType: Int, params: Bundle?) = Unit
+
+    private fun hasMicrophonePermission(): Boolean =
+        ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        val channel = NotificationChannel(
+            PersonalJarvisConfig.WAKE_WORD_CHANNEL_ID,
+            "Jarvis wake word",
+            NotificationManager.IMPORTANCE_LOW
+        ).apply {
+            description = "Keeps Jarvis listening for the wake word"
+            setShowBadge(false)
+        }
+        getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+    }
+
+    private fun buildNotification(content: String): Notification {
+        val openIntent = PendingIntent.getActivity(
+            this,
+            0,
+            Intent(this, MainActivity::class.java),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+        val stopIntent = PendingIntent.getService(
+            this,
+            1,
+            Intent(this, JarvisWakeWordService::class.java).setAction(ACTION_STOP),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        return NotificationCompat.Builder(this, PersonalJarvisConfig.WAKE_WORD_CHANNEL_ID)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setContentTitle("Aritenis Jarvis")
+            .setContentText(content)
+            .setOngoing(true)
+            .setContentIntent(openIntent)
+            .addAction(0, "Stop", stopIntent)
+            .build()
+    }
+
+    private fun acquireWakeLock() {
+        val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+        wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "$packageName:JarvisWakeWord").apply {
+            setReferenceCounted(false)
+            acquire()
+        }
+    }
+
+    private fun releaseWakeLock() {
+        wakeLock?.takeIf { it.isHeld }?.release()
+        wakeLock = null
+    }
+
+    companion object {
+        const val ACTION_START = "com.example.mykeyboard.personal.START_WAKE_WORD"
+        const val ACTION_STOP = "com.example.mykeyboard.personal.STOP_WAKE_WORD"
+        private const val TAG = "AritenisJarvisWake"
+        private const val RESTART_DELAY_MS = 800L
+        private const val BUSY_RESTART_DELAY_MS = 1600L
+        fun start(context: Context) {
+            val intent = Intent(context, JarvisWakeWordService::class.java).setAction(ACTION_START)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
+            }
+        }
+
+        fun stop(context: Context) {
+            context.startService(Intent(context, JarvisWakeWordService::class.java).setAction(ACTION_STOP))
+        }
+    }
+}

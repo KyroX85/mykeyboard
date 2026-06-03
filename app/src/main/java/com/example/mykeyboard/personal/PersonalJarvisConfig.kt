@@ -19,6 +19,8 @@ object PersonalJarvisConfig {
     const val ALERT_NOTIFICATION_ID = 8801
     const val REMINDER_NOTIFICATION_ID = 8802
     const val BRAIN_ANSWER_NOTIFICATION_ID = 8803
+    const val WAKE_WORD_CHANNEL_ID = "aritenis_jarvis_wake_word"
+    const val WAKE_WORD_NOTIFICATION_ID = 8804
     const val REMINDER_ACTION = "com.example.mykeyboard.personal.REMIND_RELEASE"
     const val EXTRA_SPEECH = "speech"
     const val EXTRA_TITLE = "title"
