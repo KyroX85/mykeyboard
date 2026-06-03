@@ -125,6 +125,10 @@ const STRATEGIC_CHALLENGE_PATTERNS = [
   /\bwhat\s+kills\s+us\b/i,
   /\bwhat\s+could\s+kill\s+us\b/i,
   /\bwhat\s+(is\s+the\s+)?contradiction\s+do\s+you\s+see\b/i,
+  /\bi\s+want\s+freedom\b.*\b(building|build|systems?|machinery)\b/i,
+  /\bi\s+want\s+humans?\s+free\s+from\s+machinery\b.*\b(build|building|machinery|systems?)\b/i,
+  /\bfree\s+from\s+machinery\b.*\bexplain\b/i,
+  /\bfreedom\b.*\b(building|build)\s+(systems?|machinery)\b/i,
   /\bi\s+want\s+humans\s+to\s+be\s+free\b.*\bjarvis\b/i,
   /\bjarvis\b.*\b(do\s+everything|everything)\b.*\b(free|freedom|dependency)\b/i,
   /\bwhat\s+(am\s+i|i\s+am)\s+missing\b/i,
@@ -541,6 +545,18 @@ function classifyMindQuestion(text = '', memory = {}) {
         confidence: 86
       };
     }
+    if (/\bi\s+want\s+freedom\b.*\b(building|build|systems?|machinery)\b/i.test(text) ||
+      /\bi\s+want\s+humans?\s+free\s+from\s+machinery\b.*\b(build|building|machinery|systems?)\b/i.test(text) ||
+      /\bfree\s+from\s+machinery\b.*\bexplain\b/i.test(text) ||
+      /\bfreedom\b.*\b(building|build)\s+(systems?|machinery)\b/i.test(text)) {
+      return {
+        intent: 'RECONSTRUCT_FREEDOM_SYSTEMS_CONTRADICTION',
+        category: 'FOUNDER_STRATEGY',
+        archetype: 'freedom_systems_contradiction',
+        mode: 'FOUNDER_CONVERSATION_MODE',
+        confidence: 85
+      };
+    }
     if (/\bwhat\s+(am\s+i|i\s+am)\s+missing\b/i.test(text)) {
       return {
         intent: 'RECONSTRUCT_MISSING_BLIND_SPOT',
@@ -743,6 +759,18 @@ function buildMindReport(kind, message, context = {}) {
       desiredOutcome: 'A direct strategic answer that preserves the active vision: humans choose direction; AI executes.',
       actualQuestion: 'Where does the dream become dependency instead of freedom?',
       uselessLiteralAnswer: 'A task plan, CTO status, keyboard advice, health score, or route diagnostic.'
+    };
+  }
+
+  if (kind.archetype === 'freedom_systems_contradiction') {
+    return {
+      objective: 'Explain the contradiction between wanting freedom and building systems or machinery.',
+      assumption: 'The founder is not asking for product status; he is testing whether the system can see the philosophical tension in the work.',
+      concern: 'Aritenis can accidentally become the kind of machinery it wants to free people from if systems start demanding attention, dependence, or obedience.',
+      decision: 'Define the boundary where machinery becomes liberation instead of another burden.',
+      desiredOutcome: 'A direct reflection that preserves the active vision: humans keep direction, machinery carries burden.',
+      actualQuestion: 'Am I building machinery that frees humans, or machinery that humans must serve?',
+      uselessLiteralAnswer: 'A task plan, health report, CTO status, architecture defense, or route diagnostic.'
     };
   }
 
@@ -1087,6 +1115,16 @@ function buildDirectAnswer(kind, report) {
     ];
   }
 
+  if (kind.archetype === 'freedom_systems_contradiction') {
+    return [
+      'The contradiction is that you are trying to build machinery that frees people from machinery.',
+      'That is not automatically hypocrisy, but it is dangerous: the system must carry burden without becoming another thing humans have to serve.',
+      'The clean version is: humans keep direction, judgment, and refusal; the machinery handles effort, memory, and the doing.',
+      'The bad version is: the machinery becomes so central that people depend on it to think, choose, or feel capable.',
+      'So the boundary is agency. If Aritenis increases human agency, it serves freedom. If it replaces agency, it becomes the machinery you wanted to escape.'
+    ];
+  }
+
   if (kind.archetype === 'impressive_not_useful_fear') {
     return [
       'That fear is valid.',
@@ -1400,6 +1438,9 @@ function responseAnswersFounderMind(reconstruction = {}) {
   }
   if (reconstruction.intent === 'RECONSTRUCT_FREEDOM_JARVIS_CONTRADICTION') {
     return /freedom|dependency|humans choose direction|AI executes|outsource judgment|automate the doing, preserve agency/i.test(answer);
+  }
+  if (reconstruction.intent === 'RECONSTRUCT_FREEDOM_SYSTEMS_CONTRADICTION') {
+    return /machinery that frees people from machinery|carry burden|humans keep direction|agency|serves freedom|replaces agency/i.test(answer);
   }
   if (reconstruction.intent === 'RECONSTRUCT_IMPRESSIVE_NOT_USEFUL_FEAR') {
     return /fear is valid|impressive and still fail|real user struggle|understand confusing content|faster, clearer, or more confident/i.test(answer);

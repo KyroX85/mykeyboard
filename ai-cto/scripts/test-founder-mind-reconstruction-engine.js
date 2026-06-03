@@ -234,6 +234,22 @@ assert.strictEqual(freedomJarvisContradiction.details.category, 'FOUNDER_STRATEG
 assert.strictEqual(freedomJarvisContradiction.details.intent, 'RECONSTRUCT_FREEDOM_JARVIS_CONTRADICTION');
 assert.doesNotMatch(String(freedomJarvisContradiction.response || ''), /CLARIFICATION_REQUEST|TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan/i);
 
+const freedomSystemsContradiction = assertMindRoute(
+  'I want freedom but I keep building systems. What contradiction do you see?',
+  /machinery that frees people from machinery|humans keep direction|agency|serves freedom/i
+);
+assert.strictEqual(freedomSystemsContradiction.details.category, 'FOUNDER_STRATEGY');
+assert.strictEqual(freedomSystemsContradiction.details.intent, 'RECONSTRUCT_FREEDOM_SYSTEMS_CONTRADICTION');
+assert.doesNotMatch(String(freedomSystemsContradiction.response || ''), /CLARIFICATION_REQUEST|TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan|anti_template_conversation_guard/i);
+
+const machineryFreedomContradiction = assertMindRoute(
+  'I want humans free from machinery but I build machinery. Explain.',
+  /machinery that frees people from machinery|carry burden|agency|replaces agency/i
+);
+assert.strictEqual(machineryFreedomContradiction.details.category, 'FOUNDER_STRATEGY');
+assert.strictEqual(machineryFreedomContradiction.details.intent, 'RECONSTRUCT_FREEDOM_SYSTEMS_CONTRADICTION');
+assert.doesNotMatch(String(machineryFreedomContradiction.response || ''), /CLARIFICATION_REQUEST|TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan|anti_template_conversation_guard/i);
+
 const behaviorOptimization = assertMindRoute(
   'Forget what I say.\n\nBased on my behavior, what am I optimizing for?',
   /product truth|stress-testing the agents|fake progress|leverage|useful breakthrough|trustworthy/i
