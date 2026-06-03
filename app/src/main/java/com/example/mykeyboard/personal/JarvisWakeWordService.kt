@@ -28,15 +28,20 @@ import java.util.Locale
 
 class JarvisWakeWordService : Service(), RecognitionListener {
     private val mainHandler = Handler(Looper.getMainLooper())
+    private val restartListeningRunnable = Runnable { startListeningLoop() }
     private var recognizer: SpeechRecognizer? = null
     private var listening = false
     private var wakeLock: PowerManager.WakeLock? = null
     private var speaker: JarvisSpeaker? = null
+    private var brainConnector: JarvisBrainConnector? = null
+    private var listeningMode = ListeningMode.WAKE_WORD
+    private var awaitingBrainResponse = false
     private val responseGate = JarvisWakeResponseGate()
 
     override fun onCreate() {
         super.onCreate()
         speaker = JarvisSpeaker(this)
+        brainConnector = JarvisBrainConnector()
         createNotificationChannel()
         startForeground(
             PersonalJarvisConfig.WAKE_WORD_NOTIFICATION_ID,
@@ -64,6 +69,8 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         recognizer = null
         speaker?.shutdown()
         speaker = null
+        brainConnector?.shutdown()
+        brainConnector = null
         releaseWakeLock()
         super.onDestroy()
     }
@@ -86,13 +93,13 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         listening = true
         ensureRecognizer()
         recognizer?.startListening(buildRecognizerIntent())
-        Log.d(TAG, "Wake word listener started")
+        Log.d(TAG, "Jarvis listener started: $listeningMode")
     }
 
     private fun restartListening(delayMs: Long = RESTART_DELAY_MS) {
         listening = false
-        mainHandler.removeCallbacksAndMessages(null)
-        mainHandler.postDelayed({ startListeningLoop() }, delayMs)
+        mainHandler.removeCallbacks(restartListeningRunnable)
+        mainHandler.postDelayed(restartListeningRunnable, delayMs)
     }
 
     private fun ensureRecognizer() {
@@ -106,12 +113,13 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
-            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, listeningMode == ListeningMode.WAKE_WORD)
             putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
             putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, packageName)
         }
 
     private fun inspectResults(results: Bundle?) {
+        if (listeningMode != ListeningMode.WAKE_WORD) return
         val phrases = results
             ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
             .orEmpty()
@@ -127,6 +135,10 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         Log.i(TAG, "Wake word detected")
         if (responseGate.shouldRespond(SystemClock.elapsedRealtime())) {
             speaker?.speak(JarvisWakeResponseGate.RESPONSE_TEXT)
+            listeningMode = ListeningMode.COMMAND
+            listening = false
+            recognizer?.cancel()
+            restartListening(COMMAND_LISTEN_DELAY_MS)
         }
     }
 
@@ -140,16 +152,73 @@ class JarvisWakeWordService : Service(), RecognitionListener {
     override fun onEndOfSpeech() = Unit
     override fun onPartialResults(partialResults: Bundle?) = inspectResults(partialResults)
     override fun onResults(results: Bundle?) {
-        inspectResults(results)
-        restartListening()
+        if (listeningMode == ListeningMode.COMMAND) {
+            handleCommandResults(results)
+        } else {
+            inspectResults(results)
+            restartListening()
+        }
     }
 
     override fun onError(error: Int) {
         Log.w(TAG, "Wake word listener error: $error")
+        if (listeningMode == ListeningMode.COMMAND) {
+            listeningMode = ListeningMode.WAKE_WORD
+        }
         restartListening(if (error == SpeechRecognizer.ERROR_RECOGNIZER_BUSY) BUSY_RESTART_DELAY_MS else RESTART_DELAY_MS)
     }
 
     override fun onEvent(eventType: Int, params: Bundle?) = Unit
+
+    private fun handleCommandResults(results: Bundle?) {
+        val question = results
+            ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+            .orEmpty()
+            .firstOrNull()
+            .orEmpty()
+            .trim()
+
+        listening = false
+        listeningMode = ListeningMode.WAKE_WORD
+        if (question.isBlank()) {
+            restartListening()
+            return
+        }
+        askFounderBrain(question)
+    }
+
+    private fun askFounderBrain(question: String) {
+        if (awaitingBrainResponse) return
+        val connector = brainConnector
+        if (connector == null) {
+            speaker?.speak("Founder Brain is not connected")
+            restartListening(BRAIN_RESPONSE_RESTART_DELAY_MS)
+            return
+        }
+        awaitingBrainResponse = true
+        Log.i(TAG, "Founder Brain question captured")
+        connector.askQuestion(
+            question = question,
+            onAnswer = { answer ->
+                mainHandler.post {
+                    awaitingBrainResponse = false
+                    val speech = JarvisBrainSpeechPolicy.speechFor(answer)
+                    if (speech.isNotBlank()) {
+                        speaker?.speak(speech)
+                    }
+                    restartListening(BRAIN_RESPONSE_RESTART_DELAY_MS)
+                }
+            },
+            onFailure = { reason ->
+                mainHandler.post {
+                    Log.w(TAG, "Founder Brain conversation failed: $reason")
+                    awaitingBrainResponse = false
+                    speaker?.speak("Founder Brain is not connected")
+                    restartListening(BRAIN_RESPONSE_RESTART_DELAY_MS)
+                }
+            }
+        )
+    }
 
     private fun hasMicrophonePermission(): Boolean =
         ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
@@ -210,6 +279,8 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         private const val TAG = "AritenisJarvisWake"
         private const val RESTART_DELAY_MS = 800L
         private const val BUSY_RESTART_DELAY_MS = 1600L
+        private const val COMMAND_LISTEN_DELAY_MS = 900L
+        private const val BRAIN_RESPONSE_RESTART_DELAY_MS = 1200L
         fun start(context: Context) {
             val intent = Intent(context, JarvisWakeWordService::class.java).setAction(ACTION_START)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -222,5 +293,10 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         fun stop(context: Context) {
             context.startService(Intent(context, JarvisWakeWordService::class.java).setAction(ACTION_STOP))
         }
+    }
+
+    private enum class ListeningMode {
+        WAKE_WORD,
+        COMMAND
     }
 }

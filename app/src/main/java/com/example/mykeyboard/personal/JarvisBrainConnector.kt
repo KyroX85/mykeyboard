@@ -68,9 +68,7 @@ class JarvisBrainConnector(
                             JarvisBrainAnswer(
                                 type = json.optString("type", "unclear"),
                                 summary = json.optString("summary"),
-                                voiceSummary = json.optString("voiceSummary").ifBlank {
-                                    json.optString("summary", "Founder Brain responded.")
-                                },
+                                voiceSummary = json.optString("voiceSummary"),
                                 confidence = json.optDouble("confidence", 0.0)
                             )
                         )

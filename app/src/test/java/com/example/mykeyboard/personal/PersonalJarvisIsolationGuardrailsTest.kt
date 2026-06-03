@@ -51,6 +51,27 @@ class PersonalJarvisIsolationGuardrailsTest {
         assertFalse(personalSources.contains("rawReasoning"))
     }
 
+    @Test
+    fun wakeWordServiceDelegatesOneCommandToFounderBrainVoiceSummary() {
+        val wakeService = sourceFile("app/src/main/java/com/example/mykeyboard/personal/JarvisWakeWordService.kt").readText()
+        val connector = sourceFile("app/src/main/java/com/example/mykeyboard/personal/JarvisBrainConnector.kt").readText()
+        val speechPolicy = sourceFile("app/src/main/java/com/example/mykeyboard/personal/JarvisBrainSpeechPolicy.kt").readText()
+
+        assertTrue(wakeService.contains("ListeningMode.COMMAND"))
+        assertTrue(wakeService.contains("handleCommandResults"))
+        assertTrue(wakeService.contains("askFounderBrain(question)"))
+        assertTrue(wakeService.contains("JarvisBrainSpeechPolicy.speechFor(answer)"))
+        assertTrue(wakeService.contains("speaker?.speak(speech)"))
+        assertTrue(wakeService.contains("mainHandler.removeCallbacks(restartListeningRunnable)"))
+        val restartListening = wakeService.substringAfter("private fun restartListening")
+            .substringBefore("private fun ensureRecognizer")
+        assertFalse(restartListening.contains("removeCallbacksAndMessages(null)"))
+        assertFalse(wakeService.contains("speaker?.speak(answer.summary)"))
+        assertTrue(connector.contains("voiceSummary = json.optString(\"voiceSummary\")"))
+        assertTrue(speechPolicy.contains("answer.voiceSummary.trim()"))
+        assertFalse(speechPolicy.contains("answer.summary"))
+    }
+
     private fun sourceFile(relativePath: String): File {
         val current = File("").absoluteFile
         val direct = File(current, relativePath)
