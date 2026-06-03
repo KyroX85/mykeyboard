@@ -11,6 +11,7 @@ import okhttp3.Response
 import org.json.JSONObject
 import java.io.IOException
 import java.util.concurrent.TimeUnit
+import java.util.UUID
 
 data class JarvisBrainAnswer(
     val type: String,
@@ -28,6 +29,7 @@ class JarvisBrainConnector(
 ) {
     fun askQuestion(
         question: String,
+        sessionId: String = UUID.randomUUID().toString(),
         onAnswer: (JarvisBrainAnswer) -> Unit,
         onFailure: (String) -> Unit
     ) {
@@ -40,6 +42,7 @@ class JarvisBrainConnector(
 
         val body = JSONObject()
             .put("question", question.trim())
+            .put("sessionId", sessionId)
             .toString()
             .toRequestBody(JSON_MEDIA_TYPE)
 
@@ -48,6 +51,7 @@ class JarvisBrainConnector(
             .post(body)
             .addHeader("Authorization", "Bearer $token")
             .addHeader("Content-Type", "application/json")
+            .addHeader("X-Aritenis-Session-Id", sessionId)
             .build()
 
         client.newCall(request).enqueue(object : Callback {
@@ -84,6 +88,10 @@ class JarvisBrainConnector(
     fun shutdown() {
         client.dispatcher.executorService.shutdown()
     }
+
+    fun isReady(): Boolean =
+        PersonalJarvisConfig.founderBrainQuestionEndpoint().isNotBlank() &&
+            PersonalJarvisConfig.founderBrainApiToken().isNotBlank()
 
     private companion object {
         val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()

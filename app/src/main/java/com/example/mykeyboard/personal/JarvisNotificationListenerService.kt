@@ -54,9 +54,10 @@ class JarvisNotificationListenerService : NotificationListenerService() {
         speaker.speak("Sir, checking the Founder Brain.")
         brainConnector.askQuestion(
             question = question,
+            sessionId = "notification:$notificationKey",
             onAnswer = { answer ->
                 mainHandler.post {
-                    val spoken = answer.voiceSummary.ifBlank { answer.summary }
+                    val spoken = JarvisBrainSpeechPolicy.speechFor(answer)
                     speaker.speak(spoken)
                     notificationCenter.showBrainAnswer(answer)
                 }

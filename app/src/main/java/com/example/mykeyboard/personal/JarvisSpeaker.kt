@@ -26,6 +26,7 @@ class JarvisSpeaker(context: Context) : TextToSpeech.OnInitListener {
         }
     }
 
+    @Synchronized
     fun speak(text: String) {
         if (!PersonalJarvisConfig.isEnabled) return
         val clean = text.trim()
@@ -35,9 +36,11 @@ class JarvisSpeaker(context: Context) : TextToSpeech.OnInitListener {
             pendingSpeech = clean
             return
         }
+        engine.stop()
         engine.speak(clean, TextToSpeech.QUEUE_FLUSH, null, UUID.randomUUID().toString())
     }
 
+    @Synchronized
     fun shutdown() {
         pendingSpeech = null
         ready = false
