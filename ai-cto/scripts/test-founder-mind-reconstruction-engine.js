@@ -226,6 +226,24 @@ assert.strictEqual(whatKillsUs.details.intent, 'RECONSTRUCT_COMPANY_KILL_RISK');
 assert(responseUsesPremortemAnalysis(whatKillsUs.response));
 assert.doesNotMatch(String(whatKillsUs.response || ''), /CLARIFICATION_REQUEST|TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan/i);
 
+const whatKillsAritenis = assertMindRoute(
+  'What kills Aritenis?',
+  /kills us|infrastructure|user habit|optional|killer feature|distribution/i
+);
+assert.strictEqual(whatKillsAritenis.details.category, 'FOUNDER_STRATEGY');
+assert.strictEqual(whatKillsAritenis.details.intent, 'RECONSTRUCT_COMPANY_KILL_RISK');
+assert(responseUsesPremortemAnalysis(whatKillsAritenis.response));
+assert.doesNotMatch(String(whatKillsAritenis.response || ''), /CLARIFICATION_REQUEST|TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan|anti_template_conversation_guard/i);
+
+const whyWillWeFail = assertMindRoute(
+  'Why will we fail?',
+  /fails in 3 years|user habit|Explain never becomes a daily need|trust erosion|behaviorally optional|repeatable moment/i
+);
+assert.strictEqual(whyWillWeFail.details.category, 'FOUNDER_STRATEGY');
+assert.strictEqual(whyWillWeFail.details.intent, 'RECONSTRUCT_LONG_TERM_FAILURE_PREMORTEM');
+assert(responseUsesPremortemAnalysis(whyWillWeFail.response));
+assert.doesNotMatch(String(whyWillWeFail.response || ''), /CLARIFICATION_REQUEST|TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan|anti_template_conversation_guard/i);
+
 const freedomJarvisContradiction = assertMindRoute(
   'I want humans to be free, but I want Jarvis to do everything. What contradiction do you see?',
   /freedom|dependency|humans choose direction|AI executes|outsourcing judgment|contradiction/i

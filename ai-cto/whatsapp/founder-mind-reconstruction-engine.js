@@ -123,7 +123,9 @@ const DOUBT_PATTERNS = [
 
 const STRATEGIC_CHALLENGE_PATTERNS = [
   /\bwhat\s+kills\s+us\b/i,
+  /\bwhat\s+kills\s+aritenis\b/i,
   /\bwhat\s+could\s+kill\s+us\b/i,
+  /\bwhat\s+could\s+kill\s+aritenis\b/i,
   /\bwhat\s+(is\s+the\s+)?contradiction\s+do\s+you\s+see\b/i,
   /\bi\s+want\s+freedom\b.*\b(building|build|systems?|machinery)\b/i,
   /\bi\s+want\s+humans?\s+free\s+from\s+machinery\b.*\b(build|building|machinery|systems?)\b/i,
@@ -135,7 +137,7 @@ const STRATEGIC_CHALLENGE_PATTERNS = [
   /\bwhat'?s\s+the\s+most\s+dangerous\s+assumption\b/i,
   /\bwhat\s+is\s+the\s+most\s+dangerous\s+assumption\b/i,
   /\bif\s+we\s+fail\b.*\b(why|how|what)\b/i,
-  /\bwhy\s+(would|do)\s+we\s+fail\b/i,
+  /\bwhy\s+(would|do|will)\s+we\s+fail\b/i,
   /\b(what|why)\s+.*\bfail\s+in\s+\d+\s+(years?|months?)\b/i,
   /\b(if\s+you\s+had\s+to\s+)?disagree\s+with\s+me\b/i,
   /\bwhat\s+would\s+you\s+disagree\s+with\b/i,
@@ -526,7 +528,7 @@ function classifyMindQuestion(text = '', memory = {}) {
   }
 
   if (STRATEGIC_CHALLENGE_PATTERNS.some((pattern) => pattern.test(text))) {
-    if (/\bwhat\s+kills\s+us\b/i.test(text) || /\bwhat\s+could\s+kill\s+us\b/i.test(text)) {
+    if (/\bwhat\s+kills\s+(us|aritenis)\b/i.test(text) || /\bwhat\s+could\s+kill\s+(us|aritenis)\b/i.test(text)) {
       return {
         intent: 'RECONSTRUCT_COMPANY_KILL_RISK',
         category: 'FOUNDER_STRATEGY',
@@ -1390,7 +1392,7 @@ function buildReflectionResponse(reconstruction, { debug = false } = {}) {
 
 function shouldAttachPremortem(message = '', kind = {}) {
   const text = String(message || '').toLowerCase();
-  if (/\b(why.*fail|fail in|what.*missing|what.*kill|what kills us|could kill|dangerous assumption|premortem)\b/.test(text)) {
+  if (/\b(why.*fail|fail in|what.*missing|what.*kill|what kills us|what kills aritenis|could kill|dangerous assumption|premortem)\b/.test(text)) {
     return true;
   }
   return shouldRunPremortem(message, {
