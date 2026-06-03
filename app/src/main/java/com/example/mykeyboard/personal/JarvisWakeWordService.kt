@@ -15,6 +15,7 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.os.PowerManager
+import android.os.SystemClock
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
@@ -30,9 +31,12 @@ class JarvisWakeWordService : Service(), RecognitionListener {
     private var recognizer: SpeechRecognizer? = null
     private var listening = false
     private var wakeLock: PowerManager.WakeLock? = null
+    private var speaker: JarvisSpeaker? = null
+    private val responseGate = JarvisWakeResponseGate()
 
     override fun onCreate() {
         super.onCreate()
+        speaker = JarvisSpeaker(this)
         createNotificationChannel()
         startForeground(
             PersonalJarvisConfig.WAKE_WORD_NOTIFICATION_ID,
@@ -58,6 +62,8 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         mainHandler.removeCallbacksAndMessages(null)
         recognizer?.destroy()
         recognizer = null
+        speaker?.shutdown()
+        speaker = null
         releaseWakeLock()
         super.onDestroy()
     }
@@ -112,8 +118,15 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         phrases.forEach { phrase ->
             Log.d(TAG, "Wake word heard candidate: $phrase")
             if (JarvisWakeWordDetector.containsWakeWord(phrase)) {
-                Log.i(TAG, "Wake word detected")
+                handleWakeWordDetected()
             }
+        }
+    }
+
+    private fun handleWakeWordDetected() {
+        Log.i(TAG, "Wake word detected")
+        if (responseGate.shouldRespond(SystemClock.elapsedRealtime())) {
+            speaker?.speak(JarvisWakeResponseGate.RESPONSE_TEXT)
         }
     }
 
