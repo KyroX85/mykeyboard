@@ -62,6 +62,7 @@ const {
   applyFounderStateToRoute
 } = require('../founder-state-detection-layer');
 const { enforceAntiTemplateOnRoute } = require('./anti-template-layer');
+const { enforceFounderPresenceOnRoute } = require('./founder-presence-override');
 const {
   classifyConversationRoute,
   isFounderThinkingRoute
@@ -1603,10 +1604,10 @@ function enforceDeterministicResponse(route, message, state = {}, memory = {}) {
   const disagreementRoute = applyIntelligentDisagreementToRoute(userValueRoute, { message });
   const qualityRoute = enforceInternalAnswerQuality(disagreementRoute, { message, memory });
   if (qualityRoute && qualityRoute.details && qualityRoute.details.skipExecutionSchema) {
-    return qualityRoute;
+    return enforceFounderPresenceOnRoute(qualityRoute, { message, memory });
   }
-  return enforceExecutionSchemaOnRoute(qualityRoute, {
+  return enforceFounderPresenceOnRoute(enforceExecutionSchemaOnRoute(qualityRoute, {
     message,
     memorySources: memorySourcesFromResponse(qualityRoute && qualityRoute.response)
-  });
+  }), { message, memory });
 }

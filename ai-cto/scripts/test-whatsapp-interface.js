@@ -218,7 +218,9 @@ setMode('ACTIVE', 'test reset');
 
 const unknown = routeMessage('repo update', sampleState);
 assert.strictEqual(unknown.command, 'agent');
-assert(unknown.response.includes('CTO'));
+assert(!unknown.response.includes('CTO'));
+assert(!unknown.response.includes('Memory Sources Used:'));
+assert(!unknown.response.includes('Route Confidence'));
 
 const hotPathRewrite = routeMessage('rewrite KeyboardService.kt to improve typing intelligence', sampleState);
 assert.strictEqual(hotPathRewrite.command, 'hot_path_rewrite_blocked');
@@ -274,17 +276,19 @@ assert(symbolExperiment.response.includes('Hypothesis:'));
 const hello = routeMessage('hello', sampleState);
 assert.strictEqual(hello.command, 'agent');
 assert(hello.response.includes('team is ready'));
-assert(hello.response.includes('CODER'));
-assert(hello.response.includes('AUDITOR'));
+assert(!hello.response.includes('CODER'));
+assert(!hello.response.includes('AUDITOR'));
+assert(!hello.response.includes('Memory Sources Used:'));
 
 const hi = routeMessage('hi', sampleState);
 assert.strictEqual(hi.matchedRoute, 'greeting_first');
-assert(hi.response.startsWith('Memory Sources Used:'));
+assert(!hi.response.startsWith('Memory Sources Used:'));
+assert(!hi.response.includes('type: TASK_PLAN'));
 assert.strictEqual(withoutMemoryHeader(hi.response), [
-  '\uD83C\uDFAF CTO: Founder, team is ready. What would you like to prioritize today?',
-  '\uD83D\uDD27 CODER: Ready.',
-  '\u2696\uFE0F REVIEWER: Standing by.',
-  '\uD83D\uDEA8 AUDITOR: Monitoring active.'
+  'Founder, team is ready. What would you like to prioritize today?',
+  'Ready.',
+  'Standing by.',
+  'Monitoring active.'
 ].join('\n'));
 assert(!hi.response.includes('Health:'));
 
@@ -295,24 +299,27 @@ assert(checkIn.response.includes('Founder, team is ready'));
 const statusQuestion = routeMessage('how are we doing', sampleState);
 assert.strictEqual(statusQuestion.command, 'agent');
 assert(statusQuestion.response.includes('Work'));
-assert(statusQuestion.response.includes('AUDITOR'));
+assert(!statusQuestion.response.includes('AUDITOR'));
+assert(!statusQuestion.response.includes('Memory Sources Used:'));
 
 const casualWork = routeMessage('bro how work is going', sampleState);
 assert.strictEqual(casualWork.command, 'founder_objective_understanding');
 assert.strictEqual(casualWork.matchedRoute, 'founder_objective_engine');
 assert(casualWork.response.includes('Things are running'));
-assert(casualWork.response.includes('Health: 25/100'));
-assert(casualWork.response.includes('Source:'));
+assert(!casualWork.response.includes('Health:'));
+assert(!casualWork.response.includes('Source:'));
+assert(!casualWork.response.includes('Objective reconstruction:'));
 
 const tanglishWork = routeMessage('work epdi poguthu', sampleState);
 assert.strictEqual(tanglishWork.command, 'human_status_check');
 assert(tanglishWork.response.includes('Things are running'));
-assert(tanglishWork.response.includes('Source:'));
+assert(!tanglishWork.response.includes('Source:'));
+assert(!tanglishWork.response.includes('Useful follow-up:'));
 
 const coderDirective = routeMessage('hey cto tell the coder to check for new issues', sampleState);
 assert.strictEqual(coderDirective.command, 'agent');
 assert.strictEqual(coderDirective.intent, 'directive');
-assert(coderDirective.response.includes('CODER'));
+assert(!coderDirective.response.includes('CODER'));
 assert(coderDirective.response.includes('new issues'));
 assert(!coderDirective.response.includes('context not fully verified'));
 
@@ -340,7 +347,7 @@ const auditorCrossCheck = routeMessage('hey auditor check what coder missed', sa
 assert.strictEqual(auditorCrossCheck.command, 'agent');
 assert.strictEqual(auditorCrossCheck.agent, 'auditor');
 assert.strictEqual(auditorCrossCheck.intent, 'cross_agent_audit');
-assert(auditorCrossCheck.response.includes('AUDITOR'));
+assert(!auditorCrossCheck.response.includes('AUDITOR'));
 assert(auditorCrossCheck.response.includes('Coder missed'));
 assert(!withoutMemoryHeader(auditorCrossCheck.response).startsWith('🎯 CTO'));
 
@@ -362,37 +369,37 @@ assert.strictEqual(recentFix.command, 'agent');
 assert(recentFix.response.includes('README.md whitespace'));
 
 const coder = routeMessage('hey coder what are you doing', sampleState).response;
-assert(withoutMemoryHeader(coder).startsWith('🔧 CODER'));
+assert(!withoutMemoryHeader(coder).includes('CODER'));
 assert(coder.includes('Attempted:'));
 assert(withoutMemoryHeader(coder).split('\n').length <= 5);
 assert(!coder.includes('I finished keyboard cleanup'));
 
 const reviewer = routeMessage('reviewer any risks', sampleState).response;
-assert(withoutMemoryHeader(reviewer).startsWith('⚖️ REVIEWER'));
+assert(!withoutMemoryHeader(reviewer).includes('REVIEWER'));
 assert(reviewer.includes('Risk:'));
 
 const auditor = routeMessage('auditor any dangerous issues', sampleState).response;
-assert(withoutMemoryHeader(auditor).startsWith('🚨 AUDITOR'));
+assert(!withoutMemoryHeader(auditor).includes('AUDITOR'));
 assert(auditor.includes('Risk:'));
 
-assert(withoutMemoryHeader(routeMessage('cto update me', sampleState).response).startsWith('🎯 CTO'));
-assert(withoutMemoryHeader(routeMessage('cto active tasks', sampleState).response).startsWith('🎯 CTO'));
-assert(withoutMemoryHeader(routeMessage('hey auditor', sampleState).response).startsWith('🚨 AUDITOR'));
-assert(withoutMemoryHeader(routeMessage('hey auditer', sampleState).response).startsWith('🚨 AUDITOR'));
-assert(withoutMemoryHeader(routeMessage('audit status', sampleState).response).startsWith('🚨 AUDITOR'));
-assert(withoutMemoryHeader(routeMessage('reviewer update', sampleState).response).startsWith('⚖️ REVIEWER'));
+assert(!withoutMemoryHeader(routeMessage('cto update me', sampleState).response).includes('CTO'));
+assert(!withoutMemoryHeader(routeMessage('cto active tasks', sampleState).response).includes('CTO'));
+assert(!withoutMemoryHeader(routeMessage('hey auditor', sampleState).response).includes('AUDITOR'));
+assert(!withoutMemoryHeader(routeMessage('hey auditer', sampleState).response).includes('AUDITOR'));
+assert(!withoutMemoryHeader(routeMessage('audit status', sampleState).response).includes('AUDITOR'));
+assert(!withoutMemoryHeader(routeMessage('reviewer update', sampleState).response).includes('REVIEWER'));
 assert(routeMessage('cto active tasks', sampleState).response.includes('Next:'));
 assert(routeMessage('coder what are you working on', sampleState).response.includes('Attempted:'));
 assert(routeMessage('reviewer blocked items', sampleState).response.includes('Blocked:'));
 assert(routeMessage('auditor critical risks', sampleState).response.includes('danger'));
-assert(withoutMemoryHeader(routeMessage('cto maintenance status', sampleState).response).startsWith('🎯 CTO'));
+assert(!withoutMemoryHeader(routeMessage('cto maintenance status', sampleState).response).includes('CTO'));
 assert(routeMessage('coder what was cleaned', sampleState).response.includes('No major typing improvement yet'));
 assert(routeMessage('reviewer maintenance risks', sampleState).response.includes('Risk:'));
 assert(routeMessage('auditor dangerous maintenance actions', sampleState).response.includes('danger'));
 assert.strictEqual(parseNaturalIntent('cto execution status').intent, 'execution');
-assert(withoutMemoryHeader(routeMessage('cto execution status', sampleState).response).startsWith('🎯 CTO'));
-assert(withoutMemoryHeader(routeMessage('coder execution update', sampleState).response).startsWith('🔧 CODER'));
-assert(withoutMemoryHeader(routeMessage('reviewer blocked execution', sampleState).response).startsWith('⚖️ REVIEWER'));
+assert(!withoutMemoryHeader(routeMessage('cto execution status', sampleState).response).includes('CTO'));
+assert(!withoutMemoryHeader(routeMessage('coder execution update', sampleState).response).includes('CODER'));
+assert(!withoutMemoryHeader(routeMessage('reviewer blocked execution', sampleState).response).includes('REVIEWER'));
 assert(routeMessage('auditor dangerous execution attempts', sampleState).response.includes('danger'));
 assert.strictEqual(parseNaturalIntent('cto full report').detailMode, true);
 const detailed = routeMessage('cto detailed update', sampleState).response;
@@ -400,16 +407,16 @@ assert(detailed.includes('REALITY CHECK'));
 assert(withoutMemoryHeader(detailed).split('\n').length > 5);
 
 const casual = routeMessage('dei what doing', sampleState).response;
-assert(casual.includes('CTO'));
+assert(!casual.includes('CTO'));
 assert(casual.includes('Founder'));
 assert(withoutMemoryHeader(casual).split('\n').length <= 5);
 
 const dangerous = routeMessage('reviewer anything dangerous', sampleState).response;
-assert(dangerous.includes('REVIEWER'));
+assert(!dangerous.includes('REVIEWER'));
 assert(dangerous.includes('Risk:'));
 
 const progress = routeMessage('sir inniku progress iruka', sampleState).response;
-assert(progress.includes('CTO'));
+assert(!progress.includes('CTO'));
 assert(progress.includes('No major typing improvement yet'));
 
 const stuck = routeMessage('cto are we stuck', sampleState).response;
@@ -417,11 +424,11 @@ assert(stuck.includes('Current blocker:'));
 assert(stuck.includes('status question'));
 
 const swipe = routeMessage('coder swipe issue fixed ah', sampleState).response;
-assert(swipe.includes('CODER'));
+assert(!swipe.includes('CODER'));
 assert(swipe.includes('swipe line not proven fixed yet'));
 
 const operational = routeMessage('cto operational assistance', sampleState).response;
-assert(operational.includes('CTO'));
+assert(!operational.includes('CTO'));
 assert(operational.includes('product signals'));
 assert(operational.includes('LOW OPERATIONAL IMPACT'));
 assert(withoutMemoryHeader(operational).split('\n').length <= 5);
