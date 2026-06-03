@@ -142,6 +142,26 @@ assert.strictEqual(chasing.details.mode, 'FOUNDER_CONVERSATION_MODE');
 assert.match(chasing.details.mindReconstruction.actualQuestion, /long-term outcome|Aritenis/i);
 assert.doesNotMatch(String(chasing.response || ''), /TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution/i);
 
+const jarvisBuildReason = assertMindRoute(
+  'Why am I building Jarvis?',
+  /burden humans carry alone|humans choose direction|Jarvis carries effort|trust matters more than raw capability/i
+);
+assert.strictEqual(jarvisBuildReason.details.category, 'VISION');
+assert.strictEqual(jarvisBuildReason.details.intent, 'RECONSTRUCT_JARVIS_BUILD_REASON');
+assert.strictEqual(jarvisBuildReason.details.directFounderVision, true);
+assert.match(jarvisBuildReason.details.mindReconstruction.actualQuestion, /Jarvis matter|founder dream/i);
+assert.doesNotMatch(String(jarvisBuildReason.response || ''), /Memory Sources Used|Route Confidence|Dream alignment|Dream drift alert|Advisor Mode|Strategic read|CLARIFICATION_REQUEST|TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan|conversational_fallback/i);
+
+const jarvisVisionRole = assertMindRoute(
+  'What role does Jarvis play in the vision?',
+  /burden-carrying intelligence layer|keyboard, screenshots, and messages|human direction stays sacred|understanding, memory, preparation, and effort/i
+);
+assert.strictEqual(jarvisVisionRole.details.category, 'VISION');
+assert.strictEqual(jarvisVisionRole.details.intent, 'RECONSTRUCT_JARVIS_VISION_ROLE');
+assert.strictEqual(jarvisVisionRole.details.directFounderVision, true);
+assert.match(jarvisVisionRole.details.mindReconstruction.actualQuestion, /job does Jarvis perform|Aritenis vision/i);
+assert.doesNotMatch(String(jarvisVisionRole.response || ''), /Memory Sources Used|Route Confidence|Dream alignment|Dream drift alert|Advisor Mode|Strategic read|CLARIFICATION_REQUEST|TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan|conversational_fallback/i);
+
 const disagreement = assertMindRoute(
   'Bro, if you had to disagree with me right now, what would you disagree with?',
   /disagree|agent sophistication|user-facing product moment|Phase 2 wedge|Explain/i

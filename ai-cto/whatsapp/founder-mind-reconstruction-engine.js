@@ -81,6 +81,9 @@ const {
 } = require('../founder-question-clustering');
 
 const VISION_PATTERNS = [
+  /\bwhy\s+(am\s+i|i\s+am)\s+building\s+jarvis\b/i,
+  /\bwhat\s+role\s+does\s+jarvis\s+play\s+in\s+(the\s+)?vision\b/i,
+  /\bwhere\s+does\s+jarvis\s+fit\s+in\s+(the\s+)?vision\b/i,
   /\bwhat\s+if\s+my\s+dream\s+(itself\s+)?is\s+wrong\b/i,
   /\bwhat\s+if\s+(the\s+)?dream\s+(itself\s+)?is\s+wrong\b/i,
   /\b(is|could)\s+my\s+dream\s+(be\s+)?wrong\b/i,
@@ -214,6 +217,7 @@ function routeFounderMindReconstruction(message = '', context = {}) {
     category: reconstruction.category,
     intent: reconstruction.intent
   });
+  const directFounderVision = isDirectFounderVisionQuestion(reconstruction);
 
   return {
     command: 'founder_mind_reconstruction',
@@ -228,10 +232,11 @@ function routeFounderMindReconstruction(message = '', context = {}) {
       mindReconstruction: reconstruction.report,
       selfCheck: reconstruction.selfCheck,
       founderReflectionFirewall: firewall,
-      suppressMemorySources: firewall,
-      suppressRouteConfidence: firewall || reconstruction.category === 'REFLECTION',
-      suppressSelfCritique: firewall || reconstruction.category === 'REFLECTION',
-      skipDreamDriftDetector: firewall,
+      directFounderVision,
+      suppressMemorySources: firewall || directFounderVision,
+      suppressRouteConfidence: firewall || directFounderVision || reconstruction.category === 'REFLECTION',
+      suppressSelfCritique: firewall || directFounderVision || reconstruction.category === 'REFLECTION',
+      skipDreamDriftDetector: firewall || directFounderVision,
       skipKillerFeatureTracker: firewall,
       skipUserValueJudge: firewall,
       skipFounderStateDetection: firewall,
@@ -509,6 +514,24 @@ function classifyMindQuestion(text = '', memory = {}) {
   }
 
   if (VISION_PATTERNS.some((pattern) => pattern.test(text))) {
+    if (/\bwhy\s+(am\s+i|i\s+am)\s+building\s+jarvis\b/i.test(text)) {
+      return {
+        intent: 'RECONSTRUCT_JARVIS_BUILD_REASON',
+        category: 'VISION',
+        archetype: 'jarvis_build_reason',
+        mode: 'FOUNDER_CONVERSATION_MODE',
+        confidence: 84
+      };
+    }
+    if (/\b(what\s+role\s+does|where\s+does)\s+jarvis\s+(play|fit)\s+in\s+(the\s+)?vision\b/i.test(text)) {
+      return {
+        intent: 'RECONSTRUCT_JARVIS_VISION_ROLE',
+        category: 'VISION',
+        archetype: 'jarvis_vision_role',
+        mode: 'FOUNDER_CONVERSATION_MODE',
+        confidence: 84
+      };
+    }
     if (/\bdream\b.*\bwrong\b/i.test(text)) {
       return {
         intent: 'RECONSTRUCT_DREAM_VALIDITY_DOUBT',
@@ -665,6 +688,30 @@ function buildMindReport(kind, message, context = {}) {
       desiredOutcome: 'An honest alignment judgment that separates useful infrastructure from the missing intelligence and execution experience.',
       actualQuestion: 'Are we building toward the long-term Aritenis dream, or just making the agents look busy?',
       uselessLiteralAnswer: 'A team-ready greeting, status block, health score, or task list.'
+    };
+  }
+
+  if (kind.archetype === 'jarvis_build_reason') {
+    return {
+      objective: 'Explain why the founder is building Jarvis as a vision question, not a product status request.',
+      assumption: 'The founder is testing whether Jarvis is understood as a burden-reduction and agency-preserving layer, not just an impressive assistant.',
+      concern: 'Jarvis could become a dependency machine if it does everything without preserving human direction, or it could become infrastructure theater if it does not create real leverage.',
+      decision: 'Decide whether Jarvis should be judged by capability volume or by whether it reduces the burden humans carry alone while preserving agency.',
+      desiredOutcome: 'A direct answer connecting Jarvis to the current founder vision: humans choose direction, AI carries effort, and trust matters more than capability.',
+      actualQuestion: 'Why does Jarvis matter to the founder dream beyond being a powerful AI assistant?',
+      uselessLiteralAnswer: 'A team status, health score, roadmap block, feature list, or task plan.'
+    };
+  }
+
+  if (kind.archetype === 'jarvis_vision_role') {
+    return {
+      objective: 'Define Jarvis as the intelligence layer inside the founder vision.',
+      assumption: 'The founder is asking for strategic placement: what Jarvis is supposed to do in the human-freedom vision.',
+      concern: 'If Jarvis becomes the product itself instead of the burden-carrying layer, it may steal agency or distract from user value.',
+      decision: 'Clarify the boundary: Jarvis should understand context, carry effort, and prepare action while humans retain direction, consent, and final choice.',
+      desiredOutcome: 'A clear role definition that connects Jarvis to Aritenis, the keyboard, screenshots, Explain, and future phone-operated action.',
+      actualQuestion: 'What job does Jarvis perform in the larger Aritenis vision?',
+      uselessLiteralAnswer: 'A generic AI companion description, keyboard status, health report, or implementation plan.'
     };
   }
 
@@ -1047,6 +1094,26 @@ function buildDirectAnswer(kind, report) {
     ];
   }
 
+  if (kind.archetype === 'jarvis_build_reason') {
+    return [
+      'You are building Jarvis because the deeper dream is not just a keyboard; it is reducing the burden humans carry alone.',
+      'Jarvis is your attempt to make intelligence live beside the user at the moment of confusion, decision, or action.',
+      'The important boundary is agency: humans choose direction, Jarvis carries effort.',
+      'So Jarvis should not be judged by how much it can do. It should be judged by whether it makes people freer, clearer, and less alone without making them dependent.',
+      'That is why trust matters more than raw capability.'
+    ];
+  }
+
+  if (kind.archetype === 'jarvis_vision_role') {
+    return [
+      'Jarvis plays the role of the burden-carrying intelligence layer in the vision.',
+      'Aritenis is the entry point because the keyboard, screenshots, and messages are where people already think, ask, respond, and act.',
+      'Jarvis should understand context, explain confusing things, prepare useful actions, and wait for human confirmation.',
+      'It is not supposed to replace the human. It is supposed to remove friction between intention and action.',
+      'The clean role is: human direction stays sacred; Jarvis handles understanding, memory, preparation, and effort.'
+    ];
+  }
+
   if (kind.archetype === 'dissatisfaction') {
     return [
       'You may be dissatisfied because the feature works technically but does not yet create a meaningful user outcome.',
@@ -1328,41 +1395,42 @@ function buildDirectAnswer(kind, report) {
 
 function buildReflectionResponse(reconstruction, { debug = false } = {}) {
   const directReflection = reconstruction.category === 'REFLECTION';
+  const directFounderVision = isDirectFounderVisionQuestion(reconstruction);
   const lines = directReflection && reconstruction.reflectionDepth
     ? [formatReflectionDepth(reconstruction.reflectionDepth)]
     : [...reconstruction.directAnswer];
 
-  if (!directReflection && reconstruction.dreamAlignment) {
+  if (!directReflection && !directFounderVision && reconstruction.dreamAlignment) {
     lines.push('');
     lines.push(formatDreamAlignment(reconstruction.dreamAlignment));
   }
 
-  if (!directReflection && reconstruction.strategicThinking) {
+  if (!directReflection && !directFounderVision && reconstruction.strategicThinking) {
     lines.push('');
     lines.push(formatStrategicThinking(reconstruction.strategicThinking));
   }
 
-  if (!directReflection && reconstruction.evolvedBelief && reconstruction.evolvedBelief.matched) {
+  if (!directReflection && !directFounderVision && reconstruction.evolvedBelief && reconstruction.evolvedBelief.matched) {
     lines.push('');
     lines.push(formatEvolvedBeliefForResponse(reconstruction.evolvedBelief));
   }
 
-  if (!directReflection && reconstruction.advisorMode) {
+  if (!directReflection && !directFounderVision && reconstruction.advisorMode) {
     lines.push('');
     lines.push(formatAdvisorMode(reconstruction.advisorMode));
   }
 
-  if (!directReflection && reconstruction.contrarianReasoning) {
+  if (!directReflection && !directFounderVision && reconstruction.contrarianReasoning) {
     lines.push('');
     lines.push(formatContrarianReasoning(reconstruction.contrarianReasoning));
   }
 
-  if (!directReflection && reconstruction.premortemAnalysis) {
+  if (!directReflection && !directFounderVision && reconstruction.premortemAnalysis) {
     lines.push('');
     lines.push(formatPremortemAnalysis(reconstruction.premortemAnalysis));
   }
 
-  const curiosity = directReflection ? '' : formatCuriosityPrompt(reconstruction.curiosityPrompt);
+  const curiosity = directReflection || directFounderVision ? '' : formatCuriosityPrompt(reconstruction.curiosityPrompt);
   if (curiosity) {
     lines.push('');
     lines.push(curiosity);
@@ -1419,6 +1487,12 @@ function responseAnswersFounderMind(reconstruction = {}) {
   }
   if (reconstruction.intent === 'RECONSTRUCT_DREAM_VALIDITY_DOUBT') {
     return /dream might be wrong|underlying desire|keyboard is automatically the right vehicle|Explain is the current smallest test|user behavior decide/i.test(answer);
+  }
+  if (reconstruction.intent === 'RECONSTRUCT_JARVIS_BUILD_REASON') {
+    return /building Jarvis|burden humans carry alone|humans choose direction|Jarvis carries effort|trust matters more than raw capability/i.test(answer);
+  }
+  if (reconstruction.intent === 'RECONSTRUCT_JARVIS_VISION_ROLE') {
+    return /burden-carrying intelligence layer|keyboard, screenshots, and messages|wait for human confirmation|human direction stays sacred|understanding, memory, preparation, and effort/i.test(answer);
   }
   if (reconstruction.intent === 'RECONSTRUCT_PRODUCT_DISSATISFACTION') {
     return /dissatisfied|meaningful user outcome|value gap|hidden concern/i.test(answer);
@@ -1504,6 +1578,11 @@ function responseAnswersFounderMind(reconstruction = {}) {
 function isFounderReflectionFirewall(reconstruction = {}) {
   return reconstruction.category === 'REFLECTION' &&
     FOUNDER_REFLECTION_FIREWALL_ARCHETYPES.has(archetypeFromIntent(reconstruction.intent));
+}
+
+function isDirectFounderVisionQuestion(reconstruction = {}) {
+  return reconstruction.intent === 'RECONSTRUCT_JARVIS_BUILD_REASON' ||
+    reconstruction.intent === 'RECONSTRUCT_JARVIS_VISION_ROLE';
 }
 
 function archetypeFromIntent(intent = '') {
