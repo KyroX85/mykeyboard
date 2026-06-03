@@ -44,7 +44,12 @@ function buildSummary(answer = '', maxWords = DEFAULT_SUMMARY_WORDS) {
 function buildVoiceSummary(summary = '', maxWords = DEFAULT_VOICE_WORDS) {
   const cleaned = normalizeText(summary);
   if (!cleaned) return '';
-  return removeDanglingEnding(limitWords(cleaned, maxWords)).replace(/[.?!,;:]+$/, '');
+  const firstSentence = splitSentences(cleaned)[0] || cleaned;
+  const sentenceWords = firstSentence.split(/\s+/).filter(Boolean);
+  const candidate = sentenceWords.length <= maxWords
+    ? firstSentence
+    : limitWords(firstSentence, maxWords);
+  return removeDanglingEnding(candidate).replace(/[.?!,;:]+$/, '');
 }
 
 function stripOperationalNoise(answer = '') {
@@ -85,10 +90,14 @@ function limitWords(text = '', maxWords = DEFAULT_SUMMARY_WORDS) {
 function removeDanglingEnding(text = '') {
   let cleaned = normalizeText(text).replace(/\s*\.\.\.$/, '');
   const danglingPatterns = [
-    /\b(?:because|that|which|where|when|while|although|but|and|or|to|for|with|without|into|from|as|than)$/i,
-    /\b(?:it|this|that|there|what|who|why|how)$/i,
+    /\b(?:because|that|which|where|when|while|although|but|and|or|to|for|with|without|into|from|as|than|by)$/i,
+    /\b(?:the|a|an)$/i,
+    /[;:,]\s*(?:it|this|that|there|what|who|why|how)$/i,
     /\b(?:it|this|that|there|what|who|why|how)\s+(?:is|are|was|were|will|would|could|should|can|can't|cannot)$/i,
-    /\b(?:not\s+just|not\s+only|more\s+than|less\s+than)$/i
+    /\b(?:not\s+just|not\s+only|more\s+than|less\s+than)$/i,
+    /\b(?:more|less|too|very|really|still|already)$/i,
+    /\b(?:more|less)\s+(?:interested|focused|driven|concerned|afraid|certain)$/i,
+    /\b(?:the|a)\s+(?:danger|risk|problem|truth)$/i
   ];
 
   while (cleaned && danglingPatterns.some((pattern) => pattern.test(cleaned))) {

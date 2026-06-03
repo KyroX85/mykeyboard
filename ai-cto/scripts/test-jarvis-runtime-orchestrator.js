@@ -6,6 +6,7 @@ const {
   normalizeJarvisInput,
   buildFinalDecision
 } = require('../jarvis-runtime-orchestrator');
+const { assertJarvisSpeechSafe } = require('../jarvis-speech-layer');
 
 assert.deepStrictEqual(normalizeJarvisInput('Hey Jarvis, why am I building Jarvis?'), {
   received: 'Hey Jarvis, why am I building Jarvis?',
@@ -50,7 +51,7 @@ assert.strictEqual(buildFinalDecision({
     'execution_layer',
     'response'
   ]);
-  assert.strictEqual(runtime.response, 'Jarvis reduces burden while preserving agency.');
+  assert.strictEqual(runtime.response, 'Jarvis reduces burden while preserving agency');
   assert.strictEqual(runtime.spokenResponse, runtime.voiceSummary);
   assert.strictEqual(runtime.finalDecision.agentsMaySpeakDirectly, false);
   assert.strictEqual(runtime.finalDecision.jarvisSpeaks, 'voiceSummary');
@@ -76,7 +77,7 @@ assert.strictEqual(buildFinalDecision({
     })
   });
 
-  assert.strictEqual(executionRuntime.response, 'I need approval before action.');
+  assert.strictEqual(executionRuntime.response, 'I need approval before action');
   assert.strictEqual(executionRuntime.executionLayer.mode, 'ACTION_SURFACE');
   assert.strictEqual(executionRuntime.executionLayer.confirmRequired, true);
   assert.strictEqual(executionRuntime.finalDecision.approvalRequired, true);
@@ -93,6 +94,7 @@ assert.strictEqual(buildFinalDecision({
       assert.strictEqual(response.statusCode, 200);
       assert.strictEqual(response.json.entryPoint, 'jarvis_runtime');
       assert.strictEqual(response.json.spokenResponse, response.json.voiceSummary);
+      assert(assertJarvisSpeechSafe(response.json.voiceSummary).ok);
       assert(!/Roadmap Agent|Product Judgment Agent|Execution Operator|TASK_PLAN|APPROVE/.test(response.json.response));
       server.close(() => {
         console.log('Jarvis runtime orchestrator checks passed.');

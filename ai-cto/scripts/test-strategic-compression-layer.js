@@ -41,6 +41,9 @@ assert.strictEqual(
 );
 
 assert.strictEqual(removeDanglingEnding('The deeper dream is not just a keyboard; it is...'), 'The deeper dream is not just a keyboard');
+assert.strictEqual(removeDanglingEnding('Aritenis dies if it becomes better at building agents than solving user pain. The danger...'), 'Aritenis dies if it becomes better at building agents than solving user pain.');
+assert.strictEqual(removeDanglingEnding('You are becoming less interested in proving you can build advanced systems, and more interested...'), 'You are becoming less interested in proving you can build advanced systems');
+assert.strictEqual(removeDanglingEnding('The contradiction is that you want freedom, but you keep trying to reach it by...'), 'The contradiction is that you want freedom, but you keep trying to reach it');
 
 assert.strictEqual(
   stripOperationalNoise('TASK_PLAN\nAPPROVE-123\nReal answer.').trim(),

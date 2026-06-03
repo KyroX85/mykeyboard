@@ -1,5 +1,6 @@
 const { answerFounderBrainQuestion } = require('./founder-brain-api');
 const { buildAgentCouncil, summarizeCouncil } = require('./orchestration/agent-council-engine');
+const { buildJarvisSpeech } = require('./jarvis-speech-layer');
 
 const WAKE_WORD_PATTERN = /^(?:hey\s+jarvis|jarvis|aritenis)\b[:,\s-]*/i;
 
@@ -30,7 +31,12 @@ async function runJarvisRuntime({
   const councilSummary = summarizeCouncil(council);
   const decision = buildFinalDecision({ brain, council, councilSummary });
   const execution = executionLayer({ decision, brain, council, question: normalized.question });
-  const voiceSummary = String(brain.voiceSummary || brain.summary || '').trim();
+  const speech = buildJarvisSpeech({
+    rawReasoning: brain.rawReasoning,
+    summary: brain.summary,
+    voiceSummary: brain.voiceSummary,
+    fallback: normalized.question
+  });
 
   return {
     ok: true,
@@ -59,9 +65,10 @@ async function runJarvisRuntime({
     },
     finalDecision: decision,
     executionLayer: execution,
-    response: voiceSummary,
-    spokenResponse: voiceSummary,
-    voiceSummary
+    speech,
+    response: speech.voiceSummary,
+    spokenResponse: speech.spokenResponse,
+    voiceSummary: speech.voiceSummary
   };
 }
 

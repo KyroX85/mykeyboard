@@ -48,7 +48,7 @@ const sampleState = {
 
   assert.strictEqual(classifyBrainAnswerType({ command: 'vision_command_approval_required' }), 'execution');
   assert.strictEqual(classifyBrainAnswerType({ command: 'recent_product_improvements' }), 'product');
-  assert.strictEqual(toVoiceSummary('One.\nTwo.\nThree.', 12), 'One. Two...');
+  assert.strictEqual(toVoiceSummary('One.\nTwo.\nThree.', 12), 'One');
   assert.strictEqual(validateBrainApiAuth({
     get: () => 'Bearer brain-test-token'
   }).ok, true);
