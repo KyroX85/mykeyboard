@@ -351,12 +351,7 @@ fun LogoWithOrbit(ringAngle: Float, glowAlpha: Float, logoTilt: Float, logoScale
 @Composable
 fun StatusCard(enabled: Boolean, selected: Boolean) {
     val isActive  = enabled || selected
-    val pulseAnim = rememberInfiniteTransition(label = "pulse")
-    val dotScale  by pulseAnim.animateFloat(
-        initialValue = 0.8f, targetValue = 1.3f,
-        animationSpec = infiniteRepeatable(tween(900), RepeatMode.Reverse),
-        label = "dot"
-    )
+    val dotScale = if (isActive) 1.1f else 1.0f
 
     Card(
         modifier  = Modifier.fillMaxWidth().border(1.dp, BgCardBorder, RoundedCornerShape(16.dp)),

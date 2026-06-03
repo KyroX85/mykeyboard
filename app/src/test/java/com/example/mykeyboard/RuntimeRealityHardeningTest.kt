@@ -179,13 +179,15 @@ class RuntimeRealityHardeningTest {
     }
 
     @Test
-    fun floatingKeyPreviewIsDisabledForImeWindowStability() {
+    fun floatingKeyPreviewIsLimitedToLetterAndNumberKeys() {
         val source = sourceFile("app/src/main/java/com/example/mykeyboard/KeyboardService.kt").readText()
         val showPreview = methodBody(source, "showKeyPreview")
         val shouldShowPreview = methodBody(source, "shouldShowKeyPreview")
 
         assertTrue(showPreview.contains("shouldShowKeyPreview(key)"))
-        assertTrue(shouldShowPreview.contains("return false"))
+        assertTrue(shouldShowPreview.contains("key.length == 1"))
+        assertTrue(shouldShowPreview.contains("isLetterOrDigit()"))
+        assertFalse(shouldShowPreview.contains("return false"))
     }
 
     private fun sourceFile(relativePath: String): File {

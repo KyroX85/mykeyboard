@@ -1,6 +1,8 @@
 package com.example.mykeyboard.swipe
 
 class SwipeWordResolver {
+    private var geometryCost = FloatArray(0)
+
 
     fun resolve(sequence: String, candidates: List<SwipeWordCandidate>, limit: Int = DEFAULT_LIMIT): List<String> {
         return resolve(listOf(sequence), candidates, limit)
@@ -559,25 +561,33 @@ class SwipeWordResolver {
             .coerceIn(-GEOMETRY_MAX_PENALTY, GEOMETRY_MAX_BONUS)
     }
 
+    @Synchronized
     private fun normalizedKeyboardPathDistance(sequence: String, word: String): Float {
         val rows = sequence.length + 1
         val columns = word.length + 1
-        val cost = FloatArray(rows * columns) { Float.POSITIVE_INFINITY }
-        cost[0] = 0f
+        val cellCount = rows * columns
+        ensureGeometryCostCapacity(cellCount)
+        geometryCost.fill(Float.POSITIVE_INFINITY, 0, cellCount)
+        geometryCost[0] = 0f
 
         for (row in 1..sequence.length) {
             for (column in 1..word.length) {
                 val local = keyboardDistance(sequence[row - 1], word[column - 1])
                 val previous = minOf(
-                    cost[(row - 1) * columns + column],
-                    cost[row * columns + column - 1],
-                    cost[(row - 1) * columns + column - 1]
+                    geometryCost[(row - 1) * columns + column],
+                    geometryCost[row * columns + column - 1],
+                    geometryCost[(row - 1) * columns + column - 1]
                 )
-                cost[row * columns + column] = local + previous
+                geometryCost[row * columns + column] = local + previous
             }
         }
 
-        return cost[sequence.length * columns + word.length] / maxOf(sequence.length, word.length)
+        return geometryCost[sequence.length * columns + word.length] / maxOf(sequence.length, word.length)
+    }
+
+    private fun ensureGeometryCostCapacity(cellCount: Int) {
+        if (geometryCost.size >= cellCount) return
+        geometryCost = FloatArray(cellCount)
     }
 
     private fun keyboardDistance(first: Char, second: Char): Float {

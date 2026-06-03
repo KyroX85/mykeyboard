@@ -1,7 +1,9 @@
 package com.example.mykeyboard
 
 import android.content.Context
+import android.content.BroadcastReceiver
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.content.pm.ApplicationInfo
 import android.content.res.Configuration
@@ -213,6 +215,17 @@ class KeyboardService : InputMethodService() {
     private val cachedKeyBounds = mutableMapOf<Button, CachedKeyBounds>()
     private var cachedPanelScreenX = 0
     private var cachedPanelScreenY = 0
+    @Volatile
+    private var cachedLaunchableApps: List<ExecutionLaunchTarget> = emptyList()
+    @Volatile
+    private var launchableAppsRefreshStarted = false
+    private var packageChangeReceiverRegistered = false
+    private val packageChangeReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            cachedLaunchableApps = emptyList()
+            refreshLaunchableAppCache()
+        }
+    }
 
     private val supabaseUrl: String by lazy { BuildConfig.SUPABASE_URL }
     private val supabaseKey: String by lazy { BuildConfig.SUPABASE_ANON_KEY }
@@ -279,6 +292,8 @@ class KeyboardService : InputMethodService() {
         backspaceVibrationEffect
         actionVibrationEffect
         spaceVibrationEffect
+        refreshLaunchableAppCache()
+        registerLaunchableAppPackageReceiver()
     }
 
     override fun onEvaluateFullscreenMode(): Boolean = false
@@ -1751,13 +1766,14 @@ class KeyboardService : InputMethodService() {
     }
 
     private fun shouldShowKeyPreview(key: String): Boolean {
-        return false
+        return key.length == 1 && key[0].isLetterOrDigit()
     }
 
     private fun displayTextForPreview(anchor: Button, key: String): String =
         if (key == KEY_ENTER) currentImeAction.label else anchor.text.toString()
 
     private fun handleKeyDown(key: String, event: MotionEvent) {
+        invalidatePendingSwipeResolution()
         if (executionLayerOpen) {
             handleExecutionCommandKeyDown(key)
             return
@@ -1806,6 +1822,10 @@ class KeyboardService : InputMethodService() {
 
     private fun isSwipeLetterKey(key: String): Boolean =
         key.length == 1 && key[0] in 'a'..'z'
+
+    private fun invalidatePendingSwipeResolution() {
+        swipeResolveGeneration += 1
+    }
 
     private fun updateEventPointInKeyboardPanel(event: MotionEvent) {
         swipePanelX = event.rawX - cachedPanelScreenX
@@ -2319,6 +2339,9 @@ class KeyboardService : InputMethodService() {
         val requestStartedAt = SystemClock.elapsedRealtime()
         val target = resolveLaunchableApp(appName)
         if (target == null) {
+            if (cachedLaunchableApps.isEmpty()) {
+                refreshLaunchableAppCache()
+            }
             renderExecutionStatus("I could not find $appName on this phone.")
             return
         }
@@ -2351,22 +2374,79 @@ class KeyboardService : InputMethodService() {
             }
         }
 
-        val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-        val launchableApps = packageManager.queryIntentActivities(launcherIntent, 0)
         var containsMatch: ExecutionLaunchTarget? = null
-        for (resolveInfo in launchableApps) {
-            val label = resolveInfo.loadLabel(packageManager)?.toString().orEmpty()
-            val normalizedLabel = normalizeExecutionCommand(label)
+        for (target in cachedLaunchableApps) {
+            val normalizedLabel = normalizeExecutionCommand(target.label)
             if (normalizedLabel == normalizedName) {
-                val intent = packageManager.getLaunchIntentForPackage(resolveInfo.activityInfo.packageName) ?: continue
-                return ExecutionLaunchTarget(label, intent)
+                return target
             }
             if (containsMatch == null && normalizedLabel.contains(normalizedName)) {
-                val intent = packageManager.getLaunchIntentForPackage(resolveInfo.activityInfo.packageName) ?: continue
-                containsMatch = ExecutionLaunchTarget(label, intent)
+                containsMatch = target
             }
         }
         return containsMatch
+    }
+
+    private fun refreshLaunchableAppCache() {
+        if (launchableAppsRefreshStarted) return
+        launchableAppsRefreshStarted = true
+        scope.launch {
+            val launchableApps = buildLaunchableAppCache()
+            mainHandler.post {
+                cachedLaunchableApps = launchableApps
+                launchableAppsRefreshStarted = false
+            }
+        }
+    }
+
+    private fun buildLaunchableAppCache(): List<ExecutionLaunchTarget> {
+        val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+        return try {
+            packageManager.queryIntentActivities(launcherIntent, 0)
+                .asSequence()
+                .mapNotNull { resolveInfo ->
+                    val packageName = resolveInfo.activityInfo?.packageName ?: return@mapNotNull null
+                    val label = resolveInfo.loadLabel(packageManager)?.toString().orEmpty()
+                    val intent = packageManager.getLaunchIntentForPackage(packageName) ?: return@mapNotNull null
+                    if (label.isBlank()) return@mapNotNull null
+                    ExecutionLaunchTarget(label, intent)
+                }
+                .toList()
+        } catch (e: RuntimeException) {
+            Log.w(LOG_TAG, "Unable to refresh launchable app cache", e)
+            emptyList()
+        }
+    }
+
+    private fun registerLaunchableAppPackageReceiver() {
+        if (packageChangeReceiverRegistered) return
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_PACKAGE_ADDED)
+            addAction(Intent.ACTION_PACKAGE_CHANGED)
+            addAction(Intent.ACTION_PACKAGE_REMOVED)
+            addDataScheme("package")
+        }
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                registerReceiver(packageChangeReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+            } else {
+                registerReceiver(packageChangeReceiver, filter)
+            }
+            packageChangeReceiverRegistered = true
+        } catch (e: RuntimeException) {
+            Log.w(LOG_TAG, "Unable to register package refresh receiver", e)
+        }
+    }
+
+    private fun unregisterLaunchableAppPackageReceiver() {
+        if (!packageChangeReceiverRegistered) return
+        try {
+            unregisterReceiver(packageChangeReceiver)
+        } catch (e: RuntimeException) {
+            Log.w(LOG_TAG, "Unable to unregister package refresh receiver", e)
+        } finally {
+            packageChangeReceiverRegistered = false
+        }
     }
 
     private fun normalizeExecutionCommand(value: String): String =
@@ -2804,6 +2884,7 @@ class KeyboardService : InputMethodService() {
         cancelLongPress()
         stopRepeatingDelete()
         stopRepeatingSpace()
+        resetSpaceHoldState()
         dismissKeyPreviewSafely()
         disposeKeyPreviewReferences()
         dismissActivePopupSafely()
@@ -3318,6 +3399,7 @@ class KeyboardService : InputMethodService() {
         maybeFlushMetrics(force = true)
         metrics.endSession()
         destroySpeechRecognizer()
+        unregisterLaunchableAppPackageReceiver()
         suggestionLookupFuture?.cancel(true)
         autocorrectPrefetchFuture?.cancel(true)
         suggestionExecutor.shutdownNow()

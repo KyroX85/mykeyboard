@@ -76,7 +76,7 @@ class BasicPredictor internal constructor(
         private const val MAX_SWIPE_SEQUENCE_VARIANTS = 3
         private const val DEBUG_POOL_WORD_LIMIT = 8
         private const val MAX_AUTOCORRECT_SCAN = 128
-        private const val EXTERNAL_DICTIONARY_PREFIX_MIN_LENGTH = 4
+        private const val EXTERNAL_DICTIONARY_PREFIX_MIN_LENGTH = 5
         private const val EXTERNAL_DICTIONARY_LIMIT = 6
         private const val EXTERNAL_DICTIONARY_COUNT = 6
         private const val EXTERNAL_PREFIX_CACHE_LIMIT = 96
@@ -585,8 +585,10 @@ class BasicPredictor internal constructor(
         } catch (e: RuntimeException) {
             emptyArray<String>()
         }
+        var processed = 0
         for (rawWord in words) {
-            if (System.nanoTime() >= deadlineNanos) return
+            if (processed > 0 && processed % 8 == 0 && System.nanoTime() >= deadlineNanos) return
+            processed++
             val word = normalizeWordForLearning(rawWord) ?: continue
             if (word.length !in 3..MAX_LEARN_WORD_LENGTH) continue
             output.add(word)

@@ -99,6 +99,7 @@ class BasicPredictorTest {
 
         assertTrue(getSuggestions.indexOf("findExternalDictionaryPrefixMatches(prefix)") < getSuggestions.indexOf("synchronized(modelLock)"))
         assertTrue(findExternal.contains("RiTa.search"))
+        assertTrue(source.contains("EXTERNAL_DICTIONARY_PREFIX_MIN_LENGTH = 5"))
         assertFalse(collectExternal.contains("RiTa.search"))
     }
 
