@@ -191,6 +191,15 @@ assert.strictEqual(founderEvolution.details.intent, 'RECONSTRUCT_FOUNDER_EVOLUTI
 assert.match(founderEvolution.details.mindReconstruction.actualQuestion, /changed as a founder|helping or hurting Aritenis/i);
 assert.doesNotMatch(String(founderEvolution.response || ''), /NOISE|LOW INFORMATION|AMBIGUOUS INTENT|TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan/i);
 
+const founderIdentityTrajectory = assertMindRoute(
+  'Who am I becoming?',
+  /less of a founder trying to prove that advanced agents can exist|product-truth|trust-and-leverage founder|humans choose direction|less easily satisfied/i
+);
+assert.strictEqual(founderIdentityTrajectory.details.category, 'REFLECTION');
+assert.strictEqual(founderIdentityTrajectory.details.intent, 'RECONSTRUCT_FOUNDER_IDENTITY_TRAJECTORY');
+assert.strictEqual(founderIdentityTrajectory.details.directFounderVision, true);
+assert.doesNotMatch(String(founderIdentityTrajectory.response || ''), /Surface answer|Deeper answer|Hidden assumption|Memory Sources Used|Route Confidence|TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan/i);
+
 const userValueDoubt = assertMindRoute(
   "I don't think users actually care.",
   /real risk|users will not care|frequent moment of confusion|understand a screenshot|less friction|users may care/i
@@ -297,6 +306,15 @@ const machineryFreedomContradiction = assertMindRoute(
 assert.strictEqual(machineryFreedomContradiction.details.category, 'FOUNDER_STRATEGY');
 assert.strictEqual(machineryFreedomContradiction.details.intent, 'RECONSTRUCT_FREEDOM_SYSTEMS_CONTRADICTION');
 assert.doesNotMatch(String(machineryFreedomContradiction.response || ''), /CLARIFICATION_REQUEST|TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan|anti_template_conversation_guard/i);
+
+const founderThinkingContradiction = assertMindRoute(
+  'What contradiction do you see in my thinking?',
+  /want freedom.*building more systems|systems carry burden|user truth|agent sophistication|increases agency, usefulness, or trust/i
+);
+assert.strictEqual(founderThinkingContradiction.details.category, 'FOUNDER_STRATEGY');
+assert.strictEqual(founderThinkingContradiction.details.intent, 'RECONSTRUCT_FOUNDER_THINKING_CONTRADICTION');
+assert.strictEqual(founderThinkingContradiction.details.directFounderVision, true);
+assert.doesNotMatch(String(founderThinkingContradiction.response || ''), /Memory Sources Used|Route Confidence|Dream alignment|Advisor Mode|Strategic read|CLARIFICATION_REQUEST|TASK_PLAN|APPROVE|Health|Momentum|Team Ready|Execution Plan|anti_template_conversation_guard/i);
 
 const behaviorOptimization = assertMindRoute(
   'Forget what I say.\n\nBased on my behavior, what am I optimizing for?',

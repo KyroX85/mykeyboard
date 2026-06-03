@@ -131,6 +131,8 @@ const STRATEGIC_CHALLENGE_PATTERNS = [
   /\bwhat\s+kills\s+aritenis\b/i,
   /\bwhat\s+could\s+kill\s+us\b/i,
   /\bwhat\s+could\s+kill\s+aritenis\b/i,
+  /\bwhat\s+contradiction\s+do\s+you\s+see\s+in\s+my\s+thinking\b/i,
+  /\bwhat\s+contradiction\s+do\s+you\s+see\b/i,
   /\bwhat\s+(is\s+the\s+)?contradiction\s+do\s+you\s+see\b/i,
   /\bi\s+want\s+freedom\b.*\b(building|build|systems?|machinery)\b/i,
   /\bi\s+want\s+humans?\s+free\s+from\s+machinery\b.*\b(build|building|machinery|systems?)\b/i,
@@ -584,6 +586,16 @@ function classifyMindQuestion(text = '', memory = {}) {
         confidence: 85
       };
     }
+    if (/\bwhat\s+contradiction\s+do\s+you\s+see\s+in\s+my\s+thinking\b/i.test(text) ||
+      /\bwhat\s+contradiction\s+do\s+you\s+see\b/i.test(text)) {
+      return {
+        intent: 'RECONSTRUCT_FOUNDER_THINKING_CONTRADICTION',
+        category: 'FOUNDER_STRATEGY',
+        archetype: 'founder_thinking_contradiction',
+        mode: 'FOUNDER_CONVERSATION_MODE',
+        confidence: 84
+      };
+    }
     if (/\bwhat\s+(am\s+i|i\s+am)\s+missing\b/i.test(text)) {
       return {
         intent: 'RECONSTRUCT_MISSING_BLIND_SPOT',
@@ -831,6 +843,18 @@ function buildMindReport(kind, message, context = {}) {
       desiredOutcome: 'A direct reflection that preserves the active vision: humans keep direction, machinery carries burden.',
       actualQuestion: 'Am I building machinery that frees humans, or machinery that humans must serve?',
       uselessLiteralAnswer: 'A task plan, health report, CTO status, architecture defense, or route diagnostic.'
+    };
+  }
+
+  if (kind.archetype === 'founder_thinking_contradiction') {
+    return {
+      objective: 'Name the founder contradiction directly instead of turning the question into generic disagreement or status.',
+      assumption: 'The founder is asking for a strategic self-contradiction visible across recent behavior and vision changes.',
+      concern: 'The founder wants human freedom and user leverage, but keeps spending energy on systems that can become machinery, dependency, or infrastructure theater.',
+      decision: 'Decide which contradiction should guide the next strategic correction.',
+      desiredOutcome: 'A concise uncomfortable answer that names the contradiction and the boundary that resolves it.',
+      actualQuestion: 'Where does my current thinking conflict with my stated dream?',
+      uselessLiteralAnswer: 'A task plan, health score, agent status, generic disagreement, or execution proposal.'
     };
   }
 
@@ -1217,6 +1241,16 @@ function buildDirectAnswer(kind, report) {
     ];
   }
 
+  if (kind.archetype === 'founder_thinking_contradiction') {
+    return [
+      'The contradiction is that you want freedom, but you keep trying to reach it by building more systems.',
+      'That can be right only if the systems carry burden without becoming something humans must serve.',
+      'Your thinking also has a second tension: you want user truth, but you are still tempted to measure progress through agent sophistication because it is easier to see.',
+      'The clean resolution is this: build machinery only when it produces human leverage, not when it makes the company feel more advanced.',
+      'So the contradiction is not fatal. It is a warning that every system must prove it increases agency, usefulness, or trust.'
+    ];
+  }
+
   if (kind.archetype === 'impressive_not_useful_fear') {
     return [
       'That fear is valid.',
@@ -1429,7 +1463,10 @@ function buildDirectAnswer(kind, report) {
 function buildReflectionResponse(reconstruction, { debug = false } = {}) {
   const directReflection = reconstruction.category === 'REFLECTION';
   const directFounderVision = isDirectFounderVisionQuestion(reconstruction);
-  const lines = directReflection && reconstruction.reflectionDepth
+  const useReflectionDepth = directReflection &&
+    reconstruction.reflectionDepth &&
+    reconstruction.intent !== 'RECONSTRUCT_FOUNDER_IDENTITY_TRAJECTORY';
+  const lines = useReflectionDepth
     ? [formatReflectionDepth(reconstruction.reflectionDepth)]
     : [...reconstruction.directAnswer];
 
@@ -1469,7 +1506,7 @@ function buildReflectionResponse(reconstruction, { debug = false } = {}) {
     lines.push(curiosity);
   }
 
-  if (directReflection && reconstruction.founderIdentity) {
+  if (directReflection && reconstruction.founderIdentity && reconstruction.intent !== 'RECONSTRUCT_FOUNDER_IDENTITY_TRAJECTORY') {
     lines.push('');
     lines.push(formatFounderIdentityTrajectory(reconstruction.founderIdentity));
   }
@@ -1551,6 +1588,9 @@ function responseAnswersFounderMind(reconstruction = {}) {
   if (reconstruction.intent === 'RECONSTRUCT_FREEDOM_SYSTEMS_CONTRADICTION') {
     return /machinery that frees people from machinery|carry burden|humans keep direction|agency|serves freedom|replaces agency/i.test(answer);
   }
+  if (reconstruction.intent === 'RECONSTRUCT_FOUNDER_THINKING_CONTRADICTION') {
+    return /want freedom.*building more systems|systems carry burden|user truth|agent sophistication|increases agency, usefulness, or trust/i.test(answer);
+  }
   if (reconstruction.intent === 'RECONSTRUCT_IMPRESSIVE_NOT_USEFUL_FEAR') {
     return /fear is valid|impressive and still fail|real user struggle|understand confusing content|faster, clearer, or more confident/i.test(answer);
   }
@@ -1619,7 +1659,9 @@ function isFounderReflectionFirewall(reconstruction = {}) {
 function isDirectFounderVisionQuestion(reconstruction = {}) {
   return reconstruction.intent === 'RECONSTRUCT_JARVIS_BUILD_REASON' ||
     reconstruction.intent === 'RECONSTRUCT_JARVIS_VISION_ROLE' ||
-    reconstruction.intent === 'RECONSTRUCT_DIAMOND_BRONZE_METAPHOR';
+    reconstruction.intent === 'RECONSTRUCT_DIAMOND_BRONZE_METAPHOR' ||
+    reconstruction.intent === 'RECONSTRUCT_FOUNDER_THINKING_CONTRADICTION' ||
+    reconstruction.intent === 'RECONSTRUCT_FOUNDER_IDENTITY_TRAJECTORY';
 }
 
 function archetypeFromIntent(intent = '') {
