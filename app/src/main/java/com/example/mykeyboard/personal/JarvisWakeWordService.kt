@@ -49,7 +49,7 @@ class JarvisWakeWordService : Service(), RecognitionListener {
     override fun onCreate() {
         super.onCreate()
         speaker = JarvisSpeaker(this)
-        brainConnector = JarvisBrainConnector()
+        brainConnector = JarvisBrainRuntime.connector(this)
         createNotificationChannel()
         startForeground(
             PersonalJarvisConfig.WAKE_WORD_NOTIFICATION_ID,
@@ -78,7 +78,6 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         destroyRecognizer()
         speaker?.shutdown()
         speaker = null
-        brainConnector?.shutdown()
         brainConnector = null
         abandonAudioFocus()
         releaseWakeLock()
@@ -228,9 +227,9 @@ class JarvisWakeWordService : Service(), RecognitionListener {
     private fun askFounderBrain(session: JarvisVoiceSession, question: String) {
         if (awaitingBrainResponse) return
         val connector = brainConnector
-        if (connector == null || !connector.isReady()) {
-            Log.w(TAG, "Founder Brain not attached for session ${session.id}")
-            speaker?.speak("Founder Brain is not connected")
+        if (connector == null) {
+            Log.w(TAG, "Founder Brain connector missing for session ${session.id}")
+            speaker?.speak("Founder Brain is unavailable right now.")
             releaseSession("brain not attached")
             return
         }
@@ -262,7 +261,7 @@ class JarvisWakeWordService : Service(), RecognitionListener {
                     }
                     Log.w(TAG, "Founder Brain conversation failed: $reason")
                     awaitingBrainResponse = false
-                    speaker?.speak("Founder Brain is not connected")
+                    speaker?.speak(reason)
                     releaseSession("brain failure")
                 }
             }

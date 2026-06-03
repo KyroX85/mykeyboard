@@ -7,9 +7,18 @@ object PersonalJarvisConfig {
         get() = BuildConfig.PERSONAL_JARVIS_ENABLED
 
     fun founderBrainQuestionEndpoint(): String {
-        val baseUrl = BuildConfig.FOUNDER_BRAIN_API_URL.trim().trimEnd('/')
+        val baseUrl = BuildConfig.FOUNDER_BRAIN_API_URL.trim()
+        return founderBrainQuestionEndpointFrom(baseUrl)
+    }
+
+    internal fun founderBrainQuestionEndpointFrom(rawUrl: String): String {
+        val baseUrl = rawUrl.trim().trimEnd('/')
         if (baseUrl.isBlank()) return ""
-        return "$baseUrl/brain/question"
+        return when {
+            baseUrl.endsWith("/brain/question") -> baseUrl
+            baseUrl.endsWith("/brain") -> "$baseUrl/question"
+            else -> "$baseUrl/brain/question"
+        }
     }
 
     fun founderBrainApiToken(): String =

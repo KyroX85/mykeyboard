@@ -19,15 +19,12 @@ class JarvisNotificationListenerService : NotificationListenerService() {
         super.onCreate()
         speaker = JarvisSpeaker(this)
         notificationCenter = JarvisNotificationCenter(this)
-        brainConnector = JarvisBrainConnector()
+        brainConnector = JarvisBrainRuntime.connector(this)
     }
 
     override fun onDestroy() {
         if (::speaker.isInitialized) {
             speaker.shutdown()
-        }
-        if (::brainConnector.isInitialized) {
-            brainConnector.shutdown()
         }
         super.onDestroy()
     }
