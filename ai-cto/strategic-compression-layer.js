@@ -44,7 +44,7 @@ function buildSummary(answer = '', maxWords = DEFAULT_SUMMARY_WORDS) {
 function buildVoiceSummary(summary = '', maxWords = DEFAULT_VOICE_WORDS) {
   const cleaned = normalizeText(summary);
   if (!cleaned) return '';
-  return limitWords(cleaned, maxWords).replace(/[.?!,;:]+$/, '');
+  return removeDanglingEnding(limitWords(cleaned, maxWords)).replace(/[.?!,;:]+$/, '');
 }
 
 function stripOperationalNoise(answer = '') {
@@ -82,6 +82,24 @@ function limitWords(text = '', maxWords = DEFAULT_SUMMARY_WORDS) {
   return `${words.slice(0, maxWords).join(' ').replace(/[.?!,;:]+$/, '')}...`;
 }
 
+function removeDanglingEnding(text = '') {
+  let cleaned = normalizeText(text).replace(/\s*\.\.\.$/, '');
+  const danglingPatterns = [
+    /\b(?:because|that|which|where|when|while|although|but|and|or|to|for|with|without|into|from|as|than)$/i,
+    /\b(?:it|this|that|there|what|who|why|how)$/i,
+    /\b(?:it|this|that|there|what|who|why|how)\s+(?:is|are|was|were|will|would|could|should|can|can't|cannot)$/i,
+    /\b(?:not\s+just|not\s+only|more\s+than|less\s+than)$/i
+  ];
+
+  while (cleaned && danglingPatterns.some((pattern) => pattern.test(cleaned))) {
+    const words = cleaned.split(/\s+/).filter(Boolean);
+    words.pop();
+    cleaned = words.join(' ');
+  }
+
+  return (cleaned || normalizeText(text).replace(/\s*\.\.\.$/, '')).replace(/[;:,]+$/, '');
+}
+
 function isLowSignalLine(line = '') {
   return /^(current foundation health|phase 2 opportunities|highest leverage differentiator|trust risk|recommended next step)\s*:/i.test(line);
 }
@@ -99,5 +117,6 @@ module.exports = {
   stripOperationalNoise,
   normalizeText,
   splitSentences,
-  limitWords
+  limitWords,
+  removeDanglingEnding
 };

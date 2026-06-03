@@ -28,6 +28,7 @@ const {
   recordNotificationDecision
 } = require('./whatsapp/notification-intelligence-layer');
 const { answerFounderBrainQuestion } = require('./founder-brain-api');
+const { runJarvisRuntime } = require('./jarvis-runtime-orchestrator');
 const { enforceMemoryPolicyOnResponse } = require('./memory-policy-enforcer');
 const { enforceExecutionSchemaOnRoute } = require('./execution-schema-enforcer');
 
@@ -393,6 +394,22 @@ function createApp() {
     const question = req.body && typeof req.body.question === 'string' ? req.body.question : '';
     const answer = await answerFounderBrainQuestion({
       question,
+      root: REPO_ROOT,
+      publicBaseUrl: PUBLIC_BASE_URL
+    });
+    return res.status(200).json(answer);
+  });
+
+  app.post('/jarvis/runtime', async (req, res) => {
+    const auth = validateBrainApiAuth(req);
+    if (!auth.ok) return res.status(401).json({ ok: false, reason: auth.reason });
+    const input = req.body && typeof req.body.input === 'string'
+      ? req.body.input
+      : req.body && typeof req.body.question === 'string'
+        ? req.body.question
+        : '';
+    const answer = await runJarvisRuntime({
+      input,
       root: REPO_ROOT,
       publicBaseUrl: PUBLIC_BASE_URL
     });

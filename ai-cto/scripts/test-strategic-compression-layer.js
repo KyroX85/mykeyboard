@@ -4,7 +4,8 @@ const {
   compressStrategicAnswer,
   buildSummary,
   buildVoiceSummary,
-  stripOperationalNoise
+  stripOperationalNoise,
+  removeDanglingEnding
 } = require('../strategic-compression-layer');
 
 const longAnswer = [
@@ -33,6 +34,13 @@ assert.strictEqual(
   buildVoiceSummary('Aritenis must prove Explain becomes a daily habit before expanding.', 8),
   'Aritenis must prove Explain becomes a daily habit'
 );
+
+assert.strictEqual(
+  buildVoiceSummary('You are building Jarvis because the deeper dream is not just a keyboard; it is a personal execution layer.', 15),
+  'You are building Jarvis because the deeper dream is not just a keyboard'
+);
+
+assert.strictEqual(removeDanglingEnding('The deeper dream is not just a keyboard; it is...'), 'The deeper dream is not just a keyboard');
 
 assert.strictEqual(
   stripOperationalNoise('TASK_PLAN\nAPPROVE-123\nReal answer.').trim(),
