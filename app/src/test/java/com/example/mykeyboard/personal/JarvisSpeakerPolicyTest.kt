@@ -22,6 +22,9 @@ class JarvisSpeakerPolicyTest {
         assertTrue(speaker.contains("engine.stop()"))
         assertTrue(speaker.contains("TextToSpeech.QUEUE_FLUSH"))
         assertTrue(speaker.contains("UtteranceProgressListener"))
+        assertTrue(speaker.contains("fun speak(text: String, onDone: (() -> Unit)? = null)"))
+        assertTrue(speaker.contains("completeUtterance(utteranceId)"))
+        assertTrue(speaker.contains("activeCompletion"))
     }
 
     private fun sourceFile(relativePath: String): File {

@@ -20,7 +20,9 @@ class JarvisSpeaker(context: Context) : TextToSpeech.OnInitListener {
     private var audioFocusAttached = false
     private var tts: TextToSpeech? = createTextToSpeech()
     private var ready = false
-    private var pendingSpeech: String? = null
+    private var pendingSpeech: PendingSpeech? = null
+    private var activeUtteranceId: String? = null
+    private var activeCompletion: (() -> Unit)? = null
 
     override fun onInit(status: Int) {
         val engine = tts ?: return
@@ -34,17 +36,17 @@ class JarvisSpeaker(context: Context) : TextToSpeech.OnInitListener {
             engine.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
                 override fun onStart(utteranceId: String?) = Unit
                 override fun onDone(utteranceId: String?) {
-                    releaseAudioFocus()
+                    completeUtterance(utteranceId)
                 }
 
                 @Deprecated("Deprecated in Java")
                 override fun onError(utteranceId: String?) {
-                    releaseAudioFocus()
+                    completeUtterance(utteranceId)
                 }
             })
             ready = true
             Log.i(TAG, "TextToSpeech initialized: engine=${engine.defaultEngine}; stream=$SPEECH_STREAM")
-            pendingSpeech?.let { speak(it) }
+            pendingSpeech?.let { speak(it.text, it.onDone) }
             pendingSpeech = null
         } else {
             Log.w(TAG, "TextToSpeech init failed: $status")
@@ -52,25 +54,30 @@ class JarvisSpeaker(context: Context) : TextToSpeech.OnInitListener {
     }
 
     @Synchronized
-    fun speak(text: String) {
+    fun speak(text: String, onDone: (() -> Unit)? = null) {
         if (!PersonalJarvisConfig.isEnabled) return
         val clean = text.trim()
         if (clean.isEmpty()) return
         val engine = tts
         if (!ready || engine == null) {
-            pendingSpeech = clean
+            pendingSpeech = PendingSpeech(clean, onDone)
             return
         }
         requestAudioFocus()
         engine.stop()
         engine.setSpeechRate(SPEECH_RATE)
         engine.setPitch(PITCH)
-        engine.speak(clean, TextToSpeech.QUEUE_FLUSH, speechParams(), UUID.randomUUID().toString())
+        val utteranceId = UUID.randomUUID().toString()
+        activeUtteranceId = utteranceId
+        activeCompletion = onDone
+        engine.speak(clean, TextToSpeech.QUEUE_FLUSH, speechParams(), utteranceId)
     }
 
     @Synchronized
     fun shutdown() {
         pendingSpeech = null
+        activeUtteranceId = null
+        activeCompletion = null
         ready = false
         tts?.stop()
         tts?.shutdown()
@@ -87,6 +94,17 @@ class JarvisSpeaker(context: Context) : TextToSpeech.OnInitListener {
             Log.w(TAG, "Preferred TextToSpeech engine unavailable; using system default")
             TextToSpeech(appContext, this)
         }
+    }
+
+    @Synchronized
+    private fun completeUtterance(utteranceId: String?) {
+        val completion = if (utteranceId == activeUtteranceId) activeCompletion else null
+        if (utteranceId == activeUtteranceId) {
+            activeUtteranceId = null
+            activeCompletion = null
+        }
+        releaseAudioFocus()
+        completion?.invoke()
     }
 
     private fun preferredEngine(): String? =
@@ -171,4 +189,9 @@ class JarvisSpeaker(context: Context) : TextToSpeech.OnInitListener {
         const val PITCH = 1.0f
         const val SPEECH_VOLUME = 1.0f
     }
+
+    private data class PendingSpeech(
+        val text: String,
+        val onDone: (() -> Unit)?
+    )
 }
