@@ -2,7 +2,7 @@ package com.example.mykeyboard.personal
 
 object JarvisWakeWordDetector {
     private val wakeWordPattern = Regex(
-        pattern = """\b(?:hey\s+jarvis|jarvis)\b""",
+        pattern = """\b(?:(?:hey|he|a)\s+(?:jarvis|javis|jarves|javed)|jarvis|javis|jarves)\b""",
         options = setOf(RegexOption.IGNORE_CASE)
     )
 

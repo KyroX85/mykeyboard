@@ -228,7 +228,12 @@ class JarvisWakeWordService : Service(), RecognitionListener {
             releaseSession("speech recognizer error")
         }
         if (getAudioState() == AudioState.PROCESSING) return
-        scheduleListeningRestart(if (error == SpeechRecognizer.ERROR_RECOGNIZER_BUSY) BUSY_RESTART_DELAY_MS else RESTART_DELAY_MS)
+        val restartDelayMs = when (error) {
+            SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> BUSY_RESTART_DELAY_MS
+            SpeechRecognizer.ERROR_NO_MATCH -> NO_MATCH_RESTART_DELAY_MS
+            else -> RESTART_DELAY_MS
+        }
+        scheduleListeningRestart(restartDelayMs)
     }
 
     override fun onEvent(eventType: Int, params: Bundle?) = Unit
@@ -255,6 +260,7 @@ class JarvisWakeWordService : Service(), RecognitionListener {
             return
         }
         session.commandCaptured = true
+        Log.i(TAG, "Jarvis command captured: chars=${question.length}")
         askFounderBrain(session, question)
     }
 
@@ -283,10 +289,11 @@ class JarvisWakeWordService : Service(), RecognitionListener {
                     awaitingBrainResponse = false
                     val speech = JarvisBrainSpeechPolicy.speechFor(answer)
                     if (speech.isNotBlank()) {
+                        Log.i(TAG, "Founder Brain voiceSummary received: chars=${speech.length}")
                         speaker?.speak(speech)
                     }
                     releaseSession("brain response delivered")
-                    scheduleListeningRestart(BRAIN_RESPONSE_RESTART_DELAY_MS)
+                    scheduleFollowUpCommandWindow()
                 }
             },
             onFailure = { reason ->
@@ -313,6 +320,18 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         ).also {
             activeSession = it
         }
+    }
+
+    private fun scheduleFollowUpCommandWindow() {
+        val nowMs = SystemClock.elapsedRealtime()
+        activeSession = JarvisVoiceSession(
+            id = UUID.randomUUID().toString(),
+            startedAtMs = nowMs
+        )
+        listeningMode = ListeningMode.COMMAND
+        setAudioState(AudioState.IDLE)
+        Log.i(TAG, "Follow-up command window scheduled")
+        scheduleListeningRestart(FOLLOW_UP_COMMAND_LISTEN_DELAY_MS)
     }
 
     private fun releaseSession(reason: String) {
@@ -478,9 +497,11 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         private const val TAG = "AritenisJarvisWake"
         private const val RESTART_DELAY_MS = 800L
         private const val BUSY_RESTART_DELAY_MS = 1600L
+        private const val NO_MATCH_RESTART_DELAY_MS = 5000L
         private const val COMMAND_LISTEN_DELAY_MS = 900L
         private const val COMMAND_TRANSITION_SUPPRESSION_MS = 1400L
         private const val BRAIN_RESPONSE_RESTART_DELAY_MS = 1200L
+        private const val FOLLOW_UP_COMMAND_LISTEN_DELAY_MS = 3500L
         private const val WAKE_DEBOUNCE_MS = 2500L
         fun start(context: Context) {
             val intent = Intent(context, JarvisWakeWordService::class.java).setAction(ACTION_START)
