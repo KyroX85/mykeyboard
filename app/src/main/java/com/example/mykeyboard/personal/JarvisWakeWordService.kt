@@ -32,6 +32,10 @@ import java.util.UUID
 
 class JarvisWakeWordService : Service(), RecognitionListener {
     private val mainHandler = Handler(Looper.getMainLooper())
+    private val restartListeningRunnable = Runnable {
+        setAudioState(AudioState.IDLE)
+        startListeningLoop()
+    }
     private val stateLock = Any()
     private var recognizer: SpeechRecognizer? = null
     private var audioState = AudioState.IDLE
@@ -109,7 +113,18 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         } catch (e: RuntimeException) {
             Log.w(TAG, "Unable to start Jarvis listener", e)
             setAudioState(AudioState.IDLE)
+            scheduleListeningRestart(BUSY_RESTART_DELAY_MS)
         }
+    }
+
+    private fun scheduleListeningRestart(delayMs: Long = RESTART_DELAY_MS) {
+        mainHandler.removeCallbacks(restartListeningRunnable)
+        mainHandler.postDelayed(restartListeningRunnable, delayMs)
+    }
+
+    private fun retryWakeListening(delayMs: Long = RESTART_DELAY_MS) {
+        recognizer?.cancel()
+        scheduleListeningRestart(delayMs)
     }
 
     private fun ensureRecognizer() {
@@ -150,21 +165,24 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         }
         if (activeSession != null || awaitingBrainResponse) {
             Log.i(TAG, "Duplicate wake ignored: active session already running")
-            setAudioState(AudioState.IDLE)
+            retryWakeListening()
             return
         }
         if (nowMs - lastWakeAcceptedAtMs < WAKE_DEBOUNCE_MS) {
             Log.i(TAG, "Duplicate wake ignored by debounce")
-            setAudioState(AudioState.IDLE)
+            retryWakeListening()
             return
         }
         if (responseGate.shouldRespond(nowMs)) {
             val session = beginSession(nowMs)
             speaker?.speak(JarvisWakeResponseGate.RESPONSE_TEXT)
             listeningMode = ListeningMode.COMMAND
+            recognizer?.cancel()
             Log.i(TAG, "Jarvis session started: ${session.id}")
+            scheduleListeningRestart(COMMAND_LISTEN_DELAY_MS)
         } else {
             releaseSession("wake response cooldown")
+            retryWakeListening()
         }
     }
 
@@ -183,7 +201,7 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         } else {
             inspectResults(results)
             if (getAudioState() == AudioState.LISTENING) {
-                setAudioState(AudioState.IDLE)
+                scheduleListeningRestart()
             }
         }
     }
@@ -195,7 +213,7 @@ class JarvisWakeWordService : Service(), RecognitionListener {
             releaseSession("speech recognizer error")
         }
         if (getAudioState() == AudioState.PROCESSING) return
-        setAudioState(AudioState.IDLE)
+        scheduleListeningRestart(if (error == SpeechRecognizer.ERROR_RECOGNIZER_BUSY) BUSY_RESTART_DELAY_MS else RESTART_DELAY_MS)
     }
 
     override fun onEvent(eventType: Int, params: Bundle?) = Unit
@@ -213,11 +231,12 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         listeningMode = ListeningMode.WAKE_WORD
         if (session == null) {
             Log.w(TAG, "Command ignored: no active Jarvis session")
-            setAudioState(AudioState.IDLE)
+            scheduleListeningRestart()
             return
         }
         if (question.isBlank()) {
             releaseSession("blank command")
+            scheduleListeningRestart()
             return
         }
         session.commandCaptured = true
@@ -231,6 +250,7 @@ class JarvisWakeWordService : Service(), RecognitionListener {
             Log.w(TAG, "Founder Brain connector missing for session ${session.id}")
             speaker?.speak("Founder Brain is unavailable right now.")
             releaseSession("brain not attached")
+            scheduleListeningRestart(BRAIN_RESPONSE_RESTART_DELAY_MS)
             return
         }
         awaitingBrainResponse = true
@@ -251,6 +271,7 @@ class JarvisWakeWordService : Service(), RecognitionListener {
                         speaker?.speak(speech)
                     }
                     releaseSession("brain response delivered")
+                    scheduleListeningRestart(BRAIN_RESPONSE_RESTART_DELAY_MS)
                 }
             },
             onFailure = { reason ->
@@ -263,6 +284,7 @@ class JarvisWakeWordService : Service(), RecognitionListener {
                     awaitingBrainResponse = false
                     speaker?.speak(reason)
                     releaseSession("brain failure")
+                    scheduleListeningRestart(BRAIN_RESPONSE_RESTART_DELAY_MS)
                 }
             }
         )
@@ -424,6 +446,10 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         const val ACTION_START = "com.example.mykeyboard.personal.START_WAKE_WORD"
         const val ACTION_STOP = "com.example.mykeyboard.personal.STOP_WAKE_WORD"
         private const val TAG = "AritenisJarvisWake"
+        private const val RESTART_DELAY_MS = 800L
+        private const val BUSY_RESTART_DELAY_MS = 1600L
+        private const val COMMAND_LISTEN_DELAY_MS = 900L
+        private const val BRAIN_RESPONSE_RESTART_DELAY_MS = 1200L
         private const val WAKE_DEBOUNCE_MS = 2500L
         fun start(context: Context) {
             val intent = Intent(context, JarvisWakeWordService::class.java).setAction(ACTION_START)

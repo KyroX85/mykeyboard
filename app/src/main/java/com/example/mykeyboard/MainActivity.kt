@@ -74,7 +74,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent { AppScreen() }
         if (intent.getBooleanExtra(EXTRA_REQUEST_MIC_PERMISSION, false)) {
-            requestJarvisWakePermissionsIfNeeded()
+            requestMicrophonePermissionIfNeeded()
         }
     }
 
@@ -82,7 +82,7 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         if (intent.getBooleanExtra(EXTRA_REQUEST_MIC_PERMISSION, false)) {
-            requestJarvisWakePermissionsIfNeeded()
+            requestMicrophonePermissionIfNeeded()
         }
     }
 
@@ -117,6 +117,13 @@ class MainActivity : ComponentActivity() {
         }
         if (permissions.isNotEmpty()) {
             requestPermissions(permissions.toTypedArray(), REQUEST_JARVIS_WAKE_PERMISSIONS)
+        }
+    }
+
+    private fun requestMicrophonePermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(android.Manifest.permission.RECORD_AUDIO), REQUEST_JARVIS_WAKE_PERMISSIONS)
         }
     }
 }
