@@ -9,6 +9,11 @@ fun String.asBuildConfigString(): String =
 fun envValue(name: String): String =
     providers.environmentVariable(name).orElse("").get()
 
+fun firstPresentEnvValue(vararg names: String): String =
+    names.firstNotNullOfOrNull { name ->
+        providers.environmentVariable(name).orNull?.takeIf { it.isNotBlank() }
+    }.orEmpty()
+
 val ciBuildNumber = providers.environmentVariable("GITHUB_RUN_NUMBER")
     .orElse("1")
     .get()
@@ -34,8 +39,22 @@ android {
         buildConfigField("String", "SUPABASE_URL", envValue("ARITENIS_SUPABASE_URL").asBuildConfigString())
         buildConfigField("String", "SUPABASE_ANON_KEY", envValue("ARITENIS_SUPABASE_ANON_KEY").asBuildConfigString())
         buildConfigField("Boolean", "PERSONAL_JARVIS_ENABLED", "true")
-        buildConfigField("String", "FOUNDER_BRAIN_API_URL", envValue("ARITENIS_FOUNDER_BRAIN_API_URL").asBuildConfigString())
-        buildConfigField("String", "FOUNDER_BRAIN_API_TOKEN", envValue("ARITENIS_FOUNDER_BRAIN_API_TOKEN").asBuildConfigString())
+        buildConfigField(
+            "String",
+            "FOUNDER_BRAIN_API_URL",
+            firstPresentEnvValue(
+                "ARITENIS_FOUNDER_BRAIN_API_URL",
+                "FOUNDER_BRAIN_API_URL"
+            ).asBuildConfigString()
+        )
+        buildConfigField(
+            "String",
+            "FOUNDER_BRAIN_API_TOKEN",
+            firstPresentEnvValue(
+                "ARITENIS_FOUNDER_BRAIN_API_TOKEN",
+                "FOUNDER_BRAIN_API_TOKEN"
+            ).asBuildConfigString()
+        )
     }
 
     buildTypes {
