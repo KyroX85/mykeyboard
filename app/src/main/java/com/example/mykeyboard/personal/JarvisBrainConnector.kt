@@ -16,10 +16,9 @@ import java.util.concurrent.TimeUnit
 import java.util.UUID
 
 data class JarvisBrainAnswer(
-    val type: String,
-    val summary: String,
     val voiceSummary: String,
-    val confidence: Double
+    val executionIntent: String? = null,
+    val fallbackMessage: String? = null
 )
 
 class JarvisBrainConnector(
@@ -113,20 +112,7 @@ class JarvisBrainConnector(
                         return
                     }
                     try {
-                        val json = JSONObject(responseBody)
-                        val voiceSummary = json.optString("voiceSummary").trim()
-                        val summary = json.optString("summary").trim()
-                        onAnswer(
-                            JarvisBrainAnswer(
-                                type = json.optString("type", "unclear"),
-                                summary = summary.ifBlank { "Founder Brain responded without a text summary." },
-                                voiceSummary = voiceSummary.ifBlank {
-                                    Log.w(TAG, "Founder Brain response missing voiceSummary for session $sessionId")
-                                    "Founder Brain responded, but the voice answer was empty."
-                                },
-                                confidence = json.optDouble("confidence", 0.0)
-                            )
-                        )
+                        onAnswer(parseAnswer(JSONObject(responseBody), sessionId))
                     } catch (e: RuntimeException) {
                         val reason = "response parsing failure: ${e.javaClass.simpleName}: ${e.message.orEmpty()}"
                         Log.w(TAG, "Founder Brain response parsing failed: $reason", e)
@@ -172,6 +158,19 @@ class JarvisBrainConnector(
     fun isReady(): Boolean =
         configurationIssue() == null
 
+    private fun parseAnswer(json: JSONObject, sessionId: String): JarvisBrainAnswer {
+        val voiceSummary = json.optString("voiceSummary").trim()
+        if (voiceSummary.isBlank()) {
+            Log.w(TAG, "Founder Brain response missing required voiceSummary for session $sessionId")
+            return fallbackAnswer("missing voiceSummary")
+        }
+        return JarvisBrainAnswer(
+            voiceSummary = voiceSummary,
+            executionIntent = json.optionalJsonValue("executionIntent"),
+            fallbackMessage = json.optionalJsonValue("fallbackMessage")
+        )
+    }
+
     private fun configurationIssue(
         endpoint: String = PersonalJarvisConfig.founderBrainQuestionEndpoint(),
         token: String = PersonalJarvisConfig.founderBrainApiToken()
@@ -185,21 +184,9 @@ class JarvisBrainConnector(
 
     private fun fallbackAnswer(reason: String): JarvisBrainAnswer =
         JarvisBrainAnswer(
-            type = "connection_fallback",
-            summary = "Founder Brain unavailable. Reason: $reason",
-            voiceSummary = fallbackVoiceSummary(reason),
-            confidence = 0.0
+            voiceSummary = JarvisBrainSpeechPolicy.SAFE_FALLBACK_MESSAGE,
+            fallbackMessage = JarvisBrainSpeechPolicy.SAFE_FALLBACK_MESSAGE
         )
-
-    private fun fallbackVoiceSummary(reason: String): String =
-        when {
-            reason.contains("API_URL") -> "Founder Brain API URL is missing from this APK build."
-            reason.contains("API_TOKEN") -> "Founder Brain token is missing from this APK build."
-            reason.contains("HTTP 401") || reason.contains("HTTP 403") -> "Founder Brain rejected the API token."
-            reason.contains("invalid Founder Brain endpoint") -> "Founder Brain API URL is invalid."
-            reason.contains("network failure") -> "Founder Brain could not be reached over the network."
-            else -> "Founder Brain is unavailable right now."
-        }
 
     private fun isRetryableHttpCode(code: Int): Boolean =
         code == 408 || code == 429 || code in 500..599
@@ -214,4 +201,9 @@ class JarvisBrainConnector(
         const val BASE_RETRY_DELAY_MS = 500L
         const val MAX_LOGGED_RESPONSE_CHARS = 180
     }
+}
+
+private fun JSONObject.optionalJsonValue(name: String): String? {
+    if (!has(name) || isNull(name)) return null
+    return opt(name)?.toString()?.trim()?.takeIf { it.isNotBlank() }
 }

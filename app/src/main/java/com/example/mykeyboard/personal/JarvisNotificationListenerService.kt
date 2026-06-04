@@ -48,7 +48,7 @@ class JarvisNotificationListenerService : NotificationListenerService() {
 
     private fun askFounderBrain(notificationKey: String, question: String) {
         if (isDuplicate("brain:$notificationKey")) return
-        speaker.speak("Sir, checking the Founder Brain.")
+        speaker.speak("Checking that now.")
         brainConnector.askQuestion(
             question = question,
             sessionId = "notification:$notificationKey",
@@ -61,7 +61,8 @@ class JarvisNotificationListenerService : NotificationListenerService() {
             },
             onFailure = { reason ->
                 mainHandler.post {
-                    speaker.speak(reason)
+                    Log.w(TAG, "Founder Brain notification question failed: $reason")
+                    speaker.speak(JarvisBrainSpeechPolicy.safeFallback())
                 }
             }
         )

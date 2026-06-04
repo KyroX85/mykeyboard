@@ -46,10 +46,10 @@ class JarvisNotificationCenter(private val context: Context) {
     fun showBrainAnswer(answer: JarvisBrainAnswer) {
         ensureChannel()
         val manager = appContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        val message = answer.summary.ifBlank { answer.voiceSummary }
+        val message = JarvisBrainSpeechPolicy.speechFor(answer)
         val notification = notificationBuilder()
             .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentTitle("Founder Brain")
+            .setContentTitle("Jarvis")
             .setContentText(message)
             .setStyle(Notification.BigTextStyle().bigText(message))
             .setAutoCancel(true)

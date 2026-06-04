@@ -248,7 +248,7 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         val connector = brainConnector
         if (connector == null) {
             Log.w(TAG, "Founder Brain connector missing for session ${session.id}")
-            speaker?.speak("Founder Brain is unavailable right now.")
+            speaker?.speak(JarvisBrainSpeechPolicy.safeFallback())
             releaseSession("brain not attached")
             scheduleListeningRestart(BRAIN_RESPONSE_RESTART_DELAY_MS)
             return
@@ -282,7 +282,7 @@ class JarvisWakeWordService : Service(), RecognitionListener {
                     }
                     Log.w(TAG, "Founder Brain conversation failed: $reason")
                     awaitingBrainResponse = false
-                    speaker?.speak(reason)
+                    speaker?.speak(JarvisBrainSpeechPolicy.safeFallback())
                     releaseSession("brain failure")
                     scheduleListeningRestart(BRAIN_RESPONSE_RESTART_DELAY_MS)
                 }

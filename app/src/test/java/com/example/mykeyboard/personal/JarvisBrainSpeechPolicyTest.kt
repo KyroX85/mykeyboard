@@ -7,24 +7,35 @@ class JarvisBrainSpeechPolicyTest {
     @Test
     fun speaksVoiceSummaryOnly() {
         val answer = JarvisBrainAnswer(
-            type = "reflection",
-            summary = "This longer summary must not be spoken.",
             voiceSummary = "  Short voice answer.  ",
-            confidence = 0.87
+            executionIntent = "open_app"
         )
 
         assertEquals("Short voice answer.", JarvisBrainSpeechPolicy.speechFor(answer))
     }
 
     @Test
-    fun doesNotFallbackToSummaryWhenVoiceSummaryIsBlank() {
+    fun usesSafeFallbackWhenVoiceSummaryIsBlank() {
         val answer = JarvisBrainAnswer(
-            type = "reflection",
-            summary = "This raw reasoning or summary must stay hidden.",
             voiceSummary = " ",
-            confidence = 0.72
+            fallbackMessage = " "
         )
 
-        assertEquals("", JarvisBrainSpeechPolicy.speechFor(answer))
+        assertEquals(
+            "I couldn't process that right now",
+            JarvisBrainSpeechPolicy.speechFor(answer)
+        )
+    }
+
+    @Test
+    fun hidesInternalDebugOutputFromVoiceLayer() {
+        val answer = JarvisBrainAnswer(
+            voiceSummary = "Route confidence 0.7. HTTP 500 from Founder Brain."
+        )
+
+        assertEquals(
+            "I couldn't process that right now",
+            JarvisBrainSpeechPolicy.speechFor(answer)
+        )
     }
 }
