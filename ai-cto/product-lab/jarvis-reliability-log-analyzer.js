@@ -5,7 +5,7 @@ const fs = require('fs');
 function usage() {
   console.error('Usage: node ai-cto/product-lab/jarvis-reliability-log-analyzer.js <logcat.txt> [expected.json|--founder-success]');
   console.error('expected.json format: ["what am i building", "who am i becoming"]');
-  console.error('--founder-success expects 10 attempts each in this order: who am i becoming, what am i building, what kills aritenis, whats our dream, how is work going');
+  console.error('--founder-success expects 10 attempts each in this order: what am i building, who am i becoming, what kills aritenis, whats our dream, how is work going');
 }
 
 function normalizeWords(text) {
@@ -46,8 +46,8 @@ function normalizedText(text) {
 
 function founderSuccessExpectedQuestions(repetitions = 10) {
   const questions = [
-    'who am i becoming',
     'what am i building',
+    'who am i becoming',
     'what kills aritenis',
     'whats our dream',
     'how is work going',
@@ -97,6 +97,44 @@ function hasTranscriptField(line) {
   return /transcript="[^"]*"/.test(line);
 }
 
+function extractConfidence(line) {
+  const match = line.match(/(?:^|;\s*)confidence=([^;\s]+)/);
+  if (!match || match[1] === 'unknown') return null;
+  const value = Number(match[1]);
+  return Number.isFinite(value) ? value : null;
+}
+
+function extractAlternatives(line) {
+  const alternatives = [];
+  const pattern = /alternative(\d+)="([^"]*)";\s*alternative\1Confidence=([^;\s]+)/g;
+  let match = pattern.exec(line);
+  while (match) {
+    const confidence = match[3] === 'unknown' ? null : Number(match[3]);
+    alternatives.push({
+      rank: Number(match[1]),
+      transcript: match[2],
+      confidence: Number.isFinite(confidence) ? confidence : null,
+    });
+    match = pattern.exec(line);
+  }
+  return alternatives;
+}
+
+function commonWordCount(expected, actual) {
+  const actualWords = new Set(normalizeWords(actual));
+  return normalizeWords(expected).filter((word) => actualWords.has(word)).length;
+}
+
+function classifyUnderstanding(expected, actual) {
+  if (!expected || !actual) return 'WRONG';
+  if (isQuestionCorrect(expected, actual)) return 'CORRECT';
+  const expectedWords = normalizeWords(expected);
+  if (!expectedWords.length) return normalizedText(actual) ? 'WRONG' : 'CORRECT';
+  const overlap = commonWordCount(expected, actual) / expectedWords.length;
+  const wer = wordErrorRate(expected, actual);
+  return overlap >= 0.5 || wer <= 0.5 ? 'PARTIAL' : 'WRONG';
+}
+
 function classifyFailureSource({ expected, actual, commandStarted, commandCaptured, brainResponded }) {
   if (!commandStarted) return 'wake';
   if (!commandCaptured || !actual) return 'transcription';
@@ -136,6 +174,8 @@ function analyze(logText, expected = []) {
         commandCaptured: false,
         transcript: '',
         transcriptAvailable: false,
+        confidence: null,
+        alternatives: [],
         brainResponded: false,
       };
       attempts.push(currentAttempt);
@@ -143,7 +183,7 @@ function analyze(logText, expected = []) {
     if (line.includes('SpeechRecognizer start: state=COMMAND_CAPTURE')) {
       counters.commandStarts += 1;
       if (!currentAttempt) {
-        currentAttempt = { wakeDetected: false, commandStarted: true, commandCaptured: false, transcript: '', transcriptAvailable: false, brainResponded: false };
+        currentAttempt = { wakeDetected: false, commandStarted: true, commandCaptured: false, transcript: '', transcriptAvailable: false, confidence: null, alternatives: [], brainResponded: false };
         attempts.push(currentAttempt);
       }
       currentAttempt.commandStarted = true;
@@ -151,12 +191,14 @@ function analyze(logText, expected = []) {
     if (line.includes('Jarvis command captured:')) {
       counters.commandCaptured += 1;
       if (!currentAttempt) {
-        currentAttempt = { wakeDetected: false, commandStarted: false, commandCaptured: true, transcript: '', transcriptAvailable: false, brainResponded: false };
+        currentAttempt = { wakeDetected: false, commandStarted: false, commandCaptured: true, transcript: '', transcriptAvailable: false, confidence: null, alternatives: [], brainResponded: false };
         attempts.push(currentAttempt);
       }
       currentAttempt.commandCaptured = true;
       currentAttempt.transcriptAvailable = hasTranscriptField(line);
       currentAttempt.transcript = extractTranscript(line);
+      currentAttempt.confidence = extractConfidence(line);
+      currentAttempt.alternatives = extractAlternatives(line);
     }
     if (line.includes('command recognizer error') || line.includes('SpeechRecognizer error:') && line.includes('COMMAND_CAPTURE')) {
       counters.commandErrors += 1;
@@ -177,14 +219,20 @@ function analyze(logText, expected = []) {
     const expectedTranscript = expected[index] || '';
     const actual = attempt.transcript || '';
     const unscorableLegacyLog = Boolean(expectedTranscript && attempt.commandCaptured && !attempt.transcriptAvailable);
-    const correct = expectedTranscript && !unscorableLegacyLog ? isQuestionCorrect(expectedTranscript, actual) : null;
+    const classification = expectedTranscript && !unscorableLegacyLog
+      ? classifyUnderstanding(expectedTranscript, actual)
+      : null;
+    const correct = classification === 'CORRECT';
     return {
       index: index + 1,
       expected: expectedTranscript || null,
       actual,
+      confidence: attempt.confidence,
+      alternatives: attempt.alternatives,
       transcriptAvailable: attempt.transcriptAvailable,
       unscorableLegacyLog,
       correct,
+      classification,
       failureSource: expectedTranscript && !unscorableLegacyLog ? classifyFailureSource({
         expected: expectedTranscript,
         actual,
@@ -201,18 +249,25 @@ function analyze(logText, expected = []) {
   const expectedRows = transcriptRows.filter((row) => row.expected && !row.unscorableLegacyLog);
   const unscorableRows = transcriptRows.filter((row) => row.expected && row.unscorableLegacyLog);
   const correctRows = expectedRows.filter((row) => row.correct);
+  const partialRows = expectedRows.filter((row) => row.classification === 'PARTIAL');
+  const wrongRows = expectedRows.filter((row) => row.classification === 'WRONG');
   const failedRows = expectedRows.filter((row) => row.correct === false);
   const perQuestion = {};
   for (const row of expectedRows) {
-    perQuestion[row.expected] ||= { attempts: 0, correct: 0, accuracy: 'unknown' };
+    perQuestion[row.expected] ||= { attempts: 0, correct: 0, partial: 0, wrong: 0, accuracy: 'unknown' };
     perQuestion[row.expected].attempts += 1;
     if (row.correct) perQuestion[row.expected].correct += 1;
+    if (row.classification === 'PARTIAL') perQuestion[row.expected].partial += 1;
+    if (row.classification === 'WRONG') perQuestion[row.expected].wrong += 1;
   }
   for (const stats of Object.values(perQuestion)) {
     stats.accuracy = percent(stats.correct, stats.attempts);
   }
   const wordMissCounts = {};
+  const phraseMissCounts = {};
   for (const row of failedRows) {
+    const phraseKey = `${row.expected} -> ${row.actual || '[blank]'}`;
+    phraseMissCounts[phraseKey] = (phraseMissCounts[phraseKey] || 0) + 1;
     for (const word of row.missingWords) {
       wordMissCounts[word] = (wordMissCounts[word] || 0) + 1;
     }
@@ -239,21 +294,40 @@ function analyze(logText, expected = []) {
       scoredAttempts: expectedRows.length,
       unscorableAttempts: unscorableRows.length,
       correct: correctRows.length,
+      partial: partialRows.length,
+      wrong: wrongRows.length,
       accuracy: percent(correctRows.length, expectedRows.length),
       perQuestion,
       top10FailedTranscripts: failedRows.slice(0, 10).map((row) => ({
         index: row.index,
         expected: row.expected,
         actual: row.actual,
+        confidence: row.confidence,
+        alternatives: row.alternatives.slice(0, 3),
+        classification: row.classification,
         wordErrorRate: row.wordErrorRate,
         failureSource: row.failureSource,
         missingWords: row.missingWords,
         extraWords: row.extraWords,
       })),
+      top20MisheardPhrases: Object.entries(phraseMissCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 20)
+        .map(([phrase, count]) => ({ phrase, count })),
       mostCommonMissingWords: Object.entries(wordMissCounts)
         .sort((a, b) => b[1] - a[1])
         .map(([word, count]) => ({ word, count })),
       failureSourceCounts,
+      speechReport: {
+        title: 'JARVIS SPEECH REPORT',
+        totalAttempts: expected.length || attempts.length,
+        observedAttempts: attempts.length,
+        correct: correctRows.length,
+        partial: partialRows.length,
+        wrong: wrongRows.length,
+        accuracy: percent(correctRows.length, expectedRows.length),
+        mostCommonFailureSource: Object.entries(failureSourceCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'unknown',
+      },
       note: expected.length ? 'Correct means the recognized transcript maps to the same founder question intent. Logs from APKs before transcript logging are marked unscorable.' : 'Pass expected questions or --founder-success to score question understanding accuracy.',
     },
     wake: {
@@ -305,6 +379,7 @@ if (require.main === module) {
 module.exports = {
   analyze,
   classifyQuestionIntent,
+  classifyUnderstanding,
   founderSuccessExpectedQuestions,
   isQuestionCorrect,
   wordErrorRate,

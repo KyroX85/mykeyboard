@@ -22,7 +22,6 @@ import android.speech.SpeechRecognizer
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
-import com.example.mykeyboard.BuildConfig
 import com.example.mykeyboard.MainActivity
 import com.example.mykeyboard.R
 import java.util.Locale
@@ -41,6 +40,7 @@ class JarvisWakeWordService : Service(), RecognitionListener {
     private var activeSession: JarvisVoiceSession? = null
     private var lastWakeAcceptedAtMs = 0L
     private var latestCommandPartial = ""
+    private var latestCommandPartialResult = RecognizedCommandResult.empty()
     private val responseGate = JarvisWakeResponseGate()
 
     private val wakeRestartRunnable = Runnable {
@@ -102,6 +102,7 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         mainHandler.removeCallbacksAndMessages(null)
         activeSession = null
         latestCommandPartial = ""
+        latestCommandPartialResult = RecognizedCommandResult.empty()
         transitionTo(JarvisConversationState.RETURN_TO_IDLE, "service destroyed")
         porcupineWakeEngine?.shutdown()
         porcupineWakeEngine = null
@@ -235,9 +236,10 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         when (currentState()) {
             JarvisConversationState.IDLE -> inspectWakeResults(partialResults)
             JarvisConversationState.COMMAND_CAPTURE -> {
-                latestCommandPartial = selectBestCommandTranscript(partialResults)
+                latestCommandPartialResult = selectBestCommandResult(partialResults)
+                latestCommandPartial = latestCommandPartialResult.primary
                 if (latestCommandPartial.isNotBlank()) {
-                    Log.d(TAG, "Jarvis command partial captured: ${debugTranscriptLabel(latestCommandPartial)}")
+                    Log.d(TAG, "Jarvis command partial captured: ${commandObservationLabel(latestCommandPartialResult)}")
                 }
             }
             else -> Log.d(TAG, "Partial results ignored: state=${currentState()}")
@@ -271,7 +273,7 @@ class JarvisWakeWordService : Service(), RecognitionListener {
             JarvisConversationState.COMMAND_CAPTURE -> {
                 if (error == SpeechRecognizer.ERROR_NO_MATCH && latestCommandPartial.isNotBlank()) {
                     Log.i(TAG, "Using command partial after no-match: chars=${latestCommandPartial.length}")
-                    handleCommandText(latestCommandPartial)
+                    handleCommandText(latestCommandPartialResult)
                 } else {
                     failCommandCapture("command recognizer error", RESTART_DELAY_MS)
                 }
@@ -339,17 +341,18 @@ class JarvisWakeWordService : Service(), RecognitionListener {
     }
 
     private fun handleCommandResults(results: Bundle?) {
-        handleCommandText(selectBestCommandTranscript(results))
+        handleCommandText(selectBestCommandResult(results))
     }
 
-    private fun handleCommandText(rawQuestion: String) {
+    private fun handleCommandText(result: RecognizedCommandResult) {
         if (currentState() != JarvisConversationState.COMMAND_CAPTURE) {
             Log.i(TAG, "Command ignored outside COMMAND_CAPTURE: state=${currentState()}")
             return
         }
         val session = activeSession
-        val question = rawQuestion.trim()
+        val question = result.primary.trim()
         latestCommandPartial = ""
+        latestCommandPartialResult = RecognizedCommandResult.empty()
         transitionTo(JarvisConversationState.PROCESSING, "command captured")
         if (session == null) {
             Log.w(TAG, "Command ignored: no active Jarvis session")
@@ -361,11 +364,11 @@ class JarvisWakeWordService : Service(), RecognitionListener {
             return
         }
         session.commandCaptured = true
-        Log.i(TAG, "Jarvis command captured: ${debugTranscriptLabel(question)}")
+        Log.i(TAG, "Jarvis command captured: ${commandObservationLabel(result)}")
         askFounderBrain(session, question)
     }
 
-    private fun selectBestCommandTranscript(results: Bundle?): String {
+    private fun selectBestCommandResult(results: Bundle?): RecognizedCommandResult {
         val phrases = results
             ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
             .orEmpty()
@@ -377,40 +380,60 @@ class JarvisWakeWordService : Service(), RecognitionListener {
             "Jarvis command recognition alternatives: count=${phrases.size}; confidenceScores=${confidenceScores?.size ?: 0}" +
                 debugAlternativesLabel(phrases, confidenceScores)
         )
-        if (phrases.isEmpty()) return ""
+        if (phrases.isEmpty()) return RecognizedCommandResult.empty()
         val scoredCandidates = phrases.mapIndexed { index, phrase ->
             val confidence = confidenceScores?.getOrNull(index) ?: UNKNOWN_CONFIDENCE
             RecognizedCommandCandidate(index = index, phrase = phrase, confidence = confidence)
         }
-        if (scoredCandidates.none { it.hasUsableConfidence }) {
-            return phrases.first()
-        }
-        return scoredCandidates
-            .maxWithOrNull(
+        val best = if (scoredCandidates.none { it.hasUsableConfidence }) {
+            scoredCandidates.first()
+        } else {
+            scoredCandidates.maxWithOrNull(
                 compareBy<RecognizedCommandCandidate> { it.hasUsableConfidence }
                     .thenBy { it.confidence }
                     .thenBy { it.phrase.length }
             )
-            ?.phrase
-            .orEmpty()
+                ?: scoredCandidates.first()
+        }
+        return RecognizedCommandResult(
+            primary = best.phrase,
+            confidence = best.confidence,
+            alternatives = scoredCandidates
+        )
     }
 
-    private fun debugTranscriptLabel(text: String): String =
-        if (BuildConfig.DEBUG) {
-            "chars=${text.length}; transcript=\"${text.take(MAX_DEBUG_TRANSCRIPT_CHARS)}\""
-        } else {
-            "chars=${text.length}"
+    private fun commandObservationLabel(result: RecognizedCommandResult): String {
+        val primary = result.primary.take(MAX_DEBUG_TRANSCRIPT_CHARS).forLog()
+        val confidence = result.confidence.toConfidenceText()
+        val alternatives = result.alternatives.take(MAX_DEBUG_ALTERNATIVES).mapIndexed { outputIndex, candidate ->
+            val text = candidate.phrase.take(MAX_DEBUG_TRANSCRIPT_CHARS).forLog()
+            val candidateConfidence = candidate.confidence.toConfidenceText()
+            "alternative${outputIndex + 1}=\"$text\"; alternative${outputIndex + 1}Confidence=$candidateConfidence"
         }
+        return buildString {
+            append("chars=${result.primary.length}; transcript=\"$primary\"; confidence=$confidence")
+            if (alternatives.isNotEmpty()) {
+                append("; ")
+                append(alternatives.joinToString("; "))
+            }
+        }
+    }
 
     private fun debugAlternativesLabel(phrases: List<String>, confidenceScores: FloatArray?): String {
-        if (!BuildConfig.DEBUG || phrases.isEmpty()) return ""
+        if (phrases.isEmpty()) return ""
         val alternatives = phrases.take(MAX_DEBUG_ALTERNATIVES).mapIndexed { index, phrase ->
             val confidence = confidenceScores?.getOrNull(index)
             val confidenceText = confidence?.let { String.format(Locale.US, "%.2f", it) } ?: "unknown"
-            "$index:$confidenceText:${phrase.take(MAX_DEBUG_TRANSCRIPT_CHARS)}"
+            "$index:$confidenceText:${phrase.take(MAX_DEBUG_TRANSCRIPT_CHARS).forLog()}"
         }
         return "; alternatives=${alternatives.joinToString("|")}"
     }
+
+    private fun String.forLog(): String =
+        replace("\\", "\\\\").replace("\"", "\\\"")
+
+    private fun Float.toConfidenceText(): String =
+        if (this >= 0.0f) String.format(Locale.US, "%.2f", this) else "unknown"
 
     private fun askFounderBrain(session: JarvisVoiceSession, question: String) {
         val connector = brainConnector
@@ -451,6 +474,7 @@ class JarvisWakeWordService : Service(), RecognitionListener {
     private fun failCommandCapture(reason: String, restartDelayMs: Long) {
         releaseSession(reason)
         latestCommandPartial = ""
+        latestCommandPartialResult = RecognizedCommandResult.empty()
         transitionTo(JarvisConversationState.RETURN_TO_IDLE, reason)
         scheduleWakeRestart(restartDelayMs)
     }
@@ -486,6 +510,7 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         activeSession?.let { Log.i(TAG, "Jarvis session released: ${it.id}; reason=$reason") }
         activeSession = null
         latestCommandPartial = ""
+        latestCommandPartialResult = RecognizedCommandResult.empty()
     }
 
     private fun transitionTo(nextState: JarvisConversationState, reason: String) {
@@ -625,6 +650,17 @@ class JarvisWakeWordService : Service(), RecognitionListener {
     ) {
         val hasUsableConfidence: Boolean
             get() = confidence >= 0.0f
+    }
+
+    private data class RecognizedCommandResult(
+        val primary: String,
+        val confidence: Float,
+        val alternatives: List<RecognizedCommandCandidate>
+    ) {
+        companion object {
+            fun empty(): RecognizedCommandResult =
+                RecognizedCommandResult("", UNKNOWN_CONFIDENCE, emptyList())
+        }
     }
 
     private object JarvisWakeWordEngine {
