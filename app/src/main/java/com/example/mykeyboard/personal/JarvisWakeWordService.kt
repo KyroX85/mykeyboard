@@ -22,6 +22,7 @@ import android.speech.SpeechRecognizer
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import com.example.mykeyboard.BuildConfig
 import com.example.mykeyboard.MainActivity
 import com.example.mykeyboard.R
 import java.util.Locale
@@ -157,8 +158,7 @@ class JarvisWakeWordService : Service(), RecognitionListener {
             Log.i(TAG, "AudioRecord start: SpeechRecognizer owns microphone; purpose=command")
         } catch (e: RuntimeException) {
             Log.w(TAG, "Unable to start command recognizer", e)
-            releaseSession("command recognizer start failed")
-            scheduleWakeRestart(BUSY_RESTART_DELAY_MS)
+            failCommandCapture("command recognizer start failed", BUSY_RESTART_DELAY_MS)
         }
     }
 
@@ -237,7 +237,7 @@ class JarvisWakeWordService : Service(), RecognitionListener {
             JarvisConversationState.COMMAND_CAPTURE -> {
                 latestCommandPartial = selectBestCommandTranscript(partialResults)
                 if (latestCommandPartial.isNotBlank()) {
-                    Log.d(TAG, "Jarvis command partial captured: chars=${latestCommandPartial.length}")
+                    Log.d(TAG, "Jarvis command partial captured: ${debugTranscriptLabel(latestCommandPartial)}")
                 }
             }
             else -> Log.d(TAG, "Partial results ignored: state=${currentState()}")
@@ -361,7 +361,7 @@ class JarvisWakeWordService : Service(), RecognitionListener {
             return
         }
         session.commandCaptured = true
-        Log.i(TAG, "Jarvis command captured: chars=${question.length}")
+        Log.i(TAG, "Jarvis command captured: ${debugTranscriptLabel(question)}")
         askFounderBrain(session, question)
     }
 
@@ -374,7 +374,8 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         val confidenceScores = results?.getFloatArray(SpeechRecognizer.CONFIDENCE_SCORES)
         Log.i(
             TAG,
-            "Jarvis command recognition alternatives: count=${phrases.size}; confidenceScores=${confidenceScores?.size ?: 0}"
+            "Jarvis command recognition alternatives: count=${phrases.size}; confidenceScores=${confidenceScores?.size ?: 0}" +
+                debugAlternativesLabel(phrases, confidenceScores)
         )
         if (phrases.isEmpty()) return ""
         val scoredCandidates = phrases.mapIndexed { index, phrase ->
@@ -392,6 +393,23 @@ class JarvisWakeWordService : Service(), RecognitionListener {
             )
             ?.phrase
             .orEmpty()
+    }
+
+    private fun debugTranscriptLabel(text: String): String =
+        if (BuildConfig.DEBUG) {
+            "chars=${text.length}; transcript=\"${text.take(MAX_DEBUG_TRANSCRIPT_CHARS)}\""
+        } else {
+            "chars=${text.length}"
+        }
+
+    private fun debugAlternativesLabel(phrases: List<String>, confidenceScores: FloatArray?): String {
+        if (!BuildConfig.DEBUG || phrases.isEmpty()) return ""
+        val alternatives = phrases.take(MAX_DEBUG_ALTERNATIVES).mapIndexed { index, phrase ->
+            val confidence = confidenceScores?.getOrNull(index)
+            val confidenceText = confidence?.let { String.format(Locale.US, "%.2f", it) } ?: "unknown"
+            "$index:$confidenceText:${phrase.take(MAX_DEBUG_TRANSCRIPT_CHARS)}"
+        }
+        return "; alternatives=${alternatives.joinToString("|")}"
     }
 
     private fun askFounderBrain(session: JarvisVoiceSession, question: String) {
@@ -567,6 +585,8 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         private const val COMMAND_LISTEN_DELAY_MS = 180L
         private const val RETURN_TO_IDLE_DELAY_MS = 350L
         private const val WAKE_DEBOUNCE_MS = 2500L
+        private const val MAX_DEBUG_TRANSCRIPT_CHARS = 80
+        private const val MAX_DEBUG_ALTERNATIVES = 5
 
         fun start(context: Context) {
             val intent = Intent(context, JarvisWakeWordService::class.java).setAction(ACTION_START)

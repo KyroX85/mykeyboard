@@ -133,6 +133,7 @@ class JarvisVoskWakeEngine(
         if (!isStarted || wakeDelivered) return
         val text = extractText(hypothesis).trim()
         if (text.isBlank()) return
+        if (text == UNKNOWN_TOKEN) return
         Log.d(TAG, "Vosk wake $source candidate: $text")
         if (JarvisWakeWordDetector.containsWakeWord(text)) {
             wakeDelivered = true
@@ -157,5 +158,6 @@ class JarvisVoskWakeEngine(
         const val SAMPLE_RATE = 16000.0f
         const val WAKE_GRAMMAR =
             "[\"hey jarvis\", \"jarvis\", \"he jarvis\", \"a jarvis\", \"hey jars\", \"hey javis\", \"[unk]\"]"
+        const val UNKNOWN_TOKEN = "[unk]"
     }
 }

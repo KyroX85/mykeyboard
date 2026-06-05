@@ -1,6 +1,7 @@
 package com.example.mykeyboard.personal
 
 import android.util.Log
+import android.os.SystemClock
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.MediaType.Companion.toMediaType
@@ -92,9 +93,12 @@ class JarvisBrainConnector(
             return
         }
 
+        val startedAtMs = SystemClock.elapsedRealtime()
+        Log.i(TAG, "Founder Brain request started: session=$sessionId attempt=$attempt")
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
                 val reason = "network failure: ${e.javaClass.simpleName}: ${e.message.orEmpty()}"
+                Log.w(TAG, "Founder Brain request failed after ${elapsedMs(startedAtMs)}ms: session=$sessionId attempt=$attempt reason=$reason")
                 handleRetryOrFallback(reason, attempt, endpoint, token, question, sessionId, onAnswer, onFailure)
             }
 
@@ -103,6 +107,7 @@ class JarvisBrainConnector(
                     val responseBody = it.body?.string().orEmpty()
                     if (!it.isSuccessful) {
                         val reason = "HTTP ${it.code}: ${responseBody.take(MAX_LOGGED_RESPONSE_CHARS)}"
+                        Log.w(TAG, "Founder Brain HTTP response after ${elapsedMs(startedAtMs)}ms: session=$sessionId attempt=$attempt status=${it.code}")
                         if (isRetryableHttpCode(it.code)) {
                             handleRetryOrFallback(reason, attempt, endpoint, token, question, sessionId, onAnswer, onFailure)
                         } else {
@@ -112,6 +117,7 @@ class JarvisBrainConnector(
                         return
                     }
                     try {
+                        Log.i(TAG, "Founder Brain response received after ${elapsedMs(startedAtMs)}ms: session=$sessionId attempt=$attempt")
                         onAnswer(parseAnswer(JSONObject(responseBody), sessionId))
                     } catch (e: RuntimeException) {
                         val reason = "response parsing failure: ${e.javaClass.simpleName}: ${e.message.orEmpty()}"
@@ -193,6 +199,9 @@ class JarvisBrainConnector(
 
     private fun retryDelayMs(attempt: Int): Long =
         BASE_RETRY_DELAY_MS * (1L shl attempt)
+
+    private fun elapsedMs(startedAtMs: Long): Long =
+        SystemClock.elapsedRealtime() - startedAtMs
 
     private companion object {
         val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
