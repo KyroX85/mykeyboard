@@ -22,6 +22,12 @@ Current milestone:
 3. Reliable Founder Brain answer
 4. Reliable voice output
 
+Primary metric:
+
+Question Understanding Accuracy.
+
+Jarvis is not successful because technical events fired. Jarvis is successful only when the founder's spoken question is understood and answered correctly.
+
 ## Current Evidence Source
 
 Evidence comes from founder-provided real-device logcat samples, not simulator assumptions.
@@ -74,6 +80,38 @@ This has now been fixed for debug builds. Future logs will include:
 Jarvis command captured: chars=...; transcript="..."
 Jarvis command recognition alternatives: ... alternatives=...
 ```
+
+## Question Understanding Accuracy
+
+The measurement target is now:
+
+- Expected question
+- Recognized transcript
+- Correct / Incorrect
+- Per-question accuracy
+- Top failed transcripts
+- Common missing/misheard words
+- Failure source: wake, transcription, or Founder Brain
+
+The analyzer supports the founder success suite:
+
+```bash
+node ai-cto/product-lab/jarvis-reliability-log-analyzer.js logcat.txt --founder-success
+```
+
+Expected 50-attempt sequence:
+
+1. `who am i becoming` x10
+2. `what am i building` x10
+3. `what kills aritenis` x10
+4. `whats our dream` x10
+5. `how is work going` x10
+
+Current measured QUA:
+
+Unknown. The latest available log was generated before debug transcript logging was installed.
+
+Next valid run must use the latest APK so the analyzer can score actual recognized transcripts.
 
 ## Largest Failure Source
 
@@ -132,7 +170,7 @@ Measures from logcat:
 
 ## New Measured Success Rate
 
-Not yet available.
+Not yet available for Question Understanding Accuracy.
 
 The APK must be reinstalled after the latest commit, then the founder should run a small real-world batch:
 
@@ -147,7 +185,13 @@ Target phrases:
 - whats our dream
 - how is work going
 
-Once the new log is provided, the analyzer can produce transcript-level reliability.
+Once the new log is provided, the analyzer will produce:
+
+- Overall QUA
+- Per-question QUA
+- Top 10 failed transcripts
+- Words being misheard
+- Failure source split
 
 ## Estimated Remaining Bottlenecks
 
@@ -180,6 +224,6 @@ Reinstall the latest APK and run 10 attempts:
 
 Success threshold for this milestone:
 
-At least 7/10 complete correctly:
+At least 80% Question Understanding Accuracy across the founder success suite.
 
-Wake -> command transcript -> Founder Brain answer -> speech output
+No new Jarvis capability work should begin before that threshold.
