@@ -135,8 +135,14 @@ class JarvisVoskWakeEngine(
         if (text.isBlank()) return
         if (text == UNKNOWN_TOKEN) return
         val decision = JarvisWakeWordDetector.evaluate(text)
-        Log.i(TAG, "Vosk wake metric: ${if (decision.accepted) "REAL_WAKE" else "FALSE_WAKE"}; phrase=\"${text.forLog()}\"; confidence=${decision.confidence.toConfidenceText()}; source=$source; audioSource=unknown; reason=${decision.reason}")
-        if (decision.accepted) {
+        val accepted = decision.accepted && source != "partial"
+        val reason = if (decision.accepted && source == "partial") {
+            "complete wake phrase ignored until final wake result"
+        } else {
+            decision.reason
+        }
+        Log.i(TAG, "Vosk wake metric: ${if (accepted) "REAL_WAKE" else "FALSE_WAKE"}; phrase=\"${text.forLog()}\"; confidence=${decision.confidence.toConfidenceText()}; source=$source; audioSource=unknown; reason=$reason")
+        if (accepted) {
             wakeDelivered = true
             Log.i(TAG, "Vosk wake detected: phrase=\"${text.forLog()}\"; confidence=${decision.confidence.toConfidenceText()}")
             onWakeDetected()

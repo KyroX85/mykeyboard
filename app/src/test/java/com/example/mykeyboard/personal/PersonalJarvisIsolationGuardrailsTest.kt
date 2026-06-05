@@ -241,6 +241,8 @@ class PersonalJarvisIsolationGuardrailsTest {
         assertTrue(vosk.contains("if (!isStarted || wakeDelivered) return"))
         assertTrue(vosk.contains("if (text == UNKNOWN_TOKEN) return"))
         assertTrue(vosk.contains("JarvisWakeWordDetector.evaluate(text)"))
+        assertTrue(vosk.contains("val accepted = decision.accepted && source != \"partial\""))
+        assertTrue(vosk.contains("complete wake phrase ignored until final wake result"))
         assertTrue(vosk.contains("FALSE_WAKE"))
         assertTrue(vosk.contains("REAL_WAKE"))
         assertTrue(vosk.contains("\\\"hey jarvis\\\""))
