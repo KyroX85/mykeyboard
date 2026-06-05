@@ -24,9 +24,9 @@ data class JarvisBrainAnswer(
 
 class JarvisBrainConnector(
     private val client: OkHttpClient = OkHttpClient.Builder()
-        .connectTimeout(4, TimeUnit.SECONDS)
-        .readTimeout(12, TimeUnit.SECONDS)
-        .callTimeout(15, TimeUnit.SECONDS)
+        .connectTimeout(6, TimeUnit.SECONDS)
+        .readTimeout(28, TimeUnit.SECONDS)
+        .callTimeout(32, TimeUnit.SECONDS)
         .build(),
     private val retryExecutor: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor { runnable ->
         Thread(runnable, "JarvisBrainRetry").apply { isDaemon = true }
@@ -206,7 +206,7 @@ class JarvisBrainConnector(
     private companion object {
         val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
         const val TAG = "AritenisJarvis"
-        const val MAX_RETRY_ATTEMPTS = 2
+        const val MAX_RETRY_ATTEMPTS = 1
         const val BASE_RETRY_DELAY_MS = 500L
         const val MAX_LOGGED_RESPONSE_CHARS = 180
     }
