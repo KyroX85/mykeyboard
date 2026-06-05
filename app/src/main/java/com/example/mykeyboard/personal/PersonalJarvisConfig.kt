@@ -24,6 +24,9 @@ object PersonalJarvisConfig {
     fun founderBrainApiToken(): String =
         BuildConfig.FOUNDER_BRAIN_API_TOKEN.trim()
 
+    fun picovoiceAccessKey(): String =
+        BuildConfig.PICOVOICE_ACCESS_KEY.trim()
+
     const val ALERT_CHANNEL_ID = "aritenis_personal_jarvis_alerts"
     const val ALERT_NOTIFICATION_ID = 8801
     const val REMINDER_NOTIFICATION_ID = 8802

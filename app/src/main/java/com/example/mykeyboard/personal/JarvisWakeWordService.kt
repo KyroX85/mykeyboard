@@ -35,6 +35,7 @@ class JarvisWakeWordService : Service(), RecognitionListener {
     private var wakeLock: PowerManager.WakeLock? = null
     private var speaker: JarvisSpeaker? = null
     private var brainConnector: JarvisBrainConnector? = null
+    private var porcupineWakeEngine: JarvisPorcupineWakeEngine? = null
     private var activeSession: JarvisVoiceSession? = null
     private var lastWakeAcceptedAtMs = 0L
     private var latestCommandPartial = ""
@@ -56,6 +57,9 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         Log.i(TAG, "Foreground service lifecycle: onCreate")
         speaker = JarvisSpeaker(this)
         brainConnector = JarvisBrainRuntime.connector(this)
+        porcupineWakeEngine = JarvisPorcupineWakeEngine(this) {
+            mainHandler.post { handleWakeWordDetected() }
+        }
         createNotificationChannel()
         startForeground(
             PersonalJarvisConfig.WAKE_WORD_NOTIFICATION_ID,
@@ -88,6 +92,8 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         activeSession = null
         latestCommandPartial = ""
         transitionTo(JarvisConversationState.RETURN_TO_IDLE, "service destroyed")
+        porcupineWakeEngine?.shutdown()
+        porcupineWakeEngine = null
         destroyRecognizer()
         speaker?.shutdown()
         speaker = null
@@ -103,12 +109,20 @@ class JarvisWakeWordService : Service(), RecognitionListener {
             Log.i(TAG, "Wake recognizer start ignored: state=${currentState()}")
             return
         }
+        if (!hasMicrophonePermission()) {
+            Log.w(TAG, "Jarvis service missing RECORD_AUDIO permission")
+            stopSelf()
+            return
+        }
+        if (porcupineWakeEngine?.start() == true) {
+            return
+        }
         if (!canStartRecognition()) return
         try {
             ensureRecognizer()
-            Log.i(TAG, "SpeechRecognizer start: state=IDLE; purpose=wake")
+            Log.i(TAG, "SpeechRecognizer start: state=IDLE; purpose=wake-fallback")
             recognizer?.startListening(buildRecognizerIntent(JarvisConversationState.IDLE))
-            Log.i(TAG, "AudioRecord start: SpeechRecognizer owns microphone; purpose=wake")
+            Log.i(TAG, "AudioRecord start: SpeechRecognizer owns microphone; purpose=wake-fallback")
         } catch (e: RuntimeException) {
             Log.w(TAG, "Unable to start wake recognizer", e)
             scheduleWakeRestart(BUSY_RESTART_DELAY_MS)
@@ -294,6 +308,7 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         val session = beginSession(nowMs)
         latestCommandPartial = ""
         transitionTo(JarvisConversationState.WAKE_CONFIRMED, "wake accepted")
+        porcupineWakeEngine?.stop("wake accepted before acknowledgment")
         cancelRecognizerForTransition("wake confirmed before acknowledgment")
         Log.i(TAG, "Jarvis session started: ${session.id}")
         val afterAcknowledgement: () -> Unit = {

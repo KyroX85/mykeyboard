@@ -55,6 +55,14 @@ android {
                 "FOUNDER_BRAIN_API_TOKEN"
             ).asBuildConfigString()
         )
+        buildConfigField(
+            "String",
+            "PICOVOICE_ACCESS_KEY",
+            firstPresentEnvValue(
+                "ARITENIS_PICOVOICE_ACCESS_KEY",
+                "PICOVOICE_ACCESS_KEY"
+            ).asBuildConfigString()
+        )
     }
 
     buildTypes {
@@ -88,6 +96,7 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.6.1")
     implementation("com.google.android.material:material:1.11.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
+    implementation("ai.picovoice:porcupine-android:4.0.0")
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
     implementation("org.json:json:20231013")

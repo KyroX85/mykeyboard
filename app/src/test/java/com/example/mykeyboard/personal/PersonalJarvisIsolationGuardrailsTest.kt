@@ -93,6 +93,10 @@ class PersonalJarvisIsolationGuardrailsTest {
         assertTrue(wakeService.contains("currentState()"))
         assertTrue(wakeService.contains("JarvisWakeWordEngine.containsWakeWord"))
         assertTrue(wakeService.contains("private object JarvisWakeWordEngine"))
+        assertTrue(wakeService.contains("JarvisPorcupineWakeEngine"))
+        assertTrue(wakeService.contains("porcupineWakeEngine?.start() == true"))
+        assertTrue(wakeService.contains("porcupineWakeEngine?.stop(\"wake accepted before acknowledgment\")"))
+        assertTrue(wakeService.contains("porcupineWakeEngine?.shutdown()"))
         assertTrue(wakeService.contains("JarvisVoiceSession"))
         assertTrue(wakeService.contains("activeSession != null"))
         assertTrue(wakeService.contains("WAKE_DEBOUNCE_MS"))
@@ -164,6 +168,8 @@ class PersonalJarvisIsolationGuardrailsTest {
         assertTrue(wakeService.contains("SpeechRecognizer stop"))
         assertTrue(wakeService.contains("AudioRecord start"))
         assertTrue(wakeService.contains("AudioRecord stop"))
+        assertTrue(wakeService.contains("purpose=wake-fallback"))
+        assertTrue(wakeService.contains("purpose=command"))
         assertFalse(wakeService.contains("Audio focus requested"))
         assertFalse(wakeService.contains("Founder Brain is not connected"))
         assertFalse(wakeService.contains("Founder Brain is unavailable right now."))
@@ -181,6 +187,28 @@ class PersonalJarvisIsolationGuardrailsTest {
         assertTrue(speechPolicy.contains("route confidence"))
         assertTrue(speaker.contains("@Synchronized"))
         assertTrue(speaker.contains("engine.stop()"))
+    }
+
+    @Test
+    fun porcupineWakeUsesOnDeviceJarvisKeywordWhenConfigured() {
+        val buildGradle = sourceFile("app/build.gradle.kts").readText()
+        val config = sourceFile("app/src/main/java/com/example/mykeyboard/personal/PersonalJarvisConfig.kt").readText()
+        val porcupine = sourceFile("app/src/main/java/com/example/mykeyboard/personal/JarvisPorcupineWakeEngine.kt").readText()
+
+        assertTrue(buildGradle.contains("PICOVOICE_ACCESS_KEY"))
+        assertTrue(buildGradle.contains("ARITENIS_PICOVOICE_ACCESS_KEY"))
+        assertTrue(buildGradle.contains("PICOVOICE_ACCESS_KEY"))
+        assertTrue(buildGradle.contains("ai.picovoice:porcupine-android:4.0.0"))
+        assertTrue(config.contains("fun picovoiceAccessKey()"))
+        assertTrue(porcupine.contains("PorcupineManager.Builder()"))
+        assertTrue(porcupine.contains(".setAccessKey(PersonalJarvisConfig.picovoiceAccessKey())"))
+        assertTrue(porcupine.contains(".setKeyword(Porcupine.BuiltInKeyword.JARVIS)"))
+        assertTrue(porcupine.contains("activeManager.start()"))
+        assertTrue(porcupine.contains("manager?.stop()"))
+        assertTrue(porcupine.contains("manager?.delete()"))
+        assertFalse(porcupine.contains("SpeechRecognizer"))
+        assertFalse(porcupine.contains("FounderBrain"))
+        assertFalse(porcupine.contains("JarvisBrainConnector"))
     }
 
     private fun sourceFile(relativePath: String): File {
