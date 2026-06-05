@@ -68,6 +68,7 @@ class JarvisPorcupineWakeEngine(
 
     private fun buildManager(): PorcupineManager {
         val callback = PorcupineManagerCallback { keywordIndex ->
+            Log.i(TAG, "Porcupine wake metric: REAL_WAKE; phrase=\"jarvis\"; confidence=unknown; source=porcupine; audioSource=unknown; reason=porcupine keyword match")
             Log.i(TAG, "Porcupine wake detected: keywordIndex=$keywordIndex")
             onWakeDetected()
         }

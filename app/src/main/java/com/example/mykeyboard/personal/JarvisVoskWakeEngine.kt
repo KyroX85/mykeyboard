@@ -134,13 +134,20 @@ class JarvisVoskWakeEngine(
         val text = extractText(hypothesis).trim()
         if (text.isBlank()) return
         if (text == UNKNOWN_TOKEN) return
-        Log.d(TAG, "Vosk wake $source candidate: $text")
-        if (JarvisWakeWordDetector.containsWakeWord(text)) {
+        val decision = JarvisWakeWordDetector.evaluate(text)
+        Log.i(TAG, "Vosk wake metric: ${if (decision.accepted) "REAL_WAKE" else "FALSE_WAKE"}; phrase=\"${text.forLog()}\"; confidence=${decision.confidence.toConfidenceText()}; source=$source; audioSource=unknown; reason=${decision.reason}")
+        if (decision.accepted) {
             wakeDelivered = true
-            Log.i(TAG, "Vosk wake detected")
+            Log.i(TAG, "Vosk wake detected: phrase=\"${text.forLog()}\"; confidence=${decision.confidence.toConfidenceText()}")
             onWakeDetected()
         }
     }
+
+    private fun String.forLog(): String =
+        replace("\\", "\\\\").replace("\"", "\\\"")
+
+    private fun Float.toConfidenceText(): String =
+        String.format(java.util.Locale.US, "%.2f", this)
 
     private fun extractText(hypothesis: String?): String {
         if (hypothesis.isNullOrBlank()) return ""
@@ -157,7 +164,7 @@ class JarvisVoskWakeEngine(
         const val MODEL_STORAGE_DIR = "jarvis-vosk-wake-model"
         const val SAMPLE_RATE = 16000.0f
         const val WAKE_GRAMMAR =
-            "[\"hey jarvis\", \"jarvis\", \"he jarvis\", \"a jarvis\", \"hey jars\", \"hey javis\", \"[unk]\"]"
+            "[\"hey jarvis\", \"[unk]\"]"
         const val UNKNOWN_TOKEN = "[unk]"
     }
 }

@@ -10,6 +10,8 @@ const {
 
 const sampleLog = `
 I  Vosk wake started: grammar=hey jarvis
+I  Vosk wake metric: FALSE_WAKE; phrase="jarvis"; confidence=0.00; source=partial; audioSource=unknown; reason=single word or incomplete wake phrase
+I  Vosk wake metric: REAL_WAKE; phrase="hey jarvis"; confidence=1.00; source=result; audioSource=unknown; reason=complete hey jarvis phrase
 I  Wake word detected
 I  SpeechRecognizer start: state=COMMAND_CAPTURE; purpose=command
 I  Jarvis command captured: chars=18; transcript="who am i becoming"; confidence=0.91; alternative1="who am i becoming"; alternative1Confidence=0.91; alternative2="who i am becoming"; alternative2Confidence=0.74
@@ -24,6 +26,11 @@ const report = analyze(sampleLog, ['who am i becoming']);
 assert.strictEqual(report.questionUnderstanding.accuracy, '100%');
 assert.strictEqual(report.questionUnderstanding.speechReport.title, 'JARVIS SPEECH REPORT');
 assert.strictEqual(report.questionUnderstanding.speechReport.correct, 1);
+assert.strictEqual(report.falseWakeReport.title, 'FALSE WAKE REPORT');
+assert.strictEqual(report.falseWakeReport.realWakeCount, 1);
+assert.strictEqual(report.falseWakeReport.falseWakeCount, 1);
+assert.strictEqual(report.falseWakeReport.falseWakeRate, '50%');
+assert.strictEqual(report.falseWakeReport.topFalseTriggerPhrases[0].phrase, 'jarvis');
 assert.strictEqual(report.questionUnderstanding.perQuestion['who am i becoming'].accuracy, '100%');
 assert.strictEqual(report.questionUnderstanding.top10FailedTranscripts.length, 0);
 assert.strictEqual(report.wake.detected, 1);

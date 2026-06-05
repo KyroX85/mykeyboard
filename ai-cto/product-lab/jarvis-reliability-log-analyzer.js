@@ -120,6 +120,32 @@ function extractAlternatives(line) {
   return alternatives;
 }
 
+function extractQuotedValue(line, key) {
+  const match = line.match(new RegExp(`${key}="([^"]*)"`));
+  return match ? match[1] : '';
+}
+
+function extractPlainValue(line, key) {
+  const match = line.match(new RegExp(`${key}=([^;\\s]+)`));
+  return match ? match[1] : '';
+}
+
+function extractWakeMetric(line) {
+  if (!line.includes('wake metric:')) return null;
+  const type = line.includes('REAL_WAKE') ? 'REAL_WAKE' : line.includes('FALSE_WAKE') ? 'FALSE_WAKE' : null;
+  if (!type) return null;
+  const confidenceText = extractPlainValue(line, 'confidence');
+  const confidence = confidenceText === 'unknown' || !confidenceText ? null : Number(confidenceText);
+  return {
+    type,
+    phrase: extractQuotedValue(line, 'phrase') || '[unknown]',
+    confidence: Number.isFinite(confidence) ? confidence : null,
+    source: extractPlainValue(line, 'source') || 'unknown',
+    audioSource: extractPlainValue(line, 'audioSource') || 'unknown',
+    reason: line.match(/reason=(.*)$/)?.[1]?.trim() || 'unknown',
+  };
+}
+
 function commonWordCount(expected, actual) {
   const actualWords = new Set(normalizeWords(actual));
   return normalizeWords(expected).filter((word) => actualWords.has(word)).length;
@@ -159,11 +185,14 @@ function analyze(logText, expected = []) {
     sessionsCompleted: 0,
   };
   const attempts = [];
+  const wakeMetrics = [];
   let currentAttempt = null;
   const brainLatenciesMs = [];
   const failures = [];
 
   for (const line of lines) {
+    const wakeMetric = extractWakeMetric(line);
+    if (wakeMetric) wakeMetrics.push(wakeMetric);
     if (line.includes('Vosk wake started') || line.includes('Porcupine wake started')) counters.wakeEngineStarts += 1;
     if (line.includes('purpose=wake-fallback')) counters.wakeFallbackStarts += 1;
     if (line.includes('Wake word detected')) {
@@ -287,6 +316,35 @@ function analyze(logText, expected = []) {
   if (counters.brainTimeouts > 0) failures.push('Founder Brain network timeout occurred.');
   if (counters.commandStarts > counters.commandCaptured) failures.push('At least one command capture did not produce a transcript.');
 
+  const realWakeMetrics = wakeMetrics.filter((metric) => metric.type === 'REAL_WAKE');
+  const falseWakeMetrics = wakeMetrics.filter((metric) => metric.type === 'FALSE_WAKE');
+  const falseWakePhraseCounts = {};
+  const wakeReasonCounts = {};
+  const confidenceBuckets = {
+    unknown: 0,
+    '0.00-0.49': 0,
+    '0.50-0.79': 0,
+    '0.80-0.99': 0,
+    '1.00': 0,
+  };
+  for (const metric of wakeMetrics) {
+    if (metric.type === 'FALSE_WAKE') {
+      falseWakePhraseCounts[metric.phrase] = (falseWakePhraseCounts[metric.phrase] || 0) + 1;
+    }
+    wakeReasonCounts[metric.reason] = (wakeReasonCounts[metric.reason] || 0) + 1;
+    if (metric.confidence == null) {
+      confidenceBuckets.unknown += 1;
+    } else if (metric.confidence < 0.5) {
+      confidenceBuckets['0.00-0.49'] += 1;
+    } else if (metric.confidence < 0.8) {
+      confidenceBuckets['0.50-0.79'] += 1;
+    } else if (metric.confidence < 1) {
+      confidenceBuckets['0.80-0.99'] += 1;
+    } else {
+      confidenceBuckets['1.00'] += 1;
+    }
+  }
+
   return {
     questionUnderstanding: {
       expectedAttempts: expected.length,
@@ -336,6 +394,23 @@ function analyze(logText, expected = []) {
       detected: counters.wakeDetected,
       successRateFromObservedStarts: percent(counters.wakeDetected, counters.wakeEngineStarts + counters.wakeFallbackStarts),
       note: 'Missed wake attempts cannot be counted from logcat unless an attempt marker is logged or manually counted.',
+    },
+    falseWakeReport: {
+      title: 'FALSE WAKE REPORT',
+      realWakeCount: realWakeMetrics.length,
+      falseWakeCount: falseWakeMetrics.length,
+      realWakeRate: percent(realWakeMetrics.length, wakeMetrics.length),
+      falseWakeRate: percent(falseWakeMetrics.length, wakeMetrics.length),
+      confidenceHistogram: confidenceBuckets,
+      topFalseTriggerPhrases: Object.entries(falseWakePhraseCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 20)
+        .map(([phrase, count]) => ({ phrase, count })),
+      mostCommonWakeReasons: Object.entries(wakeReasonCounts)
+        .sort((a, b) => b[1] - a[1])
+        .map(([reason, count]) => ({ reason, count })),
+      wakeMetrics,
+      note: 'audioSource is unknown unless the Android runtime can identify the source; current logs classify source as wake engine, not external audio origin.',
     },
     command: {
       starts: counters.commandStarts,

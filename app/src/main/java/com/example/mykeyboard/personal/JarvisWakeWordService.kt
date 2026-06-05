@@ -311,6 +311,7 @@ class JarvisWakeWordService : Service(), RecognitionListener {
             return
         }
         if (nowMs - lastWakeAcceptedAtMs < WAKE_DEBOUNCE_MS) {
+            Log.i(TAG, "Wake metric: FALSE_WAKE; phrase=\"duplicate\"; confidence=unknown; source=debounce; audioSource=unknown; reason=duplicate wake inside debounce")
             Log.i(TAG, "Duplicate wake ignored by debounce")
             scheduleWakeRestart()
             return
@@ -609,7 +610,7 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         private const val NO_MATCH_RESTART_DELAY_MS = 5000L
         private const val COMMAND_LISTEN_DELAY_MS = 180L
         private const val RETURN_TO_IDLE_DELAY_MS = 350L
-        private const val WAKE_DEBOUNCE_MS = 2500L
+        private const val WAKE_DEBOUNCE_MS = 6000L
         private const val MAX_DEBUG_TRANSCRIPT_CHARS = 80
         private const val MAX_DEBUG_ALTERNATIVES = 5
 

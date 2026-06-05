@@ -9,19 +9,30 @@ class JarvisWakeWordDetectorTest {
     fun detectsHeyJarvisPhrase() {
         assertTrue(JarvisWakeWordDetector.containsWakeWord("hey jarvis"))
         assertTrue(JarvisWakeWordDetector.containsWakeWord("Hey, Jarvis can you hear me"))
-        assertTrue(JarvisWakeWordDetector.containsWakeWord("JARVIS"))
-        assertTrue(JarvisWakeWordDetector.containsWakeWord("he Jarvis"))
-        assertTrue(JarvisWakeWordDetector.containsWakeWord("hey Javis"))
-        assertTrue(JarvisWakeWordDetector.containsWakeWord("a Jarvis"))
-        assertTrue(JarvisWakeWordDetector.containsWakeWord("he Javed"))
     }
 
     @Test
     fun ignoresNonWakePhrases() {
+        assertFalse(JarvisWakeWordDetector.containsWakeWord("JARVIS"))
+        assertFalse(JarvisWakeWordDetector.containsWakeWord("he Jarvis"))
+        assertFalse(JarvisWakeWordDetector.containsWakeWord("hey Javis"))
+        assertFalse(JarvisWakeWordDetector.containsWakeWord("a Jarvis"))
+        assertFalse(JarvisWakeWordDetector.containsWakeWord("he Javed"))
         assertFalse(JarvisWakeWordDetector.containsWakeWord("hey keyboard"))
         assertFalse(JarvisWakeWordDetector.containsWakeWord("java service"))
         assertFalse(JarvisWakeWordDetector.containsWakeWord("javed"))
         assertFalse(JarvisWakeWordDetector.containsWakeWord("javelin"))
         assertFalse(JarvisWakeWordDetector.containsWakeWord(""))
+    }
+
+    @Test
+    fun explainsRejectedWakeCandidates() {
+        val singleWord = JarvisWakeWordDetector.evaluate("jarvis")
+        assertFalse(singleWord.accepted)
+        assertTrue(singleWord.reason.contains("single word"))
+
+        val completePhrase = JarvisWakeWordDetector.evaluate("hey jarvis")
+        assertTrue(completePhrase.accepted)
+        assertTrue(completePhrase.confidence >= 1.0f)
     }
 }
