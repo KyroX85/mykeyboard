@@ -29,23 +29,27 @@ import java.util.UUID
 
 class JarvisWakeWordService : Service(), RecognitionListener {
     private val mainHandler = Handler(Looper.getMainLooper())
-    private val restartListeningRunnable = Runnable {
-        setAudioState(AudioState.IDLE)
-        startListeningLoop()
-    }
     private val stateLock = Any()
     private var recognizer: SpeechRecognizer? = null
-    private var audioState = AudioState.IDLE
+    private var state = JarvisConversationState.IDLE
     private var wakeLock: PowerManager.WakeLock? = null
     private var speaker: JarvisSpeaker? = null
     private var brainConnector: JarvisBrainConnector? = null
-    private var listeningMode = ListeningMode.WAKE_WORD
-    private var awaitingBrainResponse = false
     private var activeSession: JarvisVoiceSession? = null
     private var lastWakeAcceptedAtMs = 0L
-    private var suppressRecognizerCallbacksUntilMs = 0L
     private var latestCommandPartial = ""
     private val responseGate = JarvisWakeResponseGate()
+
+    private val wakeRestartRunnable = Runnable {
+        if (currentState() == JarvisConversationState.RETURN_TO_IDLE) {
+            transitionTo(JarvisConversationState.IDLE, "return to idle complete")
+        }
+        startWakeRecognition()
+    }
+
+    private val commandStartRunnable = Runnable {
+        startCommandRecognition()
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -58,7 +62,8 @@ class JarvisWakeWordService : Service(), RecognitionListener {
             buildNotification("Listening for Hey Jarvis")
         )
         acquireWakeLock()
-        startListeningLoop()
+        transitionTo(JarvisConversationState.IDLE, "service created")
+        startWakeRecognition()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -68,17 +73,21 @@ class JarvisWakeWordService : Service(), RecognitionListener {
                 stopSelf()
                 return START_NOT_STICKY
             }
-            ACTION_START -> startListeningLoop()
+            ACTION_START -> {
+                if (currentState() == JarvisConversationState.IDLE) {
+                    startWakeRecognition()
+                }
+            }
         }
         return START_STICKY
     }
 
     override fun onDestroy() {
         Log.i(TAG, "Foreground service lifecycle: onDestroy")
-        setAudioState(AudioState.IDLE)
-        activeSession = null
-        awaitingBrainResponse = false
         mainHandler.removeCallbacksAndMessages(null)
+        activeSession = null
+        latestCommandPartial = ""
+        transitionTo(JarvisConversationState.RETURN_TO_IDLE, "service destroyed")
         destroyRecognizer()
         speaker?.shutdown()
         speaker = null
@@ -89,45 +98,72 @@ class JarvisWakeWordService : Service(), RecognitionListener {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
-    private fun startListeningLoop() {
-        if (!claimIdleForListening()) return
-        if (!hasMicrophonePermission()) {
-            Log.w(TAG, "Wake word service missing RECORD_AUDIO permission")
-            setAudioState(AudioState.IDLE)
-            stopSelf()
+    private fun startWakeRecognition() {
+        if (currentState() != JarvisConversationState.IDLE) {
+            Log.i(TAG, "Wake recognizer start ignored: state=${currentState()}")
             return
         }
-        if (!SpeechRecognizer.isRecognitionAvailable(this)) {
-            Log.w(TAG, "Wake word service unavailable: SpeechRecognizer not available")
-            setAudioState(AudioState.IDLE)
-            stopSelf()
-            return
-        }
-
+        if (!canStartRecognition()) return
         try {
             ensureRecognizer()
-            Log.i(TAG, "SpeechRecognizer start: mode=$listeningMode; audioState=${getAudioState()}")
-            recognizer?.startListening(buildRecognizerIntent())
-            Log.i(TAG, "AudioRecord start: SpeechRecognizer owns microphone; mode=$listeningMode")
-            Log.d(TAG, "Jarvis listener started: $listeningMode")
+            Log.i(TAG, "SpeechRecognizer start: state=IDLE; purpose=wake")
+            recognizer?.startListening(buildRecognizerIntent(JarvisConversationState.IDLE))
+            Log.i(TAG, "AudioRecord start: SpeechRecognizer owns microphone; purpose=wake")
         } catch (e: RuntimeException) {
-            Log.w(TAG, "Unable to start Jarvis listener", e)
-            setAudioState(AudioState.IDLE)
-            scheduleListeningRestart(BUSY_RESTART_DELAY_MS)
+            Log.w(TAG, "Unable to start wake recognizer", e)
+            scheduleWakeRestart(BUSY_RESTART_DELAY_MS)
         }
     }
 
-    private fun scheduleListeningRestart(delayMs: Long = RESTART_DELAY_MS) {
-        Log.i(TAG, "WakeWordDetector start scheduled: delayMs=$delayMs; mode=$listeningMode")
-        mainHandler.removeCallbacks(restartListeningRunnable)
-        mainHandler.postDelayed(restartListeningRunnable, delayMs)
+    private fun startCommandRecognition() {
+        if (currentState() != JarvisConversationState.COMMAND_CAPTURE) {
+            Log.i(TAG, "Command recognizer start ignored: state=${currentState()}")
+            return
+        }
+        if (!canStartRecognition()) return
+        try {
+            ensureRecognizer()
+            Log.i(TAG, "SpeechRecognizer start: state=COMMAND_CAPTURE; purpose=command")
+            recognizer?.startListening(buildRecognizerIntent(JarvisConversationState.COMMAND_CAPTURE))
+            Log.i(TAG, "AudioRecord start: SpeechRecognizer owns microphone; purpose=command")
+        } catch (e: RuntimeException) {
+            Log.w(TAG, "Unable to start command recognizer", e)
+            releaseSession("command recognizer start failed")
+            scheduleWakeRestart(BUSY_RESTART_DELAY_MS)
+        }
     }
 
-    private fun retryWakeListening(delayMs: Long = RESTART_DELAY_MS) {
-        Log.i(TAG, "SpeechRecognizer stop: retryWakeListening cancel; mode=$listeningMode")
+    private fun canStartRecognition(): Boolean {
+        if (!hasMicrophonePermission()) {
+            Log.w(TAG, "Jarvis service missing RECORD_AUDIO permission")
+            stopSelf()
+            return false
+        }
+        if (!SpeechRecognizer.isRecognitionAvailable(this)) {
+            Log.w(TAG, "Jarvis service unavailable: SpeechRecognizer not available")
+            stopSelf()
+            return false
+        }
+        return true
+    }
+
+    private fun scheduleWakeRestart(delayMs: Long = RESTART_DELAY_MS) {
+        Log.i(TAG, "Wake recognizer restart scheduled: delayMs=$delayMs; state=${currentState()}")
+        mainHandler.removeCallbacks(wakeRestartRunnable)
+        mainHandler.removeCallbacks(commandStartRunnable)
+        mainHandler.postDelayed(wakeRestartRunnable, delayMs)
+    }
+
+    private fun scheduleCommandStart(delayMs: Long = COMMAND_LISTEN_DELAY_MS) {
+        Log.i(TAG, "Command recognizer start scheduled: delayMs=$delayMs; state=${currentState()}")
+        mainHandler.removeCallbacks(commandStartRunnable)
+        mainHandler.postDelayed(commandStartRunnable, delayMs)
+    }
+
+    private fun cancelRecognizerForTransition(reason: String) {
+        Log.i(TAG, "SpeechRecognizer stop: $reason; state=${currentState()}")
         Log.i(TAG, "AudioRecord stop: SpeechRecognizer cancel requested")
         recognizer?.cancel()
-        scheduleListeningRestart(delayMs)
     }
 
     private fun ensureRecognizer() {
@@ -137,15 +173,15 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         }
     }
 
-    private fun buildRecognizerIntent(): Intent {
-        val isCommandMode = listeningMode == ListeningMode.COMMAND
+    private fun buildRecognizerIntent(targetState: JarvisConversationState): Intent {
+        val isCommand = targetState == JarvisConversationState.COMMAND_CAPTURE
         return Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
-            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, if (isCommandMode) COMMAND_MAX_RESULTS else WAKE_MAX_RESULTS)
+            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, isCommand || targetState == JarvisConversationState.IDLE)
+            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, if (isCommand) COMMAND_MAX_RESULTS else WAKE_MAX_RESULTS)
             putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, packageName)
-            if (isCommandMode) {
+            if (isCommand) {
                 putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, false)
                 putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, COMMAND_MINIMUM_INPUT_MS)
                 putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, COMMAND_COMPLETE_SILENCE_MS)
@@ -157,8 +193,69 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         }
     }
 
-    private fun inspectResults(results: Bundle?) {
-        if (listeningMode != ListeningMode.WAKE_WORD) return
+    override fun onReadyForSpeech(params: Bundle?) {
+        Log.d(TAG, "SpeechRecognizer ready: state=${currentState()}")
+    }
+
+    override fun onBeginningOfSpeech() = Unit
+    override fun onRmsChanged(rmsdB: Float) = Unit
+    override fun onBufferReceived(buffer: ByteArray?) = Unit
+    override fun onEndOfSpeech() = Unit
+
+    override fun onPartialResults(partialResults: Bundle?) {
+        when (currentState()) {
+            JarvisConversationState.IDLE -> inspectWakeResults(partialResults)
+            JarvisConversationState.COMMAND_CAPTURE -> {
+                latestCommandPartial = selectBestCommandTranscript(partialResults)
+                if (latestCommandPartial.isNotBlank()) {
+                    Log.d(TAG, "Jarvis command partial captured: chars=${latestCommandPartial.length}")
+                }
+            }
+            else -> Log.d(TAG, "Partial results ignored: state=${currentState()}")
+        }
+    }
+
+    override fun onResults(results: Bundle?) {
+        when (currentState()) {
+            JarvisConversationState.IDLE -> {
+                inspectWakeResults(results)
+                if (currentState() == JarvisConversationState.IDLE) {
+                    scheduleWakeRestart()
+                }
+            }
+            JarvisConversationState.COMMAND_CAPTURE -> handleCommandResults(results)
+            else -> Log.d(TAG, "Final results ignored: state=${currentState()}")
+        }
+    }
+
+    override fun onError(error: Int) {
+        Log.w(TAG, "SpeechRecognizer error: $error; state=${currentState()}")
+        when (currentState()) {
+            JarvisConversationState.IDLE -> {
+                val delayMs = when (error) {
+                    SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> BUSY_RESTART_DELAY_MS
+                    SpeechRecognizer.ERROR_NO_MATCH -> NO_MATCH_RESTART_DELAY_MS
+                    else -> RESTART_DELAY_MS
+                }
+                scheduleWakeRestart(delayMs)
+            }
+            JarvisConversationState.COMMAND_CAPTURE -> {
+                if (error == SpeechRecognizer.ERROR_NO_MATCH && latestCommandPartial.isNotBlank()) {
+                    Log.i(TAG, "Using command partial after no-match: chars=${latestCommandPartial.length}")
+                    handleCommandText(latestCommandPartial)
+                } else {
+                    releaseSession("command recognizer error")
+                    scheduleWakeRestart(RESTART_DELAY_MS)
+                }
+            }
+            else -> Log.d(TAG, "Recognizer error ignored outside listening state: state=${currentState()}")
+        }
+    }
+
+    override fun onEvent(eventType: Int, params: Bundle?) = Unit
+
+    private fun inspectWakeResults(results: Bundle?) {
+        if (currentState() != JarvisConversationState.IDLE) return
         val phrases = results
             ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
             .orEmpty()
@@ -166,6 +263,7 @@ class JarvisWakeWordService : Service(), RecognitionListener {
             Log.d(TAG, "Wake word heard candidate: $phrase")
             if (JarvisWakeWordEngine.containsWakeWord(phrase)) {
                 handleWakeWordDetected()
+                return
             }
         }
     }
@@ -173,124 +271,64 @@ class JarvisWakeWordService : Service(), RecognitionListener {
     private fun handleWakeWordDetected() {
         val nowMs = SystemClock.elapsedRealtime()
         Log.i(TAG, "Wake word detected")
-        if (!claimListeningForProcessing()) {
-            Log.i(TAG, "Wake ignored: audio state is not listening")
+        if (currentState() != JarvisConversationState.IDLE) {
+            Log.i(TAG, "Wake ignored outside IDLE: state=${currentState()}")
             return
         }
-        if (activeSession != null || awaitingBrainResponse) {
+        if (activeSession != null) {
             Log.i(TAG, "Duplicate wake ignored: active session already running")
-            retryWakeListening()
+            scheduleWakeRestart()
             return
         }
         if (nowMs - lastWakeAcceptedAtMs < WAKE_DEBOUNCE_MS) {
             Log.i(TAG, "Duplicate wake ignored by debounce")
-            retryWakeListening()
+            scheduleWakeRestart()
             return
         }
-        if (responseGate.shouldRespond(nowMs)) {
-            val session = beginSession(nowMs)
-            listeningMode = ListeningMode.COMMAND
-            latestCommandPartial = ""
-            suppressRecognizerCallbacksUntilMs = nowMs + COMMAND_TRANSITION_SUPPRESSION_MS
-            Log.i(TAG, "WakeWordDetector stop: transition to command capture")
-            Log.i(TAG, "SpeechRecognizer stop: intentional wake-listener cancel before command capture")
-            Log.i(TAG, "AudioRecord stop: intentional wake-listener cancel before command capture")
-            recognizer?.cancel()
-            Log.i(TAG, "Jarvis session started: ${session.id}")
-            val startCommandListening: () -> Unit = {
-                mainHandler.post {
-                    if (activeSession?.id == session.id &&
-                        getAudioState() == AudioState.PROCESSING &&
-                        listeningMode == ListeningMode.COMMAND
-                    ) {
-                        scheduleListeningRestart(COMMAND_LISTEN_DELAY_MS)
-                    }
-                }
-                Unit
-            }
-            speaker?.speak(JarvisWakeResponseGate.RESPONSE_TEXT, startCommandListening) ?: startCommandListening()
-        } else {
+        if (!responseGate.shouldRespond(nowMs)) {
             releaseSession("wake response cooldown")
-            retryWakeListening()
+            scheduleWakeRestart()
+            return
         }
-    }
 
-    override fun onReadyForSpeech(params: Bundle?) {
-        Log.d(TAG, "Wake word ready for speech")
-    }
-
-    override fun onBeginningOfSpeech() = Unit
-    override fun onRmsChanged(rmsdB: Float) = Unit
-    override fun onBufferReceived(buffer: ByteArray?) = Unit
-    override fun onEndOfSpeech() = Unit
-    override fun onPartialResults(partialResults: Bundle?) {
-        if (shouldSuppressRecognizerCallback("onPartialResults")) return
-        if (listeningMode == ListeningMode.COMMAND) {
-            latestCommandPartial = selectBestCommandTranscript(partialResults)
-            if (latestCommandPartial.isNotBlank()) {
-                Log.d(TAG, "Jarvis command partial captured: chars=${latestCommandPartial.length}")
+        val session = beginSession(nowMs)
+        latestCommandPartial = ""
+        transitionTo(JarvisConversationState.WAKE_CONFIRMED, "wake accepted")
+        cancelRecognizerForTransition("wake confirmed before acknowledgment")
+        Log.i(TAG, "Jarvis session started: ${session.id}")
+        val afterAcknowledgement: () -> Unit = {
+            mainHandler.post {
+                if (activeSession?.id == session.id && currentState() == JarvisConversationState.WAKE_CONFIRMED) {
+                    transitionTo(JarvisConversationState.COMMAND_CAPTURE, "acknowledgment spoken")
+                    scheduleCommandStart()
+                }
             }
-        } else {
-            inspectResults(partialResults)
+            Unit
         }
+        speaker?.speak(JarvisWakeResponseGate.RESPONSE_TEXT, afterAcknowledgement) ?: afterAcknowledgement()
     }
-
-    override fun onResults(results: Bundle?) {
-        if (shouldSuppressRecognizerCallback("onResults")) return
-        if (listeningMode == ListeningMode.COMMAND) {
-            handleCommandResults(results)
-        } else {
-            inspectResults(results)
-            if (getAudioState() == AudioState.LISTENING) {
-                scheduleListeningRestart()
-            }
-        }
-    }
-
-    override fun onError(error: Int) {
-        Log.w(TAG, "Wake word listener error: $error")
-        if (shouldSuppressRecognizerCallback("onError:$error")) return
-        if (listeningMode == ListeningMode.COMMAND) {
-            if (error == SpeechRecognizer.ERROR_NO_MATCH && latestCommandPartial.isNotBlank()) {
-                Log.i(TAG, "Using command partial after no-match: chars=${latestCommandPartial.length}")
-                handleCommandText(latestCommandPartial)
-                latestCommandPartial = ""
-                return
-            }
-            listeningMode = ListeningMode.WAKE_WORD
-            latestCommandPartial = ""
-            releaseSession("speech recognizer error")
-        }
-        if (getAudioState() == AudioState.PROCESSING) return
-        val restartDelayMs = when (error) {
-            SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> BUSY_RESTART_DELAY_MS
-            SpeechRecognizer.ERROR_NO_MATCH -> NO_MATCH_RESTART_DELAY_MS
-            else -> RESTART_DELAY_MS
-        }
-        scheduleListeningRestart(restartDelayMs)
-    }
-
-    override fun onEvent(eventType: Int, params: Bundle?) = Unit
 
     private fun handleCommandResults(results: Bundle?) {
         handleCommandText(selectBestCommandTranscript(results))
     }
 
     private fun handleCommandText(rawQuestion: String) {
+        if (currentState() != JarvisConversationState.COMMAND_CAPTURE) {
+            Log.i(TAG, "Command ignored outside COMMAND_CAPTURE: state=${currentState()}")
+            return
+        }
         val session = activeSession
         val question = rawQuestion.trim()
-
-        setAudioState(AudioState.PROCESSING)
-        listeningMode = ListeningMode.WAKE_WORD
         latestCommandPartial = ""
+        transitionTo(JarvisConversationState.PROCESSING, "command captured")
         if (session == null) {
             Log.w(TAG, "Command ignored: no active Jarvis session")
-            scheduleListeningRestart()
+            scheduleWakeRestart()
             return
         }
         if (question.isBlank()) {
             releaseSession("blank command")
-            scheduleListeningRestart()
+            scheduleWakeRestart()
             return
         }
         session.commandCaptured = true
@@ -328,16 +366,12 @@ class JarvisWakeWordService : Service(), RecognitionListener {
     }
 
     private fun askFounderBrain(session: JarvisVoiceSession, question: String) {
-        if (awaitingBrainResponse) return
         val connector = brainConnector
         if (connector == null) {
             Log.w(TAG, "Founder Brain connector missing for session ${session.id}")
-            speaker?.speak(JarvisBrainSpeechPolicy.safeFallback())
-            releaseSession("brain not attached")
-            scheduleListeningRestart(BRAIN_RESPONSE_RESTART_DELAY_MS)
+            speakAndReturnToIdle(JarvisBrainSpeechPolicy.safeFallback(), "brain not attached")
             return
         }
-        awaitingBrainResponse = true
         session.brainAttached = true
         Log.i(TAG, "Founder Brain question captured")
         connector.askQuestion(
@@ -345,34 +379,43 @@ class JarvisWakeWordService : Service(), RecognitionListener {
             sessionId = session.id,
             onAnswer = { answer ->
                 mainHandler.post {
-                    if (activeSession?.id != session.id) {
+                    if (activeSession?.id != session.id || currentState() != JarvisConversationState.PROCESSING) {
                         Log.w(TAG, "Stale Founder Brain answer ignored: ${session.id}")
                         return@post
                     }
-                    awaitingBrainResponse = false
                     val speech = JarvisBrainSpeechPolicy.speechFor(answer)
-                    if (speech.isNotBlank()) {
-                        Log.i(TAG, "Founder Brain voiceSummary received: chars=${speech.length}")
-                        speaker?.speak(speech)
-                    }
-                    releaseSession("brain response delivered")
-                    scheduleFollowUpCommandWindow()
+                    Log.i(TAG, "Founder Brain voiceSummary received: chars=${speech.length}")
+                    speakAndReturnToIdle(speech, "brain response delivered")
                 }
             },
             onFailure = { reason ->
                 mainHandler.post {
-                    if (activeSession?.id != session.id) {
+                    if (activeSession?.id != session.id || currentState() != JarvisConversationState.PROCESSING) {
                         Log.w(TAG, "Stale Founder Brain failure ignored: ${session.id}")
                         return@post
                     }
                     Log.w(TAG, "Founder Brain conversation failed: $reason")
-                    awaitingBrainResponse = false
-                    speaker?.speak(JarvisBrainSpeechPolicy.safeFallback())
-                    releaseSession("brain failure")
-                    scheduleListeningRestart(BRAIN_RESPONSE_RESTART_DELAY_MS)
+                    speakAndReturnToIdle(JarvisBrainSpeechPolicy.safeFallback(), "brain failure")
                 }
             }
         )
+    }
+
+    private fun speakAndReturnToIdle(text: String, reason: String) {
+        transitionTo(JarvisConversationState.SPEAKING, reason)
+        val afterSpeech: () -> Unit = {
+            mainHandler.post {
+                releaseSession(reason)
+                transitionTo(JarvisConversationState.RETURN_TO_IDLE, "speech complete")
+                scheduleWakeRestart(RETURN_TO_IDLE_DELAY_MS)
+            }
+            Unit
+        }
+        if (text.isBlank()) {
+            afterSpeech()
+        } else {
+            speaker?.speak(text, afterSpeech) ?: afterSpeech()
+        }
     }
 
     private fun beginSession(nowMs: Long): JarvisVoiceSession {
@@ -385,49 +428,25 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         }
     }
 
-    private fun scheduleFollowUpCommandWindow() {
-        val nowMs = SystemClock.elapsedRealtime()
-        activeSession = JarvisVoiceSession(
-            id = UUID.randomUUID().toString(),
-            startedAtMs = nowMs
-        )
-        listeningMode = ListeningMode.COMMAND
-        setAudioState(AudioState.IDLE)
-        Log.i(TAG, "Follow-up command window scheduled")
-        scheduleListeningRestart(FOLLOW_UP_COMMAND_LISTEN_DELAY_MS)
-    }
-
     private fun releaseSession(reason: String) {
         activeSession?.let { Log.i(TAG, "Jarvis session released: ${it.id}; reason=$reason") }
         activeSession = null
-        awaitingBrainResponse = false
-        listeningMode = ListeningMode.WAKE_WORD
         latestCommandPartial = ""
-        setAudioState(AudioState.IDLE)
     }
 
-    private fun claimIdleForListening(): Boolean =
+    private fun transitionTo(nextState: JarvisConversationState, reason: String) {
         synchronized(stateLock) {
-            if (audioState != AudioState.IDLE) return@synchronized false
-            audioState = AudioState.LISTENING
-            true
-        }
-
-    private fun claimListeningForProcessing(): Boolean =
-        synchronized(stateLock) {
-            if (audioState != AudioState.LISTENING) return@synchronized false
-            audioState = AudioState.PROCESSING
-            true
-        }
-
-    private fun setAudioState(state: AudioState) {
-        synchronized(stateLock) {
-            audioState = state
+            if (state != nextState) {
+                Log.i(TAG, "Jarvis state transition: $state -> $nextState; reason=$reason")
+                state = nextState
+            } else {
+                Log.d(TAG, "Jarvis state unchanged: $state; reason=$reason")
+            }
         }
     }
 
-    private fun getAudioState(): AudioState =
-        synchronized(stateLock) { audioState }
+    private fun currentState(): JarvisConversationState =
+        synchronized(stateLock) { state }
 
     private fun destroyRecognizer() {
         try {
@@ -440,14 +459,6 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         } finally {
             recognizer = null
         }
-    }
-
-    private fun shouldSuppressRecognizerCallback(source: String): Boolean {
-        val nowMs = SystemClock.elapsedRealtime()
-        if (suppressRecognizerCallbacksUntilMs <= nowMs) return false
-        if (getAudioState() != AudioState.PROCESSING || listeningMode != ListeningMode.COMMAND) return false
-        Log.i(TAG, "SpeechRecognizer callback suppressed during command transition: $source")
-        return true
     }
 
     private fun hasMicrophonePermission(): Boolean =
@@ -518,10 +529,9 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         private const val BUSY_RESTART_DELAY_MS = 1600L
         private const val NO_MATCH_RESTART_DELAY_MS = 5000L
         private const val COMMAND_LISTEN_DELAY_MS = 180L
-        private const val COMMAND_TRANSITION_SUPPRESSION_MS = 900L
-        private const val BRAIN_RESPONSE_RESTART_DELAY_MS = 1200L
-        private const val FOLLOW_UP_COMMAND_LISTEN_DELAY_MS = 3500L
+        private const val RETURN_TO_IDLE_DELAY_MS = 350L
         private const val WAKE_DEBOUNCE_MS = 2500L
+
         fun start(context: Context) {
             val intent = Intent(context, JarvisWakeWordService::class.java).setAction(ACTION_START)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -536,15 +546,13 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         }
     }
 
-    private enum class ListeningMode {
-        WAKE_WORD,
-        COMMAND
-    }
-
-    private enum class AudioState {
+    private enum class JarvisConversationState {
         IDLE,
-        LISTENING,
-        PROCESSING
+        WAKE_CONFIRMED,
+        COMMAND_CAPTURE,
+        PROCESSING,
+        SPEAKING,
+        RETURN_TO_IDLE
     }
 
     private data class JarvisVoiceSession(
