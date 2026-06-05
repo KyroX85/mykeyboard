@@ -273,8 +273,7 @@ class JarvisWakeWordService : Service(), RecognitionListener {
                     Log.i(TAG, "Using command partial after no-match: chars=${latestCommandPartial.length}")
                     handleCommandText(latestCommandPartial)
                 } else {
-                    releaseSession("command recognizer error")
-                    scheduleWakeRestart(RESTART_DELAY_MS)
+                    failCommandCapture("command recognizer error", RESTART_DELAY_MS)
                 }
             }
             else -> Log.d(TAG, "Recognizer error ignored outside listening state: state=${currentState()}")
@@ -354,12 +353,11 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         transitionTo(JarvisConversationState.PROCESSING, "command captured")
         if (session == null) {
             Log.w(TAG, "Command ignored: no active Jarvis session")
-            scheduleWakeRestart()
+            failCommandCapture("missing active session", RESTART_DELAY_MS)
             return
         }
         if (question.isBlank()) {
-            releaseSession("blank command")
-            scheduleWakeRestart()
+            failCommandCapture("blank command", RESTART_DELAY_MS)
             return
         }
         session.commandCaptured = true
@@ -430,6 +428,13 @@ class JarvisWakeWordService : Service(), RecognitionListener {
                 }
             }
         )
+    }
+
+    private fun failCommandCapture(reason: String, restartDelayMs: Long) {
+        releaseSession(reason)
+        latestCommandPartial = ""
+        transitionTo(JarvisConversationState.RETURN_TO_IDLE, reason)
+        scheduleWakeRestart(restartDelayMs)
     }
 
     private fun speakAndReturnToIdle(text: String, reason: String) {

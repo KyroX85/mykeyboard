@@ -20,6 +20,7 @@ class JarvisVoskWakeEngine(
     private var isPreparing = false
     private var isStarted = false
     private var permanentlyUnavailable = false
+    private var wakeDelivered = false
 
     fun start(): Boolean {
         if (permanentlyUnavailable) {
@@ -50,6 +51,7 @@ class JarvisVoskWakeEngine(
         } finally {
             speechService = null
             isStarted = false
+            wakeDelivered = false
         }
     }
 
@@ -116,6 +118,7 @@ class JarvisVoskWakeEngine(
                 it.startListening(this)
             }
             isStarted = true
+            wakeDelivered = false
             Log.i(TAG, "Vosk wake started: grammar=hey jarvis")
             true
         } catch (e: IOException) {
@@ -127,10 +130,12 @@ class JarvisVoskWakeEngine(
         }
 
     private fun inspectHypothesis(hypothesis: String?, source: String) {
+        if (!isStarted || wakeDelivered) return
         val text = extractText(hypothesis).trim()
         if (text.isBlank()) return
         Log.d(TAG, "Vosk wake $source candidate: $text")
         if (JarvisWakeWordDetector.containsWakeWord(text)) {
+            wakeDelivered = true
             Log.i(TAG, "Vosk wake detected")
             onWakeDetected()
         }
