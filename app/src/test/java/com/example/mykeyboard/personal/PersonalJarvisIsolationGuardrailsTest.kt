@@ -94,9 +94,13 @@ class PersonalJarvisIsolationGuardrailsTest {
         assertTrue(wakeService.contains("JarvisWakeWordEngine.containsWakeWord"))
         assertTrue(wakeService.contains("private object JarvisWakeWordEngine"))
         assertTrue(wakeService.contains("JarvisPorcupineWakeEngine"))
+        assertTrue(wakeService.contains("JarvisVoskWakeEngine"))
         assertTrue(wakeService.contains("porcupineWakeEngine?.start() == true"))
+        assertTrue(wakeService.contains("voskWakeEngine?.start() == true"))
         assertTrue(wakeService.contains("porcupineWakeEngine?.stop(\"wake accepted before acknowledgment\")"))
+        assertTrue(wakeService.contains("voskWakeEngine?.stop(\"wake accepted before acknowledgment\")"))
         assertTrue(wakeService.contains("porcupineWakeEngine?.shutdown()"))
+        assertTrue(wakeService.contains("voskWakeEngine?.shutdown()"))
         assertTrue(wakeService.contains("JarvisVoiceSession"))
         assertTrue(wakeService.contains("activeSession != null"))
         assertTrue(wakeService.contains("WAKE_DEBOUNCE_MS"))
@@ -199,6 +203,7 @@ class PersonalJarvisIsolationGuardrailsTest {
         assertTrue(buildGradle.contains("ARITENIS_PICOVOICE_ACCESS_KEY"))
         assertTrue(buildGradle.contains("PICOVOICE_ACCESS_KEY"))
         assertTrue(buildGradle.contains("ai.picovoice:porcupine-android:4.0.0"))
+        assertTrue(buildGradle.contains("com.alphacephei:vosk-android:0.3.75"))
         assertTrue(config.contains("fun picovoiceAccessKey()"))
         assertTrue(porcupine.contains("PorcupineManager.Builder()"))
         assertTrue(porcupine.contains(".setAccessKey(PersonalJarvisConfig.picovoiceAccessKey())"))
@@ -209,6 +214,25 @@ class PersonalJarvisIsolationGuardrailsTest {
         assertFalse(porcupine.contains("SpeechRecognizer"))
         assertFalse(porcupine.contains("FounderBrain"))
         assertFalse(porcupine.contains("JarvisBrainConnector"))
+    }
+
+    @Test
+    fun voskWakeUsesOfflineGrammarBeforeSpeechRecognizerFallback() {
+        val buildGradle = sourceFile("app/build.gradle.kts").readText()
+        val wakeService = sourceFile("app/src/main/java/com/example/mykeyboard/personal/JarvisWakeWordService.kt").readText()
+        val vosk = sourceFile("app/src/main/java/com/example/mykeyboard/personal/JarvisVoskWakeEngine.kt").readText()
+
+        assertTrue(buildGradle.contains("com.alphacephei:vosk-android:0.3.75"))
+        assertTrue(wakeService.indexOf("porcupineWakeEngine?.start() == true") < wakeService.indexOf("voskWakeEngine?.start() == true"))
+        assertTrue(wakeService.indexOf("voskWakeEngine?.start() == true") < wakeService.indexOf("purpose=wake-fallback"))
+        assertTrue(vosk.contains("StorageService.unpack"))
+        assertTrue(vosk.contains("vosk-model-small-en-us-0.15"))
+        assertTrue(vosk.contains("Recognizer(activeModel, SAMPLE_RATE, WAKE_GRAMMAR)"))
+        assertTrue(vosk.contains("SpeechService(recognizer, SAMPLE_RATE)"))
+        assertTrue(vosk.contains("Vosk wake started: grammar=hey jarvis"))
+        assertTrue(vosk.contains("JarvisWakeWordDetector.containsWakeWord(text)"))
+        assertFalse(vosk.contains("FOUNDER_BRAIN"))
+        assertFalse(vosk.contains("JarvisBrainConnector"))
     }
 
     private fun sourceFile(relativePath: String): File {

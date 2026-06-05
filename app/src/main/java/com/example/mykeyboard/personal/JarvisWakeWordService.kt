@@ -36,6 +36,7 @@ class JarvisWakeWordService : Service(), RecognitionListener {
     private var speaker: JarvisSpeaker? = null
     private var brainConnector: JarvisBrainConnector? = null
     private var porcupineWakeEngine: JarvisPorcupineWakeEngine? = null
+    private var voskWakeEngine: JarvisVoskWakeEngine? = null
     private var activeSession: JarvisVoiceSession? = null
     private var lastWakeAcceptedAtMs = 0L
     private var latestCommandPartial = ""
@@ -60,6 +61,15 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         porcupineWakeEngine = JarvisPorcupineWakeEngine(this) {
             mainHandler.post { handleWakeWordDetected() }
         }
+        voskWakeEngine = JarvisVoskWakeEngine(
+            context = this,
+            onWakeDetected = {
+                mainHandler.post { handleWakeWordDetected() }
+            },
+            onUnavailable = {
+                mainHandler.post { startWakeRecognition() }
+            }
+        )
         createNotificationChannel()
         startForeground(
             PersonalJarvisConfig.WAKE_WORD_NOTIFICATION_ID,
@@ -94,6 +104,8 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         transitionTo(JarvisConversationState.RETURN_TO_IDLE, "service destroyed")
         porcupineWakeEngine?.shutdown()
         porcupineWakeEngine = null
+        voskWakeEngine?.shutdown()
+        voskWakeEngine = null
         destroyRecognizer()
         speaker?.shutdown()
         speaker = null
@@ -115,6 +127,9 @@ class JarvisWakeWordService : Service(), RecognitionListener {
             return
         }
         if (porcupineWakeEngine?.start() == true) {
+            return
+        }
+        if (voskWakeEngine?.start() == true) {
             return
         }
         if (!canStartRecognition()) return
@@ -309,6 +324,7 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         latestCommandPartial = ""
         transitionTo(JarvisConversationState.WAKE_CONFIRMED, "wake accepted")
         porcupineWakeEngine?.stop("wake accepted before acknowledgment")
+        voskWakeEngine?.stop("wake accepted before acknowledgment")
         cancelRecognizerForTransition("wake confirmed before acknowledgment")
         Log.i(TAG, "Jarvis session started: ${session.id}")
         val afterAcknowledgement: () -> Unit = {
