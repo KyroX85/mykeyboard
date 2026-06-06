@@ -26,6 +26,7 @@ The system may then briefly state what evidence is missing, but it must not answ
 
 ```text
 Founder/Jarvis input
+-> Unified Truth Router
 -> Project Awareness / Personal Awareness / Founder Brain
 -> Reality Awareness validation
 -> Hallucination Guard Layer
@@ -33,6 +34,8 @@ Founder/Jarvis input
 ```
 
 The Hallucination Guard Layer sits above all agents and below final response delivery.
+
+It receives `truth_status` and `safe_response_mode` from `UNIFIED_TRUTH_ROUTER.md`. If `truth_status` is `UNKNOWN`, factual-state answers must become `INSUFFICIENT DATA`.
 
 ## Applies To
 

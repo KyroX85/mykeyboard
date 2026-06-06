@@ -40,6 +40,8 @@ It may:
 
 ## Hallucination Guard
 
+Project Awareness must be invoked through `UNIFIED_TRUTH_ROUTER.md`.
+
 Project Awareness must pass through `HALLUCINATION_GUARD_LAYER.md` before answering.
 
 If project reality confidence is below `70%`, it must not answer with founder-memory, roadmap language, or generic CTO style.
@@ -198,6 +200,8 @@ The intended integration point is before Founder Brain routing:
 
 ```text
 Founder/Jarvis question
+-> Unified Truth Router
+-> Reality Awareness Layer
 -> Project Question Router
 -> Project Awareness Engine when operational
 -> Founder Brain when reflective/strategic

@@ -76,6 +76,8 @@ Authorization: Bearer <private-token>
 - `sources` lists the reasoning systems used.
 - `compression` records the active word limits for reasoning, chat summary, and voice summary.
 - Factual project or personal-state claims must pass `REALITY_AWARENESS_LAYER.md` and `HALLUCINATION_GUARD_LAYER.md`.
+- `UNIFIED_TRUTH_ROUTER.md` decides whether a factual-state question may reach awareness, Founder Brain, or response generation.
+- Founder Brain must not override `truth_status`, `sources_used`, `missing_data`, or `safe_response_mode`.
 - If factual-state confidence is below `70%`, the response must say `INSUFFICIENT DATA` instead of using Founder Brain personality or philosophy.
 
 ## Factual-State Guard

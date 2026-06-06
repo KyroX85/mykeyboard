@@ -24,7 +24,8 @@ UNKNOWN STATE
 ## Position In The Runtime
 
 ```text
-Agent output
+Founder/Jarvis input
+-> Unified Truth Router
 -> Reality Awareness Layer
 -> Project Awareness or Personal Awareness
 -> Founder Brain only when reflection/strategy is needed
@@ -32,6 +33,8 @@ Agent output
 ```
 
 The Reality Awareness Layer must run before any awareness answer is trusted.
+
+Its validation result is consumed by `UNIFIED_TRUTH_ROUTER.md`, which decides whether the final response may answer, must stay partial, must request an update, or must stop with `INSUFFICIENT DATA`.
 
 Its `realityConfidence` is the required input to `HALLUCINATION_GUARD_LAYER.md`.
 

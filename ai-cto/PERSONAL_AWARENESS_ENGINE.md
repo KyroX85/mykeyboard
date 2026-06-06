@@ -47,6 +47,8 @@ It may eventually:
 
 ## Hallucination Guard
 
+Personal Awareness must be invoked through `UNIFIED_TRUTH_ROUTER.md`.
+
 Personal Awareness must pass through `HALLUCINATION_GUARD_LAYER.md` before answering.
 
 If personal reality confidence is below `70%`, it must not answer with personality, motivation, founder-memory, or philosophical reassurance.
@@ -228,6 +230,8 @@ Future routing should look like:
 
 ```text
 Founder/Jarvis question
+-> Unified Truth Router
+-> Reality Awareness Layer
 -> Awareness Domain Router
 -> Personal Awareness for life/workload questions
 -> Project Awareness for repo/product questions
