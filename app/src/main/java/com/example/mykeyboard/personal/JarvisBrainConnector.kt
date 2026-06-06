@@ -41,6 +41,7 @@ class JarvisBrainConnector(
     fun askQuestion(
         question: String,
         sessionId: String = UUID.randomUUID().toString(),
+        realityDecision: JarvisRealityDecision? = null,
         onAnswer: (JarvisBrainAnswer) -> Unit,
         onFailure: (String) -> Unit
     ) {
@@ -57,6 +58,7 @@ class JarvisBrainConnector(
             token = token,
             question = question,
             sessionId = sessionId,
+            realityDecision = realityDecision,
             attempt = 0,
             onAnswer = onAnswer,
             onFailure = onFailure
@@ -68,6 +70,7 @@ class JarvisBrainConnector(
         token: String,
         question: String,
         sessionId: String,
+        realityDecision: JarvisRealityDecision?,
         attempt: Int,
         onAnswer: (JarvisBrainAnswer) -> Unit,
         onFailure: (String) -> Unit
@@ -75,6 +78,7 @@ class JarvisBrainConnector(
         val body = JSONObject()
             .put("question", question.trim())
             .put("sessionId", sessionId)
+            .putRealityDecision(realityDecision)
             .toString()
             .toRequestBody(JSON_MEDIA_TYPE)
 
@@ -99,7 +103,7 @@ class JarvisBrainConnector(
             override fun onFailure(call: Call, e: IOException) {
                 val reason = "network failure: ${e.javaClass.simpleName}: ${e.message.orEmpty()}"
                 Log.w(TAG, "Founder Brain request failed after ${elapsedMs(startedAtMs)}ms: session=$sessionId attempt=$attempt reason=$reason")
-                handleRetryOrFallback(reason, attempt, endpoint, token, question, sessionId, onAnswer, onFailure)
+                handleRetryOrFallback(reason, attempt, endpoint, token, question, sessionId, realityDecision, onAnswer, onFailure)
             }
 
             override fun onResponse(call: Call, response: Response) {
@@ -109,7 +113,7 @@ class JarvisBrainConnector(
                         val reason = "HTTP ${it.code}: ${responseBody.take(MAX_LOGGED_RESPONSE_CHARS)}"
                         Log.w(TAG, "Founder Brain HTTP response after ${elapsedMs(startedAtMs)}ms: session=$sessionId attempt=$attempt status=${it.code}")
                         if (isRetryableHttpCode(it.code)) {
-                            handleRetryOrFallback(reason, attempt, endpoint, token, question, sessionId, onAnswer, onFailure)
+                            handleRetryOrFallback(reason, attempt, endpoint, token, question, sessionId, realityDecision, onAnswer, onFailure)
                         } else {
                             Log.w(TAG, "Founder Brain request failed without retry: $reason")
                             onAnswer(fallbackAnswer(reason))
@@ -136,6 +140,7 @@ class JarvisBrainConnector(
         token: String,
         question: String,
         sessionId: String,
+        realityDecision: JarvisRealityDecision?,
         onAnswer: (JarvisBrainAnswer) -> Unit,
         onFailure: (String) -> Unit
     ) {
@@ -145,7 +150,7 @@ class JarvisBrainConnector(
             Log.w(TAG, "Founder Brain request failed: $reason; retry=$nextAttempt delayMs=$delayMs")
             retryExecutor.schedule(
                 {
-                    sendQuestion(endpoint, token, question, sessionId, nextAttempt, onAnswer, onFailure)
+                    sendQuestion(endpoint, token, question, sessionId, realityDecision, nextAttempt, onAnswer, onFailure)
                 },
                 delayMs,
                 TimeUnit.MILLISECONDS
@@ -215,4 +220,18 @@ class JarvisBrainConnector(
 private fun JSONObject.optionalJsonValue(name: String): String? {
     if (!has(name) || isNull(name)) return null
     return opt(name)?.toString()?.trim()?.takeIf { it.isNotBlank() }
+}
+
+private fun JSONObject.putRealityDecision(decision: JarvisRealityDecision?): JSONObject {
+    if (decision == null) return this
+    return put(
+        "truthRouter",
+        JSONObject()
+            .put("route", decision.route.name)
+            .put("truth_status", decision.truthStatus)
+            .put("sources_used", decision.sourcesUsed)
+            .put("missing_data", decision.missingData)
+            .put("safe_response_mode", decision.safeResponseMode)
+            .put("awareness_attempted", decision.awarenessAttempted)
+    )
 }

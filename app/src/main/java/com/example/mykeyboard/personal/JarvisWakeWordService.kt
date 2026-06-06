@@ -444,10 +444,13 @@ class JarvisWakeWordService : Service(), RecognitionListener {
             return
         }
         session.brainAttached = true
-        Log.i(TAG, "Founder Brain question captured")
+        val realityDecision = JarvisRealityAdapter.classify(question)
+        JarvisRealityAdapter.logDecision(session.id, question, realityDecision)
+        Log.i(TAG, "Founder Brain question captured after reality route=${realityDecision.route}")
         connector.askQuestion(
             question = question,
             sessionId = session.id,
+            realityDecision = realityDecision,
             onAnswer = { answer ->
                 mainHandler.post {
                     if (activeSession?.id != session.id || currentState() != JarvisConversationState.PROCESSING) {
