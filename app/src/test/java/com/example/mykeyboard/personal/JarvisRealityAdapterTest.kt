@@ -11,7 +11,12 @@ class JarvisRealityAdapterTest {
         listOf(
             "What happened today?",
             "What is our next milestone?",
-            "What am I building?"
+            "What am I building?",
+            "What is the build status?",
+            "What are the latest commits?",
+            "What is blocked?",
+            "What is the current milestone?",
+            "How is project progress?"
         ).forEach { question ->
             val decision = JarvisRealityAdapter.classify(question)
 
@@ -42,7 +47,11 @@ class JarvisRealityAdapterTest {
         listOf(
             "Who am I becoming?",
             "What kills Aritenis?",
-            "What contradiction do you see?"
+            "What contradiction do you see?",
+            "What is our dream?",
+            "What is the strategy?",
+            "What tradeoff should I think about?",
+            "What is my founder identity?"
         ).forEach { question ->
             val decision = JarvisRealityAdapter.classify(question)
 

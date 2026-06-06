@@ -26,8 +26,8 @@ object JarvisRealityAdapter {
         val route = when {
             normalized.containsAny(EXECUTION_PATTERNS) -> JarvisRealityRoute.EXECUTION
             normalized.containsAny(PERSONAL_PATTERNS) -> JarvisRealityRoute.PERSONAL
-            normalized.containsAny(REFLECTION_PATTERNS) -> JarvisRealityRoute.REFLECTION
             normalized.containsAny(PROJECT_PATTERNS) -> JarvisRealityRoute.PROJECT
+            normalized.containsAny(REFLECTION_PATTERNS) -> JarvisRealityRoute.REFLECTION
             else -> JarvisRealityRoute.REFLECTION
         }
 
@@ -103,16 +103,26 @@ object JarvisRealityAdapter {
         "what happened today",
         "next milestone",
         "what is blocked",
+        "current blocker",
+        "current blockers",
+        "known blocker",
+        "known blockers",
         "what changed",
         "how is work going",
         "how is the android",
         "android app",
         "what am i building",
         "what are we building",
-        "what is our dream",
         "current milestone",
+        "milestone",
         "latest commit",
+        "commits",
+        "build status",
         "build pass",
+        "build failed",
+        "project progress",
+        "current progress",
+        "what is pending in project",
         "apk"
     )
 
@@ -139,6 +149,13 @@ object JarvisRealityAdapter {
         "what am i avoiding",
         "what am i missing",
         "what contradiction",
+        "what is our dream",
+        "our dream",
+        "vision",
+        "strategy",
+        "tradeoff",
+        "tradeoffs",
+        "identity",
         "belief changed",
         "am i becoming",
         "dream itself",

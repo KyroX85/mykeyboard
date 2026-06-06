@@ -456,6 +456,11 @@ class JarvisWakeWordService : Service(), RecognitionListener {
             speakAndReturnToIdle(speech, "project snapshot response delivered")
             return
         }
+        if (realityDecision.route != JarvisRealityRoute.REFLECTION) {
+            Log.i(TAG, "Founder Brain bypassed for non-reflection route=${realityDecision.route}; session=${session.id}")
+            speakAndReturnToIdle(nonFounderBrainFallback(realityDecision), "non-founder-brain route blocked")
+            return
+        }
         session.brainAttached = true
         Log.i(TAG, "Founder Brain question captured after reality route=${realityDecision.route}")
         connector.askQuestion(
@@ -485,6 +490,14 @@ class JarvisWakeWordService : Service(), RecognitionListener {
             }
         )
     }
+
+    private fun nonFounderBrainFallback(decision: JarvisRealityDecision): String =
+        when (decision.route) {
+            JarvisRealityRoute.PERSONAL -> "I do not have enough verified personal data yet."
+            JarvisRealityRoute.EXECUTION -> "Execution is not enabled for Jarvis voice yet."
+            JarvisRealityRoute.PROJECT -> "I do not have enough verified project data yet."
+            JarvisRealityRoute.REFLECTION -> JarvisBrainSpeechPolicy.safeFallback()
+        }
 
     private fun failCommandCapture(reason: String, restartDelayMs: Long) {
         releaseSession(reason)
