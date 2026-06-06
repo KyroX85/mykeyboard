@@ -6,6 +6,8 @@ The Project Snapshot is the single compact object Jarvis should use for operatio
 
 It should be regenerated on demand or before answering project-awareness questions. It is a read-only summary. It does not execute work.
 
+Project snapshots must also obey `REAL_TIME_STATE_SYNC_RULE.md`.
+
 ## Evidence-Only Snapshot Policy
 
 Every field in the Project Snapshot must map to a real source.
@@ -39,10 +41,37 @@ Snapshots must represent what is real, not what seems true.
 
 Every snapshot entry must include `evidence_source_id`.
 
+## Real-Time State Sync Rule
+
+Project Awareness updates only when:
+
+- commit happens
+- build runs
+- CI changes state
+- file diff changes
+
+No periodic guessing is allowed.
+
+No background thinking updates are allowed.
+
+If no event occurs, the snapshot must not update.
+
+Every project snapshot must include `last_verified_timestamp`.
+
+If stale, `snapshot_status.value` must be `OUTDATED`.
+
 ## Required Fields
 
 ```json
 {
+  "last_verified_timestamp": {
+    "value": "2026-06-05T16:30:00.000Z",
+    "evidence_source_id": "git_commit_or_build_or_ci_or_diff_event_id"
+  },
+  "snapshot_status": {
+    "value": "CURRENT",
+    "evidence_source_id": "freshness_check_against_latest_project_event"
+  },
   "generatedAt": {
     "value": "2026-06-05T16:30:00.000Z",
     "evidence_source_id": "snapshot_generation_clock"
@@ -308,6 +337,9 @@ This is better than fake certainty.
 7. Every non-null field must include `evidence_source_id`.
 8. If `evidence_source_id` is missing, the field value must be `null`.
 9. Do not store AI-inferred status, probable progress, likely completion, or emotional interpretation as snapshot reality.
+10. Update only after commit, build, CI state change, or file diff change.
+11. If `last_verified_timestamp` is stale, set `snapshot_status.value` to `OUTDATED`.
+12. If `snapshot_status.value` is `OUTDATED`, factual project answers must go through the Hallucination Guard as insufficient data unless fresh evidence is provided.
 
 ## Founder-Facing Compression
 

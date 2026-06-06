@@ -41,6 +41,10 @@ If `realityConfidence` is below `0.70`, final response delivery must be blocked 
 INSUFFICIENT DATA
 ```
 
+Reality Awareness must also enforce `REAL_TIME_STATE_SYNC_RULE.md`.
+
+If a snapshot lacks `last_verified_timestamp`, or if `snapshot_status` is `OUTDATED`, factual-state confidence must be treated as below `0.70`.
+
 ## What Counts As Evidence
 
 ### Project Evidence
@@ -205,6 +209,12 @@ Example:
 
 ```text
 The last verified build I can see was from yesterday. I do not know the current build state.
+```
+
+If snapshot freshness is stale, the snapshot must be marked:
+
+```text
+OUTDATED
 ```
 
 ### Rule 3: Memory Is Context, Not Proof

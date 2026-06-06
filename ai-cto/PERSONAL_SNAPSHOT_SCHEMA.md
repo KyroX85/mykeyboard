@@ -6,6 +6,8 @@ The Personal Snapshot is the compact object Jarvis should eventually use for fou
 
 It is read-only awareness. It does not execute, schedule, remind, or manage tasks by itself.
 
+Personal snapshots must also obey `REAL_TIME_STATE_SYNC_RULE.md`.
+
 ## Evidence-Only Snapshot Policy
 
 Every field in the Personal Snapshot must map to a real source.
@@ -34,10 +36,36 @@ Snapshots must represent what is real, not what seems true.
 
 Every snapshot entry must include `evidence_source_id`.
 
+## Real-Time State Sync Rule
+
+Personal Awareness updates only when:
+
+- user action occurs
+- app usage event occurs
+- schedule time passes
+
+No periodic guessing is allowed.
+
+No background thinking updates are allowed.
+
+If no event occurs, the snapshot must not update.
+
+Every personal snapshot must include `last_verified_timestamp`.
+
+If stale, `snapshot_status.value` must be `OUTDATED`.
+
 ## Required Fields
 
 ```json
 {
+  "last_verified_timestamp": {
+    "value": null,
+    "evidence_source_id": null
+  },
+  "snapshot_status": {
+    "value": "OUTDATED",
+    "evidence_source_id": "missing_founder_approved_personal_event"
+  },
   "generatedAt": {
     "value": "2026-06-06T00:00:00.000Z",
     "evidence_source_id": "snapshot_generation_clock"
@@ -377,6 +405,9 @@ If data is missing, say unknown.
 8. Every non-null field must include `evidence_source_id`.
 9. If `evidence_source_id` is missing, the field value must be `null`.
 10. Do not store AI-inferred status, probable progress, likely completion, or emotional interpretation as snapshot reality.
+11. Update only after user action, founder-approved app usage event, or founder-approved schedule time passing.
+12. If `last_verified_timestamp` is stale or missing, set `snapshot_status.value` to `OUTDATED`.
+13. If `snapshot_status.value` is `OUTDATED`, factual personal answers must go through the Hallucination Guard as insufficient data unless fresh evidence is provided.
 
 ## Founder-Facing Compression
 
