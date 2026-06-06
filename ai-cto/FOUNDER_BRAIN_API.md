@@ -75,6 +75,28 @@ Authorization: Bearer <private-token>
 - `confidence` is capped at `0.9` to avoid false certainty.
 - `sources` lists the reasoning systems used.
 - `compression` records the active word limits for reasoning, chat summary, and voice summary.
+- Factual project or personal-state claims must pass `REALITY_AWARENESS_LAYER.md` and `HALLUCINATION_GUARD_LAYER.md`.
+- If factual-state confidence is below `70%`, the response must say `INSUFFICIENT DATA` instead of using Founder Brain personality or philosophy.
+
+## Factual-State Guard
+
+Founder Brain may answer reflection, identity, vision, and strategy questions.
+
+It must not answer factual-state questions from personality alone.
+
+Examples that require evidence:
+
+- What happened today?
+- What is blocked?
+- How is the Android app doing?
+- How overloaded am I?
+- Did I finish everything?
+
+If evidence is missing:
+
+```text
+INSUFFICIENT DATA
+```
 
 ## Safety
 

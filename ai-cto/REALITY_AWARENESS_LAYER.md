@@ -33,6 +33,14 @@ Agent output
 
 The Reality Awareness Layer must run before any awareness answer is trusted.
 
+Its `realityConfidence` is the required input to `HALLUCINATION_GUARD_LAYER.md`.
+
+If `realityConfidence` is below `0.70`, final response delivery must be blocked and replaced with:
+
+```text
+INSUFFICIENT DATA
+```
+
 ## What Counts As Evidence
 
 ### Project Evidence
@@ -118,6 +126,8 @@ Guideline:
 - `0.00`: no evidence.
 
 This is not answer confidence. It is evidence confidence.
+
+Only `0.70` or higher may pass the Hallucination Guard for factual-state answers.
 
 ### `evidence`
 
@@ -249,6 +259,12 @@ Founder-facing answer should be compressed:
 
 ```text
 I know the latest repo work, but I do not know your personal workload today. Project-wise, Personal Awareness docs were added. Personally, your state is unknown because today's school and study list is not loaded.
+```
+
+If the guard fails, the founder-facing answer must start with:
+
+```text
+INSUFFICIENT DATA
 ```
 
 ## Examples

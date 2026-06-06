@@ -38,6 +38,20 @@ It may:
 - read roadmap and milestone files
 - produce a compact project snapshot
 
+## Hallucination Guard
+
+Project Awareness must pass through `HALLUCINATION_GUARD_LAYER.md` before answering.
+
+If project reality confidence is below `70%`, it must not answer with founder-memory, roadmap language, or generic CTO style.
+
+It must return:
+
+```text
+INSUFFICIENT DATA
+```
+
+and briefly name the missing project evidence.
+
 ## Evidence Sources
 
 The engine should collect these sources in order:
@@ -111,6 +125,14 @@ Bad:
 ```text
 Health 30/100. Momentum stalled. Route confidence 83%. Memory sources used...
 ```
+
+Also bad:
+
+```text
+The project is moving well because we are aligned with the dream.
+```
+
+That is philosophy, not project state.
 
 ## Question Types Owned By Project Awareness
 

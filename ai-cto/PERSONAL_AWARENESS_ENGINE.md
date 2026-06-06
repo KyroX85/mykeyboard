@@ -45,6 +45,20 @@ It may eventually:
 - answer focus questions using current personal snapshot
 - expose uncertainty when personal data is missing
 
+## Hallucination Guard
+
+Personal Awareness must pass through `HALLUCINATION_GUARD_LAYER.md` before answering.
+
+If personal reality confidence is below `70%`, it must not answer with personality, motivation, founder-memory, or philosophical reassurance.
+
+It must return:
+
+```text
+INSUFFICIENT DATA
+```
+
+and briefly name the missing personal evidence.
+
 ## Privacy Boundary
 
 Personal awareness is more sensitive than project awareness.
@@ -87,6 +101,14 @@ You are overloaded this week.
 ```
 
 unless there is evidence.
+
+Also bad:
+
+```text
+You should focus on school because you are probably tired.
+```
+
+That fills missing personal state with inference.
 
 ## Future Evidence Sources
 
