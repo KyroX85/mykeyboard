@@ -443,9 +443,20 @@ class JarvisWakeWordService : Service(), RecognitionListener {
             speakAndReturnToIdle(JarvisBrainSpeechPolicy.safeFallback(), "brain not attached")
             return
         }
-        session.brainAttached = true
         val realityDecision = JarvisRealityAdapter.classify(question)
         JarvisRealityAdapter.logDecision(session.id, question, realityDecision)
+        if (realityDecision.route == JarvisRealityRoute.PROJECT) {
+            val snapshot = realityDecision.projectSnapshot
+            val speech = if (snapshot == null) {
+                "I do not have enough verified project data yet."
+            } else {
+                ProjectSnapshotResponseFormatter.voiceSummary(snapshot)
+            }
+            Log.i(TAG, "Project question answered from runtime snapshot: session=${session.id}; truthStatus=${realityDecision.truthStatus}")
+            speakAndReturnToIdle(speech, "project snapshot response delivered")
+            return
+        }
+        session.brainAttached = true
         Log.i(TAG, "Founder Brain question captured after reality route=${realityDecision.route}")
         connector.askQuestion(
             question = question,

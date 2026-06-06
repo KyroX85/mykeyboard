@@ -1,3 +1,5 @@
+import java.time.Instant
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -14,11 +16,27 @@ fun firstPresentEnvValue(vararg names: String): String =
         providers.environmentVariable(name).orNull?.takeIf { it.isNotBlank() }
     }.orEmpty()
 
+fun commandOutput(vararg command: String): String =
+    try {
+        providers.exec {
+            commandLine(command.toList())
+            isIgnoreExitValue = true
+        }.standardOutput.asText.get().trim()
+    } catch (_: RuntimeException) {
+        ""
+    }
+
 val ciBuildNumber = providers.environmentVariable("GITHUB_RUN_NUMBER")
     .orElse("1")
     .get()
     .toIntOrNull()
     ?: 1
+
+val projectLatestCommit = firstPresentEnvValue("GITHUB_SHA")
+    .ifBlank { commandOutput("git", "rev-parse", "--short", "HEAD") }
+
+val projectBuildVerifiedAt = firstPresentEnvValue("ARITENIS_BUILD_VERIFIED_AT")
+    .ifBlank { Instant.now().toString() }
 
 android {
     namespace = "com.example.mykeyboard"
@@ -63,6 +81,12 @@ android {
                 "PICOVOICE_ACCESS_KEY"
             ).asBuildConfigString()
         )
+        buildConfigField("String", "PROJECT_CURRENT_MILESTONE", envValue("ARITENIS_CURRENT_MILESTONE").asBuildConfigString())
+        buildConfigField("String", "PROJECT_LATEST_COMMIT", projectLatestCommit.asBuildConfigString())
+        buildConfigField("String", "PROJECT_BUILD_STATUS", envValue("ARITENIS_BUILD_STATUS").asBuildConfigString())
+        buildConfigField("String", "PROJECT_CI_STATE", envValue("ARITENIS_CI_STATE").asBuildConfigString())
+        buildConfigField("String", "PROJECT_KNOWN_BLOCKERS", envValue("ARITENIS_KNOWN_BLOCKERS").asBuildConfigString())
+        buildConfigField("String", "PROJECT_BUILD_VERIFIED_AT", projectBuildVerifiedAt.asBuildConfigString())
     }
 
     buildTypes {

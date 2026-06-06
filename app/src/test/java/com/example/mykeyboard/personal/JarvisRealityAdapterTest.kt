@@ -18,6 +18,7 @@ class JarvisRealityAdapterTest {
             assertEquals(question, JarvisRealityRoute.PROJECT, decision.route)
             assertTrue(question, decision.awarenessAttempted)
             assertEquals(question, "PARTIAL_WITH_LIMITS", decision.safeResponseMode)
+            assertTrue(question, decision.projectSnapshot != null)
         }
     }
 

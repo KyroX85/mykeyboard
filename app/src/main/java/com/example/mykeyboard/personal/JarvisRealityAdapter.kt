@@ -16,7 +16,8 @@ data class JarvisRealityDecision(
     val sourcesUsed: List<String>,
     val missingData: List<String>,
     val safeResponseMode: String,
-    val awarenessAttempted: Boolean
+    val awarenessAttempted: Boolean,
+    val projectSnapshot: ProjectSnapshot? = null
 )
 
 object JarvisRealityAdapter {
@@ -31,7 +32,7 @@ object JarvisRealityAdapter {
         }
 
         return when (route) {
-            JarvisRealityRoute.PROJECT -> awarenessDecision(route, "project awareness provider not attached in Android runtime yet")
+            JarvisRealityRoute.PROJECT -> projectAwarenessDecision(ProjectSnapshotRuntime.capture())
             JarvisRealityRoute.PERSONAL -> awarenessDecision(route, "personal awareness provider not attached in Android runtime yet")
             JarvisRealityRoute.REFLECTION -> JarvisRealityDecision(
                 route = route,
@@ -60,6 +61,17 @@ object JarvisRealityAdapter {
                 "questionChars=${question.length}; missingData=${decision.missingData.joinToString("|")}"
         )
     }
+
+    private fun projectAwarenessDecision(snapshot: ProjectSnapshot): JarvisRealityDecision =
+        JarvisRealityDecision(
+            route = JarvisRealityRoute.PROJECT,
+            truthStatus = if (snapshot.hasEvidence()) TRUTH_PARTIAL else TRUTH_UNKNOWN,
+            sourcesUsed = if (snapshot.hasEvidence()) listOf("runtime project snapshot") else listOf("question route classifier"),
+            missingData = snapshot.missingFields(),
+            safeResponseMode = if (snapshot.hasEvidence()) MODE_PARTIAL_WITH_LIMITS else MODE_INSUFFICIENT_DATA,
+            awarenessAttempted = true,
+            projectSnapshot = snapshot
+        )
 
     private fun awarenessDecision(route: JarvisRealityRoute, missingProvider: String): JarvisRealityDecision =
         JarvisRealityDecision(
