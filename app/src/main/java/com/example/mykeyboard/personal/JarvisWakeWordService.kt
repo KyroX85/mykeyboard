@@ -452,7 +452,13 @@ class JarvisWakeWordService : Service(), RecognitionListener {
             } else {
                 ProjectSnapshotResponseFormatter.voiceSummary(snapshot)
             }
-            Log.i(TAG, "Project question answered from runtime snapshot: session=${session.id}; truthStatus=${realityDecision.truthStatus}")
+            Log.i(
+                TAG,
+                "Project question answered from runtime snapshot: session=${session.id}; truthStatus=${realityDecision.truthStatus}; " +
+                    "REALITY_PERCENT=${realityDecision.realityScore.realityPercent}; " +
+                    "snapshot_fields_used=${realityDecision.realityScore.snapshotFieldsUsed.joinToString("|")}; " +
+                    "founder_brain_used=${realityDecision.realityScore.founderBrainUsed}"
+            )
             speakAndReturnToIdle(speech, "project snapshot response delivered")
             return
         }
@@ -462,7 +468,13 @@ class JarvisWakeWordService : Service(), RecognitionListener {
             return
         }
         session.brainAttached = true
-        Log.i(TAG, "Founder Brain question captured after reality route=${realityDecision.route}")
+        Log.i(
+            TAG,
+            "Founder Brain question captured after reality route=${realityDecision.route}; " +
+                "REALITY_PERCENT=${realityDecision.realityScore.realityPercent}; " +
+                "snapshot_fields_used=${realityDecision.realityScore.snapshotFieldsUsed.joinToString("|")}; " +
+                "founder_brain_used=${realityDecision.realityScore.founderBrainUsed}"
+        )
         connector.askQuestion(
             question = question,
             sessionId = session.id,

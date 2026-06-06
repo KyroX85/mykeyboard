@@ -17,6 +17,7 @@ data class JarvisRealityDecision(
     val missingData: List<String>,
     val safeResponseMode: String,
     val awarenessAttempted: Boolean,
+    val realityScore: JarvisRealityScore,
     val projectSnapshot: ProjectSnapshot? = null
 )
 
@@ -40,7 +41,8 @@ object JarvisRealityAdapter {
                 sourcesUsed = listOf("founder brain reflection route"),
                 missingData = emptyList(),
                 safeResponseMode = MODE_REFLECTION_ONLY,
-                awarenessAttempted = false
+                awarenessAttempted = false,
+                realityScore = JarvisRealityScorer.score(JarvisRealityRoute.REFLECTION)
             )
             JarvisRealityRoute.EXECUTION -> JarvisRealityDecision(
                 route = route,
@@ -48,7 +50,8 @@ object JarvisRealityAdapter {
                 sourcesUsed = listOf("execution route detected"),
                 missingData = listOf("execution layer is intentionally not enabled for Jarvis voice runtime"),
                 safeResponseMode = MODE_INSUFFICIENT_DATA,
-                awarenessAttempted = false
+                awarenessAttempted = false,
+                realityScore = JarvisRealityScorer.score(JarvisRealityRoute.EXECUTION)
             )
         }
     }
@@ -58,7 +61,10 @@ object JarvisRealityAdapter {
             TAG,
             "Jarvis reality route: session=$sessionId; route=${decision.route}; truthStatus=${decision.truthStatus}; " +
                 "safeResponseMode=${decision.safeResponseMode}; awarenessAttempted=${decision.awarenessAttempted}; " +
-                "questionChars=${question.length}; missingData=${decision.missingData.joinToString("|")}"
+                "questionChars=${question.length}; missingData=${decision.missingData.joinToString("|")}; " +
+                "REALITY_PERCENT=${decision.realityScore.realityPercent}; factsUsed=${decision.realityScore.factsUsed}; " +
+                "snapshot_fields_used=${decision.realityScore.snapshotFieldsUsed.joinToString("|")}; " +
+                "founder_brain_used=${decision.realityScore.founderBrainUsed}"
         )
     }
 
@@ -70,6 +76,7 @@ object JarvisRealityAdapter {
             missingData = snapshot.missingFields(),
             safeResponseMode = if (snapshot.hasEvidence()) MODE_PARTIAL_WITH_LIMITS else MODE_INSUFFICIENT_DATA,
             awarenessAttempted = true,
+            realityScore = JarvisRealityScorer.score(JarvisRealityRoute.PROJECT, snapshot),
             projectSnapshot = snapshot
         )
 
@@ -80,7 +87,8 @@ object JarvisRealityAdapter {
             sourcesUsed = listOf("question route classifier"),
             missingData = listOf(missingProvider),
             safeResponseMode = MODE_PARTIAL_WITH_LIMITS,
-            awarenessAttempted = true
+            awarenessAttempted = true,
+            realityScore = JarvisRealityScorer.score(route)
         )
 
     private fun String.normalizedForRouting(): String =
@@ -165,7 +173,9 @@ object JarvisRealityAdapter {
     private val EXECUTION_PATTERNS = setOf(
         "execute",
         "implement",
-        "commit",
+        "commit it",
+        "commit this",
+        "make commit",
         "build this",
         "fix this",
         "modify",

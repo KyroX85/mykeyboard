@@ -24,6 +24,7 @@ class JarvisRealityAdapterTest {
             assertTrue(question, decision.awarenessAttempted)
             assertEquals(question, "PARTIAL_WITH_LIMITS", decision.safeResponseMode)
             assertTrue(question, decision.projectSnapshot != null)
+            assertFalse(question, decision.realityScore.founderBrainUsed)
         }
     }
 
@@ -58,6 +59,8 @@ class JarvisRealityAdapterTest {
             assertEquals(question, JarvisRealityRoute.REFLECTION, decision.route)
             assertFalse(question, decision.awarenessAttempted)
             assertEquals(question, "REFLECTION_ONLY", decision.safeResponseMode)
+            assertTrue(question, decision.realityScore.founderBrainUsed)
+            assertTrue(question, decision.realityScore.realityPercent <= 20)
         }
     }
 

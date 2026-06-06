@@ -233,5 +233,13 @@ private fun JSONObject.putRealityDecision(decision: JarvisRealityDecision?): JSO
             .put("missing_data", decision.missingData)
             .put("safe_response_mode", decision.safeResponseMode)
             .put("awareness_attempted", decision.awarenessAttempted)
+            .put(
+                "reality_score",
+                JSONObject()
+                    .put("reality_percent", decision.realityScore.realityPercent)
+                    .put("facts_used", decision.realityScore.factsUsed)
+                    .put("snapshot_fields_used", decision.realityScore.snapshotFieldsUsed)
+                    .put("founder_brain_used", decision.realityScore.founderBrainUsed)
+            )
     )
 }
