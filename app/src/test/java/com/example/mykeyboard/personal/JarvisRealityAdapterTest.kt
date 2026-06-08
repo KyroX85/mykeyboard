@@ -7,6 +7,23 @@ import org.junit.Test
 
 class JarvisRealityAdapterTest {
     @Test
+    fun routesAgentVisibilityQuestionsToAgentSnapshotFirst() {
+        listOf(
+            "What are my agents doing?",
+            "Are my agents alive?",
+            "What is coder doing?"
+        ).forEach { question ->
+            val decision = JarvisRealityAdapter.classify(question)
+
+            assertEquals(question, JarvisRealityRoute.AGENTS, decision.route)
+            assertTrue(question, decision.awarenessAttempted)
+            assertEquals(question, "INSUFFICIENT_DATA", decision.safeResponseMode)
+            assertTrue(question, decision.agentVisibilitySnapshot != null)
+            assertFalse(question, decision.realityScore.founderBrainUsed)
+        }
+    }
+
+    @Test
     fun routesProjectQuestionsToProjectAwarenessFirst() {
         listOf(
             "What happened today?",

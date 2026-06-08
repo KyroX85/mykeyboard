@@ -11,9 +11,11 @@ object JarvisRealityScorer {
     fun score(
         route: JarvisRealityRoute,
         snapshot: ProjectSnapshot? = null,
-        personalSnapshot: PersonalSnapshot? = null
+        personalSnapshot: PersonalSnapshot? = null,
+        agentSnapshot: AgentVisibilitySnapshot? = null
     ): JarvisRealityScore =
         when (route) {
+            JarvisRealityRoute.AGENTS -> scoreAgentVisibility(agentSnapshot)
             JarvisRealityRoute.PROJECT -> scoreProject(snapshot)
             JarvisRealityRoute.PERSONAL -> scorePersonal(personalSnapshot)
             JarvisRealityRoute.REFLECTION -> JarvisRealityScore(
@@ -29,6 +31,22 @@ object JarvisRealityScorer {
                 founderBrainUsed = false
             )
         }
+
+    private fun scoreAgentVisibility(snapshot: AgentVisibilitySnapshot?): JarvisRealityScore {
+        val fieldsUsed = snapshot?.usedFields().orEmpty()
+        val realityPercent = if (fieldsUsed.isEmpty()) {
+            UNKNOWN_REALITY_PERCENT
+        } else {
+            (BASE_PROJECT_REALITY_PERCENT + fieldsUsed.size * FIELD_WEIGHT_PERCENT)
+                .coerceAtMost(MAX_REALITY_PERCENT)
+        }
+        return JarvisRealityScore(
+            realityPercent = realityPercent,
+            factsUsed = fieldsUsed.size,
+            snapshotFieldsUsed = fieldsUsed,
+            founderBrainUsed = false
+        )
+    }
 
     private fun scoreProject(snapshot: ProjectSnapshot?): JarvisRealityScore {
         val fieldsUsed = snapshot?.usedFields().orEmpty()
@@ -86,6 +104,19 @@ object JarvisRealityScorer {
         if (jeeTimings != null) add("jee_timings")
         if (homeworkTasks != null) add("homework_tasks")
         if (manualCommitments != null) add("manual_commitments")
+        if (lastVerifiedTimestamp != null) add("last_verified_timestamp")
+    }
+
+    private fun AgentVisibilitySnapshot.usedFields(): List<String> = buildList {
+        agents?.forEach { agent ->
+            val prefix = agent.agentName.lowercase().replace(Regex("[^a-z0-9]+"), "_").trim('_')
+            if (agent.currentTask != null) add("${prefix}_current_task")
+            if (agent.lastAction != null) add("${prefix}_last_action")
+            if (agent.lastSuccess != null) add("${prefix}_last_success")
+            if (agent.lastFailure != null) add("${prefix}_last_failure")
+            if (agent.waitingReason != null) add("${prefix}_waiting_reason")
+            if (agent.nextAction != null) add("${prefix}_next_action")
+        }
         if (lastVerifiedTimestamp != null) add("last_verified_timestamp")
     }
 

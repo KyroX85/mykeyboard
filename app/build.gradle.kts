@@ -118,6 +118,8 @@ android {
         buildConfigField("String", "PERSONAL_HOMEWORK_TASKS", envValue("ARITENIS_HOMEWORK_TASKS").asBuildConfigString())
         buildConfigField("String", "PERSONAL_MANUAL_COMMITMENTS", envValue("ARITENIS_MANUAL_COMMITMENTS").asBuildConfigString())
         buildConfigField("String", "PERSONAL_SNAPSHOT_VERIFIED_AT", envValue("ARITENIS_PERSONAL_SNAPSHOT_VERIFIED_AT").asBuildConfigString())
+        buildConfigField("String", "AGENT_VISIBILITY_JSON", envValue("ARITENIS_AGENT_VISIBILITY_JSON").asBuildConfigString())
+        buildConfigField("String", "AGENT_VISIBILITY_VERIFIED_AT", envValue("ARITENIS_AGENT_VISIBILITY_VERIFIED_AT").asBuildConfigString())
     }
 
     buildTypes {

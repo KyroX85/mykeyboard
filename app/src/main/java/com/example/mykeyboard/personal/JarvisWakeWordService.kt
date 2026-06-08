@@ -459,6 +459,23 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         }
         val realityDecision = JarvisRealityAdapter.classify(question)
         JarvisRealityAdapter.logDecision(session.id, question, realityDecision)
+        if (realityDecision.route == JarvisRealityRoute.AGENTS) {
+            val snapshot = realityDecision.agentVisibilitySnapshot
+            val speech = if (snapshot == null) {
+                "I do not have verified agent visibility yet."
+            } else {
+                AgentVisibilityResponseFormatter.voiceSummary(snapshot)
+            }
+            Log.i(
+                TAG,
+                "Agent visibility question answered from runtime snapshot: session=${session.id}; truthStatus=${realityDecision.truthStatus}; " +
+                    "REALITY_PERCENT=${realityDecision.realityScore.realityPercent}; " +
+                    "snapshot_fields_used=${realityDecision.realityScore.snapshotFieldsUsed.joinToString("|")}; " +
+                    "founder_brain_used=${realityDecision.realityScore.founderBrainUsed}"
+            )
+            speakAndContinueConversation(speech, "agent visibility response delivered")
+            return
+        }
         if (realityDecision.route == JarvisRealityRoute.PROJECT) {
             val snapshot = realityDecision.projectSnapshot
             val speech = if (snapshot == null) {
@@ -536,6 +553,7 @@ class JarvisWakeWordService : Service(), RecognitionListener {
 
     private fun nonFounderBrainFallback(decision: JarvisRealityDecision): String =
         when (decision.route) {
+            JarvisRealityRoute.AGENTS -> "I do not have verified agent visibility yet."
             JarvisRealityRoute.PERSONAL -> "I do not have enough verified personal data yet."
             JarvisRealityRoute.EXECUTION -> "Execution is not enabled for Jarvis voice yet."
             JarvisRealityRoute.PROJECT -> "I do not have enough verified project data yet."

@@ -7,6 +7,37 @@ import org.junit.Test
 
 class JarvisRealityScorerTest {
     @Test
+    fun agentVisibilityQuestionsUseAgentSnapshotAndBypassFounderBrain() {
+        val score = JarvisRealityScorer.score(
+            JarvisRealityRoute.AGENTS,
+            agentSnapshot = AgentVisibilitySnapshot(
+                agents = listOf(
+                    AgentVisibilityEntry(
+                        agentName = "Coder",
+                        currentTask = "stabilize Jarvis",
+                        lastSuccess = "tests passed",
+                        waitingReason = "waiting for CI"
+                    )
+                ),
+                lastVerifiedTimestamp = "2026-06-08T12:00:00Z"
+            )
+        )
+
+        assertTrue(score.realityPercent >= 80)
+        assertEquals(4, score.factsUsed)
+        assertEquals(
+            listOf(
+                "coder_current_task",
+                "coder_last_success",
+                "coder_waiting_reason",
+                "last_verified_timestamp"
+            ),
+            score.snapshotFieldsUsed
+        )
+        assertFalse(score.founderBrainUsed)
+    }
+
+    @Test
     fun operationalProjectQuestionsReachRealityTargetWithSnapshotFields() {
         val score = JarvisRealityScorer.score(
             JarvisRealityRoute.PROJECT,

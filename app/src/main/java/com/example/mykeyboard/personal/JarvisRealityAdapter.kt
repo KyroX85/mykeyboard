@@ -4,6 +4,7 @@ import android.util.Log
 import java.util.Locale
 
 enum class JarvisRealityRoute {
+    AGENTS,
     PROJECT,
     PERSONAL,
     REFLECTION,
@@ -18,6 +19,7 @@ data class JarvisRealityDecision(
     val safeResponseMode: String,
     val awarenessAttempted: Boolean,
     val realityScore: JarvisRealityScore,
+    val agentVisibilitySnapshot: AgentVisibilitySnapshot? = null,
     val projectSnapshot: ProjectSnapshot? = null,
     val personalSnapshot: PersonalSnapshot? = null
 )
@@ -27,6 +29,7 @@ object JarvisRealityAdapter {
         val normalized = question.normalizedForRouting()
         val route = when {
             normalized.containsAny(EXECUTION_PATTERNS) -> JarvisRealityRoute.EXECUTION
+            normalized.containsAny(AGENT_VISIBILITY_PATTERNS) -> JarvisRealityRoute.AGENTS
             normalized.containsAny(PERSONAL_PATTERNS) -> JarvisRealityRoute.PERSONAL
             normalized.containsAny(PROJECT_PATTERNS) -> JarvisRealityRoute.PROJECT
             normalized.containsAny(REFLECTION_PATTERNS) -> JarvisRealityRoute.REFLECTION
@@ -34,6 +37,7 @@ object JarvisRealityAdapter {
         }
 
         return when (route) {
+            JarvisRealityRoute.AGENTS -> agentVisibilityDecision(AgentVisibilityRuntime.capture())
             JarvisRealityRoute.PROJECT -> projectAwarenessDecision(ProjectSnapshotRuntime.capture())
             JarvisRealityRoute.PERSONAL -> personalAwarenessDecision(PersonalSnapshotRuntime.capture())
             JarvisRealityRoute.REFLECTION -> JarvisRealityDecision(
@@ -56,6 +60,18 @@ object JarvisRealityAdapter {
             )
         }
     }
+
+    private fun agentVisibilityDecision(snapshot: AgentVisibilitySnapshot): JarvisRealityDecision =
+        JarvisRealityDecision(
+            route = JarvisRealityRoute.AGENTS,
+            truthStatus = if (snapshot.hasEvidence()) TRUTH_PARTIAL else TRUTH_UNKNOWN,
+            sourcesUsed = if (snapshot.hasEvidence()) listOf("runtime agent visibility snapshot") else listOf("question route classifier"),
+            missingData = snapshot.missingFields(),
+            safeResponseMode = if (snapshot.hasEvidence()) MODE_PARTIAL_WITH_LIMITS else MODE_INSUFFICIENT_DATA,
+            awarenessAttempted = true,
+            realityScore = JarvisRealityScorer.score(JarvisRealityRoute.AGENTS, agentSnapshot = snapshot),
+            agentVisibilitySnapshot = snapshot
+        )
 
     fun logDecision(sessionId: String, question: String, decision: JarvisRealityDecision) {
         Log.i(
@@ -119,6 +135,21 @@ object JarvisRealityAdapter {
     private const val MODE_PARTIAL_WITH_LIMITS = "PARTIAL_WITH_LIMITS"
     private const val MODE_REFLECTION_ONLY = "REFLECTION_ONLY"
     private const val MODE_INSUFFICIENT_DATA = "INSUFFICIENT_DATA"
+
+    private val AGENT_VISIBILITY_PATTERNS = setOf(
+        "what are my agents doing",
+        "what are the agents doing",
+        "what are agents doing",
+        "agents doing",
+        "agent status",
+        "agents status",
+        "are my agents alive",
+        "are agents alive",
+        "what is coder doing",
+        "what is reviewer doing",
+        "what is auditor doing",
+        "what is cto doing"
+    )
 
     private val PROJECT_PATTERNS = setOf(
         "what happened today",
