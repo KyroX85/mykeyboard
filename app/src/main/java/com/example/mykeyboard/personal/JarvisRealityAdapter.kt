@@ -153,6 +153,12 @@ object JarvisRealityAdapter {
 
     private val PROJECT_PATTERNS = setOf(
         "what happened today",
+        "what are you doing",
+        "what are we doing",
+        "what is next",
+        "what next",
+        "next action",
+        "what is the next action",
         "next milestone",
         "what is blocked",
         "current blocker",

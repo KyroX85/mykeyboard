@@ -27,6 +27,10 @@ class JarvisRealityAdapterTest {
     fun routesProjectQuestionsToProjectAwarenessFirst() {
         listOf(
             "What happened today?",
+            "What are you doing?",
+            "What are we doing?",
+            "What is next?",
+            "What is the next action?",
             "What is our next milestone?",
             "What am I building?",
             "What is the build status?",

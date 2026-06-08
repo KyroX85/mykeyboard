@@ -31,9 +31,9 @@ class ProjectOperationalResponseModeTest {
         assertTrue(answer.contains("commits today: 3"))
         assertTrue(answer.contains("latest commit: expand jarvis reality snapshot"))
         assertTrue(answer.contains("APK versionName=1.0.12; versionCode=12"))
-        assertTrue(answer.contains("Current state: phase is Phase 1 protected plus Phase 2 Explain active"))
+        assertTrue(answer.contains("Current State: phase is Phase 1 protected plus Phase 2 Explain active"))
         assertTrue(answer.contains("milestone is Jarvis reliability"))
-        assertTrue(answer.contains("Next action: clear transcript accuracy"))
+        assertTrue(answer.contains("Next Action: clear transcript accuracy"))
     }
 
     @Test
@@ -61,7 +61,23 @@ class ProjectOperationalResponseModeTest {
         assertFalse(answer.contains("vision", ignoreCase = true))
         assertFalse(answer.contains("becoming", ignoreCase = true))
         assertTrue(answer.contains("Facts:"))
-        assertTrue(answer.contains("Current state:"))
-        assertTrue(answer.contains("Next action:"))
+        assertTrue(answer.contains("Current State:"))
+        assertTrue(answer.contains("Next Action:"))
+    }
+
+    @Test
+    fun operationalAnswerKeepsFactsCurrentStateAndNextActionShapeWithSparseSnapshot() {
+        val answer = ProjectOperationalResponseMode.buildAnswer(
+            ProjectSnapshot(
+                latestCommitMessage = "add operational intelligence routing",
+                latestCommit = "abcdef123456",
+                lastVerifiedTimestamp = "2026-06-08T10:00:00Z"
+            )
+        )
+
+        assertTrue(answer.contains("Facts:"))
+        assertTrue(answer.contains("latest commit: add operational intelligence routing"))
+        assertTrue(answer.contains("Current State: unknown"))
+        assertTrue(answer.contains("Next Action: no verified next action available"))
     }
 }

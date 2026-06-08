@@ -6,11 +6,11 @@ object ProjectOperationalResponseMode {
             return "I do not have enough verified project data yet."
         }
 
-        val facts = buildFacts(snapshot)
-        val currentState = buildCurrentState(snapshot)
-        val nextAction = buildNextAction(snapshot)
+        val facts = buildFacts(snapshot) ?: "Facts: no verified progress facts available"
+        val currentState = buildCurrentState(snapshot) ?: "Current State: unknown"
+        val nextAction = buildNextAction(snapshot) ?: "Next Action: no verified next action available"
 
-        return listOfNotNull(facts, currentState, nextAction)
+        return listOf(facts, currentState, nextAction)
             .joinToString(". ")
             .take(MAX_VOICE_CHARS)
     }
@@ -39,14 +39,14 @@ object ProjectOperationalResponseMode {
             }
         }
         if (currentState.isEmpty()) return null
-        return "Current state: ${currentState.joinToString("; ")}"
+        return "Current State: ${currentState.joinToString("; ")}"
     }
 
     private fun buildNextAction(snapshot: ProjectSnapshot): String? =
-        snapshot.openBlockers?.firstOrNull()?.let { "Next action: clear $it" }
-            ?: snapshot.knownBlockers?.firstOrNull()?.let { "Next action: clear $it" }
-            ?: snapshot.currentMilestone?.let { "Next action: continue $it" }
+        snapshot.openBlockers?.firstOrNull()?.let { "Next Action: clear $it" }
+            ?: snapshot.knownBlockers?.firstOrNull()?.let { "Next Action: clear $it" }
+            ?: snapshot.currentMilestone?.let { "Next Action: continue $it" }
 
     private const val COMMIT_CHARS = 10
-    private const val MAX_VOICE_CHARS = 320
+    private const val MAX_VOICE_CHARS = 520
 }
