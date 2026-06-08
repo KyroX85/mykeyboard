@@ -274,6 +274,8 @@ class JarvisWakeWordService : Service(), RecognitionListener {
                 if (error == SpeechRecognizer.ERROR_NO_MATCH && latestCommandPartial.isNotBlank()) {
                     Log.i(TAG, "Using command partial after no-match: chars=${latestCommandPartial.length}")
                     handleCommandText(latestCommandPartialResult)
+                } else if (error == SpeechRecognizer.ERROR_NO_MATCH && activeSession != null) {
+                    handleConversationNoMatch()
                 } else {
                     failCommandCapture("command recognizer error", RESTART_DELAY_MS)
                 }
@@ -364,9 +366,21 @@ class JarvisWakeWordService : Service(), RecognitionListener {
             failCommandCapture("blank command", RESTART_DELAY_MS)
             return
         }
+        session.emptyListenCount = 0
         session.commandCaptured = true
+        session.turnCount += 1
         Log.i(TAG, "Jarvis command captured: ${commandObservationLabel(result)}")
-        askFounderBrain(session, question)
+        when (JarvisConversationCommand.classify(question)) {
+            JarvisConversationCommandType.TAKE_REST -> {
+                Log.i(TAG, "Jarvis conversation end requested: session=${session.id}; turns=${session.turnCount}")
+                speakAndReturnToIdle(SESSION_REST_RESPONSE_TEXT, "founder ended conversation")
+            }
+            JarvisConversationCommandType.CONTINUE_PROMPT -> {
+                Log.i(TAG, "Jarvis conversation continuation prompt: session=${session.id}; turns=${session.turnCount}")
+                speakAndContinueConversation(SESSION_CONTINUE_RESPONSE_TEXT, "conversation continuation prompt")
+            }
+            JarvisConversationCommandType.QUESTION -> askFounderBrain(session, question)
+        }
     }
 
     private fun selectBestCommandResult(results: Bundle?): RecognizedCommandResult {
@@ -440,7 +454,7 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         val connector = brainConnector
         if (connector == null) {
             Log.w(TAG, "Founder Brain connector missing for session ${session.id}")
-            speakAndReturnToIdle(JarvisBrainSpeechPolicy.safeFallback(), "brain not attached")
+            speakAndContinueConversation(JarvisBrainSpeechPolicy.safeFallback(), "brain not attached")
             return
         }
         val realityDecision = JarvisRealityAdapter.classify(question)
@@ -459,7 +473,7 @@ class JarvisWakeWordService : Service(), RecognitionListener {
                     "snapshot_fields_used=${realityDecision.realityScore.snapshotFieldsUsed.joinToString("|")}; " +
                     "founder_brain_used=${realityDecision.realityScore.founderBrainUsed}"
             )
-            speakAndReturnToIdle(speech, "project snapshot response delivered")
+            speakAndContinueConversation(speech, "project snapshot response delivered")
             return
         }
         if (realityDecision.route == JarvisRealityRoute.PERSONAL) {
@@ -476,12 +490,12 @@ class JarvisWakeWordService : Service(), RecognitionListener {
                     "snapshot_fields_used=${realityDecision.realityScore.snapshotFieldsUsed.joinToString("|")}; " +
                     "founder_brain_used=${realityDecision.realityScore.founderBrainUsed}"
             )
-            speakAndReturnToIdle(speech, "personal snapshot response delivered")
+            speakAndContinueConversation(speech, "personal snapshot response delivered")
             return
         }
         if (realityDecision.route != JarvisRealityRoute.REFLECTION) {
             Log.i(TAG, "Founder Brain bypassed for non-reflection route=${realityDecision.route}; session=${session.id}")
-            speakAndReturnToIdle(nonFounderBrainFallback(realityDecision), "non-founder-brain route blocked")
+            speakAndContinueConversation(nonFounderBrainFallback(realityDecision), "non-founder-brain route blocked")
             return
         }
         session.brainAttached = true
@@ -504,7 +518,7 @@ class JarvisWakeWordService : Service(), RecognitionListener {
                     }
                     val speech = JarvisBrainSpeechPolicy.speechFor(answer)
                     Log.i(TAG, "Founder Brain voiceSummary received: chars=${speech.length}")
-                    speakAndReturnToIdle(speech, "brain response delivered")
+                    speakAndContinueConversation(speech, "brain response delivered")
                 }
             },
             onFailure = { reason ->
@@ -514,7 +528,7 @@ class JarvisWakeWordService : Service(), RecognitionListener {
                         return@post
                     }
                     Log.w(TAG, "Founder Brain conversation failed: $reason")
-                    speakAndReturnToIdle(JarvisBrainSpeechPolicy.safeFallback(), "brain failure")
+                    speakAndContinueConversation(JarvisBrainSpeechPolicy.safeFallback(), "brain failure")
                 }
             }
         )
@@ -528,12 +542,55 @@ class JarvisWakeWordService : Service(), RecognitionListener {
             JarvisRealityRoute.REFLECTION -> JarvisBrainSpeechPolicy.safeFallback()
         }
 
+    private fun handleConversationNoMatch() {
+        val session = activeSession
+        if (session == null) {
+            failCommandCapture("missing active session after no-match", RESTART_DELAY_MS)
+            return
+        }
+        session.emptyListenCount += 1
+        latestCommandPartial = ""
+        latestCommandPartialResult = RecognizedCommandResult.empty()
+        if (session.emptyListenCount <= MAX_EMPTY_CONVERSATION_LISTENS) {
+            Log.i(
+                TAG,
+                "Conversation command no-match; keeping session active: session=${session.id}; emptyListens=${session.emptyListenCount}"
+            )
+            scheduleCommandStart(CONVERSATION_NO_MATCH_RELISTEN_MS)
+        } else {
+            Log.i(TAG, "Conversation idle timeout: session=${session.id}; turns=${session.turnCount}")
+            speakAndReturnToIdle(SESSION_REST_RESPONSE_TEXT, "conversation idle timeout")
+        }
+    }
+
     private fun failCommandCapture(reason: String, restartDelayMs: Long) {
         releaseSession(reason)
         latestCommandPartial = ""
         latestCommandPartialResult = RecognizedCommandResult.empty()
         transitionTo(JarvisConversationState.RETURN_TO_IDLE, reason)
         scheduleWakeRestart(restartDelayMs)
+    }
+
+    private fun speakAndContinueConversation(text: String, reason: String) {
+        transitionTo(JarvisConversationState.SPEAKING, reason)
+        val sessionId = activeSession?.id
+        val afterSpeech: () -> Unit = {
+            mainHandler.post {
+                if (activeSession?.id == sessionId && sessionId != null) {
+                    transitionTo(JarvisConversationState.COMMAND_CAPTURE, "conversation speech complete")
+                    scheduleCommandStart(CONVERSATION_TURN_DELAY_MS)
+                } else {
+                    transitionTo(JarvisConversationState.RETURN_TO_IDLE, "conversation session missing after speech")
+                    scheduleWakeRestart(RETURN_TO_IDLE_DELAY_MS)
+                }
+            }
+            Unit
+        }
+        if (text.isBlank()) {
+            afterSpeech()
+        } else {
+            speaker?.speak(text, afterSpeech) ?: afterSpeech()
+        }
     }
 
     private fun speakAndReturnToIdle(text: String, reason: String) {
@@ -665,10 +722,15 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         private const val BUSY_RESTART_DELAY_MS = 1600L
         private const val NO_MATCH_RESTART_DELAY_MS = 5000L
         private const val COMMAND_LISTEN_DELAY_MS = 180L
+        private const val CONVERSATION_TURN_DELAY_MS = 240L
+        private const val CONVERSATION_NO_MATCH_RELISTEN_MS = 900L
         private const val RETURN_TO_IDLE_DELAY_MS = 350L
         private const val WAKE_DEBOUNCE_MS = 6000L
+        private const val MAX_EMPTY_CONVERSATION_LISTENS = 2
         private const val MAX_DEBUG_TRANSCRIPT_CHARS = 80
         private const val MAX_DEBUG_ALTERNATIVES = 5
+        private const val SESSION_CONTINUE_RESPONSE_TEXT = "I am listening."
+        private const val SESSION_REST_RESPONSE_TEXT = "Resting now, Sir."
 
         fun start(context: Context) {
             val intent = Intent(context, JarvisWakeWordService::class.java).setAction(ACTION_START)
@@ -697,7 +759,9 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         val id: String,
         val startedAtMs: Long,
         var commandCaptured: Boolean = false,
-        var brainAttached: Boolean = false
+        var brainAttached: Boolean = false,
+        var turnCount: Int = 0,
+        var emptyListenCount: Int = 0
     )
 
     private data class RecognizedCommandCandidate(

@@ -77,7 +77,7 @@ class PersonalJarvisIsolationGuardrailsTest {
     }
 
     @Test
-    fun wakeWordServiceDelegatesOneCommandToFounderBrainVoiceSummary() {
+    fun wakeWordServiceKeepsActiveConversationAfterFounderBrainVoiceSummary() {
         val wakeService = sourceFile("app/src/main/java/com/example/mykeyboard/personal/JarvisWakeWordService.kt").readText()
         val connector = sourceFile("app/src/main/java/com/example/mykeyboard/personal/JarvisBrainConnector.kt").readText()
         val speechPolicy = sourceFile("app/src/main/java/com/example/mykeyboard/personal/JarvisBrainSpeechPolicy.kt").readText()
@@ -117,7 +117,7 @@ class PersonalJarvisIsolationGuardrailsTest {
         assertTrue(wakeService.contains("activeSession?.id != session.id"))
         assertTrue(wakeService.contains("releaseSession("))
         assertTrue(wakeService.contains("JarvisBrainSpeechPolicy.speechFor(answer)"))
-        assertTrue(wakeService.contains("speakAndReturnToIdle(speech"))
+        assertTrue(wakeService.contains("speakAndContinueConversation(speech"))
         assertTrue(wakeService.contains(".setSilent(true)"))
         assertFalse(wakeService.contains("AudioFocusRequest"))
         assertFalse(wakeService.contains("requestAudioFocus()"))
@@ -141,6 +141,18 @@ class PersonalJarvisIsolationGuardrailsTest {
         assertTrue(wakeService.contains("RESTART_DELAY_MS"))
         assertTrue(wakeService.contains("SpeechRecognizer.ERROR_NO_MATCH -> NO_MATCH_RESTART_DELAY_MS"))
         assertTrue(wakeService.contains("Jarvis command captured: \${commandObservationLabel(result)}"))
+        assertTrue(wakeService.contains("JarvisConversationCommand.classify(question)"))
+        assertTrue(wakeService.contains("JarvisConversationCommandType.TAKE_REST"))
+        assertTrue(wakeService.contains("JarvisConversationCommandType.CONTINUE_PROMPT"))
+        assertTrue(wakeService.contains("SESSION_CONTINUE_RESPONSE_TEXT"))
+        assertTrue(wakeService.contains("SESSION_REST_RESPONSE_TEXT"))
+        assertTrue(wakeService.contains("speakAndContinueConversation(speech"))
+        assertTrue(wakeService.contains("transitionTo(JarvisConversationState.COMMAND_CAPTURE, \"conversation speech complete\")"))
+        assertTrue(wakeService.contains("scheduleCommandStart(CONVERSATION_TURN_DELAY_MS)"))
+        assertTrue(wakeService.contains("handleConversationNoMatch"))
+        assertTrue(wakeService.contains("CONVERSATION_NO_MATCH_RELISTEN_MS"))
+        assertTrue(wakeService.contains("MAX_EMPTY_CONVERSATION_LISTENS"))
+        assertTrue(wakeService.contains("emptyListenCount"))
         assertTrue(wakeService.contains("Jarvis command recognition alternatives: count="))
         assertTrue(wakeService.contains("commandObservationLabel"))
         assertTrue(wakeService.contains("debugAlternativesLabel"))
