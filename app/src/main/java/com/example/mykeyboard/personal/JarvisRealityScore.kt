@@ -43,7 +43,15 @@ object JarvisRealityScorer {
     }
 
     private fun ProjectSnapshot.usedFields(): List<String> = buildList {
+        if (currentPhase != null) add("current_phase")
         if (currentMilestone != null) add("current_milestone")
+        if (lastSuccessfulBuild != null) add("last_successful_build")
+        if (lastFailedBuild != null) add("last_failed_build")
+        if (latestCommitMessage != null) add("latest_commit_message")
+        if (commitsToday != null) add("commits_today")
+        if (openBlockers != null) add("open_blockers")
+        if (latestApkVersion != null) add("latest_apk_version")
+        if (activeRuntimeModules != null) add("active_runtime_modules")
         if (latestCommit != null) add("latest_commit")
         if (latestBuild != null) add("latest_build")
         if (ciState != null) add("ci_state")

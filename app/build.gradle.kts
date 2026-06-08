@@ -1,4 +1,6 @@
 import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 
 plugins {
     alias(libs.plugins.android.application)
@@ -34,6 +36,17 @@ val ciBuildNumber = providers.environmentVariable("GITHUB_RUN_NUMBER")
 
 val projectLatestCommit = firstPresentEnvValue("GITHUB_SHA")
     .ifBlank { commandOutput("git", "rev-parse", "--short", "HEAD") }
+
+val projectLatestCommitMessage = firstPresentEnvValue("ARITENIS_LATEST_COMMIT_MESSAGE")
+    .ifBlank { commandOutput("git", "log", "-1", "--pretty=%s") }
+
+val projectTodayStart = LocalDate.now(ZoneId.of("Asia/Calcutta"))
+    .atStartOfDay(ZoneId.of("Asia/Calcutta"))
+    .toOffsetDateTime()
+    .toString()
+
+val projectCommitsToday = firstPresentEnvValue("ARITENIS_COMMITS_TODAY")
+    .ifBlank { commandOutput("git", "rev-list", "--count", "--since=$projectTodayStart", "HEAD") }
 
 val projectBuildVerifiedAt = firstPresentEnvValue("ARITENIS_BUILD_VERIFIED_AT")
     .ifBlank { Instant.now().toString() }
@@ -81,11 +94,22 @@ android {
                 "PICOVOICE_ACCESS_KEY"
             ).asBuildConfigString()
         )
+        buildConfigField("String", "PROJECT_CURRENT_PHASE", envValue("ARITENIS_CURRENT_PHASE").asBuildConfigString())
         buildConfigField("String", "PROJECT_CURRENT_MILESTONE", envValue("ARITENIS_CURRENT_MILESTONE").asBuildConfigString())
         buildConfigField("String", "PROJECT_LATEST_COMMIT", projectLatestCommit.asBuildConfigString())
+        buildConfigField("String", "PROJECT_LATEST_COMMIT_MESSAGE", projectLatestCommitMessage.asBuildConfigString())
+        buildConfigField("String", "PROJECT_COMMITS_TODAY", projectCommitsToday.asBuildConfigString())
         buildConfigField("String", "PROJECT_BUILD_STATUS", envValue("ARITENIS_BUILD_STATUS").asBuildConfigString())
+        buildConfigField("String", "PROJECT_LAST_SUCCESSFUL_BUILD", envValue("ARITENIS_LAST_SUCCESSFUL_BUILD").asBuildConfigString())
+        buildConfigField("String", "PROJECT_LAST_FAILED_BUILD", envValue("ARITENIS_LAST_FAILED_BUILD").asBuildConfigString())
         buildConfigField("String", "PROJECT_CI_STATE", envValue("ARITENIS_CI_STATE").asBuildConfigString())
         buildConfigField("String", "PROJECT_KNOWN_BLOCKERS", envValue("ARITENIS_KNOWN_BLOCKERS").asBuildConfigString())
+        buildConfigField(
+            "String",
+            "PROJECT_OPEN_BLOCKERS",
+            firstPresentEnvValue("ARITENIS_OPEN_BLOCKERS", "ARITENIS_KNOWN_BLOCKERS").asBuildConfigString()
+        )
+        buildConfigField("String", "PROJECT_ACTIVE_RUNTIME_MODULES", envValue("ARITENIS_ACTIVE_RUNTIME_MODULES").asBuildConfigString())
         buildConfigField("String", "PROJECT_BUILD_VERIFIED_AT", projectBuildVerifiedAt.asBuildConfigString())
     }
 

@@ -10,7 +10,15 @@ class ProjectOperationalResponseModeTest {
     fun buildsFactsCurrentStateAndNextActionFromSnapshot() {
         val answer = ProjectOperationalResponseMode.buildAnswer(
             ProjectSnapshot(
+                currentPhase = "Phase 1 protected plus Phase 2 Explain active",
                 currentMilestone = "Jarvis reliability",
+                lastSuccessfulBuild = "Android CI #42",
+                lastFailedBuild = "Product Lab #12",
+                latestCommitMessage = "expand jarvis reality snapshot",
+                commitsToday = 3,
+                openBlockers = listOf("transcript accuracy"),
+                latestApkVersion = "versionName=1.0.12; versionCode=12",
+                activeRuntimeModules = listOf("JarvisWakeWordService", "FounderBrainConnector"),
                 latestCommit = "abcdef123456",
                 latestBuild = "versionName=1.0.12; versionCode=12",
                 ciState = "in_progress",
@@ -20,22 +28,18 @@ class ProjectOperationalResponseModeTest {
         )
 
         assertTrue(answer.contains("Facts:"))
-        assertTrue(answer.contains("latest verified commit is abcdef1234"))
-        assertTrue(answer.contains("Current state: milestone is Jarvis reliability"))
+        assertTrue(answer.contains("commits today: 3"))
+        assertTrue(answer.contains("latest commit: expand jarvis reality snapshot"))
+        assertTrue(answer.contains("APK versionName=1.0.12; versionCode=12"))
+        assertTrue(answer.contains("Current state: phase is Phase 1 protected plus Phase 2 Explain active"))
+        assertTrue(answer.contains("milestone is Jarvis reliability"))
         assertTrue(answer.contains("Next action: clear transcript accuracy"))
     }
 
     @Test
     fun doesNotInventFactsWhenSnapshotIsEmpty() {
         val answer = ProjectOperationalResponseMode.buildAnswer(
-            ProjectSnapshot(
-                currentMilestone = null,
-                latestCommit = null,
-                latestBuild = null,
-                ciState = null,
-                knownBlockers = null,
-                lastVerifiedTimestamp = null
-            )
+            ProjectSnapshot()
         )
 
         assertEquals("I do not have enough verified project data yet.", answer)
@@ -46,10 +50,9 @@ class ProjectOperationalResponseModeTest {
         val answer = ProjectSnapshotResponseFormatter.voiceSummary(
             ProjectSnapshot(
                 currentMilestone = "Jarvis reliability",
+                latestCommitMessage = "expand jarvis reality snapshot",
+                commitsToday = 1,
                 latestCommit = "1234567890",
-                latestBuild = null,
-                ciState = null,
-                knownBlockers = null,
                 lastVerifiedTimestamp = "2026-06-06T10:00:00Z"
             )
         )
