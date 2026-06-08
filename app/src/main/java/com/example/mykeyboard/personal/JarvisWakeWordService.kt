@@ -462,6 +462,23 @@ class JarvisWakeWordService : Service(), RecognitionListener {
             speakAndReturnToIdle(speech, "project snapshot response delivered")
             return
         }
+        if (realityDecision.route == JarvisRealityRoute.PERSONAL) {
+            val snapshot = realityDecision.personalSnapshot
+            val speech = if (snapshot == null) {
+                "I do not have enough verified personal data yet."
+            } else {
+                PersonalSnapshotResponseFormatter.voiceSummary(snapshot, question)
+            }
+            Log.i(
+                TAG,
+                "Personal question answered from runtime snapshot: session=${session.id}; truthStatus=${realityDecision.truthStatus}; " +
+                    "REALITY_PERCENT=${realityDecision.realityScore.realityPercent}; " +
+                    "snapshot_fields_used=${realityDecision.realityScore.snapshotFieldsUsed.joinToString("|")}; " +
+                    "founder_brain_used=${realityDecision.realityScore.founderBrainUsed}"
+            )
+            speakAndReturnToIdle(speech, "personal snapshot response delivered")
+            return
+        }
         if (realityDecision.route != JarvisRealityRoute.REFLECTION) {
             Log.i(TAG, "Founder Brain bypassed for non-reflection route=${realityDecision.route}; session=${session.id}")
             speakAndReturnToIdle(nonFounderBrainFallback(realityDecision), "non-founder-brain route blocked")

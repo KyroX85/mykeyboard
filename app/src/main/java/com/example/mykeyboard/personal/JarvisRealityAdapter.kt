@@ -18,7 +18,8 @@ data class JarvisRealityDecision(
     val safeResponseMode: String,
     val awarenessAttempted: Boolean,
     val realityScore: JarvisRealityScore,
-    val projectSnapshot: ProjectSnapshot? = null
+    val projectSnapshot: ProjectSnapshot? = null,
+    val personalSnapshot: PersonalSnapshot? = null
 )
 
 object JarvisRealityAdapter {
@@ -34,7 +35,7 @@ object JarvisRealityAdapter {
 
         return when (route) {
             JarvisRealityRoute.PROJECT -> projectAwarenessDecision(ProjectSnapshotRuntime.capture())
-            JarvisRealityRoute.PERSONAL -> awarenessDecision(route, "personal awareness provider not attached in Android runtime yet")
+            JarvisRealityRoute.PERSONAL -> personalAwarenessDecision(PersonalSnapshotRuntime.capture())
             JarvisRealityRoute.REFLECTION -> JarvisRealityDecision(
                 route = route,
                 truthStatus = TRUTH_PARTIAL,
@@ -78,6 +79,18 @@ object JarvisRealityAdapter {
             awarenessAttempted = true,
             realityScore = JarvisRealityScorer.score(JarvisRealityRoute.PROJECT, snapshot),
             projectSnapshot = snapshot
+        )
+
+    private fun personalAwarenessDecision(snapshot: PersonalSnapshot): JarvisRealityDecision =
+        JarvisRealityDecision(
+            route = JarvisRealityRoute.PERSONAL,
+            truthStatus = if (snapshot.hasEvidence()) TRUTH_PARTIAL else TRUTH_UNKNOWN,
+            sourcesUsed = if (snapshot.hasEvidence()) listOf("runtime personal snapshot") else listOf("question route classifier"),
+            missingData = snapshot.missingFields(),
+            safeResponseMode = if (snapshot.hasEvidence()) MODE_PARTIAL_WITH_LIMITS else MODE_INSUFFICIENT_DATA,
+            awarenessAttempted = true,
+            realityScore = JarvisRealityScorer.score(JarvisRealityRoute.PERSONAL, personalSnapshot = snapshot),
+            personalSnapshot = snapshot
         )
 
     private fun awarenessDecision(route: JarvisRealityRoute, missingProvider: String): JarvisRealityDecision =
@@ -143,6 +156,10 @@ object JarvisRealityAdapter {
         "sleep",
         "pending today",
         "what should i focus on",
+        "what classes are left",
+        "classes are left",
+        "classes left",
+        "class timings",
         "how overloaded",
         "how much work is left",
         "did i finish everything",

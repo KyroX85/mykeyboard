@@ -33,13 +33,16 @@ class JarvisRealityAdapterTest {
         listOf(
             "What homework is pending?",
             "What should I focus on?",
+            "What classes are left?",
             "How overloaded am I this week?"
         ).forEach { question ->
             val decision = JarvisRealityAdapter.classify(question)
 
             assertEquals(question, JarvisRealityRoute.PERSONAL, decision.route)
             assertTrue(question, decision.awarenessAttempted)
-            assertEquals(question, "PARTIAL_WITH_LIMITS", decision.safeResponseMode)
+            assertEquals(question, "INSUFFICIENT_DATA", decision.safeResponseMode)
+            assertTrue(question, decision.personalSnapshot != null)
+            assertFalse(question, decision.realityScore.founderBrainUsed)
         }
     }
 

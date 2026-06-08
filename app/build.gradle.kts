@@ -111,6 +111,13 @@ android {
         )
         buildConfigField("String", "PROJECT_ACTIVE_RUNTIME_MODULES", envValue("ARITENIS_ACTIVE_RUNTIME_MODULES").asBuildConfigString())
         buildConfigField("String", "PROJECT_BUILD_VERIFIED_AT", projectBuildVerifiedAt.asBuildConfigString())
+        buildConfigField("String", "PERSONAL_SCHEDULE", envValue("ARITENIS_PERSONAL_SCHEDULE").asBuildConfigString())
+        buildConfigField("String", "PERSONAL_CLASS_TIMINGS", envValue("ARITENIS_CLASS_TIMINGS").asBuildConfigString())
+        buildConfigField("String", "PERSONAL_BADMINTON_TIMINGS", envValue("ARITENIS_BADMINTON_TIMINGS").asBuildConfigString())
+        buildConfigField("String", "PERSONAL_JEE_TIMINGS", envValue("ARITENIS_JEE_TIMINGS").asBuildConfigString())
+        buildConfigField("String", "PERSONAL_HOMEWORK_TASKS", envValue("ARITENIS_HOMEWORK_TASKS").asBuildConfigString())
+        buildConfigField("String", "PERSONAL_MANUAL_COMMITMENTS", envValue("ARITENIS_MANUAL_COMMITMENTS").asBuildConfigString())
+        buildConfigField("String", "PERSONAL_SNAPSHOT_VERIFIED_AT", envValue("ARITENIS_PERSONAL_SNAPSHOT_VERIFIED_AT").asBuildConfigString())
     }
 
     buildTypes {

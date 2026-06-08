@@ -8,16 +8,20 @@ data class JarvisRealityScore(
 )
 
 object JarvisRealityScorer {
-    fun score(route: JarvisRealityRoute, snapshot: ProjectSnapshot? = null): JarvisRealityScore =
+    fun score(
+        route: JarvisRealityRoute,
+        snapshot: ProjectSnapshot? = null,
+        personalSnapshot: PersonalSnapshot? = null
+    ): JarvisRealityScore =
         when (route) {
             JarvisRealityRoute.PROJECT -> scoreProject(snapshot)
+            JarvisRealityRoute.PERSONAL -> scorePersonal(personalSnapshot)
             JarvisRealityRoute.REFLECTION -> JarvisRealityScore(
                 realityPercent = REFLECTION_REALITY_PERCENT,
                 factsUsed = 0,
                 snapshotFieldsUsed = emptyList(),
                 founderBrainUsed = true
             )
-            JarvisRealityRoute.PERSONAL,
             JarvisRealityRoute.EXECUTION -> JarvisRealityScore(
                 realityPercent = UNKNOWN_REALITY_PERCENT,
                 factsUsed = 0,
@@ -27,6 +31,22 @@ object JarvisRealityScorer {
         }
 
     private fun scoreProject(snapshot: ProjectSnapshot?): JarvisRealityScore {
+        val fieldsUsed = snapshot?.usedFields().orEmpty()
+        val realityPercent = if (fieldsUsed.isEmpty()) {
+            UNKNOWN_REALITY_PERCENT
+        } else {
+            (BASE_PROJECT_REALITY_PERCENT + fieldsUsed.size * FIELD_WEIGHT_PERCENT)
+                .coerceAtMost(MAX_REALITY_PERCENT)
+        }
+        return JarvisRealityScore(
+            realityPercent = realityPercent,
+            factsUsed = fieldsUsed.size,
+            snapshotFieldsUsed = fieldsUsed,
+            founderBrainUsed = false
+        )
+    }
+
+    private fun scorePersonal(snapshot: PersonalSnapshot?): JarvisRealityScore {
         val fieldsUsed = snapshot?.usedFields().orEmpty()
         val realityPercent = if (fieldsUsed.isEmpty()) {
             UNKNOWN_REALITY_PERCENT
@@ -56,6 +76,16 @@ object JarvisRealityScorer {
         if (latestBuild != null) add("latest_build")
         if (ciState != null) add("ci_state")
         if (knownBlockers != null) add("known_blockers")
+        if (lastVerifiedTimestamp != null) add("last_verified_timestamp")
+    }
+
+    private fun PersonalSnapshot.usedFields(): List<String> = buildList {
+        if (userEnteredSchedule != null) add("user_entered_schedule")
+        if (classTimings != null) add("class_timings")
+        if (badmintonTimings != null) add("badminton_timings")
+        if (jeeTimings != null) add("jee_timings")
+        if (homeworkTasks != null) add("homework_tasks")
+        if (manualCommitments != null) add("manual_commitments")
         if (lastVerifiedTimestamp != null) add("last_verified_timestamp")
     }
 
