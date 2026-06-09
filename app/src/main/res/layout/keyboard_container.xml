@@ -29,7 +29,8 @@
             <com.example.mykeyboard.KeyboardAmbientBackgroundView
                 android:id="@+id/keyboardAmbientBackground"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
+                android:layout_height="0dp"
+                android:layout_gravity="bottom"
                 android:importantForAccessibility="no"
                 android:clickable="false"
                 android:focusable="false" />

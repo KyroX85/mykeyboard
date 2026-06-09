@@ -352,6 +352,7 @@ class KeyboardService : InputMethodService() {
         keyboardPanel.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
             refreshCachedKeyBounds()
             syncSwipeTrailToMeasuredPanel()
+            syncAmbientBackgroundToMeasuredPanel()
         }
         keyboardContent = layout.findViewById(R.id.keyboardContent)
         suggestionBar = layout.findViewById(R.id.suggestionBar)
@@ -1255,6 +1256,7 @@ class KeyboardService : InputMethodService() {
 
     private fun buildKeyboard() {
         collapseSwipeTrailForMeasurement()
+        collapseAmbientBackgroundForMeasurement()
         keyboardLayout.removeAllViews()
         keyButtons.clear()
         val sizing = currentKeyboardSizing()
@@ -1278,6 +1280,7 @@ class KeyboardService : InputMethodService() {
         keyboardPanel.post {
             refreshCachedKeyBounds()
             syncSwipeTrailToMeasuredPanel()
+            syncAmbientBackgroundToMeasuredPanel()
         }
     }
 
@@ -1358,6 +1361,16 @@ class KeyboardService : InputMethodService() {
         }
     }
 
+    private fun collapseAmbientBackgroundForMeasurement() {
+        if (!::ambientBackground.isInitialized) return
+        val params = ambientBackground.layoutParams as? FrameLayout.LayoutParams ?: return
+        if (params.height != 0) {
+            params.height = 0
+            params.gravity = Gravity.BOTTOM
+            ambientBackground.layoutParams = params
+        }
+    }
+
     private fun syncSwipeTrailToMeasuredPanel() {
         if (!::swipeTrailView.isInitialized || !::keyboardPanel.isInitialized) return
         val measuredHeight = keyboardPanel.height
@@ -1368,6 +1381,20 @@ class KeyboardService : InputMethodService() {
             params.width = FrameLayout.LayoutParams.MATCH_PARENT
             params.height = measuredHeight
             swipeTrailView.layoutParams = params
+        }
+    }
+
+    private fun syncAmbientBackgroundToMeasuredPanel() {
+        if (!::ambientBackground.isInitialized || !::keyboardContent.isInitialized) return
+        val measuredHeight = keyboardContent.measuredHeight
+        if (measuredHeight <= 0) return
+
+        val params = ambientBackground.layoutParams as? FrameLayout.LayoutParams ?: return
+        if (params.height != measuredHeight) {
+            params.width = FrameLayout.LayoutParams.MATCH_PARENT
+            params.height = measuredHeight
+            params.gravity = Gravity.BOTTOM
+            ambientBackground.layoutParams = params
         }
     }
 
