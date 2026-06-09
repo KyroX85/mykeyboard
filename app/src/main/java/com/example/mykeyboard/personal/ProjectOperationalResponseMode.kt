@@ -24,6 +24,7 @@ object ProjectOperationalResponseMode {
             snapshot.lastSuccessfulBuild?.let { add("last successful build: $it") }
             snapshot.lastFailedBuild?.let { add("last failed build: $it") }
             snapshot.ciState?.let { add("CI is $it") }
+            snapshot.branchState?.let { add("branch: $it") }
         }
         if (facts.isEmpty()) return null
         return "Facts: ${facts.joinToString("; ")}"

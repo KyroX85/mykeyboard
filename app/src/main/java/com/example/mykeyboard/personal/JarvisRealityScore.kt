@@ -94,6 +94,7 @@ object JarvisRealityScorer {
         if (latestBuild != null) add("latest_build")
         if (ciState != null) add("ci_state")
         if (knownBlockers != null) add("known_blockers")
+        if (branchState != null) add("branch_state")
         if (lastVerifiedTimestamp != null) add("last_verified_timestamp")
     }
 

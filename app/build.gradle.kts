@@ -28,6 +28,9 @@ fun commandOutput(vararg command: String): String =
         ""
     }
 
+fun String.asSingleLineEvidence(): String =
+    replace(Regex("\\s*\\r?\\n\\s*"), " | ").trim()
+
 val ciBuildNumber = providers.environmentVariable("GITHUB_RUN_NUMBER")
     .orElse("1")
     .get()
@@ -47,6 +50,9 @@ val projectTodayStart = LocalDate.now(ZoneId.of("Asia/Calcutta"))
 
 val projectCommitsToday = firstPresentEnvValue("ARITENIS_COMMITS_TODAY")
     .ifBlank { commandOutput("git", "rev-list", "--count", "--since=$projectTodayStart", "HEAD") }
+
+val projectBranchState = firstPresentEnvValue("ARITENIS_BRANCH_STATE")
+    .ifBlank { commandOutput("git", "status", "--short", "--branch").asSingleLineEvidence() }
 
 val projectBuildVerifiedAt = firstPresentEnvValue("ARITENIS_BUILD_VERIFIED_AT")
     .ifBlank { Instant.now().toString() }
@@ -99,6 +105,7 @@ android {
         buildConfigField("String", "PROJECT_LATEST_COMMIT", projectLatestCommit.asBuildConfigString())
         buildConfigField("String", "PROJECT_LATEST_COMMIT_MESSAGE", projectLatestCommitMessage.asBuildConfigString())
         buildConfigField("String", "PROJECT_COMMITS_TODAY", projectCommitsToday.asBuildConfigString())
+        buildConfigField("String", "PROJECT_BRANCH_STATE", projectBranchState.asBuildConfigString())
         buildConfigField("String", "PROJECT_BUILD_STATUS", envValue("ARITENIS_BUILD_STATUS").asBuildConfigString())
         buildConfigField("String", "PROJECT_LAST_SUCCESSFUL_BUILD", envValue("ARITENIS_LAST_SUCCESSFUL_BUILD").asBuildConfigString())
         buildConfigField("String", "PROJECT_LAST_FAILED_BUILD", envValue("ARITENIS_LAST_FAILED_BUILD").asBuildConfigString())
