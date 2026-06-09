@@ -26,6 +26,14 @@
             android:clipToPadding="false"
             android:clipToOutline="false">
 
+            <com.example.mykeyboard.KeyboardAmbientBackgroundView
+                android:id="@+id/keyboardAmbientBackground"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:importantForAccessibility="no"
+                android:clickable="false"
+                android:focusable="false" />
+
             <LinearLayout
                 android:id="@+id/keyboardContent"
                 android:layout_width="match_parent"

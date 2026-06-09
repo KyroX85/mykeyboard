@@ -89,6 +89,7 @@ class KeyboardService : InputMethodService() {
     private lateinit var root: FrameLayout
     private lateinit var mainContainer: LinearLayout
     private lateinit var keyboardPanel: FrameLayout
+    private lateinit var ambientBackground: KeyboardAmbientBackgroundView
     private lateinit var keyboardContent: LinearLayout
     private lateinit var suggestionBar: LinearLayout
     private lateinit var numberRow: LinearLayout
@@ -265,6 +266,7 @@ class KeyboardService : InputMethodService() {
         const val SWIPE_SAMPLE_DISTANCE_DP = 5
         const val SWIPE_RESOLVE_WARN_MS = 32L
         const val MAX_NAVIGATION_BOTTOM_PADDING_DP = 8
+        const val ENABLE_AMBIENT_KEYBOARD_BACKGROUND = true
         const val SHIFT_LONG_PRESS_DELAY_MS = 300L
         const val SYMBOL_LONG_PRESS_DELAY_MS = 230L
         const val SPACE_REPEAT_INITIAL_DELAY_MS = 260L
@@ -345,6 +347,8 @@ class KeyboardService : InputMethodService() {
         
         mainContainer = layout.findViewById(R.id.mainContainer)
         keyboardPanel = layout.findViewById(R.id.keyboardPanel)
+        ambientBackground = layout.findViewById(R.id.keyboardAmbientBackground)
+        ambientBackground.setAmbientEnabled(ENABLE_AMBIENT_KEYBOARD_BACKGROUND)
         keyboardPanel.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
             refreshCachedKeyBounds()
             syncSwipeTrailToMeasuredPanel()
@@ -1522,6 +1526,7 @@ class KeyboardService : InputMethodService() {
                 val now = SystemClock.elapsedRealtime()
                 lastKeyDownAtMs = now
                 metrics.recordTypingTouch(now, confidenceZoneForKey(key))
+                recordAmbientTap(event)
                 applyKeyPressFeedback(button, key)
                 showKeyPreview(button, key)
                 startSwipeTrackingIfEligible(key, event)
@@ -3050,6 +3055,9 @@ class KeyboardService : InputMethodService() {
 
     private fun updateVoiceKeyUI() {
         val activeColor = if (voiceRecordingPulse) Color.parseColor("#35D07F") else Color.parseColor("#8AB4F8")
+        if (::ambientBackground.isInitialized && ENABLE_AMBIENT_KEYBOARD_BACKGROUND) {
+            ambientBackground.setMicReactive(isVoiceTypingActive)
+        }
         voiceSuggestionButton?.let { button ->
             button.alpha = if (isVoiceTypingActive) 1f else 0.9f
             button.setTextColor(
@@ -3065,6 +3073,11 @@ class KeyboardService : InputMethodService() {
                 )
             }
         }
+    }
+
+    private fun recordAmbientTap(event: MotionEvent) {
+        if (!ENABLE_AMBIENT_KEYBOARD_BACKGROUND || !::ambientBackground.isInitialized) return
+        ambientBackground.recordTapFromRaw(event.rawX, event.rawY)
     }
 
     private fun updateShiftUI() {
