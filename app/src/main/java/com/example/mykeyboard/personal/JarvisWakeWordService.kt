@@ -51,6 +51,9 @@ class JarvisWakeWordService : Service(), RecognitionListener {
     }
 
     private val commandStartRunnable = Runnable {
+        if (currentState() == JarvisConversationState.WAITING_FOR_FOLLOWUP) {
+            transitionTo(JarvisConversationState.COMMAND_CAPTURE, "follow-up listening started")
+        }
         startCommandRecognition()
     }
 
@@ -340,7 +343,7 @@ class JarvisWakeWordService : Service(), RecognitionListener {
             }
             Unit
         }
-        speaker?.speak(JarvisWakeResponseGate.RESPONSE_TEXT, afterAcknowledgement) ?: afterAcknowledgement()
+        speaker?.speak(JarvisConversationModePolicy.WAKE_ACKNOWLEDGEMENT, afterAcknowledgement) ?: afterAcknowledgement()
     }
 
     private fun handleCommandResults(results: Bundle?) {
@@ -614,10 +617,14 @@ class JarvisWakeWordService : Service(), RecognitionListener {
     private fun speakAndContinueConversation(text: String, reason: String) {
         transitionTo(JarvisConversationState.SPEAKING, reason)
         val sessionId = activeSession?.id
+        val spokenText = JarvisConversationModePolicy.appendStateCue(
+            answer = text,
+            mode = nextConversationMode()
+        )
         val afterSpeech: () -> Unit = {
             mainHandler.post {
                 if (activeSession?.id == sessionId && sessionId != null) {
-                    transitionTo(JarvisConversationState.COMMAND_CAPTURE, "conversation speech complete")
+                    transitionTo(JarvisConversationState.WAITING_FOR_FOLLOWUP, "conversation speech complete")
                     scheduleCommandStart(CONVERSATION_TURN_DELAY_MS)
                 } else {
                     transitionTo(JarvisConversationState.RETURN_TO_IDLE, "conversation session missing after speech")
@@ -626,10 +633,19 @@ class JarvisWakeWordService : Service(), RecognitionListener {
             }
             Unit
         }
-        if (text.isBlank()) {
+        if (spokenText.isBlank()) {
             afterSpeech()
         } else {
-            speaker?.speak(text, afterSpeech) ?: afterSpeech()
+            speaker?.speak(spokenText, afterSpeech) ?: afterSpeech()
+        }
+    }
+
+    private fun nextConversationMode(): JarvisConversationMode {
+        val turns = activeSession?.turnCount ?: 0
+        return if (turns <= 1) {
+            JarvisConversationMode.WAITING_FOR_FOLLOWUP
+        } else {
+            JarvisConversationMode.WAITING_FOR_INSTRUCTION
         }
     }
 
@@ -770,7 +786,7 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         private const val MAX_DEBUG_TRANSCRIPT_CHARS = 80
         private const val MAX_DEBUG_ALTERNATIVES = 5
         private const val SESSION_CONTINUE_RESPONSE_TEXT = "I am listening."
-        private const val SESSION_REST_RESPONSE_TEXT = "Resting now, Sir."
+        private const val SESSION_REST_RESPONSE_TEXT = JarvisConversationModePolicy.REST_RESPONSE
 
         fun start(context: Context) {
             val intent = Intent(context, JarvisWakeWordService::class.java).setAction(ACTION_START)
@@ -792,6 +808,7 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         COMMAND_CAPTURE,
         PROCESSING,
         SPEAKING,
+        WAITING_FOR_FOLLOWUP,
         RETURN_TO_IDLE
     }
 

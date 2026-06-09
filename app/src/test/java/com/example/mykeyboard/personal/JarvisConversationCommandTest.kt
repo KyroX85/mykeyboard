@@ -9,6 +9,8 @@ class JarvisConversationCommandTest {
         listOf(
             "take rest",
             "Jarvis take rest",
+            "Goodbye Jarvis",
+            "Sleep Jarvis",
             "go to sleep",
             "stop listening"
         ).forEach { phrase ->

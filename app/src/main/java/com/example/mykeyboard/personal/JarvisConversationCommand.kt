@@ -13,6 +13,9 @@ object JarvisConversationCommand {
         val normalized = text.normalizedForConversationCommand()
         return when {
             normalized.contains("take rest") ||
+                normalized.contains("jarvis take rest") ||
+                normalized.contains("goodbye jarvis") ||
+                normalized.contains("sleep jarvis") ||
                 normalized.contains("go sleep") ||
                 normalized.contains("go to sleep") ||
                 normalized.contains("stop listening") -> JarvisConversationCommandType.TAKE_REST
