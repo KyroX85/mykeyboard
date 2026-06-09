@@ -35,6 +35,8 @@ class JarvisWakeWordService : Service(), RecognitionListener {
     private var wakeLock: PowerManager.WakeLock? = null
     private var speaker: JarvisSpeaker? = null
     private var brainConnector: JarvisBrainConnector? = null
+    private var contactMemory: ContactRelationshipMemory? = null
+    private var personalMemory: PersonalAwarenessMemory? = null
     private var porcupineWakeEngine: JarvisPorcupineWakeEngine? = null
     private var voskWakeEngine: JarvisVoskWakeEngine? = null
     private var activeSession: JarvisVoiceSession? = null
@@ -62,6 +64,8 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         Log.i(TAG, "Foreground service lifecycle: onCreate")
         speaker = JarvisSpeaker(this)
         brainConnector = JarvisBrainRuntime.connector(this)
+        contactMemory = SharedPreferencesContactRelationshipMemory(this)
+        personalMemory = SharedPreferencesPersonalAwarenessMemory(this)
         porcupineWakeEngine = JarvisPorcupineWakeEngine(this) {
             mainHandler.post { handleWakeWordDetected() }
         }
@@ -115,6 +119,8 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         speaker?.shutdown()
         speaker = null
         brainConnector = null
+        contactMemory = null
+        personalMemory = null
         releaseWakeLock()
         super.onDestroy()
     }
@@ -373,6 +379,12 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         session.commandCaptured = true
         session.turnCount += 1
         Log.i(TAG, "Jarvis command captured: ${commandObservationLabel(result)}")
+        if (handlePendingContactLearningIfNeeded(session, question)) {
+            return
+        }
+        if (handlePersonalLearningIfNeeded(question)) {
+            return
+        }
         if (handlePendingExecutionIfNeeded(session, question)) {
             return
         }
@@ -520,7 +532,7 @@ class JarvisWakeWordService : Service(), RecognitionListener {
             return
         }
         if (realityDecision.route == JarvisRealityRoute.PERSONAL) {
-            val snapshot = realityDecision.personalSnapshot
+            val snapshot = realityDecision.personalSnapshot?.withLocalFacts(personalMemory?.all().orEmpty())
             val speech = if (snapshot == null) {
                 "I do not have enough verified personal data yet."
             } else {
@@ -624,10 +636,11 @@ class JarvisWakeWordService : Service(), RecognitionListener {
     private fun handleExecutionRequest(session: JarvisVoiceSession, command: String) {
         when (val result = JarvisExecutionLayerV1.parse(command)) {
             is JarvisExecutionParseResult.Ready -> {
-                session.pendingExecution = result.plan
-                Log.i(TAG, "Execution Layer V1 staged: session=${session.id}; action=${result.plan.action}; target=${result.plan.target}")
+                val plan = resolveContactIfNeeded(session, result.plan) ?: return
+                session.pendingExecution = plan
+                Log.i(TAG, "Execution Layer V1 staged: session=${session.id}; action=${plan.action}; target=${plan.target}")
                 speakAndContinueConversation(
-                    text = result.plan.confirmationPrompt(),
+                    text = plan.confirmationPrompt(),
                     reason = "execution layer v1 staged",
                     includeStateCue = false
                 )
@@ -640,6 +653,64 @@ class JarvisWakeWordService : Service(), RecognitionListener {
                 Log.i(TAG, "Execution Layer V1 rejected command: session=${session.id}; reason=${result.reason}")
                 speakAndContinueConversation(result.reason, "execution layer v1 rejected")
             }
+        }
+    }
+
+    private fun handlePendingContactLearningIfNeeded(session: JarvisVoiceSession, text: String): Boolean {
+        val pendingReference = session.pendingContactReference ?: return false
+        val learning = ContactUnderstandingLayer.parseLearning(text)
+        if (learning == null) {
+            speakAndContinueConversation("I still do not know who $pendingReference is to you.", "contact learning clarification")
+            return true
+        }
+        val relationship = ContactUnderstandingLayer.createRelationship(learning)
+        contactMemory?.save(relationship)
+        session.pendingContactReference = null
+        Log.i(TAG, "Contact relationship learned: reference=$pendingReference; relationship=${relationship.relationship}")
+        speakAndContinueConversation(
+            "Got it. I will remember ${relationship.displayName} as ${relationship.relationship}.",
+            "contact relationship learned"
+        )
+        return true
+    }
+
+    private fun handlePersonalLearningIfNeeded(text: String): Boolean {
+        val memory = personalMemory ?: return false
+        return when (val result = PersonalAwarenessLearningLayer.learn(text)) {
+            is PersonalAwarenessLearningResult.Learned -> {
+                memory.save(result.fact)
+                Log.i(TAG, "Personal awareness fact learned: category=${result.fact.category}; source=${result.fact.evidenceSourceId}")
+                speakAndContinueConversation(result.speech, "personal awareness learned")
+                true
+            }
+            is PersonalAwarenessLearningResult.NeedsClarification -> {
+                speakAndContinueConversation(result.speech, "personal awareness clarification")
+                true
+            }
+            PersonalAwarenessLearningResult.NotPersonalLearning -> false
+        }
+    }
+
+    private fun resolveContactIfNeeded(session: JarvisVoiceSession, plan: JarvisExecutionPlan): JarvisExecutionPlan? {
+        if (plan.action != JarvisExecutionAction.CALL_CONTACT && plan.action != JarvisExecutionAction.WHATSAPP_DRAFT) {
+            return plan
+        }
+        val memory = contactMemory ?: return plan
+        return when (val resolution = ContactUnderstandingLayer.resolve(plan.target, memory)) {
+            is ContactResolution.Known -> plan.copy(target = resolution.relationship.displayName)
+            is ContactResolution.Unknown -> {
+                session.pendingContactReference = resolution.reference
+                Log.i(TAG, "Contact relationship unknown: reference=${resolution.reference}")
+                speakAndContinueConversation(resolution.prompt, "contact relationship unknown", includeStateCue = false)
+                null
+            }
+            is ContactResolution.Ambiguous -> {
+                session.pendingContactReference = resolution.reference
+                Log.i(TAG, "Contact relationship ambiguous: reference=${resolution.reference}; options=${resolution.options.size}")
+                speakAndContinueConversation(resolution.prompt, "contact relationship ambiguous", includeStateCue = false)
+                null
+            }
+            is ContactResolution.NotRelationship -> plan
         }
     }
 
@@ -885,7 +956,8 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         var brainAttached: Boolean = false,
         var turnCount: Int = 0,
         var emptyListenCount: Int = 0,
-        var pendingExecution: JarvisExecutionPlan? = null
+        var pendingExecution: JarvisExecutionPlan? = null,
+        var pendingContactReference: String? = null
     )
 
     private data class RecognizedCommandCandidate(

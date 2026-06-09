@@ -222,7 +222,7 @@ class PersonalJarvisIsolationGuardrailsTest {
         assertTrue(wakeService.contains("pendingExecution: JarvisExecutionPlan? = null"))
         assertTrue(wakeService.contains("handlePendingExecutionIfNeeded(session, question)"))
         assertTrue(wakeService.contains("JarvisExecutionLayerV1.isConfirmation(text)"))
-        assertTrue(wakeService.contains("session.pendingExecution = result.plan"))
+        assertTrue(wakeService.contains("session.pendingExecution = plan"))
         assertTrue(wakeService.contains("JarvisPhoneActionExecutor(this).execute(pending)"))
         assertTrue(wakeService.contains("includeStateCue = false"))
         assertTrue(executionLayer.contains("Intent.ACTION_DIAL"))
