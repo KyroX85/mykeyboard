@@ -27,8 +27,11 @@ class JarvisRealityAdapterTest {
     fun routesProjectQuestionsToProjectAwarenessFirst() {
         listOf(
             "What happened today?",
+            "What changed?",
             "What are you doing?",
+            "What are you working on?",
             "What are we doing?",
+            "What are we working on?",
             "What is next?",
             "What is the next action?",
             "What is our next milestone?",
@@ -37,7 +40,8 @@ class JarvisRealityAdapterTest {
             "What are the latest commits?",
             "What is blocked?",
             "What is the current milestone?",
-            "How is project progress?"
+            "How is project progress?",
+            "What progress was made?"
         ).forEach { question ->
             val decision = JarvisRealityAdapter.classify(question)
 
@@ -47,6 +51,16 @@ class JarvisRealityAdapterTest {
             assertTrue(question, decision.projectSnapshot != null)
             assertFalse(question, decision.realityScore.founderBrainUsed)
         }
+    }
+
+    @Test
+    fun routesAgentProgressQuestionsToAgentVisibilityFirst() {
+        val decision = JarvisRealityAdapter.classify("What did the agents do?")
+
+        assertEquals(JarvisRealityRoute.AGENTS, decision.route)
+        assertTrue(decision.awarenessAttempted)
+        assertTrue(decision.agentVisibilitySnapshot != null)
+        assertFalse(decision.realityScore.founderBrainUsed)
     }
 
     @Test

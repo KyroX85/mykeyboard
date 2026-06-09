@@ -460,6 +460,17 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         val realityDecision = JarvisRealityAdapter.classify(question)
         JarvisRealityAdapter.logDecision(session.id, question, realityDecision)
         if (realityDecision.route == JarvisRealityRoute.AGENTS) {
+            val verdict = JarvisRealityMode.evaluateAgents(realityDecision)
+            if (!verdict.canAnswer) {
+                Log.i(
+                    TAG,
+                    "Jarvis Reality Mode blocked agent answer: session=${session.id}; truth_status=${verdict.truthStatus}; " +
+                        "sources_used=${verdict.sourcesUsed.joinToString("|")}; last_verified_timestamp=${verdict.lastVerifiedTimestamp ?: "null"}; " +
+                        "reason=${verdict.reason}; REALITY_PERCENT=${realityDecision.realityScore.realityPercent}"
+                )
+                speakAndContinueConversation(verdict.speech.orEmpty(), "agent reality mode blocked")
+                return
+            }
             val snapshot = realityDecision.agentVisibilitySnapshot
             val speech = if (snapshot == null) {
                 "I do not have verified agent visibility yet."
@@ -477,6 +488,17 @@ class JarvisWakeWordService : Service(), RecognitionListener {
             return
         }
         if (realityDecision.route == JarvisRealityRoute.PROJECT) {
+            val verdict = JarvisRealityMode.evaluateProject(realityDecision)
+            if (!verdict.canAnswer) {
+                Log.i(
+                    TAG,
+                    "Jarvis Reality Mode blocked project answer: session=${session.id}; truth_status=${verdict.truthStatus}; " +
+                        "sources_used=${verdict.sourcesUsed.joinToString("|")}; last_verified_timestamp=${verdict.lastVerifiedTimestamp ?: "null"}; " +
+                        "reason=${verdict.reason}; REALITY_PERCENT=${realityDecision.realityScore.realityPercent}"
+                )
+                speakAndContinueConversation(verdict.speech.orEmpty(), "project reality mode blocked")
+                return
+            }
             val snapshot = realityDecision.projectSnapshot
             val speech = if (snapshot == null) {
                 "I do not have enough verified project data yet."
