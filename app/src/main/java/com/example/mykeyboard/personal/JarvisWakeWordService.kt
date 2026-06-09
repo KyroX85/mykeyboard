@@ -373,6 +373,9 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         session.commandCaptured = true
         session.turnCount += 1
         Log.i(TAG, "Jarvis command captured: ${commandObservationLabel(result)}")
+        if (handlePendingExecutionIfNeeded(session, question)) {
+            return
+        }
         when (JarvisConversationCommand.classify(question)) {
             JarvisConversationCommandType.TAKE_REST -> {
                 Log.i(TAG, "Jarvis conversation end requested: session=${session.id}; turns=${session.turnCount}")
@@ -454,14 +457,12 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         if (this >= 0.0f) String.format(Locale.US, "%.2f", this) else "unknown"
 
     private fun askFounderBrain(session: JarvisVoiceSession, question: String) {
-        val connector = brainConnector
-        if (connector == null) {
-            Log.w(TAG, "Founder Brain connector missing for session ${session.id}")
-            speakAndContinueConversation(JarvisBrainSpeechPolicy.safeFallback(), "brain not attached")
-            return
-        }
         val realityDecision = JarvisRealityAdapter.classify(question)
         JarvisRealityAdapter.logDecision(session.id, question, realityDecision)
+        if (realityDecision.route == JarvisRealityRoute.EXECUTION) {
+            handleExecutionRequest(session, question)
+            return
+        }
         if (realityDecision.route == JarvisRealityRoute.AGENTS) {
             val verdict = JarvisRealityMode.evaluateAgents(realityDecision)
             if (!verdict.canAnswer) {
@@ -540,6 +541,12 @@ class JarvisWakeWordService : Service(), RecognitionListener {
             speakAndContinueConversation(nonFounderBrainFallback(realityDecision), "non-founder-brain route blocked")
             return
         }
+        val connector = brainConnector
+        if (connector == null) {
+            Log.w(TAG, "Founder Brain connector missing for session ${session.id}")
+            speakAndContinueConversation(JarvisBrainSpeechPolicy.safeFallback(), "brain not attached")
+            return
+        }
         session.brainAttached = true
         Log.i(
             TAG,
@@ -580,10 +587,61 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         when (decision.route) {
             JarvisRealityRoute.AGENTS -> "I do not have verified agent visibility yet."
             JarvisRealityRoute.PERSONAL -> "I do not have enough verified personal data yet."
-            JarvisRealityRoute.EXECUTION -> "Execution is not enabled for Jarvis voice yet."
+            JarvisRealityRoute.EXECUTION -> "I can only stage phone actions after confirmation."
             JarvisRealityRoute.PROJECT -> "I do not have enough verified project data yet."
             JarvisRealityRoute.REFLECTION -> JarvisBrainSpeechPolicy.safeFallback()
         }
+
+    private fun handlePendingExecutionIfNeeded(session: JarvisVoiceSession, text: String): Boolean {
+        val pending = session.pendingExecution ?: return false
+        return when {
+            JarvisExecutionLayerV1.isConfirmation(text) -> {
+                session.pendingExecution = null
+                val success = JarvisPhoneActionExecutor(this).execute(pending)
+                val speech = if (success) {
+                    "Done."
+                } else {
+                    "I could not complete that phone action."
+                }
+                Log.i(TAG, "Execution Layer V1 confirmed: session=${session.id}; action=${pending.action}; success=$success")
+                speakAndContinueConversation(speech, "execution layer v1 confirmed")
+                true
+            }
+            JarvisExecutionLayerV1.isCancellation(text) -> {
+                session.pendingExecution = null
+                Log.i(TAG, "Execution Layer V1 cancelled: session=${session.id}; action=${pending.action}")
+                speakAndContinueConversation("Cancelled.", "execution layer v1 cancelled")
+                true
+            }
+            else -> {
+                session.pendingExecution = null
+                Log.i(TAG, "Execution Layer V1 pending action cleared by new command: session=${session.id}; action=${pending.action}")
+                false
+            }
+        }
+    }
+
+    private fun handleExecutionRequest(session: JarvisVoiceSession, command: String) {
+        when (val result = JarvisExecutionLayerV1.parse(command)) {
+            is JarvisExecutionParseResult.Ready -> {
+                session.pendingExecution = result.plan
+                Log.i(TAG, "Execution Layer V1 staged: session=${session.id}; action=${result.plan.action}; target=${result.plan.target}")
+                speakAndContinueConversation(
+                    text = result.plan.confirmationPrompt(),
+                    reason = "execution layer v1 staged",
+                    includeStateCue = false
+                )
+            }
+            is JarvisExecutionParseResult.NeedsClarification -> {
+                Log.i(TAG, "Execution Layer V1 needs clarification: session=${session.id}")
+                speakAndContinueConversation(result.prompt, "execution layer v1 clarification")
+            }
+            is JarvisExecutionParseResult.Rejected -> {
+                Log.i(TAG, "Execution Layer V1 rejected command: session=${session.id}; reason=${result.reason}")
+                speakAndContinueConversation(result.reason, "execution layer v1 rejected")
+            }
+        }
+    }
 
     private fun handleConversationNoMatch() {
         val session = activeSession
@@ -614,13 +672,21 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         scheduleWakeRestart(restartDelayMs)
     }
 
-    private fun speakAndContinueConversation(text: String, reason: String) {
+    private fun speakAndContinueConversation(
+        text: String,
+        reason: String,
+        includeStateCue: Boolean = true
+    ) {
         transitionTo(JarvisConversationState.SPEAKING, reason)
         val sessionId = activeSession?.id
-        val spokenText = JarvisConversationModePolicy.appendStateCue(
-            answer = text,
-            mode = nextConversationMode()
-        )
+        val spokenText = if (includeStateCue) {
+            JarvisConversationModePolicy.appendStateCue(
+                answer = text,
+                mode = nextConversationMode()
+            )
+        } else {
+            text
+        }
         val afterSpeech: () -> Unit = {
             mainHandler.post {
                 if (activeSession?.id == sessionId && sessionId != null) {
@@ -818,7 +884,8 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         var commandCaptured: Boolean = false,
         var brainAttached: Boolean = false,
         var turnCount: Int = 0,
-        var emptyListenCount: Int = 0
+        var emptyListenCount: Int = 0,
+        var pendingExecution: JarvisExecutionPlan? = null
     )
 
     private data class RecognizedCommandCandidate(

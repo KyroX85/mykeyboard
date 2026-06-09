@@ -111,4 +111,21 @@ class JarvisRealityAdapterTest {
         assertEquals("UNKNOWN", decision.truthStatus)
         assertEquals("INSUFFICIENT_DATA", decision.safeResponseMode)
     }
+
+    @Test
+    fun routesAllowedPhoneActionsToExecutionLayer() {
+        listOf(
+            "Call Mom",
+            "Open app Instagram",
+            "Send WhatsApp Rahul saying I will be late",
+            "Open URL example.com",
+            "Create reminder finish homework"
+        ).forEach { command ->
+            val decision = JarvisRealityAdapter.classify(command)
+
+            assertEquals(command, JarvisRealityRoute.EXECUTION, decision.route)
+            assertFalse(command, decision.awarenessAttempted)
+            assertFalse(command, decision.realityScore.founderBrainUsed)
+        }
+    }
 }

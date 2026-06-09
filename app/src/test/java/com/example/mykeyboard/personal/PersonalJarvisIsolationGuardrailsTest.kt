@@ -215,6 +215,25 @@ class PersonalJarvisIsolationGuardrailsTest {
     }
 
     @Test
+    fun jarvisExecutionLayerRequiresPendingConfirmationBeforePhoneAction() {
+        val wakeService = sourceFile("app/src/main/java/com/example/mykeyboard/personal/JarvisWakeWordService.kt").readText()
+        val executionLayer = sourceFile("app/src/main/java/com/example/mykeyboard/personal/JarvisExecutionLayerV1.kt").readText()
+
+        assertTrue(wakeService.contains("pendingExecution: JarvisExecutionPlan? = null"))
+        assertTrue(wakeService.contains("handlePendingExecutionIfNeeded(session, question)"))
+        assertTrue(wakeService.contains("JarvisExecutionLayerV1.isConfirmation(text)"))
+        assertTrue(wakeService.contains("session.pendingExecution = result.plan"))
+        assertTrue(wakeService.contains("JarvisPhoneActionExecutor(this).execute(pending)"))
+        assertTrue(wakeService.contains("includeStateCue = false"))
+        assertTrue(executionLayer.contains("Intent.ACTION_DIAL"))
+        assertTrue(executionLayer.contains("Intent.ACTION_SENDTO"))
+        assertTrue(executionLayer.contains("CalendarContract.Events.CONTENT_URI"))
+        assertFalse(executionLayer.contains("ACTION_CALL"))
+        assertFalse(executionLayer.contains("sendTextMessage"))
+        assertFalse(executionLayer.contains("Payment"))
+    }
+
+    @Test
     fun porcupineWakeUsesOnDeviceJarvisKeywordWhenConfigured() {
         val buildGradle = sourceFile("app/build.gradle.kts").readText()
         val config = sourceFile("app/src/main/java/com/example/mykeyboard/personal/PersonalJarvisConfig.kt").readText()
