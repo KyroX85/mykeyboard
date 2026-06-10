@@ -24,6 +24,12 @@ object JarvisRealityScorer {
                 snapshotFieldsUsed = listOf("reality_event_timeline"),
                 founderBrainUsed = false
             )
+            JarvisRealityRoute.OPERATOR -> JarvisRealityScore(
+                realityPercent = OPERATOR_REALITY_PERCENT,
+                factsUsed = 0,
+                snapshotFieldsUsed = listOf("reality_snapshot", "personal_awareness", "project_awareness"),
+                founderBrainUsed = false
+            )
             JarvisRealityRoute.REFLECTION -> JarvisRealityScore(
                 realityPercent = REFLECTION_REALITY_PERCENT,
                 factsUsed = 0,
@@ -130,6 +136,7 @@ object JarvisRealityScorer {
     private const val UNKNOWN_REALITY_PERCENT = 0
     private const val REFLECTION_REALITY_PERCENT = 10
     private const val TIMELINE_REALITY_PERCENT = 80
+    private const val OPERATOR_REALITY_PERCENT = 85
     private const val BASE_PROJECT_REALITY_PERCENT = 40
     private const val FIELD_WEIGHT_PERCENT = 15
     private const val MAX_REALITY_PERCENT = 100

@@ -8,6 +8,7 @@ enum class JarvisRealityRoute {
     PROJECT,
     PERSONAL,
     TIMELINE,
+    OPERATOR,
     REFLECTION,
     EXECUTION
 }
@@ -30,6 +31,7 @@ object JarvisRealityAdapter {
         val normalized = question.normalizedForRouting()
         val route = when {
             normalized.containsAny(EXECUTION_PATTERNS) -> JarvisRealityRoute.EXECUTION
+            PersonalOperatorDecisionLayer.isOperatorQuestion(question) -> JarvisRealityRoute.OPERATOR
             RealityTimelineQuestionClassifier.isTimelineQuestion(question) -> JarvisRealityRoute.TIMELINE
             normalized.containsAny(AGENT_VISIBILITY_PATTERNS) -> JarvisRealityRoute.AGENTS
             normalized.containsAny(PERSONAL_PATTERNS) -> JarvisRealityRoute.PERSONAL
@@ -50,6 +52,15 @@ object JarvisRealityAdapter {
                 safeResponseMode = MODE_PARTIAL_WITH_LIMITS,
                 awarenessAttempted = true,
                 realityScore = JarvisRealityScorer.score(JarvisRealityRoute.TIMELINE)
+            )
+            JarvisRealityRoute.OPERATOR -> JarvisRealityDecision(
+                route = route,
+                truthStatus = TRUTH_PARTIAL,
+                sourcesUsed = listOf("reality snapshot", "personal awareness", "project awareness"),
+                missingData = emptyList(),
+                safeResponseMode = MODE_PARTIAL_WITH_LIMITS,
+                awarenessAttempted = true,
+                realityScore = JarvisRealityScorer.score(JarvisRealityRoute.OPERATOR)
             )
             JarvisRealityRoute.REFLECTION -> JarvisRealityDecision(
                 route = route,

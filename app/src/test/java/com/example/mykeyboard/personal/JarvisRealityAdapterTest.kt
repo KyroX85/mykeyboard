@@ -70,6 +70,24 @@ class JarvisRealityAdapterTest {
     }
 
     @Test
+    fun routesOperatorQuestionsToPersonalOperatorDecisionLayer() {
+        listOf(
+            "What should I do now?",
+            "What is pending?",
+            "What is most important today?"
+        ).forEach { question ->
+            val decision = JarvisRealityAdapter.classify(question)
+
+            assertEquals(question, JarvisRealityRoute.OPERATOR, decision.route)
+            assertTrue(question, decision.awarenessAttempted)
+            assertEquals(question, "PARTIAL_WITH_LIMITS", decision.safeResponseMode)
+            assertFalse(question, decision.realityScore.founderBrainUsed)
+            assertTrue(question, decision.realityScore.snapshotFieldsUsed.contains("personal_awareness"))
+            assertTrue(question, decision.realityScore.snapshotFieldsUsed.contains("project_awareness"))
+        }
+    }
+
+    @Test
     fun routesAgentProgressQuestionsToAgentVisibilityFirst() {
         val decision = JarvisRealityAdapter.classify("What did the agents do?")
 
