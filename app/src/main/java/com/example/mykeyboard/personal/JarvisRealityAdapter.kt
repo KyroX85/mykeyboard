@@ -7,6 +7,7 @@ enum class JarvisRealityRoute {
     AGENTS,
     PROJECT,
     PERSONAL,
+    DAILY_BRIEFING,
     TIMELINE,
     OPERATOR,
     REFLECTION,
@@ -32,6 +33,7 @@ object JarvisRealityAdapter {
         val route = when {
             normalized.containsAny(EXECUTION_PATTERNS) -> JarvisRealityRoute.EXECUTION
             PersonalOperatorDecisionLayer.isOperatorQuestion(question) -> JarvisRealityRoute.OPERATOR
+            DailyRealityBriefingProvider.isBriefingQuestion(question) -> JarvisRealityRoute.DAILY_BRIEFING
             RealityTimelineQuestionClassifier.isTimelineQuestion(question) -> JarvisRealityRoute.TIMELINE
             normalized.containsAny(AGENT_VISIBILITY_PATTERNS) -> JarvisRealityRoute.AGENTS
             normalized.containsAny(PERSONAL_PATTERNS) -> JarvisRealityRoute.PERSONAL
@@ -44,6 +46,15 @@ object JarvisRealityAdapter {
             JarvisRealityRoute.AGENTS -> agentVisibilityDecision(AgentVisibilityRuntime.capture())
             JarvisRealityRoute.PROJECT -> projectAwarenessDecision(ProjectSnapshotRuntime.capture())
             JarvisRealityRoute.PERSONAL -> personalAwarenessDecision(PersonalSnapshotRuntime.capture())
+            JarvisRealityRoute.DAILY_BRIEFING -> JarvisRealityDecision(
+                route = route,
+                truthStatus = TRUTH_PARTIAL,
+                sourcesUsed = listOf("reality events", "reality snapshot", "personal awareness", "project awareness"),
+                missingData = emptyList(),
+                safeResponseMode = MODE_PARTIAL_WITH_LIMITS,
+                awarenessAttempted = true,
+                realityScore = JarvisRealityScorer.score(JarvisRealityRoute.DAILY_BRIEFING)
+            )
             JarvisRealityRoute.TIMELINE -> JarvisRealityDecision(
                 route = route,
                 truthStatus = TRUTH_PARTIAL,

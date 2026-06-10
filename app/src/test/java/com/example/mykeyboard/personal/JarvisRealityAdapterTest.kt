@@ -54,7 +54,6 @@ class JarvisRealityAdapterTest {
     @Test
     fun routesTimelineQuestionsToRealityEventsFirst() {
         listOf(
-            "What happened today?",
             "What happened yesterday?",
             "What changed this week?",
             "What changed today?"
@@ -67,6 +66,18 @@ class JarvisRealityAdapterTest {
             assertFalse(question, decision.realityScore.founderBrainUsed)
             assertTrue(question, decision.realityScore.snapshotFieldsUsed.contains("reality_event_timeline"))
         }
+    }
+
+    @Test
+    fun routesTodayQuestionToDailyRealityBriefing() {
+        val decision = JarvisRealityAdapter.classify("What happened today?")
+
+        assertEquals(JarvisRealityRoute.DAILY_BRIEFING, decision.route)
+        assertTrue(decision.awarenessAttempted)
+        assertEquals("PARTIAL_WITH_LIMITS", decision.safeResponseMode)
+        assertFalse(decision.realityScore.founderBrainUsed)
+        assertTrue(decision.realityScore.snapshotFieldsUsed.contains("reality_events"))
+        assertTrue(decision.realityScore.snapshotFieldsUsed.contains("project_awareness"))
     }
 
     @Test

@@ -534,6 +534,35 @@ class JarvisWakeWordService : Service(), RecognitionListener {
             speakAndContinueConversation(speech, "project snapshot response delivered")
             return
         }
+        if (realityDecision.route == JarvisRealityRoute.DAILY_BRIEFING) {
+            val store = realityEventStore
+            val todayEvents = if (store == null) emptyList() else RealityTimelineProvider(store).getEventsToday()
+            val realitySnapshot = RealitySnapshotGenerator.generate(todayEvents)
+            val personalSnapshot = PersonalSnapshotRuntime.capture().withLocalFacts(personalMemory?.all().orEmpty())
+            val projectSnapshot = ProjectSnapshotRuntime.capture()
+            val operatorDecision = PersonalOperatorDecisionLayer.decide(
+                realitySnapshot = realitySnapshot,
+                personalSnapshot = personalSnapshot,
+                projectSnapshot = projectSnapshot
+            )
+            val briefing = DailyRealityBriefingProvider.create(
+                todayEvents = todayEvents,
+                realitySnapshot = realitySnapshot,
+                personalSnapshot = personalSnapshot,
+                projectSnapshot = projectSnapshot,
+                operatorDecision = operatorDecision
+            )
+            Log.i(
+                TAG,
+                "Daily reality briefing answered from verified inputs: session=${session.id}; " +
+                    "events=${todayEvents.size}; founder_brain_used=false"
+            )
+            speakAndContinueConversation(
+                DailyRealityBriefingFormatter.voiceSummary(briefing),
+                "daily reality briefing delivered"
+            )
+            return
+        }
         if (realityDecision.route == JarvisRealityRoute.TIMELINE) {
             val store = realityEventStore
             val window = RealityTimelineQuestionClassifier.windowFor(question) ?: RealityTimelineWindow.TODAY
@@ -646,6 +675,7 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         when (decision.route) {
             JarvisRealityRoute.AGENTS -> "I do not have verified agent visibility yet."
             JarvisRealityRoute.PERSONAL -> "I do not have enough verified personal data yet."
+            JarvisRealityRoute.DAILY_BRIEFING -> "I do not have enough verified reality events for today's briefing yet."
             JarvisRealityRoute.TIMELINE -> "I do not have verified reality events yet."
             JarvisRealityRoute.OPERATOR -> "I do not have enough verified reality, personal, or project data to decide."
             JarvisRealityRoute.EXECUTION -> "I can only stage phone actions after confirmation."

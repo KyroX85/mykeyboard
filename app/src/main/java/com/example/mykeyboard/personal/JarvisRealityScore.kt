@@ -18,6 +18,12 @@ object JarvisRealityScorer {
             JarvisRealityRoute.AGENTS -> scoreAgentVisibility(agentSnapshot)
             JarvisRealityRoute.PROJECT -> scoreProject(snapshot)
             JarvisRealityRoute.PERSONAL -> scorePersonal(personalSnapshot)
+            JarvisRealityRoute.DAILY_BRIEFING -> JarvisRealityScore(
+                realityPercent = DAILY_BRIEFING_REALITY_PERCENT,
+                factsUsed = 0,
+                snapshotFieldsUsed = listOf("reality_events", "reality_snapshot", "personal_awareness", "project_awareness"),
+                founderBrainUsed = false
+            )
             JarvisRealityRoute.TIMELINE -> JarvisRealityScore(
                 realityPercent = TIMELINE_REALITY_PERCENT,
                 factsUsed = 0,
@@ -135,6 +141,7 @@ object JarvisRealityScorer {
 
     private const val UNKNOWN_REALITY_PERCENT = 0
     private const val REFLECTION_REALITY_PERCENT = 10
+    private const val DAILY_BRIEFING_REALITY_PERCENT = 90
     private const val TIMELINE_REALITY_PERCENT = 80
     private const val OPERATOR_REALITY_PERCENT = 85
     private const val BASE_PROJECT_REALITY_PERCENT = 40
