@@ -111,6 +111,7 @@ class KeyboardService : InputMethodService() {
 
     private val keyButtons = mutableListOf<Button>()
     private val suggestionButtons = mutableListOf<TextView>()
+    private val keyRgbAnimator = KeyboardKeyRgbAnimator()
     private var voiceSuggestionButton: TextView? = null
     private val renderedSuggestionTexts = Array(3) { "" }
 
@@ -267,6 +268,7 @@ class KeyboardService : InputMethodService() {
         const val SWIPE_RESOLVE_WARN_MS = 32L
         const val MAX_NAVIGATION_BOTTOM_PADDING_DP = 8
         const val ENABLE_AMBIENT_KEYBOARD_BACKGROUND = true
+        const val ENABLE_KEY_RGB_ANIMATIONS = true
         const val SHIFT_LONG_PRESS_DELAY_MS = 300L
         const val SYMBOL_LONG_PRESS_DELAY_MS = 230L
         const val SPACE_REPEAT_INITIAL_DELAY_MS = 260L
@@ -1740,9 +1742,13 @@ class KeyboardService : InputMethodService() {
         button.parent?.requestDisallowInterceptTouchEvent(true)
         button.isPressed = true
         button.jumpDrawablesToCurrentState()
-        button.scaleX = KEY_PRESS_SCALE
-        button.scaleY = KEY_PRESS_SCALE
-        button.translationY = dp(1).toFloat()
+        if (ENABLE_KEY_RGB_ANIMATIONS) {
+            keyRgbAnimator.press(button, keyAccentForAnimation(key))
+        } else {
+            button.scaleX = KEY_PRESS_SCALE
+            button.scaleY = KEY_PRESS_SCALE
+            button.translationY = dp(1).toFloat()
+        }
         button.elevation = 0f
         performKeyboardTapSound(key)
         performKeyboardTapHaptic(button, key)
@@ -1751,10 +1757,20 @@ class KeyboardService : InputMethodService() {
     private fun releaseKeyPressFeedback(button: Button) {
         button.parent?.requestDisallowInterceptTouchEvent(false)
         button.isPressed = false
-        button.scaleX = 1f
-        button.scaleY = 1f
-        button.translationY = 0f
+        if (ENABLE_KEY_RGB_ANIMATIONS) {
+            keyRgbAnimator.release(button)
+        } else {
+            button.scaleX = 1f
+            button.scaleY = 1f
+            button.translationY = 0f
+        }
         button.elevation = 0f
+    }
+
+    private fun keyAccentForAnimation(key: String): KeyboardKeyRgbAnimator.KeyAccent = when {
+        key == KEY_ENTER || key == KEY_MIC -> KeyboardKeyRgbAnimator.KeyAccent.ACTION
+        isModifierKey(key) || key == KEY_SPACE -> KeyboardKeyRgbAnimator.KeyAccent.MODIFIER
+        else -> KeyboardKeyRgbAnimator.KeyAccent.NORMAL
     }
 
     private fun showKeyPreview(anchor: Button, key: String) {
