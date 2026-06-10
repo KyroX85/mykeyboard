@@ -27,6 +27,7 @@ class KeyboardKeyRgbAnimator {
 
         val drawable = KeyFlashDrawable(
             accent = accent,
+            density = keyView.resources.displayMetrics.density,
             cornerRadiusPx = 8f * keyView.resources.displayMetrics.density
         ).apply {
             setBounds(0, 0, keyView.width, keyView.height)
@@ -65,14 +66,19 @@ class KeyboardKeyRgbAnimator {
 
     private class KeyFlashDrawable(
         private val accent: KeyAccent,
+        private val density: Float,
         private val cornerRadiusPx: Float
     ) : Drawable() {
         private val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             style = Paint.Style.STROKE
-            strokeWidth = 2.4f
+            strokeWidth = 3.8f * density
         }
         private val glowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             style = Paint.Style.FILL
+        }
+        private val haloPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE
+            strokeWidth = 6.2f * density
         }
         private val sweepPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             style = Paint.Style.FILL
@@ -83,12 +89,21 @@ class KeyboardKeyRgbAnimator {
         override fun draw(canvas: Canvas) {
             val b = bounds
             if (b.width() <= 0 || b.height() <= 0) return
-            val fade = (1f - progress).coerceIn(0f, 1f)
-            rect.set(2f, 2f, b.width() - 2f, b.height() - 2f)
+            val fade = if (progress < HOLD_FULL_BRIGHTNESS_UNTIL) {
+                1f
+            } else {
+                ((1f - progress) / (1f - HOLD_FULL_BRIGHTNESS_UNTIL)).coerceIn(0f, 1f)
+            }
+            val inset = borderPaint.strokeWidth * 0.65f
+            rect.set(inset, inset, b.width() - inset, b.height() - inset)
 
             glowPaint.color = accent.glowColor
-            glowPaint.alpha = (88 * fade).toInt().coerceIn(0, 88)
+            glowPaint.alpha = (96 * fade).toInt().coerceIn(0, 96)
             canvas.drawRoundRect(rect, cornerRadiusPx, cornerRadiusPx, glowPaint)
+
+            haloPaint.color = accent.glowColor
+            haloPaint.alpha = (170 * fade).toInt().coerceIn(0, 170)
+            canvas.drawRoundRect(rect, cornerRadiusPx, cornerRadiusPx, haloPaint)
 
             borderPaint.shader = LinearGradient(
                 0f,
@@ -99,18 +114,18 @@ class KeyboardKeyRgbAnimator {
                 null,
                 Shader.TileMode.CLAMP
             )
-            borderPaint.alpha = (230 * fade).toInt().coerceIn(0, 230)
+            borderPaint.alpha = (255 * fade).toInt().coerceIn(0, 255)
             canvas.drawRoundRect(rect, cornerRadiusPx, cornerRadiusPx, borderPaint)
             borderPaint.shader = null
 
-            val sweepWidth = b.width() * 0.42f
+            val sweepWidth = b.width() * 0.66f
             val left = -sweepWidth + (b.width() + sweepWidth * 2f) * progress
             sweepPaint.shader = LinearGradient(
                 left,
                 0f,
                 left + sweepWidth,
                 0f,
-                intArrayOf(Color.TRANSPARENT, Color.argb((120 * fade).toInt(), 255, 255, 255), Color.TRANSPARENT),
+                intArrayOf(Color.TRANSPARENT, Color.argb((210 * fade).toInt(), 255, 255, 255), Color.TRANSPARENT),
                 floatArrayOf(0f, 0.5f, 1f),
                 Shader.TileMode.CLAMP
             )
@@ -149,6 +164,7 @@ class KeyboardKeyRgbAnimator {
         const val PRESS_SCALE = 0.94f
         const val PRESS_DURATION_MS = 48L
         const val RELEASE_DURATION_MS = 92L
-        const val FLASH_DURATION_MS = 210L
+        const val FLASH_DURATION_MS = 420L
+        const val HOLD_FULL_BRIGHTNESS_UNTIL = 0.32f
     }
 }
