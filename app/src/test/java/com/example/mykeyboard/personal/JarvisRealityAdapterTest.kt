@@ -26,8 +26,6 @@ class JarvisRealityAdapterTest {
     @Test
     fun routesProjectQuestionsToProjectAwarenessFirst() {
         listOf(
-            "What happened today?",
-            "What changed?",
             "What are you doing?",
             "What are you working on?",
             "What are we doing?",
@@ -50,6 +48,24 @@ class JarvisRealityAdapterTest {
             assertEquals(question, "PARTIAL_WITH_LIMITS", decision.safeResponseMode)
             assertTrue(question, decision.projectSnapshot != null)
             assertFalse(question, decision.realityScore.founderBrainUsed)
+        }
+    }
+
+    @Test
+    fun routesTimelineQuestionsToRealityEventsFirst() {
+        listOf(
+            "What happened today?",
+            "What happened yesterday?",
+            "What changed this week?",
+            "What changed today?"
+        ).forEach { question ->
+            val decision = JarvisRealityAdapter.classify(question)
+
+            assertEquals(question, JarvisRealityRoute.TIMELINE, decision.route)
+            assertTrue(question, decision.awarenessAttempted)
+            assertEquals(question, "PARTIAL_WITH_LIMITS", decision.safeResponseMode)
+            assertFalse(question, decision.realityScore.founderBrainUsed)
+            assertTrue(question, decision.realityScore.snapshotFieldsUsed.contains("reality_event_timeline"))
         }
     }
 

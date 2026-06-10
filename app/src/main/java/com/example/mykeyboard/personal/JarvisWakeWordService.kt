@@ -534,6 +534,30 @@ class JarvisWakeWordService : Service(), RecognitionListener {
             speakAndContinueConversation(speech, "project snapshot response delivered")
             return
         }
+        if (realityDecision.route == JarvisRealityRoute.TIMELINE) {
+            val store = realityEventStore
+            val window = RealityTimelineQuestionClassifier.windowFor(question) ?: RealityTimelineWindow.TODAY
+            val events = if (store == null) {
+                emptyList()
+            } else {
+                val provider = RealityTimelineProvider(store)
+                when (window) {
+                    RealityTimelineWindow.TODAY -> provider.getEventsToday()
+                    RealityTimelineWindow.LAST_24_HOURS -> provider.getEventsLast24Hours()
+                    RealityTimelineWindow.LAST_7_DAYS -> provider.getEventsLast7Days()
+                }
+            }
+            Log.i(
+                TAG,
+                "Reality timeline question answered from event store: session=${session.id}; window=$window; " +
+                    "events=${events.size}; founder_brain_used=false"
+            )
+            speakAndContinueConversation(
+                RealityTimelineResponseFormatter.voiceSummary(events, window),
+                "reality timeline response delivered"
+            )
+            return
+        }
         if (realityDecision.route == JarvisRealityRoute.PERSONAL) {
             val snapshot = realityDecision.personalSnapshot?.withLocalFacts(personalMemory?.all().orEmpty())
             val speech = if (snapshot == null) {
@@ -602,6 +626,7 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         when (decision.route) {
             JarvisRealityRoute.AGENTS -> "I do not have verified agent visibility yet."
             JarvisRealityRoute.PERSONAL -> "I do not have enough verified personal data yet."
+            JarvisRealityRoute.TIMELINE -> "I do not have verified reality events yet."
             JarvisRealityRoute.EXECUTION -> "I can only stage phone actions after confirmation."
             JarvisRealityRoute.PROJECT -> "I do not have enough verified project data yet."
             JarvisRealityRoute.REFLECTION -> JarvisBrainSpeechPolicy.safeFallback()

@@ -18,6 +18,12 @@ object JarvisRealityScorer {
             JarvisRealityRoute.AGENTS -> scoreAgentVisibility(agentSnapshot)
             JarvisRealityRoute.PROJECT -> scoreProject(snapshot)
             JarvisRealityRoute.PERSONAL -> scorePersonal(personalSnapshot)
+            JarvisRealityRoute.TIMELINE -> JarvisRealityScore(
+                realityPercent = TIMELINE_REALITY_PERCENT,
+                factsUsed = 0,
+                snapshotFieldsUsed = listOf("reality_event_timeline"),
+                founderBrainUsed = false
+            )
             JarvisRealityRoute.REFLECTION -> JarvisRealityScore(
                 realityPercent = REFLECTION_REALITY_PERCENT,
                 factsUsed = 0,
@@ -123,6 +129,7 @@ object JarvisRealityScorer {
 
     private const val UNKNOWN_REALITY_PERCENT = 0
     private const val REFLECTION_REALITY_PERCENT = 10
+    private const val TIMELINE_REALITY_PERCENT = 80
     private const val BASE_PROJECT_REALITY_PERCENT = 40
     private const val FIELD_WEIGHT_PERCENT = 15
     private const val MAX_REALITY_PERCENT = 100
