@@ -32,7 +32,7 @@ class KeyboardKeyRgbAnimator {
         ).apply {
             setBounds(0, 0, keyView.width, keyView.height)
         }
-        keyView.overlay.add(drawable)
+        keyView.foreground = drawable
         ValueAnimator.ofFloat(0f, 1f).apply {
             duration = FLASH_DURATION_MS
             interpolator = DecelerateInterpolator()
@@ -42,11 +42,15 @@ class KeyboardKeyRgbAnimator {
             }
             addListener(object : AnimatorListenerAdapter() {
                 override fun onAnimationEnd(animation: Animator) {
-                    keyView.overlay.remove(drawable)
+                    if (keyView.foreground === drawable) {
+                        keyView.foreground = null
+                    }
                 }
 
                 override fun onAnimationCancel(animation: Animator) {
-                    keyView.overlay.remove(drawable)
+                    if (keyView.foreground === drawable) {
+                        keyView.foreground = null
+                    }
                 }
             })
             start()
