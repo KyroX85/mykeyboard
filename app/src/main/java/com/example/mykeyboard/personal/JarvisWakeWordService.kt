@@ -37,6 +37,7 @@ class JarvisWakeWordService : Service(), RecognitionListener {
     private var brainConnector: JarvisBrainConnector? = null
     private var contactMemory: ContactRelationshipMemory? = null
     private var personalMemory: PersonalAwarenessMemory? = null
+    private var realityEventStore: RealityEventStore? = null
     private var porcupineWakeEngine: JarvisPorcupineWakeEngine? = null
     private var voskWakeEngine: JarvisVoskWakeEngine? = null
     private var activeSession: JarvisVoiceSession? = null
@@ -66,6 +67,7 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         brainConnector = JarvisBrainRuntime.connector(this)
         contactMemory = SharedPreferencesContactRelationshipMemory(this)
         personalMemory = SharedPreferencesPersonalAwarenessMemory(this)
+        realityEventStore = SharedPreferencesRealityEventStore(this)
         porcupineWakeEngine = JarvisPorcupineWakeEngine(this) {
             mainHandler.post { handleWakeWordDetected() }
         }
@@ -121,6 +123,7 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         brainConnector = null
         contactMemory = null
         personalMemory = null
+        realityEventStore = null
         releaseWakeLock()
         super.onDestroy()
     }
@@ -382,7 +385,7 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         if (handlePendingContactLearningIfNeeded(session, question)) {
             return
         }
-        if (handlePersonalLearningIfNeeded(question)) {
+        if (handlePersonalLearningIfNeeded(session, question)) {
             return
         }
         if (handlePendingExecutionIfNeeded(session, question)) {
@@ -665,6 +668,13 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         }
         val relationship = ContactUnderstandingLayer.createRelationship(learning)
         contactMemory?.save(relationship)
+        realityEventStore?.let { store ->
+            RealityEventEngine.contactLearned(
+                store = store,
+                sessionId = session.id,
+                relationship = relationship
+            )
+        }
         session.pendingContactReference = null
         Log.i(TAG, "Contact relationship learned: reference=$pendingReference; relationship=${relationship.relationship}")
         speakAndContinueConversation(
@@ -674,11 +684,18 @@ class JarvisWakeWordService : Service(), RecognitionListener {
         return true
     }
 
-    private fun handlePersonalLearningIfNeeded(text: String): Boolean {
+    private fun handlePersonalLearningIfNeeded(session: JarvisVoiceSession, text: String): Boolean {
         val memory = personalMemory ?: return false
         return when (val result = PersonalAwarenessLearningLayer.learn(text)) {
             is PersonalAwarenessLearningResult.Learned -> {
                 memory.save(result.fact)
+                realityEventStore?.let { store ->
+                    RealityEventEngine.personalFactAdded(
+                        store = store,
+                        sessionId = session.id,
+                        fact = result.fact
+                    )
+                }
                 Log.i(TAG, "Personal awareness fact learned: category=${result.fact.category}; source=${result.fact.evidenceSourceId}")
                 speakAndContinueConversation(result.speech, "personal awareness learned")
                 true
