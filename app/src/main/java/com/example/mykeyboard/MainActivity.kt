@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.mykeyboard.personal.JarvisWakePermissionHelper
 import com.example.mykeyboard.personal.JarvisWakeWordService
+import com.example.mykeyboard.personal.conversation.JarvisConversationActivity
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -110,6 +111,9 @@ class MainActivity : ComponentActivity() {
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             permissions += Manifest.permission.RECORD_AUDIO
         }
+        if (checkSelfPermission(Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
+            permissions += Manifest.permission.READ_CONTACTS
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) {
@@ -122,8 +126,15 @@ class MainActivity : ComponentActivity() {
 
     private fun requestMicrophonePermissionIfNeeded() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
+        val permissions = mutableListOf<String>()
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(arrayOf(android.Manifest.permission.RECORD_AUDIO), REQUEST_JARVIS_WAKE_PERMISSIONS)
+            permissions += Manifest.permission.RECORD_AUDIO
+        }
+        if (checkSelfPermission(Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
+            permissions += Manifest.permission.READ_CONTACTS
+        }
+        if (permissions.isNotEmpty()) {
+            requestPermissions(permissions.toTypedArray(), REQUEST_JARVIS_WAKE_PERMISSIONS)
         }
     }
 }
@@ -194,6 +205,10 @@ fun AppScreen() {
                 AnimatedVisibility(visible = show,
                     enter = fadeIn(tween(400, 680)) + slideInVertically(tween(400, 680)) { it / 2 }
                 ) { JarvisWakeWordCard() }
+
+                AnimatedVisibility(visible = show,
+                    enter = fadeIn(tween(400, 715)) + slideInVertically(tween(400, 715)) { it / 2 }
+                ) { JarvisConversationCard() }
 
                 AnimatedVisibility(visible = show,
                     enter = fadeIn(tween(400, 750)) + slideInVertically(tween(400, 750)) { it / 2 }
@@ -555,6 +570,44 @@ fun JarvisWakeWordCard() {
                     listening = false
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun JarvisConversationCard() {
+    val context = LocalContext.current
+    Card(
+        modifier = Modifier.fillMaxWidth().border(1.dp, AccentPurple.copy(alpha = 0.28f), RoundedCornerShape(16.dp)),
+        colors = CardDefaults.cardColors(BgCard),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(0.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable {
+                    context.startActivity(
+                        Intent(context, JarvisConversationActivity::class.java)
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    )
+                }
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier.size(42.dp)
+                    .background(AccentPurple.copy(alpha = 0.12f), CircleShape)
+                    .border(1.dp, AccentPurple.copy(alpha = 0.45f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) { Text("J", color = AccentPurple, fontWeight = FontWeight.Bold, fontSize = 18.sp) }
+
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text("Talk to Jarvis", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text("Conversation page with local memory", color = TextSecondary, fontSize = 11.sp)
+            }
+            Text("Open", color = AccentPurple, fontWeight = FontWeight.Bold, fontSize = 13.sp)
         }
     }
 }
