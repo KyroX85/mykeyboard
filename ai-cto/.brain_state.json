@@ -2,6 +2,186 @@
   "version": "3.0",
   "unresolvedIssues": [
     {
+      "type": "BUILD_VALIDATION",
+      "impact": "CRITICAL",
+      "message": "BUILD FAILED in 1m 23s",
+      "file": null,
+      "task": ":app:assembleDebug",
+      "source": "ANDROID_VALIDATION",
+      "classification": "REVIEW_REQUIRED",
+      "detectedAt": "2026-09-07T02:04:11.775Z"
+    },
+    {
+      "type": "SECURITY",
+      "impact": "CRITICAL",
+      "message": "Hardcoded Secret in founder-feedback-learning-layer.js",
+      "file": "ai-cto/whatsapp/founder-feedback-learning-layer.js",
+      "task": "line 453",
+      "source": "LIVE_GREP",
+      "classification": "REVIEW_REQUIRED",
+      "detectedAt": "2026-09-07T02:04:11.775Z"
+    },
+    {
+      "type": "BUILD_VALIDATION",
+      "impact": "HIGH",
+      "message": "org.gradle.api.tasks.TaskExecutionException: Execution failed for task ':app:compileDebugKotlin'.",
+      "file": "org.gradle",
+      "task": ":app:testDebugUnitTest",
+      "source": "ANDROID_VALIDATION",
+      "classification": "REVIEW_REQUIRED",
+      "detectedAt": "2026-09-07T02:04:11.775Z"
+    },
+    {
+      "type": "BUILD_VALIDATION",
+      "impact": "HIGH",
+      "message": "Caused by: org.jetbrains.kotlin.gradle.tasks.CompilationErrorException: Compilation error. See log for more details",
+      "file": "org.jetbrains.kotlin.gradle",
+      "task": ":app:testDebugUnitTest",
+      "source": "ANDROID_VALIDATION",
+      "classification": "REVIEW_REQUIRED",
+      "detectedAt": "2026-09-07T02:04:11.775Z"
+    },
+    {
+      "type": "BUILD_VALIDATION",
+      "impact": "HIGH",
+      "message": "* Exception is:",
+      "file": null,
+      "task": ":app:testDebugUnitTest",
+      "source": "ANDROID_VALIDATION",
+      "classification": "REVIEW_REQUIRED",
+      "detectedAt": "2026-09-07T02:04:11.775Z"
+    },
+    {
+      "type": "BUILD_VALIDATION",
+      "impact": "HIGH",
+      "message": "> Compilation error. See log for more details",
+      "file": null,
+      "task": ":app:testDebugUnitTest",
+      "source": "ANDROID_VALIDATION",
+      "classification": "REVIEW_REQUIRED",
+      "detectedAt": "2026-09-07T02:04:11.775Z"
+    },
+    {
+      "type": "BUILD_VALIDATION",
+      "impact": "HIGH",
+      "message": "> Task :app:compileDebugKotlin FAILED",
+      "file": null,
+      "task": ":app:testDebugUnitTest",
+      "source": "ANDROID_VALIDATION",
+      "classification": "REVIEW_REQUIRED",
+      "detectedAt": "2026-09-07T02:04:11.775Z"
+    },
+    {
+      "type": "BUILD_VALIDATION",
+      "impact": "HIGH",
+      "message": "BUILD FAILED in 1m 43s",
+      "file": null,
+      "task": ":app:testDebugUnitTest",
+      "source": "ANDROID_VALIDATION",
+      "classification": "REVIEW_REQUIRED",
+      "detectedAt": "2026-09-07T02:04:11.775Z"
+    },
+    {
+      "type": "BUILD_VALIDATION",
+      "impact": "HIGH",
+      "message": "Execution failed for task ':app:compileDebugKotlin'.",
+      "file": null,
+      "task": ":app:testDebugUnitTest",
+      "source": "ANDROID_VALIDATION",
+      "classification": "REVIEW_REQUIRED",
+      "detectedAt": "2026-09-07T02:04:11.775Z"
+    },
+    {
+      "type": "BUILD_VALIDATION",
+      "impact": "HIGH",
+      "message": "FAILURE: Build failed with an exception.",
+      "file": null,
+      "task": ":app:testDebugUnitTest",
+      "source": "ANDROID_VALIDATION",
+      "classification": "REVIEW_REQUIRED",
+      "detectedAt": "2026-09-07T02:04:11.775Z"
+    },
+    {
+      "type": "LINT",
+      "impact": "HIGH",
+      "message": "org.gradle.api.tasks.TaskExecutionException: Execution failed for task ':app:compileDebugKotlin'.",
+      "file": "org.gradle",
+      "task": ":app:lintDebug",
+      "source": "ANDROID_VALIDATION",
+      "classification": "REVIEW_REQUIRED",
+      "detectedAt": "2026-09-07T02:04:11.775Z"
+    },
+    {
+      "type": "LINT",
+      "impact": "HIGH",
+      "message": "Caused by: org.jetbrains.kotlin.gradle.tasks.CompilationErrorException: Compilation error. See log for more details",
+      "file": "org.jetbrains.kotlin.gradle",
+      "task": ":app:lintDebug",
+      "source": "ANDROID_VALIDATION",
+      "classification": "REVIEW_REQUIRED",
+      "detectedAt": "2026-09-07T02:04:11.775Z"
+    },
+    {
+      "type": "LINT",
+      "impact": "HIGH",
+      "message": "* Exception is:",
+      "file": null,
+      "task": ":app:lintDebug",
+      "source": "ANDROID_VALIDATION",
+      "classification": "REVIEW_REQUIRED",
+      "detectedAt": "2026-09-07T02:04:11.775Z"
+    },
+    {
+      "type": "LINT",
+      "impact": "HIGH",
+      "message": "> Compilation error. See log for more details",
+      "file": null,
+      "task": ":app:lintDebug",
+      "source": "ANDROID_VALIDATION",
+      "classification": "REVIEW_REQUIRED",
+      "detectedAt": "2026-09-07T02:04:11.775Z"
+    },
+    {
+      "type": "LINT",
+      "impact": "HIGH",
+      "message": "> Task :app:compileDebugKotlin FAILED",
+      "file": null,
+      "task": ":app:lintDebug",
+      "source": "ANDROID_VALIDATION",
+      "classification": "REVIEW_REQUIRED",
+      "detectedAt": "2026-09-07T02:04:11.775Z"
+    },
+    {
+      "type": "LINT",
+      "impact": "HIGH",
+      "message": "BUILD FAILED in 26s",
+      "file": null,
+      "task": ":app:lintDebug",
+      "source": "ANDROID_VALIDATION",
+      "classification": "REVIEW_REQUIRED",
+      "detectedAt": "2026-09-07T02:04:11.775Z"
+    },
+    {
+      "type": "LINT",
+      "impact": "HIGH",
+      "message": "Execution failed for task ':app:compileDebugKotlin'.",
+      "file": null,
+      "task": ":app:lintDebug",
+      "source": "ANDROID_VALIDATION",
+      "classification": "REVIEW_REQUIRED",
+      "detectedAt": "2026-09-07T02:04:11.775Z"
+    },
+    {
+      "type": "LINT",
+      "impact": "HIGH",
+      "message": "FAILURE: Build failed with an exception.",
+      "file": null,
+      "task": ":app:lintDebug",
+      "source": "ANDROID_VALIDATION",
+      "classification": "REVIEW_REQUIRED",
+      "detectedAt": "2026-09-07T02:04:11.775Z"
+    },
+    {
       "type": "COMPLEXITY",
       "impact": "MEDIUM",
       "message": "File product-governance.js is too large (>500 lines)",
@@ -9,7 +189,7 @@
       "task": null,
       "source": "DEEP_SCAN",
       "classification": "REVIEW_REQUIRED",
-      "detectedAt": "2026-05-31T15:00:01.005Z"
+      "detectedAt": "2026-09-07T02:04:11.775Z"
     },
     {
       "type": "COMPLEXITY",
@@ -19,7 +199,7 @@
       "task": null,
       "source": "DEEP_SCAN",
       "classification": "REVIEW_REQUIRED",
-      "detectedAt": "2026-05-31T15:00:01.005Z"
+      "detectedAt": "2026-09-07T02:04:11.775Z"
     },
     {
       "type": "COMPLEXITY",
@@ -29,7 +209,7 @@
       "task": null,
       "source": "DEEP_SCAN",
       "classification": "REVIEW_REQUIRED",
-      "detectedAt": "2026-05-31T15:00:01.005Z"
+      "detectedAt": "2026-09-07T02:04:11.775Z"
     },
     {
       "type": "COMPLEXITY",
@@ -39,7 +219,7 @@
       "task": null,
       "source": "DEEP_SCAN",
       "classification": "REVIEW_REQUIRED",
-      "detectedAt": "2026-05-31T15:00:01.005Z"
+      "detectedAt": "2026-09-07T02:04:11.775Z"
     },
     {
       "type": "COMPLEXITY",
@@ -49,7 +229,47 @@
       "task": null,
       "source": "DEEP_SCAN",
       "classification": "REVIEW_REQUIRED",
-      "detectedAt": "2026-05-31T15:00:01.005Z"
+      "detectedAt": "2026-09-07T02:04:11.775Z"
+    },
+    {
+      "type": "COMPLEXITY",
+      "impact": "MEDIUM",
+      "message": "File founder-feedback-learning-layer.js is too large (>500 lines)",
+      "file": "ai-cto/whatsapp/founder-feedback-learning-layer.js",
+      "task": null,
+      "source": "DEEP_SCAN",
+      "classification": "REVIEW_REQUIRED",
+      "detectedAt": "2026-09-07T02:04:11.775Z"
+    },
+    {
+      "type": "COMPLEXITY",
+      "impact": "MEDIUM",
+      "message": "File founder-mind-reconstruction-engine.js is too large (>500 lines)",
+      "file": "ai-cto/whatsapp/founder-mind-reconstruction-engine.js",
+      "task": null,
+      "source": "DEEP_SCAN",
+      "classification": "REVIEW_REQUIRED",
+      "detectedAt": "2026-09-07T02:04:11.775Z"
+    },
+    {
+      "type": "COMPLEXITY",
+      "impact": "MEDIUM",
+      "message": "File founder-objective-engine.js is too large (>500 lines)",
+      "file": "ai-cto/whatsapp/founder-objective-engine.js",
+      "task": null,
+      "source": "DEEP_SCAN",
+      "classification": "REVIEW_REQUIRED",
+      "detectedAt": "2026-09-07T02:04:11.775Z"
+    },
+    {
+      "type": "COMPLEXITY",
+      "impact": "MEDIUM",
+      "message": "File memory-store.js is too large (>500 lines)",
+      "file": "ai-cto/whatsapp/memory-store.js",
+      "task": null,
+      "source": "DEEP_SCAN",
+      "classification": "REVIEW_REQUIRED",
+      "detectedAt": "2026-09-07T02:04:11.775Z"
     },
     {
       "type": "COMPLEXITY",
@@ -59,7 +279,7 @@
       "task": null,
       "source": "DEEP_SCAN",
       "classification": "REVIEW_REQUIRED",
-      "detectedAt": "2026-05-31T15:00:01.005Z"
+      "detectedAt": "2026-09-07T02:04:11.775Z"
     },
     {
       "type": "COMPLEXITY",
@@ -69,7 +289,7 @@
       "task": null,
       "source": "DEEP_SCAN",
       "classification": "REVIEW_REQUIRED",
-      "detectedAt": "2026-05-31T15:00:01.005Z"
+      "detectedAt": "2026-09-07T02:04:11.775Z"
     },
     {
       "type": "COMPLEXITY",
@@ -79,7 +299,7 @@
       "task": null,
       "source": "DEEP_SCAN",
       "classification": "REVIEW_REQUIRED",
-      "detectedAt": "2026-05-31T15:00:01.005Z"
+      "detectedAt": "2026-09-07T02:04:11.775Z"
     },
     {
       "type": "COMPLEXITY",
@@ -89,7 +309,7 @@
       "task": null,
       "source": "DEEP_SCAN",
       "classification": "REVIEW_REQUIRED",
-      "detectedAt": "2026-05-31T15:00:01.005Z"
+      "detectedAt": "2026-09-07T02:04:11.775Z"
     },
     {
       "type": "COMPLEXITY",
@@ -99,7 +319,17 @@
       "task": null,
       "source": "DEEP_SCAN",
       "classification": "REVIEW_REQUIRED",
-      "detectedAt": "2026-05-31T15:00:01.005Z"
+      "detectedAt": "2026-09-07T02:04:11.775Z"
+    },
+    {
+      "type": "COMPLEXITY",
+      "impact": "MEDIUM",
+      "message": "File JarvisWakeWordService.kt is too large (>500 lines)",
+      "file": "app/src/main/java/com/example/mykeyboard/personal/JarvisWakeWordService.kt",
+      "task": null,
+      "source": "DEEP_SCAN",
+      "classification": "REVIEW_REQUIRED",
+      "detectedAt": "2026-09-07T02:04:11.775Z"
     },
     {
       "type": "COMPLEXITY",
@@ -109,7 +339,7 @@
       "task": null,
       "source": "DEEP_SCAN",
       "classification": "REVIEW_REQUIRED",
-      "detectedAt": "2026-05-31T15:00:01.005Z"
+      "detectedAt": "2026-09-07T02:04:11.775Z"
     },
     {
       "type": "COMPLEXITY",
@@ -119,7 +349,7 @@
       "task": null,
       "source": "DEEP_SCAN",
       "classification": "REVIEW_REQUIRED",
-      "detectedAt": "2026-05-31T15:00:01.005Z"
+      "detectedAt": "2026-09-07T02:04:11.775Z"
     },
     {
       "type": "COMPLEXITY",
@@ -129,7 +359,7 @@
       "task": null,
       "source": "DEEP_SCAN",
       "classification": "REVIEW_REQUIRED",
-      "detectedAt": "2026-05-31T15:00:01.005Z"
+      "detectedAt": "2026-09-07T02:04:11.775Z"
     },
     {
       "type": "COMPLEXITY",
@@ -139,119 +369,41 @@
       "task": null,
       "source": "DEEP_SCAN",
       "classification": "REVIEW_REQUIRED",
-      "detectedAt": "2026-05-31T15:00:01.005Z"
+      "detectedAt": "2026-09-07T02:04:11.775Z"
     }
   ],
-  "lastAnalysis": "2026-05-31T15:00:01.005Z",
-  "healthScore": 30,
+  "lastAnalysis": "2026-09-07T02:04:11.775Z",
+  "healthScore": 0,
   "momentum": "STALLED",
   "trendHistory": [
     {
-      "timestamp": "2026-05-22T08:31:04.203Z",
+      "timestamp": "2026-09-07T02:04:11.775Z",
       "healthScore": 0,
       "momentum": "STALLED",
-      "issueCount": 14,
-      "criticalCount": 1,
-      "highCount": 6,
+      "issueCount": 37,
+      "criticalCount": 2,
+      "highCount": 16,
       "files": [
-        "ai-cto/scripts/test-live-scan-grounding.js",
-        "ai-cto/scripts/test-execution-engine.js",
-        "ai-cto/scripts/test-live-scan-grounding.js",
-        "ai-cto/scripts/test-safe-execution-engine.js",
-        "ai-cto/scripts/test-safe-maintenance-engine.js",
-        "ai-cto/scripts/test-task-pipeline.js",
-        "chaos_test.js",
-        "ai-cto/whatsapp/natural-response-builder.js",
-        "app/src/main/java/com/example/mykeyboard/KeyboardService.kt",
-        "app/src/main/java/com/example/mykeyboard/MainActivity.kt",
-        "app/src/main/java/com/example/mykeyboard/metrics/KeyboardMetrics.kt",
-        "app/src/main/java/com/example/mykeyboard/predictor/BasicPredictor.kt",
-        "app/src/main/java/com/example/mykeyboard/swipe/SwipeWordResolver.kt",
-        "app/src/test/java/com/example/mykeyboard/InputReplayFailureInjectionTest.kt"
-      ]
-    },
-    {
-      "timestamp": "2026-05-22T08:32:32.800Z",
-      "healthScore": 0,
-      "momentum": "STALLED",
-      "issueCount": 13,
-      "criticalCount": 0,
-      "highCount": 6,
-      "files": [
-        "ai-cto/scripts/test-execution-engine.js",
-        "ai-cto/scripts/test-live-scan-grounding.js",
-        "ai-cto/scripts/test-safe-execution-engine.js",
-        "ai-cto/scripts/test-safe-maintenance-engine.js",
-        "ai-cto/scripts/test-task-pipeline.js",
-        "chaos_test.js",
-        "ai-cto/whatsapp/natural-response-builder.js",
-        "app/src/main/java/com/example/mykeyboard/KeyboardService.kt",
-        "app/src/main/java/com/example/mykeyboard/MainActivity.kt",
-        "app/src/main/java/com/example/mykeyboard/metrics/KeyboardMetrics.kt",
-        "app/src/main/java/com/example/mykeyboard/predictor/BasicPredictor.kt",
-        "app/src/main/java/com/example/mykeyboard/swipe/SwipeWordResolver.kt",
-        "app/src/test/java/com/example/mykeyboard/InputReplayFailureInjectionTest.kt"
-      ]
-    },
-    {
-      "timestamp": "2026-05-22T08:33:50.027Z",
-      "healthScore": 65,
-      "momentum": "STALLED",
-      "issueCount": 7,
-      "criticalCount": 0,
-      "highCount": 0,
-      "files": [
-        "ai-cto/whatsapp/natural-response-builder.js",
-        "app/src/main/java/com/example/mykeyboard/KeyboardService.kt",
-        "app/src/main/java/com/example/mykeyboard/MainActivity.kt",
-        "app/src/main/java/com/example/mykeyboard/metrics/KeyboardMetrics.kt",
-        "app/src/main/java/com/example/mykeyboard/predictor/BasicPredictor.kt",
-        "app/src/main/java/com/example/mykeyboard/swipe/SwipeWordResolver.kt",
-        "app/src/test/java/com/example/mykeyboard/InputReplayFailureInjectionTest.kt"
-      ]
-    },
-    {
-      "timestamp": "2026-05-31T14:49:05.324Z",
-      "healthScore": 30,
-      "momentum": "STALLED",
-      "issueCount": 14,
-      "criticalCount": 0,
-      "highCount": 0,
-      "files": [
+        "ai-cto/whatsapp/founder-feedback-learning-layer.js",
+        "org.gradle",
+        "org.jetbrains.kotlin.gradle",
+        "org.gradle",
+        "org.jetbrains.kotlin.gradle",
         "ai-cto/product-governance.js",
         "ai-cto/scripts/ai-execution-bridge.js",
         "ai-cto/scripts/test-nvidia-ai-bridge.js",
         "ai-cto/whatsapp-server.js",
         "ai-cto/whatsapp/command-router.js",
+        "ai-cto/whatsapp/founder-feedback-learning-layer.js",
+        "ai-cto/whatsapp/founder-mind-reconstruction-engine.js",
+        "ai-cto/whatsapp/founder-objective-engine.js",
+        "ai-cto/whatsapp/memory-store.js",
         "ai-cto/whatsapp/natural-response-builder.js",
         "ai-cto/whatsapp/vision-command-manager.js",
         "app/src/main/java/com/example/mykeyboard/KeyboardService.kt",
         "app/src/main/java/com/example/mykeyboard/MainActivity.kt",
         "app/src/main/java/com/example/mykeyboard/metrics/KeyboardMetrics.kt",
-        "app/src/main/java/com/example/mykeyboard/predictor/BasicPredictor.kt",
-        "app/src/main/java/com/example/mykeyboard/swipe/SwipeWordResolver.kt",
-        "app/src/test/java/com/example/mykeyboard/InputReplayFailureInjectionTest.kt",
-        "app/src/test/java/com/example/mykeyboard/predictor/BasicPredictorTest.kt"
-      ]
-    },
-    {
-      "timestamp": "2026-05-31T15:00:01.005Z",
-      "healthScore": 30,
-      "momentum": "STALLED",
-      "issueCount": 14,
-      "criticalCount": 0,
-      "highCount": 0,
-      "files": [
-        "ai-cto/product-governance.js",
-        "ai-cto/scripts/ai-execution-bridge.js",
-        "ai-cto/scripts/test-nvidia-ai-bridge.js",
-        "ai-cto/whatsapp-server.js",
-        "ai-cto/whatsapp/command-router.js",
-        "ai-cto/whatsapp/natural-response-builder.js",
-        "ai-cto/whatsapp/vision-command-manager.js",
-        "app/src/main/java/com/example/mykeyboard/KeyboardService.kt",
-        "app/src/main/java/com/example/mykeyboard/MainActivity.kt",
-        "app/src/main/java/com/example/mykeyboard/metrics/KeyboardMetrics.kt",
+        "app/src/main/java/com/example/mykeyboard/personal/JarvisWakeWordService.kt",
         "app/src/main/java/com/example/mykeyboard/predictor/BasicPredictor.kt",
         "app/src/main/java/com/example/mykeyboard/swipe/SwipeWordResolver.kt",
         "app/src/test/java/com/example/mykeyboard/InputReplayFailureInjectionTest.kt",
@@ -260,54 +412,95 @@
     }
   ],
   "recurringFailures": {
+    "BUILD_VALIDATION|repo|BUILD FAILED in 1m 23s": 1,
+    "SECURITY|ai-cto/whatsapp/founder-feedback-learning-layer.js|Hardcoded Secret in founder-feedback-learning-layer.js": 1,
+    "BUILD_VALIDATION|org.gradle|org.gradle.api.tasks.TaskExecutionException: Execution failed for task ':app:compileDebugKotlin'.": 1,
+    "BUILD_VALIDATION|org.jetbrains.kotlin.gradle|Caused by: org.jetbrains.kotlin.gradle.tasks.CompilationErrorException: Compilation error. See log for more details": 1,
+    "BUILD_VALIDATION|repo|* Exception is:": 1,
+    "BUILD_VALIDATION|repo|> Compilation error. See log for more details": 1,
+    "BUILD_VALIDATION|repo|> Task :app:compileDebugKotlin FAILED": 1,
+    "BUILD_VALIDATION|repo|BUILD FAILED in 1m 43s": 1,
+    "BUILD_VALIDATION|repo|Execution failed for task ':app:compileDebugKotlin'.": 1,
+    "BUILD_VALIDATION|repo|FAILURE: Build failed with an exception.": 1,
+    "LINT|org.gradle|org.gradle.api.tasks.TaskExecutionException: Execution failed for task ':app:compileDebugKotlin'.": 1,
+    "LINT|org.jetbrains.kotlin.gradle|Caused by: org.jetbrains.kotlin.gradle.tasks.CompilationErrorException: Compilation error. See log for more details": 1,
+    "LINT|repo|* Exception is:": 1,
+    "LINT|repo|> Compilation error. See log for more details": 1,
+    "LINT|repo|> Task :app:compileDebugKotlin FAILED": 1,
+    "LINT|repo|BUILD FAILED in 26s": 1,
+    "LINT|repo|Execution failed for task ':app:compileDebugKotlin'.": 1,
+    "LINT|repo|FAILURE: Build failed with an exception.": 1,
     "COMPLEXITY|ai-cto/product-governance.js|File product-governance.js is too large (>500 lines)": 1,
     "COMPLEXITY|ai-cto/scripts/ai-execution-bridge.js|File ai-execution-bridge.js is too large (>500 lines)": 1,
     "COMPLEXITY|ai-cto/scripts/test-nvidia-ai-bridge.js|File test-nvidia-ai-bridge.js is too large (>500 lines)": 1,
     "COMPLEXITY|ai-cto/whatsapp-server.js|File whatsapp-server.js is too large (>500 lines)": 1,
     "COMPLEXITY|ai-cto/whatsapp/command-router.js|File command-router.js is too large (>500 lines)": 1,
+    "COMPLEXITY|ai-cto/whatsapp/founder-feedback-learning-layer.js|File founder-feedback-learning-layer.js is too large (>500 lines)": 1,
+    "COMPLEXITY|ai-cto/whatsapp/founder-mind-reconstruction-engine.js|File founder-mind-reconstruction-engine.js is too large (>500 lines)": 1,
+    "COMPLEXITY|ai-cto/whatsapp/founder-objective-engine.js|File founder-objective-engine.js is too large (>500 lines)": 1,
+    "COMPLEXITY|ai-cto/whatsapp/memory-store.js|File memory-store.js is too large (>500 lines)": 1,
     "COMPLEXITY|ai-cto/whatsapp/natural-response-builder.js|File natural-response-builder.js is too large (>500 lines)": 1,
     "COMPLEXITY|ai-cto/whatsapp/vision-command-manager.js|File vision-command-manager.js is too large (>500 lines)": 1,
     "COMPLEXITY|app/src/main/java/com/example/mykeyboard/KeyboardService.kt|File KeyboardService.kt is too large (>500 lines)": 1,
     "COMPLEXITY|app/src/main/java/com/example/mykeyboard/MainActivity.kt|File MainActivity.kt is too large (>500 lines)": 1,
     "COMPLEXITY|app/src/main/java/com/example/mykeyboard/metrics/KeyboardMetrics.kt|File KeyboardMetrics.kt is too large (>500 lines)": 1,
+    "COMPLEXITY|app/src/main/java/com/example/mykeyboard/personal/JarvisWakeWordService.kt|File JarvisWakeWordService.kt is too large (>500 lines)": 1,
     "COMPLEXITY|app/src/main/java/com/example/mykeyboard/predictor/BasicPredictor.kt|File BasicPredictor.kt is too large (>500 lines)": 1,
     "COMPLEXITY|app/src/main/java/com/example/mykeyboard/swipe/SwipeWordResolver.kt|File SwipeWordResolver.kt is too large (>500 lines)": 1,
     "COMPLEXITY|app/src/test/java/com/example/mykeyboard/InputReplayFailureInjectionTest.kt|File InputReplayFailureInjectionTest.kt is too large (>500 lines)": 1,
     "COMPLEXITY|app/src/test/java/com/example/mykeyboard/predictor/BasicPredictorTest.kt|File BasicPredictorTest.kt is too large (>500 lines)": 1
   },
   "fileInstability": {
-    "ai-cto/scripts/test-live-scan-grounding.js": 3,
-    "ai-cto/scripts/test-execution-engine.js": 2,
-    "ai-cto/scripts/test-safe-execution-engine.js": 2,
-    "ai-cto/scripts/test-safe-maintenance-engine.js": 2,
-    "ai-cto/scripts/test-task-pipeline.js": 2,
-    "chaos_test.js": 2,
-    "ai-cto/whatsapp/natural-response-builder.js": 5,
-    "app/src/main/java/com/example/mykeyboard/KeyboardService.kt": 5,
-    "app/src/main/java/com/example/mykeyboard/MainActivity.kt": 5,
-    "app/src/main/java/com/example/mykeyboard/metrics/KeyboardMetrics.kt": 5,
-    "app/src/main/java/com/example/mykeyboard/predictor/BasicPredictor.kt": 5,
-    "app/src/main/java/com/example/mykeyboard/swipe/SwipeWordResolver.kt": 5,
-    "app/src/test/java/com/example/mykeyboard/InputReplayFailureInjectionTest.kt": 5,
-    "ai-cto/product-governance.js": 2,
-    "ai-cto/scripts/ai-execution-bridge.js": 2,
-    "ai-cto/scripts/test-nvidia-ai-bridge.js": 2,
-    "ai-cto/whatsapp-server.js": 2,
-    "ai-cto/whatsapp/command-router.js": 2,
-    "ai-cto/whatsapp/vision-command-manager.js": 2,
-    "app/src/test/java/com/example/mykeyboard/predictor/BasicPredictorTest.kt": 2
+    "ai-cto/whatsapp/founder-feedback-learning-layer.js": 2,
+    "org.gradle": 2,
+    "org.jetbrains.kotlin.gradle": 2,
+    "ai-cto/product-governance.js": 1,
+    "ai-cto/scripts/ai-execution-bridge.js": 1,
+    "ai-cto/scripts/test-nvidia-ai-bridge.js": 1,
+    "ai-cto/whatsapp-server.js": 1,
+    "ai-cto/whatsapp/command-router.js": 1,
+    "ai-cto/whatsapp/founder-mind-reconstruction-engine.js": 1,
+    "ai-cto/whatsapp/founder-objective-engine.js": 1,
+    "ai-cto/whatsapp/memory-store.js": 1,
+    "ai-cto/whatsapp/natural-response-builder.js": 1,
+    "ai-cto/whatsapp/vision-command-manager.js": 1,
+    "app/src/main/java/com/example/mykeyboard/KeyboardService.kt": 1,
+    "app/src/main/java/com/example/mykeyboard/MainActivity.kt": 1,
+    "app/src/main/java/com/example/mykeyboard/metrics/KeyboardMetrics.kt": 1,
+    "app/src/main/java/com/example/mykeyboard/personal/JarvisWakeWordService.kt": 1,
+    "app/src/main/java/com/example/mykeyboard/predictor/BasicPredictor.kt": 1,
+    "app/src/main/java/com/example/mykeyboard/swipe/SwipeWordResolver.kt": 1,
+    "app/src/test/java/com/example/mykeyboard/InputReplayFailureInjectionTest.kt": 1,
+    "app/src/test/java/com/example/mykeyboard/predictor/BasicPredictorTest.kt": 1
   },
   "memoryPolicy": {
     "fullMemoryFrom": "2026-06-04",
     "resetAllowed": false,
     "storage": "ai-cto/.brain_state.json"
   },
-  "schoolModeMemory": [],
+  "schoolModeMemory": [
+    {
+      "timestamp": "2026-09-07T02:04:11.775Z",
+      "healthScore": 0,
+      "momentum": "STALLED",
+      "topRisks": [
+        "BUILD FAILED in 1m 23s",
+        "Hardcoded Secret in founder-feedback-learning-layer.js",
+        "org.gradle.api.tasks.TaskExecutionException: Execution failed for task ':app:compileDebugKotlin'."
+      ],
+      "agentSummary": "CTO scanned, validation checked, risks ranked, founder report prepared.",
+      "founderApprovalsNeeded": [
+        "BUILD FAILED in 1m 23s",
+        "Hardcoded Secret in founder-feedback-learning-layer.js",
+        "File SwipeWordResolver.kt is too large (>500 lines)"
+      ]
+    }
+  ],
   "scanMode": "LIVE_REPO_SCAN",
   "liveScan": {
-    "scannedAt": "2026-05-31T15:00:01.005Z",
+    "scannedAt": "2026-09-07T02:04:11.775Z",
     "source": "actual_repo_files",
-    "issueCount": 14,
-    "hardcodedSecretCount": 0
+    "issueCount": 37,
+    "hardcodedSecretCount": 1
   }
 }
