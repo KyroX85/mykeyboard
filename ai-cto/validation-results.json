@@ -1,0 +1,473 @@
+{
+  "version": "1.0",
+  "generatedAt": "2026-09-26T15:28:33.506Z",
+  "validation": [
+    {
+      "task": ":app:testDebugUnitTest",
+      "command": "./gradlew :app:testDebugUnitTest --no-daemon --stacktrace",
+      "status": "failed",
+      "exitCode": 1,
+      "startedAt": "2026-09-26T15:24:44.881Z",
+      "completedAt": "2026-09-26T15:26:36.830Z",
+      "durationMs": 111948,
+      "findings": [
+        {
+          "type": "BUILD_VALIDATION",
+          "impact": "HIGH",
+          "task": ":app:testDebugUnitTest",
+          "message": "> Task :app:compileDebugKotlin FAILED",
+          "file": null,
+          "line": 37,
+          "source": "ANDROID_VALIDATION"
+        },
+        {
+          "type": "BUILD_VALIDATION",
+          "impact": "HIGH",
+          "task": ":app:testDebugUnitTest",
+          "message": "FAILURE: Build failed with an exception.",
+          "file": null,
+          "line": 47,
+          "source": "ANDROID_VALIDATION"
+        },
+        {
+          "type": "BUILD_VALIDATION",
+          "impact": "HIGH",
+          "task": ":app:testDebugUnitTest",
+          "message": "Execution failed for task ':app:compileDebugKotlin'.",
+          "file": null,
+          "line": 50,
+          "source": "ANDROID_VALIDATION"
+        },
+        {
+          "type": "BUILD_VALIDATION",
+          "impact": "HIGH",
+          "task": ":app:testDebugUnitTest",
+          "message": "> Compilation error. See log for more details",
+          "file": null,
+          "line": 52,
+          "source": "ANDROID_VALIDATION"
+        },
+        {
+          "type": "BUILD_VALIDATION",
+          "impact": "HIGH",
+          "task": ":app:testDebugUnitTest",
+          "message": "* Exception is:",
+          "file": null,
+          "line": 59,
+          "source": "ANDROID_VALIDATION"
+        },
+        {
+          "type": "BUILD_VALIDATION",
+          "impact": "HIGH",
+          "task": ":app:testDebugUnitTest",
+          "message": "org.gradle.api.tasks.TaskExecutionException: Execution failed for task ':app:compileDebugKotlin'.",
+          "file": "org.gradle",
+          "line": 60,
+          "source": "ANDROID_VALIDATION"
+        },
+        {
+          "type": "BUILD_VALIDATION",
+          "impact": "HIGH",
+          "task": ":app:testDebugUnitTest",
+          "message": "Caused by: org.jetbrains.kotlin.gradle.tasks.CompilationErrorException: Compilation error. See log for more details",
+          "file": "org.jetbrains.kotlin.gradle",
+          "line": 197,
+          "source": "ANDROID_VALIDATION"
+        },
+        {
+          "type": "BUILD_VALIDATION",
+          "impact": "HIGH",
+          "task": ":app:testDebugUnitTest",
+          "message": "BUILD FAILED in 1m 51s",
+          "file": null,
+          "line": 233,
+          "source": "ANDROID_VALIDATION"
+        }
+      ]
+    },
+    {
+      "task": ":app:assembleDebug",
+      "command": "./gradlew :app:assembleDebug --no-daemon --stacktrace",
+      "status": "failed",
+      "exitCode": 1,
+      "startedAt": "2026-09-26T15:26:36.832Z",
+      "completedAt": "2026-09-26T15:28:05.875Z",
+      "durationMs": 89043,
+      "findings": [
+        {
+          "type": "BUILD_VALIDATION",
+          "impact": "CRITICAL",
+          "task": ":app:assembleDebug",
+          "message": "> Task :app:compileDebugKotlin FAILED",
+          "file": null,
+          "line": 24,
+          "source": "ANDROID_VALIDATION"
+        },
+        {
+          "type": "BUILD_VALIDATION",
+          "impact": "CRITICAL",
+          "task": ":app:assembleDebug",
+          "message": "FAILURE: Build failed with an exception.",
+          "file": null,
+          "line": 34,
+          "source": "ANDROID_VALIDATION"
+        },
+        {
+          "type": "BUILD_VALIDATION",
+          "impact": "CRITICAL",
+          "task": ":app:assembleDebug",
+          "message": "Execution failed for task ':app:compileDebugKotlin'.",
+          "file": null,
+          "line": 37,
+          "source": "ANDROID_VALIDATION"
+        },
+        {
+          "type": "BUILD_VALIDATION",
+          "impact": "CRITICAL",
+          "task": ":app:assembleDebug",
+          "message": "> Compilation error. See log for more details",
+          "file": null,
+          "line": 39,
+          "source": "ANDROID_VALIDATION"
+        },
+        {
+          "type": "BUILD_VALIDATION",
+          "impact": "CRITICAL",
+          "task": ":app:assembleDebug",
+          "message": "* Exception is:",
+          "file": null,
+          "line": 46,
+          "source": "ANDROID_VALIDATION"
+        },
+        {
+          "type": "BUILD_VALIDATION",
+          "impact": "CRITICAL",
+          "task": ":app:assembleDebug",
+          "message": "org.gradle.api.tasks.TaskExecutionException: Execution failed for task ':app:compileDebugKotlin'.",
+          "file": "org.gradle",
+          "line": 47,
+          "source": "ANDROID_VALIDATION"
+        },
+        {
+          "type": "BUILD_VALIDATION",
+          "impact": "CRITICAL",
+          "task": ":app:assembleDebug",
+          "message": "Caused by: org.jetbrains.kotlin.gradle.tasks.CompilationErrorException: Compilation error. See log for more details",
+          "file": "org.jetbrains.kotlin.gradle",
+          "line": 184,
+          "source": "ANDROID_VALIDATION"
+        },
+        {
+          "type": "BUILD_VALIDATION",
+          "impact": "CRITICAL",
+          "task": ":app:assembleDebug",
+          "message": "BUILD FAILED in 1m 28s",
+          "file": null,
+          "line": 220,
+          "source": "ANDROID_VALIDATION"
+        }
+      ]
+    },
+    {
+      "task": ":app:lintDebug",
+      "command": "./gradlew :app:lintDebug --no-daemon --stacktrace",
+      "status": "failed",
+      "exitCode": 1,
+      "startedAt": "2026-09-26T15:28:05.876Z",
+      "completedAt": "2026-09-26T15:28:33.505Z",
+      "durationMs": 27629,
+      "findings": [
+        {
+          "type": "LINT",
+          "impact": "HIGH",
+          "task": ":app:lintDebug",
+          "message": "> Task :app:compileDebugKotlin FAILED",
+          "file": null,
+          "line": 26,
+          "source": "ANDROID_VALIDATION"
+        },
+        {
+          "type": "LINT",
+          "impact": "HIGH",
+          "task": ":app:lintDebug",
+          "message": "FAILURE: Build failed with an exception.",
+          "file": null,
+          "line": 36,
+          "source": "ANDROID_VALIDATION"
+        },
+        {
+          "type": "LINT",
+          "impact": "HIGH",
+          "task": ":app:lintDebug",
+          "message": "Execution failed for task ':app:compileDebugKotlin'.",
+          "file": null,
+          "line": 39,
+          "source": "ANDROID_VALIDATION"
+        },
+        {
+          "type": "LINT",
+          "impact": "HIGH",
+          "task": ":app:lintDebug",
+          "message": "> Compilation error. See log for more details",
+          "file": null,
+          "line": 41,
+          "source": "ANDROID_VALIDATION"
+        },
+        {
+          "type": "LINT",
+          "impact": "HIGH",
+          "task": ":app:lintDebug",
+          "message": "* Exception is:",
+          "file": null,
+          "line": 48,
+          "source": "ANDROID_VALIDATION"
+        },
+        {
+          "type": "LINT",
+          "impact": "HIGH",
+          "task": ":app:lintDebug",
+          "message": "org.gradle.api.tasks.TaskExecutionException: Execution failed for task ':app:compileDebugKotlin'.",
+          "file": "org.gradle",
+          "line": 49,
+          "source": "ANDROID_VALIDATION"
+        },
+        {
+          "type": "LINT",
+          "impact": "HIGH",
+          "task": ":app:lintDebug",
+          "message": "Caused by: org.jetbrains.kotlin.gradle.tasks.CompilationErrorException: Compilation error. See log for more details",
+          "file": "org.jetbrains.kotlin.gradle",
+          "line": 186,
+          "source": "ANDROID_VALIDATION"
+        },
+        {
+          "type": "LINT",
+          "impact": "HIGH",
+          "task": ":app:lintDebug",
+          "message": "BUILD FAILED in 27s",
+          "file": null,
+          "line": 222,
+          "source": "ANDROID_VALIDATION"
+        }
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "type": "BUILD_VALIDATION",
+      "impact": "HIGH",
+      "task": ":app:testDebugUnitTest",
+      "message": "> Task :app:compileDebugKotlin FAILED",
+      "file": null,
+      "line": 37,
+      "source": "ANDROID_VALIDATION"
+    },
+    {
+      "type": "BUILD_VALIDATION",
+      "impact": "HIGH",
+      "task": ":app:testDebugUnitTest",
+      "message": "FAILURE: Build failed with an exception.",
+      "file": null,
+      "line": 47,
+      "source": "ANDROID_VALIDATION"
+    },
+    {
+      "type": "BUILD_VALIDATION",
+      "impact": "HIGH",
+      "task": ":app:testDebugUnitTest",
+      "message": "Execution failed for task ':app:compileDebugKotlin'.",
+      "file": null,
+      "line": 50,
+      "source": "ANDROID_VALIDATION"
+    },
+    {
+      "type": "BUILD_VALIDATION",
+      "impact": "HIGH",
+      "task": ":app:testDebugUnitTest",
+      "message": "> Compilation error. See log for more details",
+      "file": null,
+      "line": 52,
+      "source": "ANDROID_VALIDATION"
+    },
+    {
+      "type": "BUILD_VALIDATION",
+      "impact": "HIGH",
+      "task": ":app:testDebugUnitTest",
+      "message": "* Exception is:",
+      "file": null,
+      "line": 59,
+      "source": "ANDROID_VALIDATION"
+    },
+    {
+      "type": "BUILD_VALIDATION",
+      "impact": "HIGH",
+      "task": ":app:testDebugUnitTest",
+      "message": "org.gradle.api.tasks.TaskExecutionException: Execution failed for task ':app:compileDebugKotlin'.",
+      "file": "org.gradle",
+      "line": 60,
+      "source": "ANDROID_VALIDATION"
+    },
+    {
+      "type": "BUILD_VALIDATION",
+      "impact": "HIGH",
+      "task": ":app:testDebugUnitTest",
+      "message": "Caused by: org.jetbrains.kotlin.gradle.tasks.CompilationErrorException: Compilation error. See log for more details",
+      "file": "org.jetbrains.kotlin.gradle",
+      "line": 197,
+      "source": "ANDROID_VALIDATION"
+    },
+    {
+      "type": "BUILD_VALIDATION",
+      "impact": "HIGH",
+      "task": ":app:testDebugUnitTest",
+      "message": "BUILD FAILED in 1m 51s",
+      "file": null,
+      "line": 233,
+      "source": "ANDROID_VALIDATION"
+    },
+    {
+      "type": "BUILD_VALIDATION",
+      "impact": "CRITICAL",
+      "task": ":app:assembleDebug",
+      "message": "> Task :app:compileDebugKotlin FAILED",
+      "file": null,
+      "line": 24,
+      "source": "ANDROID_VALIDATION"
+    },
+    {
+      "type": "BUILD_VALIDATION",
+      "impact": "CRITICAL",
+      "task": ":app:assembleDebug",
+      "message": "FAILURE: Build failed with an exception.",
+      "file": null,
+      "line": 34,
+      "source": "ANDROID_VALIDATION"
+    },
+    {
+      "type": "BUILD_VALIDATION",
+      "impact": "CRITICAL",
+      "task": ":app:assembleDebug",
+      "message": "Execution failed for task ':app:compileDebugKotlin'.",
+      "file": null,
+      "line": 37,
+      "source": "ANDROID_VALIDATION"
+    },
+    {
+      "type": "BUILD_VALIDATION",
+      "impact": "CRITICAL",
+      "task": ":app:assembleDebug",
+      "message": "> Compilation error. See log for more details",
+      "file": null,
+      "line": 39,
+      "source": "ANDROID_VALIDATION"
+    },
+    {
+      "type": "BUILD_VALIDATION",
+      "impact": "CRITICAL",
+      "task": ":app:assembleDebug",
+      "message": "* Exception is:",
+      "file": null,
+      "line": 46,
+      "source": "ANDROID_VALIDATION"
+    },
+    {
+      "type": "BUILD_VALIDATION",
+      "impact": "CRITICAL",
+      "task": ":app:assembleDebug",
+      "message": "org.gradle.api.tasks.TaskExecutionException: Execution failed for task ':app:compileDebugKotlin'.",
+      "file": "org.gradle",
+      "line": 47,
+      "source": "ANDROID_VALIDATION"
+    },
+    {
+      "type": "BUILD_VALIDATION",
+      "impact": "CRITICAL",
+      "task": ":app:assembleDebug",
+      "message": "Caused by: org.jetbrains.kotlin.gradle.tasks.CompilationErrorException: Compilation error. See log for more details",
+      "file": "org.jetbrains.kotlin.gradle",
+      "line": 184,
+      "source": "ANDROID_VALIDATION"
+    },
+    {
+      "type": "BUILD_VALIDATION",
+      "impact": "CRITICAL",
+      "task": ":app:assembleDebug",
+      "message": "BUILD FAILED in 1m 28s",
+      "file": null,
+      "line": 220,
+      "source": "ANDROID_VALIDATION"
+    },
+    {
+      "type": "LINT",
+      "impact": "HIGH",
+      "task": ":app:lintDebug",
+      "message": "> Task :app:compileDebugKotlin FAILED",
+      "file": null,
+      "line": 26,
+      "source": "ANDROID_VALIDATION"
+    },
+    {
+      "type": "LINT",
+      "impact": "HIGH",
+      "task": ":app:lintDebug",
+      "message": "FAILURE: Build failed with an exception.",
+      "file": null,
+      "line": 36,
+      "source": "ANDROID_VALIDATION"
+    },
+    {
+      "type": "LINT",
+      "impact": "HIGH",
+      "task": ":app:lintDebug",
+      "message": "Execution failed for task ':app:compileDebugKotlin'.",
+      "file": null,
+      "line": 39,
+      "source": "ANDROID_VALIDATION"
+    },
+    {
+      "type": "LINT",
+      "impact": "HIGH",
+      "task": ":app:lintDebug",
+      "message": "> Compilation error. See log for more details",
+      "file": null,
+      "line": 41,
+      "source": "ANDROID_VALIDATION"
+    },
+    {
+      "type": "LINT",
+      "impact": "HIGH",
+      "task": ":app:lintDebug",
+      "message": "* Exception is:",
+      "file": null,
+      "line": 48,
+      "source": "ANDROID_VALIDATION"
+    },
+    {
+      "type": "LINT",
+      "impact": "HIGH",
+      "task": ":app:lintDebug",
+      "message": "org.gradle.api.tasks.TaskExecutionException: Execution failed for task ':app:compileDebugKotlin'.",
+      "file": "org.gradle",
+      "line": 49,
+      "source": "ANDROID_VALIDATION"
+    },
+    {
+      "type": "LINT",
+      "impact": "HIGH",
+      "task": ":app:lintDebug",
+      "message": "Caused by: org.jetbrains.kotlin.gradle.tasks.CompilationErrorException: Compilation error. See log for more details",
+      "file": "org.jetbrains.kotlin.gradle",
+      "line": 186,
+      "source": "ANDROID_VALIDATION"
+    },
+    {
+      "type": "LINT",
+      "impact": "HIGH",
+      "task": ":app:lintDebug",
+      "message": "BUILD FAILED in 27s",
+      "file": null,
+      "line": 222,
+      "source": "ANDROID_VALIDATION"
+    }
+  ]
+}
